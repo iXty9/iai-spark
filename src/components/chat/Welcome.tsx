@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface WelcomeProps {
   onStartChat: (message: string) => void;
@@ -8,15 +9,15 @@ interface WelcomeProps {
 
 export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   return (
-    <div className="flex flex-col items-center justify-center p-4 text-center h-full">
+    <div className="flex flex-col items-center justify-center p-4 text-center h-full space-y-3">
       <img 
         src="https://ixty.ai/wp-content/uploads/2024/11/faviconV4.png" 
         alt="Ixty AI Logo" 
-        className="w-16 h-16 mb-4"
+        className="w-12 h-12 mb-2"
       />
       
-      <h1 className="text-2xl font-bold mb-2">Welcome to Ixty AI</h1>
-      <p className="text-muted-foreground mb-6 max-w-md">
+      <h1 className="text-2xl font-bold">Welcome to Ixty AI</h1>
+      <p className="text-muted-foreground mb-4 max-w-md">
         Your intelligent assistant powered by advanced AI technology.
       </p>
       

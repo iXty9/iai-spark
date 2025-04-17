@@ -16,10 +16,6 @@ interface MarkdownComponentProps {
   [key: string]: any;
 }
 
-interface CodeComponentProps extends MarkdownComponentProps {
-  inline?: boolean;
-}
-
 export const Message: React.FC<MessageProps> = ({ message }) => {
   const isUser = message.sender === 'user';
   
