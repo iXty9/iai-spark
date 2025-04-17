@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Message as MessageType } from '@/types/chat';
@@ -5,6 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { MessageActions } from './MessageActions';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { User } from 'lucide-react';
 
 interface MessageProps {
   message: MessageType;
@@ -32,8 +34,8 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
         <div className="flex-shrink-0 w-6 h-6">
           {isUser ? (
             <Avatar className="w-6 h-6">
-              <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                You
+              <AvatarFallback className="bg-primary/10 text-primary">
+                <User className="w-4 h-4" />
               </AvatarFallback>
             </Avatar>
           ) : (

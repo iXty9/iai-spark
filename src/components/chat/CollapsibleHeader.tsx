@@ -14,7 +14,7 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({ onClearCha
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="relative">
+    <div className="relative mt-4">
       {/* Hamburger button - always visible at the top center */}
       <Button
         variant="ghost"
