@@ -171,7 +171,9 @@
   }
   
   .markdown-content pre {
-    @apply bg-muted p-2 rounded overflow-x-auto my-2 shadow-sm max-w-full;
+    @apply bg-muted p-2 rounded my-2 shadow-sm;
+    overflow-x: auto;
+    max-width: 100%;
   }
   
   .markdown-content img {
@@ -213,7 +215,8 @@
   }
   
   .markdown-content pre code {
-    @apply block p-3 bg-[#23272a] text-white rounded-md overflow-x-auto;
+    @apply block p-3 bg-[#23272a] text-white rounded-md;
+    overflow-x: auto;
     white-space: pre;
   }
   
@@ -266,7 +269,7 @@
   }
 
   /* Fix table overflow */
-  .ai-message .markdown-content .overflow-x-auto {
+  .ai-message .markdown-content div[class*="overflow-x-auto"] {
     max-width: calc(100% - 1rem);
   }
 }
