@@ -26,7 +26,25 @@ export const sendMessage = async (message: string): Promise<string> => {
     }
 
     const data = await response.json();
-    return data.text || 'I didn\'t get a proper response. Please try again.';
+    
+    // Check if the response is an array (as seen in the n8n response)
+    if (Array.isArray(data) && data.length > 0) {
+      // Extract the output from the first item in the array
+      return data[0].output || 'I didn\'t get a proper response. Please try again.';
+    } 
+    
+    // Fallback in case the response format changes
+    if (data.text) {
+      return data.text;
+    }
+    
+    if (data.output) {
+      return data.output;
+    }
+    
+    // Final fallback
+    console.log('Unexpected response format:', data);
+    return 'I received your message but the response format was unexpected. Please try again.';
   } catch (error) {
     console.error('Error sending message to webhook:', error);
     throw new Error('Failed to communicate with Ixty AI. Please try again later.');
