@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -117,7 +118,7 @@
   }
   
   .message {
-    @apply p-3 rounded-lg max-w-[85%];
+    @apply p-3 rounded-lg max-w-[85%] overflow-hidden;
   }
   
   .user-message {
@@ -150,7 +151,8 @@
 
   /* Enhanced Markdown specific styles */
   .markdown-content {
-    @apply text-sm leading-relaxed;
+    @apply text-sm leading-relaxed break-words;
+    max-width: 100%;
   }
   
   .markdown-content strong, 
@@ -165,10 +167,11 @@
   
   .markdown-content a {
     @apply text-primary underline hover:text-primary/80 transition-colors font-medium;
+    word-break: break-all;
   }
   
   .markdown-content pre {
-    @apply bg-muted p-2 rounded overflow-x-auto my-2 shadow-sm;
+    @apply bg-muted p-2 rounded overflow-x-auto my-2 shadow-sm max-w-full;
   }
   
   .markdown-content img {
@@ -205,14 +208,18 @@
   
   .markdown-content code {
     @apply font-mono text-sm bg-muted px-1.5 py-0.5 rounded;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
   }
   
   .markdown-content pre code {
     @apply block p-3 bg-[#23272a] text-white rounded-md overflow-x-auto;
+    white-space: pre;
   }
   
   .markdown-content table {
-    @apply w-full border-collapse my-4;
+    @apply w-full border-collapse my-4 text-sm;
+    font-size: 0.9em;
   }
   
   .markdown-content th {
@@ -220,7 +227,8 @@
   }
   
   .markdown-content td {
-    @apply px-3 py-2 text-sm border-b border-border;
+    @apply px-3 py-2 border-b border-border;
+    word-break: break-word;
   }
   
   .markdown-content tr:last-child td {
@@ -229,9 +237,36 @@
   
   .markdown-content p {
     @apply my-2;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    hyphens: auto;
   }
   
   .markdown-content del {
     @apply line-through text-muted-foreground;
+  }
+
+  .markdown-content details {
+    @apply my-2 p-2 bg-muted/50 rounded-md;
+  }
+  
+  .markdown-content summary {
+    @apply cursor-pointer font-medium p-1;
+  }
+
+  /* Fix for horizontal overflow in chat bubbles */
+  .ai-message .markdown-content {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Fix oversized code blocks */
+  .ai-message .markdown-content pre {
+    max-width: calc(100% - 1rem);
+  }
+
+  /* Fix table overflow */
+  .ai-message .markdown-content .overflow-x-auto {
+    max-width: calc(100% - 1rem);
   }
 }
