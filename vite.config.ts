@@ -10,8 +10,8 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
-  // Add base configuration to handle subdirectory deployments if needed
-  base: "./",
+  // Configure base path for production assets
+  base: mode === 'production' ? './' : '/',
   plugins: [
     react(),
     mode === 'development' &&
