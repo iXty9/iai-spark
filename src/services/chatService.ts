@@ -1,4 +1,3 @@
-
 /**
  * Chat API service for Ixty AI
  */
@@ -13,19 +12,46 @@ const WEBHOOK_URL = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-95
  */
 export const sendMessage = async (message: string): Promise<string> => {
   try {
+    console.log('Sending message to Ixty AI webhook:', message);
+    
+    // Set a longer timeout for the fetch request (120 seconds)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000);
+    
     const response = await fetch(WEBHOOK_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ message }),
+      signal: controller.signal
     });
+    
+    // Clear the timeout
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`Error: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
+    // Get response text first
+    const responseText = await response.text();
+    console.log('Raw response from webhook:', responseText);
+    
+    // Try to parse as JSON
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Error parsing response as JSON:', parseError);
+      // If it's not valid JSON but contains text, return it directly
+      if (responseText && typeof responseText === 'string' && responseText.trim()) {
+        return responseText.trim();
+      }
+      throw new Error('Invalid response format from Ixty AI');
+    }
+    
+    console.log('Parsed response data:', data);
     
     // Check if the response is an array (as seen in the n8n response)
     if (Array.isArray(data) && data.length > 0) {
@@ -46,6 +72,11 @@ export const sendMessage = async (message: string): Promise<string> => {
     console.log('Unexpected response format:', data);
     return 'I received your message but the response format was unexpected. Please try again.';
   } catch (error) {
+    if (error.name === 'AbortError') {
+      console.error('Request timeout: The webhook took too long to respond');
+      throw new Error('Ixty AI is taking longer than expected to respond. Please try again later.');
+    }
+    
     console.error('Error sending message to webhook:', error);
     throw new Error('Failed to communicate with Ixty AI. Please try again later.');
   }

@@ -25,6 +25,11 @@ export const Chat: React.FC = () => {
     
     setMessages(prev => [...prev, userMessage]);
     setIsTyping(true);
+    
+    // Add a timeout warning after 30 seconds
+    const timeoutWarning = setTimeout(() => {
+      toast.info("Ixty AI is still thinking. This might take a moment...");
+    }, 30000);
 
     try {
       // Send to API and get response
@@ -43,6 +48,7 @@ export const Chat: React.FC = () => {
       console.error('Error getting AI response:', error);
       toast.error('Failed to get a response. Please try again.');
     } finally {
+      clearTimeout(timeoutWarning);
       setIsTyping(false);
     }
   }, []);
@@ -84,3 +90,4 @@ export const Chat: React.FC = () => {
     </div>
   );
 };
+
