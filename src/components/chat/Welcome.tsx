@@ -1,10 +1,10 @@
-
 import React, { useEffect, useRef } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Send, Circle, Info } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { TypeWriter } from '@/components/ui/typewriter';
 
 interface WelcomeProps {
   onStartChat: (message: string) => void;
@@ -16,7 +16,6 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   const [avatarError, setAvatarError] = React.useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   
-  // Focus the input field when component mounts
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.focus();
@@ -43,6 +42,8 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     console.log("Avatar image failed to load");
     setAvatarError(true);
   };
+
+  const placeholder = isMobile ? "Ask me anything..." : "What can I assist you with today?";
 
   return (
     <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto px-4">
@@ -78,7 +79,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={isMobile ? "Ask me anything..." : "What can I assist you with today?"}
+            placeholder={<TypeWriter text={placeholder} />}
             className="flex-1 rounded-full shadow-sm"
           />
           <Button 

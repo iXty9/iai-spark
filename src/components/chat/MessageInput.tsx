@@ -54,7 +54,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="message-input-container">
+    <form onSubmit={handleSubmit} className="message-input-container py-2 px-4">
       <div className="flex items-center gap-2">
         <Button 
           type="button" 
