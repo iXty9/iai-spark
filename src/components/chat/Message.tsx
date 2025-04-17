@@ -20,6 +20,7 @@ interface MarkdownComponentProps {
 
 export const Message: React.FC<MessageProps> = ({ message }) => {
   const isUser = message.sender === 'user';
+  const [aiIconError, setAiIconError] = React.useState(false);
   
   return (
     <div 
@@ -39,20 +40,20 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
               </AvatarFallback>
             </Avatar>
           ) : (
-            <img 
-              src="https://ixty.ai/wp-content/uploads/2024/11/faviconV4.png" 
-              alt="Ixty AI" 
-              width={24}
-              height={24}
-              loading="eager"
-              className="w-full h-full object-contain"
-              style={{ maxWidth: '100%', height: 'auto' }}
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.onerror = null;
-                target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiBmaWxsPSIjZWEzODRjIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgZmlsbD0iI2ZmZiI+QUk8L3RleHQ+PC9zdmc+';
-              }}
-            />
+            <>
+              {!aiIconError ? (
+                <img 
+                  src="https://ixty.ai/wp-content/uploads/2024/11/faviconV4.png" 
+                  alt="Ixty AI" 
+                  className="w-full h-full object-contain"
+                  onError={() => setAiIconError(true)}
+                />
+              ) : (
+                <div className="w-6 h-6 bg-[#ea384c] text-white flex items-center justify-center rounded-full text-xs">
+                  AI
+                </div>
+              )}
+            </>
           )}
         </div>
         <div className="flex-1">
@@ -98,23 +99,22 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
                   tr: ({ node, ...props }: MarkdownComponentProps) => <tr {...props} className="hover:bg-muted/50 transition-colors" />,
                   th: ({ node, ...props }: MarkdownComponentProps) => <th {...props} className="px-3 py-1.5 text-left text-xs font-medium uppercase tracking-wider" />,
                   td: ({ node, ...props }: MarkdownComponentProps) => <td {...props} className="px-3 py-1.5 whitespace-nowrap" />,
-                  img: ({ node, ...props }: MarkdownComponentProps) => (
-                    <img 
-                      {...props} 
-                      className="max-w-full h-auto rounded-md my-2" 
-                      alt={props.alt || "Image"} 
-                      loading="lazy"
-                      width={props.width || 300}
-                      height={props.height || 200}
-                      style={{ maxWidth: '100%', height: 'auto' }}
-                      crossOrigin="anonymous"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.onerror = null;
-                        target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIGZpbGw9IiM5OTkiPkltYWdlIGNvdWxkIG5vdCBiZSBsb2FkZWQ8L3RleHQ+PC9zdmc+';
-                      }}
-                    />
-                  ),
+                  img: ({ node, ...props }: MarkdownComponentProps) => {
+                    const [imgError, setImgError] = React.useState(false);
+                    return imgError ? (
+                      <div className="max-w-full h-auto rounded-md my-2 bg-muted flex items-center justify-center p-4 text-sm text-muted-foreground">
+                        Image could not be loaded
+                      </div>
+                    ) : (
+                      <img 
+                        {...props} 
+                        className="max-w-full h-auto rounded-md my-2" 
+                        alt={props.alt || "Image"} 
+                        loading="lazy"
+                        onError={() => setImgError(true)}
+                      />
+                    );
+                  },
                 }}
               >
                 {message.content}

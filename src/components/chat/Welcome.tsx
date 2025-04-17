@@ -35,11 +35,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
               <AvatarImage 
                 src="https://ixty.ai/wp-content/uploads/2024/11/faviconV4.png" 
                 alt="Ixty AI Logo" 
-                loading="eager"
-                width={64}
-                height={64}
                 onError={handleImageError}
-                crossOrigin="anonymous"
               />
             ) : null}
             <AvatarFallback>AI</AvatarFallback>
