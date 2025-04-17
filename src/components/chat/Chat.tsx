@@ -34,12 +34,14 @@ export const Chat = () => {
           />
         )}
       </div>
-      <MessageInput
-        message={message}
-        onChange={setMessage}
-        onSubmit={handleSubmit}
-        isLoading={isLoading}
-      />
+      {messages.length > 0 && (  // Only show MessageInput when there are messages
+        <MessageInput
+          message={message}
+          onChange={setMessage}
+          onSubmit={handleSubmit}
+          isLoading={isLoading}
+        />
+      )}
     </div>
   );
 };

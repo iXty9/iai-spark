@@ -23,7 +23,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     e.preventDefault();
     if (message.trim() && !isLoading) {
       onSubmit(e);
-      // Focus input after sending
       setTimeout(() => inputRef.current?.focus(), 10);
     }
   };
@@ -54,7 +53,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="What can I assist you with today?"
-            className="pr-10"
+            className="pr-10 rounded-2xl"
             disabled={isLoading}
             aria-label="Message input"
           />
@@ -76,6 +75,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           size="icon" 
           disabled={!message.trim() || isLoading}
           aria-label="Send message"
+          className="rounded-full"
         >
           <Send className="h-5 w-5" />
         </Button>
