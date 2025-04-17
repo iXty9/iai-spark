@@ -1,15 +1,15 @@
-
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Message as MessageType } from '@/types/chat';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { MessageActions } from './MessageActions';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 interface MessageProps {
   message: MessageType;
 }
 
-// Adding proper type definitions for ReactMarkdown components
 interface MarkdownComponentProps {
   node?: any;
   children?: React.ReactNode;
@@ -33,15 +33,21 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
       aria-label={`${isUser ? 'Your' : 'Ixty AI'} message`}
     >
       <div className="flex items-start gap-2">
-        {!isUser && (
-          <div className="flex-shrink-0 w-6 h-6">
+        <div className="flex-shrink-0 w-6 h-6">
+          {isUser ? (
+            <Avatar className="w-6 h-6">
+              <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                You
+              </AvatarFallback>
+            </Avatar>
+          ) : (
             <img 
               src="https://ixty.ai/wp-content/uploads/2024/11/faviconV4.png" 
               alt="Ixty AI" 
               className="w-full h-full object-contain"
             />
-          </div>
-        )}
+          )}
+        </div>
         <div className="flex-1">
           <p className="text-sm font-medium mb-1">
             {isUser ? 'You' : 'Ixty AI'}
@@ -98,8 +104,11 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
               </ReactMarkdown>
             )}
           </div>
-          <div className="text-xs opacity-60 mt-1">
-            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          <div className="flex items-center justify-between mt-1">
+            <div className="text-xs opacity-60">
+              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+            {!isUser && <MessageActions messageId={message.id} content={message.content} />}
           </div>
         </div>
       </div>
