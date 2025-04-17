@@ -1,3 +1,4 @@
+
 import React, { useRef, FormEvent, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,7 +70,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             value={message}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="What can I assist you with today?"
+            placeholder="How can I help you?"  // Updated placeholder text
             className="pr-10 rounded-2xl"
             disabled={isLoading}
             aria-label="Message input"
