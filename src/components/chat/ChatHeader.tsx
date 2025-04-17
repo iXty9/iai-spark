@@ -1,14 +1,16 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Download, Trash2, Sun, Moon } from 'lucide-react';
+import { Download, Trash2, Sun, Moon, Code } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { useTheme } from '@/hooks/use-theme';
+import { useDevMode } from '@/store/use-dev-mode';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
@@ -17,6 +19,7 @@ interface ChatHeaderProps {
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({ onClearChat, onExportChat }) => {
   const { theme, setTheme } = useTheme();
+  const { isDevMode, toggleDevMode } = useDevMode();
   
   return (
     <header className="p-4 border-b border-border flex items-center justify-between">
@@ -55,6 +58,10 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({ onClearChat, onExportCha
             <DropdownMenuItem onClick={onClearChat}>
               <Trash2 className="mr-2 h-4 w-4" />
               <span>Clear Chat</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={toggleDevMode}>
+              <Code className="mr-2 h-4 w-4" />
+              <span>Dev Mode {isDevMode ? '(On)' : '(Off)'}</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
