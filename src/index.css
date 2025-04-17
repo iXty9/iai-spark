@@ -111,7 +111,7 @@
   }
 
   #root {
-    height: 100%;
+    height: 100vh;
     width: 100%;
     margin: 0;
     padding: 0;
@@ -121,7 +121,7 @@
 /* Custom chat UI styles */
 @layer components {
   .chat-container {
-    @apply h-full w-full flex flex-col bg-white dark:bg-gray-900 overflow-hidden;
+    @apply h-screen w-full flex flex-col bg-white dark:bg-gray-900 overflow-hidden;
   }
   
   .message-list {
