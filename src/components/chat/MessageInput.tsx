@@ -1,5 +1,5 @@
 
-import React, { useRef, FormEvent } from 'react';
+import React, { useRef, FormEvent, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Paperclip, Send, Mic } from 'lucide-react';
@@ -18,18 +18,38 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   isLoading 
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Focus input on component mount
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
+
+  // Ensure focus returns after submission
+  useEffect(() => {
+    if (!isLoading && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isLoading]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (message.trim() && !isLoading) {
       onSubmit(e);
-      setTimeout(() => inputRef.current?.focus(), 10);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      handleSubmit(e as unknown as FormEvent);
+    if (e.key === 'Enter' && !e.shiftKey && message.trim() && !isLoading) {
+      e.preventDefault(); // Prevent default to avoid double submission
+      onSubmit();
+    }
+  };
+
+  const handleSendClick = () => {
+    if (message.trim() && !isLoading) {
+      onSubmit();
     }
   };
 
@@ -70,12 +90,13 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         </Button>
         
         <Button 
-          type="submit" 
+          type="button" // Changed to button type to have more control
           variant="default" 
           size="icon" 
           disabled={!message.trim() || isLoading}
           aria-label="Send message"
           className="rounded-full"
+          onClick={handleSendClick}
         >
           <Send className="h-5 w-5" />
         </Button>

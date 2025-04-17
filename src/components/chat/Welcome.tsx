@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -14,11 +14,28 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   const [message, setMessage] = React.useState('');
   const isMobile = useIsMobile();
   const [avatarError, setAvatarError] = React.useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Focus the input field when component mounts
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim()) {
-      onStartChat(message);
+      onStartChat(message.trim());
+      setMessage('');
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey && message.trim()) {
+      e.preventDefault();
+      onStartChat(message.trim());
+      setMessage('');
     }
   };
 
@@ -57,8 +74,10 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
         
         <form onSubmit={handleSubmit} className="flex gap-2 w-full max-w-xl mx-auto">
           <Input
+            ref={inputRef}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder={isMobile ? "Ask me anything..." : "What can I assist you with today?"}
             className="flex-1 rounded-full shadow-sm"
           />
