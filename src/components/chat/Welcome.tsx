@@ -42,17 +42,19 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     // Set submitting state
     setIsSubmitting(true);
     
-    // Actually send the message to parent component
+    // Save the message before clearing input
+    const messageToSend = message.trim();
+    
+    // Clear the input immediately
+    setMessage('');
+    
+    // Send the message to parent component
     try {
-      onStartChat(message.trim());
+      onStartChat(messageToSend);
     } catch (error) {
       console.error("Error submitting message:", error);
-      // If there's an error, reset the submitting state
       setIsSubmitting(false);
     }
-    
-    // Clear the input
-    setMessage('');
   };
 
   const handleImageError = () => {

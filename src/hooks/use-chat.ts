@@ -74,9 +74,12 @@ export const useChat = () => {
   }, [messages]);
 
   const startChat = useCallback((initialMessage: string) => {
+    // First, update the message state
     setMessage(initialMessage);
-    // Use a small timeout to ensure the state is updated before submitting
-    setTimeout(() => handleSubmit(), 10);
+    
+    // Then submit the message directly without timeout
+    // This will immediately process the message and transition to chat view
+    handleSubmit();
   }, [handleSubmit]);
 
   return {
