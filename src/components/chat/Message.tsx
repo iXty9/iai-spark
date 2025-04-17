@@ -42,7 +42,6 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
               <ReactMarkdown 
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  // Style links to be visually distinct and clickable
                   a: ({ node, ...props }) => (
                     <a 
                       {...props} 
@@ -51,16 +50,12 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
                       className="text-primary underline hover:text-primary/80 transition-colors"
                     />
                   ),
-                  // Style headings
                   h1: ({ node, ...props }) => <h1 {...props} className="text-xl font-bold my-2" />,
                   h2: ({ node, ...props }) => <h2 {...props} className="text-lg font-bold my-2" />,
                   h3: ({ node, ...props }) => <h3 {...props} className="text-md font-bold my-1" />,
-                  // Style paragraphs
                   p: ({ node, ...props }) => <p {...props} className="mb-2" />,
-                  // Style lists
                   ul: ({ node, ...props }) => <ul {...props} className="list-disc pl-5 mb-2" />,
                   ol: ({ node, ...props }) => <ol {...props} className="list-decimal pl-5 mb-2" />,
-                  // Style code blocks and inline code
                   code: ({ node, inline, ...props }) => (
                     <code 
                       {...props} 
@@ -70,14 +65,12 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
                       )}
                     />
                   ),
-                  // Style blockquotes
                   blockquote: ({ node, ...props }) => (
                     <blockquote 
                       {...props} 
                       className="border-l-4 border-muted pl-4 italic my-2" 
                     />
                   ),
-                  // Style tables
                   table: ({ node, ...props }) => (
                     <div className="overflow-x-auto my-2">
                       <table {...props} className="min-w-full divide-y divide-border" />
