@@ -22,26 +22,8 @@ const getWebhookUrl = async (): Promise<string> => {
     return DEFAULT_WEBHOOK_URL;
   }
   
-  try {
-    // If user is authenticated, fetch their profile to get their webhook URL
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('webhook_url')
-      .eq('id', session.user.id)
-      .single();
-    
-    if (profile?.webhook_url) {
-      console.log('Using custom webhook URL from user profile');
-      return profile.webhook_url;
-    } else {
-      console.log('User is authenticated, using AUTH_WEBHOOK_URL');
-      return AUTH_WEBHOOK_URL;
-    }
-  } catch (error) {
-    console.error('Error fetching user webhook:', error);
-    console.log('Falling back to AUTH_WEBHOOK_URL due to error');
-    return AUTH_WEBHOOK_URL;
-  }
+  console.log('User is authenticated, using AUTH_WEBHOOK_URL');
+  return AUTH_WEBHOOK_URL;
 };
 
 /**
