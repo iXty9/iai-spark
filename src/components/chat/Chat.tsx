@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { MessageList } from './MessageList';
@@ -35,7 +34,7 @@ export const Chat: React.FC = () => {
       // Send to API and get response
       const aiResponse = await sendMessage(content);
       
-      // Add AI response message
+      // Add AI response message - preserve the raw response formatting
       const aiMessage: MessageType = {
         id: uuidv4(),
         content: aiResponse,
@@ -90,4 +89,3 @@ export const Chat: React.FC = () => {
     </div>
   );
 };
-

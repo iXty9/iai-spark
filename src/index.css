@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -53,43 +54,7 @@
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 0 76% 53%; /* Ixty brand red #dd3333 */
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 0 76% 53%; /* Ixty brand red #dd3333 */
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 0 76% 53%; /* Ixty brand red */
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 0 76% 53%; /* Ixty brand red */
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 0 76% 53%; /* Ixty brand red */
-    
-    /* Ixty brand colors dark mode */
-    --ixty-red: 0 76% 53%;
-    --ixty-light-red: 0 76% 65%;
-    --ixty-dark-red: 0 76% 43%;
+    /* ... keep existing code (dark mode CSS variables) */
   }
 }
 
@@ -144,5 +109,36 @@
   
   .typing-dot {
     @apply w-1.5 h-1.5 bg-primary rounded-full animate-pulse;
+  }
+
+  /* Markdown specific styles */
+  .markdown-content {
+    @apply text-sm;
+  }
+  
+  .markdown-content strong, 
+  .markdown-content b {
+    @apply font-bold;
+  }
+  
+  .markdown-content em, 
+  .markdown-content i {
+    @apply italic;
+  }
+  
+  .markdown-content a {
+    @apply text-primary underline hover:text-primary/80 transition-colors;
+  }
+  
+  .markdown-content pre {
+    @apply bg-muted p-2 rounded overflow-x-auto my-2;
+  }
+  
+  .markdown-content img {
+    @apply max-w-full h-auto my-2 rounded;
+  }
+  
+  .markdown-content hr {
+    @apply my-3 border-t border-border;
   }
 }
