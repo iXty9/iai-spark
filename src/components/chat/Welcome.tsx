@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -73,13 +74,17 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
           </div>
         </div>
         
+        <div className="mb-4">
+          <TypeWriter text={placeholder} delay={1200} />
+        </div>
+        
         <form onSubmit={handleSubmit} className="flex gap-2 w-full max-w-xl mx-auto">
           <Input
             ref={inputRef}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={<TypeWriter text={placeholder} />}
+            placeholder=""
             className="flex-1 rounded-full shadow-sm"
           />
           <Button 
