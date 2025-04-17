@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
   },
   // Configure base path for production assets
-  base: mode === 'production' ? './' : '/',
+  base: "./",
   plugins: [
     react(),
     mode === 'development' &&

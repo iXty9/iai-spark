@@ -4,8 +4,8 @@ import { Chat } from '@/components/chat/Chat';
 
 const Index = () => {
   return (
-    <div className="min-h-screen p-2 md:p-4 bg-background">
-      <div className="h-full w-full mx-auto">
+    <div className="min-h-screen bg-background">
+      <div className="h-full w-full">
         <Chat />
       </div>
     </div>
