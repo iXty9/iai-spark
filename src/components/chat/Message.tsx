@@ -43,9 +43,16 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
               </AvatarFallback>
             </Avatar>
           ) : (
-            <div className="w-6 h-6 bg-[#ea384c] text-white flex items-center justify-center rounded-full text-xs">
-              AI
-            </div>
+            <Avatar className="w-6 h-6">
+              <AvatarImage 
+                src="https://ixty9.com/wp-content/uploads/2023/10/cropped-faviconV4.png"
+                alt="Ixty AI Avatar"
+                onError={() => setAiIconError(true)}
+              />
+              <AvatarFallback className="bg-[#ea384c] text-white flex items-center justify-center rounded-full text-xs">
+                AI
+              </AvatarFallback>
+            </Avatar>
           )}
         </div>
         <div className="flex-1">

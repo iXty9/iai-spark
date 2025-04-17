@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   const isMobile = useIsMobile();
   const [avatarError, setAvatarError] = React.useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   
   useEffect(() => {
     if (inputRef.current) {
@@ -34,10 +36,12 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   };
 
   const submitMessage = () => {
-    if (message.trim()) {
-      onStartChat(message.trim());
-      setMessage('');
-    }
+    // Prevent double submissions
+    if (isSubmitting || !message.trim()) return;
+    
+    setIsSubmitting(true);
+    onStartChat(message.trim());
+    setMessage('');
   };
 
   const handleImageError = () => {
@@ -81,10 +85,11 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
             onKeyDown={handleKeyDown}
             placeholder={isMobile ? "Ask me anything..." : "What can I assist you with today?"}
             className="flex-1 rounded-full shadow-sm"
+            disabled={isSubmitting}
           />
           <Button 
             type="submit" 
-            disabled={!message.trim()} 
+            disabled={!message.trim() || isSubmitting} 
             className="rounded-full bg-[#ea384c] hover:bg-[#dd3333]"
           >
             {isMobile ? <Send className="h-4 w-4" /> : <>Send <Send className="ml-2 h-4 w-4" /></>}
