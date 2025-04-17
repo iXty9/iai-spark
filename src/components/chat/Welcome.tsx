@@ -4,6 +4,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Send } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface WelcomeProps {
   onStartChat: (message: string) => void;
@@ -11,6 +12,7 @@ interface WelcomeProps {
 
 export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   const [message, setMessage] = React.useState('');
+  const isMobile = useIsMobile();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,6 +29,9 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
             <AvatarImage 
               src="https://ixty.ai/wp-content/uploads/2024/11/faviconV4.png" 
               alt="Ixty AI Logo" 
+              loading="eager"
+              width={64}
+              height={64}
             />
             <AvatarFallback>AI</AvatarFallback>
           </Avatar>
@@ -43,7 +48,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
           <Input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="What can I assist you with today?"
+            placeholder={isMobile ? "Ask me anything..." : "What can I assist you with today?"}
             className="flex-1 rounded-full shadow-sm"
           />
           <Button 
@@ -51,7 +56,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
             disabled={!message.trim()} 
             className="rounded-full bg-[#ea384c] hover:bg-[#dd3333]"
           >
-            Send <Send className="ml-2 h-4 w-4" />
+            {isMobile ? <Send className="h-4 w-4" /> : <>Send <Send className="ml-2 h-4 w-4" /></>}
           </Button>
         </form>
       </div>

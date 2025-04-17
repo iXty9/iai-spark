@@ -42,7 +42,11 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
             <img 
               src="https://ixty.ai/wp-content/uploads/2024/11/faviconV4.png" 
               alt="Ixty AI" 
+              width={24}
+              height={24}
+              loading="eager"
               className="w-full h-full object-contain"
+              style={{ maxWidth: '100%', height: 'auto' }}
             />
           )}
         </div>
@@ -94,6 +98,15 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
                       {...props} 
                       className="max-w-full h-auto rounded-md my-2" 
                       alt={props.alt || "Image"} 
+                      loading="lazy"
+                      width={props.width || 300}
+                      height={props.height || 200}
+                      style={{ maxWidth: '100%', height: 'auto' }}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.onerror = null;
+                        target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIGZpbGw9IiM5OTkiPkltYWdlIGNvdWxkIG5vdCBiZSBsb2FkZWQ8L3RleHQ+PC9zdmc+';
+                      }}
                     />
                   ),
                 }}
