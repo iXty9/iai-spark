@@ -5,8 +5,11 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { MessageActions } from './MessageActions';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { User } from 'lucide-react';
+import { User, Copy } from 'lucide-react';
 import { useDevMode } from '@/store/use-dev-mode';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface MessageProps {
   message: MessageType;
@@ -22,6 +25,12 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
   const isUser = message.sender === 'user';
   const [aiIconError, setAiIconError] = React.useState(false);
   const { isDevMode } = useDevMode();
+
+  const handleCopyJson = async () => {
+    const jsonString = JSON.stringify(message, null, 2);
+    await navigator.clipboard.writeText(jsonString);
+    toast.success('JSON copied to clipboard');
+  };
   
   return (
     <div 
@@ -132,11 +141,25 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
                 </ReactMarkdown>
               )
             ) : (
-              <pre className="bg-muted p-4 rounded-md overflow-x-auto">
-                <code className="text-xs">
-                  {JSON.stringify(message, null, 2)}
-                </code>
-              </pre>
+              <div className="relative">
+                <ScrollArea className="h-[300px] w-full rounded-md border p-4">
+                  <div className="flex justify-end mb-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleCopyJson}
+                      className="h-8 w-8"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <pre className="w-full bg-muted p-4 rounded-md overflow-x-auto">
+                    <code className="text-xs">
+                      {JSON.stringify(message, null, 2)}
+                    </code>
+                  </pre>
+                </ScrollArea>
+              </div>
             )}
           </div>
           <div className="flex items-center justify-between mt-1">
