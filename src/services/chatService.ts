@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 /**
@@ -26,6 +25,24 @@ const getWebhookUrl = async (): Promise<string> => {
   return AUTH_WEBHOOK_URL;
 };
 
+interface TokenUsageDetails {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  prompt_token_details?: {
+    cached_tokens: number;
+  };
+  completion_tokens_details?: {
+    reasoning_tokens: number;
+  };
+}
+
+interface ApiResponse {
+  threadId?: string;
+  output: string;
+  usage?: TokenUsageDetails;
+}
+
 /**
  * Send a message to the Ixty AI webhook
  * @param message The message to send
@@ -35,11 +52,9 @@ export const sendMessage = async (message: string): Promise<string> => {
   try {
     console.log('Sending message to Ixty AI webhook:', message);
     
-    // Get the appropriate webhook URL
     const webhookUrl = await getWebhookUrl();
     console.log('Using webhook URL:', webhookUrl);
     
-    // Increase timeout to 120 seconds (2 minutes) for long-running API calls
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000);
     
@@ -58,7 +73,6 @@ export const sendMessage = async (message: string): Promise<string> => {
         credentials: 'omit'
       });
       
-      // Clear the timeout
       clearTimeout(timeoutId);
 
       if (!response.ok) {
@@ -66,43 +80,45 @@ export const sendMessage = async (message: string): Promise<string> => {
         throw new Error(`Error: ${response.status} ${response.statusText}`);
       }
 
-      // Get response text first
       const responseText = await response.text();
       console.log('Raw response from webhook:', responseText);
       
-      // Try to parse as JSON
-      let data;
       try {
-        data = JSON.parse(responseText);
+        const data: ApiResponse[] = JSON.parse(responseText);
+        console.log('Parsed response data:', data);
+        
+        if (Array.isArray(data) && data.length > 0) {
+          // Dispatch token usage event if available
+          if (data[0].usage) {
+            const event = new CustomEvent('tokenUsage', { 
+              detail: data[0].usage 
+            });
+            window.dispatchEvent(event);
+          }
+          return data[0].output || 'I received your message but got an unexpected response format. Please try again.';
+        }
+        
+        // Handle non-array responses (fallback)
+        const nonArrayData = data as unknown as ApiResponse;
+        if (nonArrayData.output) {
+          if (nonArrayData.usage) {
+            const event = new CustomEvent('tokenUsage', { 
+              detail: nonArrayData.usage 
+            });
+            window.dispatchEvent(event);
+          }
+          return nonArrayData.output;
+        }
+        
+        console.log('Unexpected response format:', data);
+        return 'I received your message but the response format was unexpected. Please try again.';
       } catch (parseError) {
         console.error('Error parsing response as JSON:', parseError);
-        // If it's not valid JSON but contains text, return it directly
         if (responseText && typeof responseText === 'string' && responseText.trim()) {
           return responseText.trim();
         }
         return "I received your message but couldn't process the response format. Please try again.";
       }
-      
-      console.log('Parsed response data:', data);
-      
-      // Check if the response is an array (as seen in the n8n response)
-      if (Array.isArray(data) && data.length > 0) {
-        // Extract the output from the first item in the array
-        return data[0].output || 'I received your message but got an unexpected response format. Please try again.';
-      } 
-      
-      // Fallback in case the response format changes
-      if (data.text) {
-        return data.text;
-      }
-      
-      if (data.output) {
-        return data.output;
-      }
-      
-      // Final fallback
-      console.log('Unexpected response format:', data);
-      return 'I received your message but the response format was unexpected. Please try again.';
     } catch (networkError) {
       clearTimeout(timeoutId);
       console.error('Network error:', networkError);
@@ -111,7 +127,6 @@ export const sendMessage = async (message: string): Promise<string> => {
         return "I'm taking too long to respond. This could be due to network issues or high server load. Please try again in a moment.";
       }
       
-      // Return a fallback response for development/demo purposes
       return "I'm currently experiencing connection issues. This might be because of network problems or server availability. Please try again in a few moments.";
     }
   } catch (error) {
