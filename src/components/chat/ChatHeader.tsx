@@ -28,7 +28,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({ onClearChat, onExportCha
         />
         <div>
           <h1 className="text-lg font-bold">Ixty AI</h1>
-          <p className="text-xs text-muted-foreground">Your helpful AI assistant</p>
         </div>
       </div>
       
