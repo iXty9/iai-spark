@@ -13,8 +13,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 0 76% 53%; /* Ixty brand red #dd3333 */
+    --primary-foreground: 0 0% 100%;
 
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -22,33 +22,31 @@
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 0 76% 53%; /* Ixty brand red #dd3333 */
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --ring: 0 76% 53%; /* Ixty brand red for focus rings */
 
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
+    --sidebar-primary: 0 76% 53%; /* Ixty brand red */
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 0 76% 53%; /* Ixty brand red */
+    
+    /* Ixty brand colors */
+    --ixty-red: 0 76% 53%;
+    --ixty-light-red: 0 76% 65%;
+    --ixty-dark-red: 0 76% 43%;
   }
 
   .dark {
@@ -61,8 +59,8 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 0 76% 53%; /* Ixty brand red #dd3333 */
+    --primary-foreground: 0 0% 100%;
 
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -70,23 +68,28 @@
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 0 76% 53%; /* Ixty brand red #dd3333 */
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --ring: 0 76% 53%; /* Ixty brand red */
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary: 0 76% 53%; /* Ixty brand red */
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 3.7% 15.9%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 0 76% 53%; /* Ixty brand red */
+    
+    /* Ixty brand colors dark mode */
+    --ixty-red: 0 76% 53%;
+    --ixty-light-red: 0 76% 65%;
+    --ixty-dark-red: 0 76% 43%;
   }
 }
 
@@ -97,5 +100,49 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Roboto', sans-serif;
+  }
+}
+
+/* Custom chat UI styles */
+@layer components {
+  .chat-container {
+    @apply max-w-3xl mx-auto h-[calc(100vh-2rem)] flex flex-col bg-white dark:bg-gray-900 rounded-lg shadow-lg overflow-hidden;
+  }
+  
+  .message-list {
+    @apply flex-1 overflow-y-auto p-4 space-y-4;
+  }
+  
+  .message {
+    @apply p-3 rounded-lg max-w-[80%];
+  }
+  
+  .user-message {
+    @apply bg-primary text-primary-foreground ml-auto;
+  }
+  
+  .ai-message {
+    @apply bg-secondary text-secondary-foreground;
+  }
+  
+  .message-input-container {
+    @apply p-4 border-t border-border;
+  }
+  
+  .file-button {
+    @apply p-2 rounded-full hover:bg-muted transition-colors;
+  }
+  
+  .typing-indicator {
+    @apply flex items-center text-sm text-muted-foreground p-2;
+  }
+  
+  .typing-dots {
+    @apply flex space-x-1 ml-2;
+  }
+  
+  .typing-dot {
+    @apply w-1.5 h-1.5 bg-primary rounded-full animate-pulse;
   }
 }
