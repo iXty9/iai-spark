@@ -1,23 +1,28 @@
 
-import React, { useState, useRef, FormEvent } from 'react';
+import React, { useRef, FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Paperclip, Send, Mic } from 'lucide-react';
 
 interface MessageInputProps {
-  onSendMessage: (message: string) => void;
-  isTyping: boolean;
+  message: string;
+  onChange: (value: string) => void;
+  onSubmit: (e?: FormEvent) => void;
+  isLoading: boolean;
 }
 
-export const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isTyping }) => {
-  const [message, setMessage] = useState('');
+export const MessageInput: React.FC<MessageInputProps> = ({ 
+  message, 
+  onChange, 
+  onSubmit, 
+  isLoading 
+}) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (message.trim() && !isTyping) {
-      onSendMessage(message.trim());
-      setMessage('');
+    if (message.trim() && !isLoading) {
+      onSubmit(e);
       // Focus input after sending
       setTimeout(() => inputRef.current?.focus(), 10);
     }
@@ -25,7 +30,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isTyp
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-      handleSubmit(e);
+      handleSubmit(e as unknown as FormEvent);
     }
   };
 
@@ -46,11 +51,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isTyp
           <Input
             ref={inputRef}
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="What can I assist you with today?"
             className="pr-10"
-            disabled={isTyping}
+            disabled={isLoading}
             aria-label="Message input"
           />
         </div>
@@ -69,7 +74,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isTyp
           type="submit" 
           variant="default" 
           size="icon" 
-          disabled={!message.trim() || isTyping}
+          disabled={!message.trim() || isLoading}
           aria-label="Send message"
         >
           <Send className="h-5 w-5" />

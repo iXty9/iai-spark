@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { CollapsibleHeader } from './CollapsibleHeader';
 import { MessageList } from './MessageList';
@@ -14,6 +15,7 @@ export const Chat = () => {
     handleSubmit,
     handleClearChat,
     handleExportChat,
+    startChat
   } = useChat();
 
   return (
@@ -23,7 +25,7 @@ export const Chat = () => {
         onExportChat={handleExportChat}
       />
       {messages.length === 0 ? (
-        <Welcome />
+        <Welcome onStartChat={startChat} />
       ) : (
         <MessageList
           messages={messages}

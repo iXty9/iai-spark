@@ -3,30 +3,22 @@ import React, { useRef, useEffect } from 'react';
 import { Message as MessageType } from '@/types/chat';
 import { Message } from './Message';
 import { TypingIndicator } from './TypingIndicator';
-import { Welcome } from './Welcome';
 
 interface MessageListProps {
   messages: MessageType[];
-  isTyping: boolean;
-  onStartChat: (message: string) => void;
+  isLoading: boolean;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({ 
   messages, 
-  isTyping,
-  onStartChat
+  isLoading
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom whenever messages change or typing state changes
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
-
-  // If no messages, show the welcome component
-  if (messages.length === 0) {
-    return <Welcome onStartChat={onStartChat} />;
-  }
+  }, [messages, isLoading]);
 
   return (
     <div className="message-list" role="log" aria-live="polite" aria-label="Chat messages">
@@ -34,7 +26,7 @@ export const MessageList: React.FC<MessageListProps> = ({
         <Message key={message.id} message={message} />
       ))}
       
-      <TypingIndicator isVisible={isTyping} />
+      <TypingIndicator isVisible={isLoading} />
       
       {/* This div helps us scroll to the bottom of the messages */}
       <div ref={messagesEndRef} />
