@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -93,7 +92,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
           <Button 
             type="submit" 
             disabled={!message.trim() || isSubmitting} 
-            className="rounded-full bg-[#ea384c] hover:bg-[#dd3333] animate-sonar-pulse"
+            className="rounded-full bg-[#ea384c] hover:bg-[#dd3333]"
           >
             {isMobile ? <Send className="h-4 w-4" /> : <>Send <Send className="ml-2 h-4 w-4" /></>}
           </Button>
@@ -102,4 +101,3 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     </div>
   );
 };
-

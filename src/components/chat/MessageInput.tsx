@@ -1,4 +1,3 @@
-
 import React, { useRef, FormEvent, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,14 +18,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   
-  // Focus input on component mount
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.focus();
     }
   }, []);
 
-  // Ensure focus returns after submission
   useEffect(() => {
     if (!isLoading && inputRef.current) {
       inputRef.current.focus();
@@ -42,7 +39,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey && message.trim() && !isLoading) {
-      e.preventDefault(); // Prevent default to avoid double submission
+      e.preventDefault();
       onSubmit();
     }
   };
@@ -90,12 +87,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         </Button>
         
         <Button 
-          type="button" // Changed to button type to have more control
+          type="button" 
           variant="default" 
           size="icon" 
           disabled={!message.trim() || isLoading}
           aria-label="Send message"
-          className="rounded-full"
+          className="rounded-full animate-[sonar-pulse_10s_cubic-bezier(0.4,0,0.6,1)_infinite]"
           onClick={handleSendClick}
         >
           <Send className="h-5 w-5" />
