@@ -19,12 +19,12 @@ export const Chat = () => {
   } = useChat();
 
   return (
-    <div className="chat-container flex flex-col">
+    <div className="chat-container flex flex-col h-full overflow-hidden">
       <CollapsibleHeader 
         onClearChat={handleClearChat}
         onExportChat={handleExportChat}
       />
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-hidden">
         {messages.length === 0 ? (
           <Welcome onStartChat={startChat} />
         ) : (
@@ -35,12 +35,14 @@ export const Chat = () => {
         )}
       </div>
       {messages.length > 0 && (  // Only show MessageInput when there are messages
-        <MessageInput
-          message={message}
-          onChange={setMessage}
-          onSubmit={handleSubmit}
-          isLoading={isLoading}
-        />
+        <div className="p-4 border-t">
+          <MessageInput
+            message={message}
+            onChange={setMessage}
+            onSubmit={handleSubmit}
+            isLoading={isLoading}
+          />
+        </div>
       )}
     </div>
   );

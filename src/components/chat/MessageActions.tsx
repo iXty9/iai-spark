@@ -17,9 +17,39 @@ export const MessageActions: React.FC<MessageActionsProps> = ({ messageId, conte
   };
 
   const handleReadAloud = () => {
-    const utterance = new SpeechSynthesisUtterance(content);
-    window.speechSynthesis.speak(utterance);
-    toast.success('Reading message aloud');
+    // Safari requires user interaction before playing audio
+    // Create an audio context only when needed
+    if ('speechSynthesis' in window) {
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+      
+      const utterance = new SpeechSynthesisUtterance(content);
+      
+      // Set voice to a common one that works across browsers
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        // Try to find a default voice
+        const defaultVoice = voices.find(voice => voice.default) || voices[0];
+        utterance.voice = defaultVoice;
+      }
+      
+      // Set parameters that improve compatibility
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+      
+      // Handle errors
+      utterance.onerror = (event) => {
+        console.error('Speech synthesis error:', event);
+        toast.error('Could not read message aloud');
+      };
+      
+      // Speak the text
+      window.speechSynthesis.speak(utterance);
+      toast.success('Reading message aloud');
+    } else {
+      toast.error('Text-to-speech is not supported in your browser');
+    }
   };
 
   return (
@@ -71,7 +101,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({ messageId, conte
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7">
+            <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Token usage info">
               <Info className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
