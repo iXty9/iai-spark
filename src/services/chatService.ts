@@ -18,6 +18,7 @@ const getWebhookUrl = async (): Promise<string> => {
   const { data: { session } } = await supabase.auth.getSession();
   
   if (!session?.user) {
+    console.log('User is not authenticated, using DEFAULT_WEBHOOK_URL');
     return DEFAULT_WEBHOOK_URL;
   }
   
@@ -29,9 +30,16 @@ const getWebhookUrl = async (): Promise<string> => {
       .eq('id', session.user.id)
       .single();
     
-    return profile?.webhook_url || AUTH_WEBHOOK_URL;
+    if (profile?.webhook_url) {
+      console.log('Using custom webhook URL from user profile');
+      return profile.webhook_url;
+    } else {
+      console.log('User is authenticated, using AUTH_WEBHOOK_URL');
+      return AUTH_WEBHOOK_URL;
+    }
   } catch (error) {
     console.error('Error fetching user webhook:', error);
+    console.log('Falling back to AUTH_WEBHOOK_URL due to error');
     return AUTH_WEBHOOK_URL;
   }
 };
