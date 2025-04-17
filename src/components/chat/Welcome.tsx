@@ -3,7 +3,7 @@ import React from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, Circle, LetterI } from 'lucide-react';
+import { Send, Circle, Info } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface WelcomeProps {
@@ -42,7 +42,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
             <AvatarFallback className="bg-[#ea384c]/10 text-[#ea384c] font-bold flex items-center justify-center">
               <div className="relative">
                 <Circle className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[#ea384c] w-full h-full" />
-                <LetterI className="relative z-10 text-[#ea384c]" />
+                <Info className="relative z-10 text-[#ea384c]" size={18} />
               </div>
             </AvatarFallback>
           </Avatar>
