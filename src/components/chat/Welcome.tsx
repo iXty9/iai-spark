@@ -25,15 +25,19 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (message.trim()) {
-      onStartChat(message.trim());
-      setMessage('');
-    }
+    submitMessage();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey && message.trim()) {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      submitMessage();
+    }
+  };
+
+  // Extract submission logic to a separate function to avoid duplication
+  const submitMessage = () => {
+    if (message.trim()) {
       onStartChat(message.trim());
       setMessage('');
     }

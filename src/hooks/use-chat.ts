@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Message as MessageType } from '@/types/chat';
@@ -29,10 +28,10 @@ export const useChat = () => {
     setMessage(''); // Clear input
     setIsLoading(true);
     
-    // Add a timeout warning after 30 seconds
+    // Add a timeout warning after 60 seconds
     const timeoutWarning = setTimeout(() => {
       toast.info("Ixty AI is still thinking. This might take a moment...");
-    }, 30000);
+    }, 60000);
 
     try {
       // Send to API and get response

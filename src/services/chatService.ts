@@ -15,9 +15,9 @@ export const sendMessage = async (message: string): Promise<string> => {
   try {
     console.log('Sending message to Ixty AI webhook:', message);
     
-    // Set a longer timeout for the fetch request (30 seconds)
+    // Increase timeout to 120 seconds (2 minutes) for long-running API calls
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const timeoutId = setTimeout(() => controller.abort(), 120000);
     
     try {
       const response = await fetch(WEBHOOK_URL, {
