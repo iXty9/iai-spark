@@ -25,7 +25,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
         <div className="flex items-center justify-center gap-3">
           <Avatar className="w-16 h-16">
             <AvatarImage 
-              src="/public/lovable-uploads/8525d579-9d36-4e51-bc29-686675a796d8.png" 
+              src="https://ixty.ai/wp-content/uploads/2024/11/faviconV4.png" 
               alt="Ixty AI Logo" 
             />
             <AvatarFallback>AI</AvatarFallback>
@@ -58,4 +58,3 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     </div>
   );
 };
-
