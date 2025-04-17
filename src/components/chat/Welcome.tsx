@@ -41,12 +41,12 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="What can I assist you with today?"
-            className="flex-1 rounded-full shadow-md hover:shadow-lg transition-shadow"
+            className="flex-1 rounded-full border-[#ea384c]/30 focus:ring-2 focus:ring-[#ea384c]/50 shadow-md hover:shadow-lg transition-shadow"
           />
           <Button 
             type="submit" 
             disabled={!message.trim()}
-            className="rounded-full bg-[#ea384c] hover:bg-[#c52c3f] transition-colors"
+            className="rounded-full bg-[#ea384c] hover:bg-[#c52c3f] text-white transition-colors"
           >
             Send <Send className="ml-2 h-4 w-4" />
           </Button>
@@ -55,4 +55,3 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     </div>
   );
 };
-
