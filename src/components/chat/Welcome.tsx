@@ -13,6 +13,7 @@ interface WelcomeProps {
 export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   const [message, setMessage] = React.useState('');
   const isMobile = useIsMobile();
+  const [avatarError, setAvatarError] = React.useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,18 +22,26 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     }
   };
 
+  const handleImageError = () => {
+    setAvatarError(true);
+  };
+
   return (
     <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto px-4">
       <div className="w-full text-center space-y-6">
         <div className="flex items-center justify-center gap-3">
           <Avatar className="w-16 h-16">
-            <AvatarImage 
-              src="https://ixty.ai/wp-content/uploads/2024/11/faviconV4.png" 
-              alt="Ixty AI Logo" 
-              loading="eager"
-              width={64}
-              height={64}
-            />
+            {!avatarError ? (
+              <AvatarImage 
+                src="https://ixty.ai/wp-content/uploads/2024/11/faviconV4.png" 
+                alt="Ixty AI Logo" 
+                loading="eager"
+                width={64}
+                height={64}
+                onError={handleImageError}
+                crossOrigin="anonymous"
+              />
+            ) : null}
             <AvatarFallback>AI</AvatarFallback>
           </Avatar>
           

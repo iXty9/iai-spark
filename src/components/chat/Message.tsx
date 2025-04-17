@@ -47,6 +47,11 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
               loading="eager"
               className="w-full h-full object-contain"
               style={{ maxWidth: '100%', height: 'auto' }}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.onerror = null;
+                target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiBmaWxsPSIjZWEzODRjIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgZmlsbD0iI2ZmZiI+QUk8L3RleHQ+PC9zdmc+';
+              }}
             />
           )}
         </div>
@@ -102,6 +107,7 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
                       width={props.width || 300}
                       height={props.height || 200}
                       style={{ maxWidth: '100%', height: 'auto' }}
+                      crossOrigin="anonymous"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         target.onerror = null;
