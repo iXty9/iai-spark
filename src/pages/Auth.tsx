@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTheme } from '@/hooks/use-theme';
-import { UserRound, Mail, Lock, Key } from 'lucide-react';
+import { UserRound, Mail, Lock, Key, ArrowLeft } from 'lucide-react';
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -70,6 +70,10 @@ const Auth = () => {
     }
   };
 
+  const handleGoBack = () => {
+    navigate('/');
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center p-4 bg-background">
       <Card className="w-full max-w-md">
@@ -127,13 +131,22 @@ const Auth = () => {
                   </div>
                 </div>
               </CardContent>
-              <CardFooter>
+              <CardFooter className="flex flex-col space-y-3">
                 <Button 
                   type="submit" 
                   className="w-full bg-[#ea384c] hover:bg-[#dd3333]"
                   disabled={isLoading}
                 >
                   {isLoading ? 'Signing in...' : 'Sign In'}
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={handleGoBack}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Go Back
                 </Button>
               </CardFooter>
             </form>
@@ -191,13 +204,22 @@ const Auth = () => {
                   </div>
                 </div>
               </CardContent>
-              <CardFooter>
+              <CardFooter className="flex flex-col space-y-3">
                 <Button 
                   type="submit" 
                   className="w-full bg-[#ea384c] hover:bg-[#dd3333]" 
                   disabled={isLoading}
                 >
                   {isLoading ? 'Creating Account...' : 'Create Account'}
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={handleGoBack}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Go Back
                 </Button>
               </CardFooter>
             </form>
