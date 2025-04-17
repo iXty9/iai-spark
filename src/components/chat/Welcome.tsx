@@ -21,19 +21,17 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   return (
     <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto px-4">
       <div className="w-full text-center space-y-6">
-        <div className="flex items-center justify-center gap-3">
-          <img 
-            src="/lovable-uploads/33df91d7-8c0f-429f-8666-4f309bb6d006.png" 
-            alt="Ixty AI" 
-            className="w-12 h-12"
-          />
-          
-          <div className="space-y-1">
-            <h1 className="text-3xl font-bold text-[#ea384c]">Ixty AI</h1>
-            <p className="text-gray-600 text-sm">
-              "The Everywhere Intelligent Assistant"
-            </p>
-          </div>
+        <img 
+          src="https://ixty.ai/wp-content/uploads/2024/11/faviconV4.png" 
+          alt="Ixty AI" 
+          className="w-16 h-16 mx-auto"
+        />
+        
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold">Ixty AI</h1>
+          <p className="text-muted-foreground">
+            "The Everywhere Intelligent Assistant"
+          </p>
         </div>
         
         <form onSubmit={handleSubmit} className="flex gap-2 w-full max-w-xl mx-auto">
@@ -41,13 +39,9 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="What can I assist you with today?"
-            className="flex-1 rounded-full border-[#ea384c]/30 focus:ring-2 focus:ring-[#ea384c]/50 shadow-md hover:shadow-lg transition-shadow"
+            className="flex-1"
           />
-          <Button 
-            type="submit" 
-            disabled={!message.trim()}
-            className="rounded-full bg-[#ea384c] hover:bg-[#c52c3f] text-white transition-colors"
-          >
+          <Button type="submit" disabled={!message.trim()}>
             Send <Send className="ml-2 h-4 w-4" />
           </Button>
         </form>
