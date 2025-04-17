@@ -74,13 +74,46 @@ export const useChat = () => {
   }, [messages]);
 
   const startChat = useCallback((initialMessage: string) => {
-    // First, update the message state
-    setMessage(initialMessage);
+    console.log("startChat called with:", initialMessage);
     
-    // Then submit the message directly without timeout
-    // This will immediately process the message and transition to chat view
-    handleSubmit();
-  }, [handleSubmit]);
+    // Create and add the user message directly
+    const userMessage: MessageType = {
+      id: uuidv4(),
+      content: initialMessage,
+      sender: 'user',
+      timestamp: new Date()
+    };
+    
+    setMessages([userMessage]);
+    setIsLoading(true);
+    
+    // Add a timeout warning after 60 seconds
+    const timeoutWarning = setTimeout(() => {
+      toast.info("Ixty AI is still thinking. This might take a moment...");
+    }, 60000);
+    
+    // Process the message directly
+    sendMessage(initialMessage)
+      .then(aiResponse => {
+        // Add AI response message
+        const aiMessage: MessageType = {
+          id: uuidv4(),
+          content: aiResponse,
+          sender: 'ai',
+          timestamp: new Date()
+        };
+        
+        setMessages(prev => [...prev, aiMessage]);
+      })
+      .catch(error => {
+        console.error('Error getting AI response:', error);
+        toast.error('Failed to get a response. Please try again.');
+      })
+      .finally(() => {
+        clearTimeout(timeoutWarning);
+        setIsLoading(false);
+      });
+  }, []);
 
   return {
     messages,

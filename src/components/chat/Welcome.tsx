@@ -48,13 +48,8 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     // Clear the input immediately
     setMessage('');
     
-    // Send the message to parent component
-    try {
-      onStartChat(messageToSend);
-    } catch (error) {
-      console.error("Error submitting message:", error);
-      setIsSubmitting(false);
-    }
+    // Actually send the message to parent component
+    onStartChat(messageToSend);
   };
 
   const handleImageError = () => {
