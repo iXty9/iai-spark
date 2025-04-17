@@ -36,19 +36,14 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   };
 
   const submitMessage = () => {
-    // Prevent empty messages or submitting while already processing
     if (!message.trim() || isSubmitting) return;
     
-    // Set submitting state
     setIsSubmitting(true);
     
-    // Save the message before clearing input
     const messageToSend = message.trim();
     
-    // Clear the input immediately
     setMessage('');
     
-    // Actually send the message to parent component
     onStartChat(messageToSend);
   };
 
@@ -64,7 +59,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
           <Avatar className="w-16 h-16 relative">
             {!avatarError ? (
               <AvatarImage 
-                src="https://ixty9.com/wp-content/uploads/2023/10/cropped-faviconV4.png"
+                src="https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png"
                 alt="Ixty AI Logo" 
                 onError={handleImageError}
               />
@@ -98,7 +93,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
           <Button 
             type="submit" 
             disabled={!message.trim() || isSubmitting} 
-            className="rounded-full bg-[#ea384c] hover:bg-[#dd3333]"
+            className="rounded-full bg-[#ea384c] hover:bg-[#dd3333] animate-sonar-pulse"
           >
             {isMobile ? <Send className="h-4 w-4" /> : <>Send <Send className="ml-2 h-4 w-4" /></>}
           </Button>
@@ -107,3 +102,4 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     </div>
   );
 };
+

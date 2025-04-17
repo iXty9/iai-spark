@@ -12,7 +12,7 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ isVisible }) =
     <div className="typing-indicator" aria-live="polite">
       <div className="flex items-center">
         <img 
-          src="https://ixty.ai/wp-content/uploads/2024/11/faviconV4.png" 
+          src="https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png" 
           alt="Ixty AI" 
           className="w-5 h-5 mr-2"
         />
@@ -26,3 +26,4 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ isVisible }) =
     </div>
   );
 };
+
