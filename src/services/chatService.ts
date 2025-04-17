@@ -1,10 +1,40 @@
 
+import { supabase } from '@/integrations/supabase/client';
+
 /**
  * Chat API service for Ixty AI
  */
 
-// The webhook URL for Ixty AI
-const WEBHOOK_URL = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7';
+// The default webhook URL for Ixty AI (used for guest users)
+const DEFAULT_WEBHOOK_URL = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574';
+
+// The webhook URL for authenticated users
+const AUTH_WEBHOOK_URL = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7';
+
+/**
+ * Get the appropriate webhook URL based on authentication status and user profile
+ */
+const getWebhookUrl = async (): Promise<string> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (!session?.user) {
+    return DEFAULT_WEBHOOK_URL;
+  }
+  
+  try {
+    // If user is authenticated, fetch their profile to get their webhook URL
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('webhook_url')
+      .eq('id', session.user.id)
+      .single();
+    
+    return profile?.webhook_url || AUTH_WEBHOOK_URL;
+  } catch (error) {
+    console.error('Error fetching user webhook:', error);
+    return AUTH_WEBHOOK_URL;
+  }
+};
 
 /**
  * Send a message to the Ixty AI webhook
@@ -15,12 +45,16 @@ export const sendMessage = async (message: string): Promise<string> => {
   try {
     console.log('Sending message to Ixty AI webhook:', message);
     
+    // Get the appropriate webhook URL
+    const webhookUrl = await getWebhookUrl();
+    console.log('Using webhook URL:', webhookUrl);
+    
     // Increase timeout to 120 seconds (2 minutes) for long-running API calls
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000);
     
     try {
-      const response = await fetch(WEBHOOK_URL, {
+      const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useTheme } from '@/hooks/use-theme';
 import { useDevMode } from '@/store/use-dev-mode';
+import { UserMenu } from '@/components/UserMenu';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
@@ -43,6 +44,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({ onClearChat, onExportCha
         >
           {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </Button>
+        
+        <UserMenu />
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
