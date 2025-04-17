@@ -14,29 +14,26 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({ onClearCha
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="relative z-10">
-      {/* Hamburger button - always visible */}
-      <div className={cn(
-        "absolute left-1/2 -translate-x-1/2 top-2 transition-transform duration-300",
-        isExpanded && "translate-y-16 opacity-0"
-      )}>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsExpanded(true)}
-          className="rounded-full hover:bg-accent"
-        >
-          <Menu className="h-5 w-5" />
-        </Button>
-      </div>
+    <div className="relative">
+      {/* Hamburger button - always visible at the top center */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => setIsExpanded(!isExpanded)}
+        className={cn(
+          "absolute left-1/2 -translate-x-1/2 z-10 rounded-full hover:bg-accent",
+          isExpanded ? "top-4" : "top-2"
+        )}
+      >
+        <Menu className="h-5 w-5" />
+      </Button>
 
       {/* Expandable header */}
       <div 
         className={cn(
-          "transform transition-transform duration-300 ease-in-out",
-          isExpanded ? "translate-y-0" : "-translate-y-full"
+          "transform transition-all duration-300 ease-in-out overflow-hidden",
+          isExpanded ? "max-h-20 opacity-100" : "max-h-0 opacity-0"
         )}
-        onMouseLeave={() => setIsExpanded(false)}
       >
         <ChatHeader onClearChat={onClearChat} onExportChat={onExportChat} />
       </div>

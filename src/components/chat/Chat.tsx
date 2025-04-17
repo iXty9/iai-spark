@@ -19,19 +19,21 @@ export const Chat = () => {
   } = useChat();
 
   return (
-    <div className="chat-container">
+    <div className="chat-container flex flex-col">
       <CollapsibleHeader 
         onClearChat={handleClearChat}
         onExportChat={handleExportChat}
       />
-      {messages.length === 0 ? (
-        <Welcome onStartChat={startChat} />
-      ) : (
-        <MessageList
-          messages={messages}
-          isLoading={isLoading}
-        />
-      )}
+      <div className="flex-1 overflow-y-auto">
+        {messages.length === 0 ? (
+          <Welcome onStartChat={startChat} />
+        ) : (
+          <MessageList
+            messages={messages}
+            isLoading={isLoading}
+          />
+        )}
+      </div>
       <MessageInput
         message={message}
         onChange={setMessage}

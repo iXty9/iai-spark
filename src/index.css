@@ -121,11 +121,11 @@
 /* Custom chat UI styles */
 @layer components {
   .chat-container {
-    @apply h-screen w-full flex flex-col bg-white dark:bg-gray-900 overflow-hidden;
+    @apply h-screen w-full bg-white dark:bg-gray-900 overflow-hidden;
   }
   
   .message-list {
-    @apply flex-1 overflow-y-auto p-4 space-y-4;
+    @apply p-4 space-y-4;
   }
   
   .message {
