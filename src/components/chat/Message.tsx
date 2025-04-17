@@ -22,6 +22,9 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
   const isUser = message.sender === 'user';
   const [aiIconError, setAiIconError] = React.useState(false);
   
+  // Use a data URI for better cross-platform compatibility
+  const aiIconUrl = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'%3E%3C/circle%3E%3Cpath d='M12 16v-4'%3E%3C/path%3E%3Cpath d='M12 8h.01'%3E%3C/path%3E%3C/svg%3E";
+  
   return (
     <div 
       className={cn(
@@ -40,20 +43,9 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
               </AvatarFallback>
             </Avatar>
           ) : (
-            <>
-              {!aiIconError ? (
-                <img 
-                  src="https://ixty.ai/wp-content/uploads/2024/11/faviconV4.png" 
-                  alt="Ixty AI" 
-                  className="w-full h-full object-contain"
-                  onError={() => setAiIconError(true)}
-                />
-              ) : (
-                <div className="w-6 h-6 bg-[#ea384c] text-white flex items-center justify-center rounded-full text-xs">
-                  AI
-                </div>
-              )}
-            </>
+            <div className="w-6 h-6 bg-[#ea384c] text-white flex items-center justify-center rounded-full text-xs">
+              AI
+            </div>
           )}
         </div>
         <div className="flex-1">
@@ -101,9 +93,17 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
                   td: ({ node, ...props }: MarkdownComponentProps) => <td {...props} className="px-3 py-1.5 whitespace-nowrap" />,
                   img: ({ node, ...props }: MarkdownComponentProps) => {
                     const [imgError, setImgError] = React.useState(false);
+                    
+                    // Handle image loading errors
+                    const handleError = () => {
+                      console.log("Image failed to load:", props.src);
+                      setImgError(true);
+                    };
+                    
                     return imgError ? (
-                      <div className="max-w-full h-auto rounded-md my-2 bg-muted flex items-center justify-center p-4 text-sm text-muted-foreground">
-                        Image could not be loaded
+                      <div className="max-w-full p-4 text-center border border-muted rounded-md my-2 bg-muted/30">
+                        <p className="text-sm text-muted-foreground">Image could not be loaded</p>
+                        <p className="text-xs text-muted-foreground mt-1 break-all">{props.src?.toString().substring(0, 50)}...</p>
                       </div>
                     ) : (
                       <img 
@@ -111,7 +111,11 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
                         className="max-w-full h-auto rounded-md my-2" 
                         alt={props.alt || "Image"} 
                         loading="lazy"
-                        onError={() => setImgError(true)}
+                        onError={handleError}
+                        crossOrigin="anonymous" 
+                        referrerPolicy="no-referrer"
+                        width={props.width || "auto"}
+                        height={props.height || "auto"}
                       />
                     );
                   },

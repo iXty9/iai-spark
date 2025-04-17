@@ -15,27 +15,30 @@ export const sendMessage = async (message: string): Promise<string> => {
   try {
     console.log('Sending message to Ixty AI webhook:', message);
     
-    // Set a longer timeout for the fetch request (60 seconds)
+    // Set a longer timeout for the fetch request (30 seconds)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
     
-    // For testing when the webhook is unavailable, we'll return a mock response
-    // In a production environment, we would want to connect to the actual webhook
-    // This is just to prevent the app from breaking during development
     try {
       const response = await fetch(WEBHOOK_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json, text/plain, */*',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         },
         body: JSON.stringify({ message }),
-        signal: controller.signal
+        signal: controller.signal,
+        mode: 'cors',
+        credentials: 'omit'
       });
       
       // Clear the timeout
       clearTimeout(timeoutId);
 
       if (!response.ok) {
+        console.error(`Error response from server: ${response.status} ${response.statusText}`);
         throw new Error(`Error: ${response.status} ${response.statusText}`);
       }
 
@@ -80,17 +83,16 @@ export const sendMessage = async (message: string): Promise<string> => {
       clearTimeout(timeoutId);
       console.error('Network error:', networkError);
       
+      if (networkError.name === 'AbortError') {
+        return "I'm taking too long to respond. This could be due to network issues or high server load. Please try again in a moment.";
+      }
+      
       // Return a fallback response for development/demo purposes
-      return "I'm currently experiencing connection issues. This is a temporary response to allow you to continue testing the interface. In a production environment, I would connect to the Ixty AI service to provide a real response.";
+      return "I'm currently experiencing connection issues. This might be because of network problems or server availability. Please try again in a few moments.";
     }
   } catch (error) {
-    if (error.name === 'AbortError') {
-      console.error('Request timeout: The webhook took too long to respond');
-      return "I'm taking longer than expected to respond. This is a temporary response to allow you to continue testing the interface.";
-    }
-    
     console.error('Error sending message to webhook:', error);
-    return "I encountered an issue processing your request. This is a temporary response to allow you to continue testing the interface.";
+    return "I encountered an issue processing your request. Please check your internet connection and try again.";
   }
 };
 
