@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -16,7 +15,6 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   const [avatarError, setAvatarError] = React.useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   
-  // Focus the input field when component mounts
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.focus();
@@ -35,7 +33,6 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     }
   };
 
-  // Extract submission logic to a separate function to avoid duplication
   const submitMessage = () => {
     if (message.trim()) {
       onStartChat(message.trim());
@@ -55,7 +52,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
           <Avatar className="w-16 h-16 relative">
             {!avatarError ? (
               <AvatarImage 
-                src="https://ixty.ai/wp-content/uploads/2024/11/faviconV4.png"
+                src="https://ixty9.com/wp-content/uploads/2023/10/cropped-faviconV4.png"
                 alt="Ixty AI Logo" 
                 onError={handleImageError}
               />

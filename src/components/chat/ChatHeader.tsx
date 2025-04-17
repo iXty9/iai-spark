@@ -22,7 +22,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({ onClearChat, onExportCha
     <header className="p-4 border-b border-border flex items-center justify-between">
       <div className="flex items-center">
         <img 
-          src="https://ixty.ai/wp-content/uploads/2024/11/faviconV4.png" 
+          src="https://ixty9.com/wp-content/uploads/2023/10/cropped-faviconV4.png" 
           alt="Ixty AI" 
           className="h-8 w-8 mr-3"
         />

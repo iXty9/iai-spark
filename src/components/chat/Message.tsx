@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Message as MessageType } from '@/types/chat';
@@ -22,9 +21,6 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
   const isUser = message.sender === 'user';
   const [aiIconError, setAiIconError] = React.useState(false);
   
-  // Use a data URI for better cross-platform compatibility
-  const aiIconUrl = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'%3E%3C/circle%3E%3Cpath d='M12 16v-4'%3E%3C/path%3E%3Cpath d='M12 8h.01'%3E%3C/path%3E%3C/svg%3E";
-  
   return (
     <div 
       className={cn(
@@ -38,6 +34,10 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
         <div className="flex-shrink-0 w-6 h-6">
           {isUser ? (
             <Avatar className="w-6 h-6">
+              <AvatarImage
+                src="https://ixty9.com/wp-content/uploads/2025/04/profile-circle-icon-256x256-1.png"
+                alt="User Avatar"
+              />
               <AvatarFallback className="bg-primary/10 text-primary">
                 <User className="w-4 h-4" />
               </AvatarFallback>
@@ -94,7 +94,6 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
                   img: ({ node, ...props }: MarkdownComponentProps) => {
                     const [imgError, setImgError] = React.useState(false);
                     
-                    // Handle image loading errors
                     const handleError = () => {
                       console.log("Image failed to load:", props.src);
                       setImgError(true);
