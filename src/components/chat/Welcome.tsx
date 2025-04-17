@@ -3,7 +3,7 @@ import React from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send } from 'lucide-react';
+import { Send, Circle, LetterI } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface WelcomeProps {
@@ -27,22 +27,24 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     setAvatarError(true);
   };
 
-  // Use a local placeholder for more reliability
-  const avatarImageUrl = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ea384c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'%3E%3C/circle%3E%3Cpath d='M12 16v-4'%3E%3C/path%3E%3Cpath d='M12 8h.01'%3E%3C/path%3E%3C/svg%3E";
-
   return (
     <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto px-4">
       <div className="w-full text-center space-y-6">
         <div className="flex items-center justify-center gap-3">
-          <Avatar className="w-16 h-16">
+          <Avatar className="w-16 h-16 relative">
             {!avatarError ? (
               <AvatarImage 
-                src={avatarImageUrl}
+                src="https://ixty.ai/wp-content/uploads/2024/11/faviconV4.png"
                 alt="Ixty AI Logo" 
                 onError={handleImageError}
               />
             ) : null}
-            <AvatarFallback className="bg-[#ea384c]/10 text-[#ea384c] font-bold">AI</AvatarFallback>
+            <AvatarFallback className="bg-[#ea384c]/10 text-[#ea384c] font-bold flex items-center justify-center">
+              <div className="relative">
+                <Circle className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[#ea384c] w-full h-full" />
+                <LetterI className="relative z-10 text-[#ea384c]" />
+              </div>
+            </AvatarFallback>
           </Avatar>
           
           <div className="space-y-2 text-left">
