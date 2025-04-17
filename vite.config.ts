@@ -10,8 +10,8 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
-  // Configure base path for production assets
-  base: mode === 'production' ? './' : '/',
+  // Hard-code the base path to always use relative paths
+  base: "./",
   plugins: [
     react(),
     mode === 'development' &&
@@ -22,4 +22,17 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // Generate relative paths in the output HTML
+    assetsDir: "assets",
+    emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        // Ensure all assets use relative paths
+        entryFileNames: "assets/[name]-[hash].js",
+        chunkFileNames: "assets/[name]-[hash].js",
+        assetFileNames: "assets/[name]-[hash].[ext]"
+      }
+    }
+  }
 }));
