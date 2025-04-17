@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Message as MessageType } from '@/types/chat';
@@ -74,7 +75,8 @@ export const useChat = () => {
 
   const startChat = useCallback((initialMessage: string) => {
     setMessage(initialMessage);
-    setTimeout(() => handleSubmit(), 100);
+    // Use a small timeout to ensure the state is updated before submitting
+    setTimeout(() => handleSubmit(), 10);
   }, [handleSubmit]);
 
   return {

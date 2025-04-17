@@ -36,11 +36,22 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   };
 
   const submitMessage = () => {
-    // Prevent double submissions
-    if (isSubmitting || !message.trim()) return;
+    // Prevent empty messages or submitting while already processing
+    if (!message.trim() || isSubmitting) return;
     
+    // Set submitting state
     setIsSubmitting(true);
-    onStartChat(message.trim());
+    
+    // Actually send the message to parent component
+    try {
+      onStartChat(message.trim());
+    } catch (error) {
+      console.error("Error submitting message:", error);
+      // If there's an error, reset the submitting state
+      setIsSubmitting(false);
+    }
+    
+    // Clear the input
     setMessage('');
   };
 
