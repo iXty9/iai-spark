@@ -142,7 +142,7 @@
 /* Custom chat UI styles */
 @layer components {
   .chat-container {
-    @apply h-screen w-full bg-white dark:bg-gray-900 overflow-hidden;
+    @apply h-screen w-full bg-white dark:bg-[#191919] overflow-hidden;
   }
   
   .message-list {
@@ -158,7 +158,7 @@
   }
   
   .ai-message {
-    @apply bg-secondary text-secondary-foreground;
+    @apply bg-secondary text-secondary-foreground dark:bg-[#222] dark:text-white;
   }
   
   .message-input-container {
@@ -311,6 +311,7 @@
   /* Fix oversized code blocks */
   .ai-message .markdown-content pre {
     max-width: calc(100% - 1rem);
+    @apply bg-muted dark:bg-[#222] dark:text-white;
   }
 
   /* Fix table overflow */
