@@ -8,11 +8,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 interface MessageListProps {
   messages: MessageType[];
   isLoading: boolean;
+  scrollRef?: React.RefObject<HTMLDivElement>;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({ 
   messages, 
-  isLoading
+  isLoading,
+  scrollRef
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -84,6 +86,7 @@ export const MessageList: React.FC<MessageListProps> = ({
         
         {/* This div helps us scroll to the bottom of the messages */}
         <div ref={messagesEndRef} aria-hidden="true" />
+        {scrollRef && <div ref={scrollRef} aria-hidden="true" />}
       </div>
     </ScrollArea>
   );
