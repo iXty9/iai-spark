@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -57,10 +58,10 @@
     --background: 0 0% 9.8%; /* #191919 converted to HSL */
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    --card: 0 0% 9.8%; /* Changed to match background (#191919) */
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 0 0% 9.8%; /* Changed to match background (#191919) */
     --popover-foreground: 210 40% 98%;
 
     --primary: 0 76% 53%;
@@ -84,13 +85,13 @@
 
     --radius: 0.5rem;
 
-    --sidebar-background: 222.2 84% 4.9%;
+    --sidebar-background: 0 0% 9.8%; /* Changed to match background (#191919) */
     --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 0 76% 53%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 217.2 32.6% 17.5%;
+    --sidebar-accent: 0 0% 15%; /* Adjusted for better contrast with #191919 */
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 216 34% 17%;
+    --sidebar-border: 0 0% 20%; /* Adjusted for better contrast with #191919 */
     --sidebar-ring: 0 76% 53%;
   }
 }
