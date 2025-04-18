@@ -1,33 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 
 interface TypingIndicatorProps {
   isVisible: boolean;
 }
 
 export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ isVisible }) => {
-  const [isLongWait, setIsLongWait] = useState(false);
-  
-  useEffect(() => {
-    let longWaitTimer: ReturnType<typeof setTimeout>;
-    
-    if (isVisible) {
-      setIsLongWait(false);
-      
-      // After 30 seconds, update the message
-      longWaitTimer = setTimeout(() => {
-        setIsLongWait(true);
-      }, 30000);
-    }
-    
-    return () => {
-      if (longWaitTimer) {
-        clearTimeout(longWaitTimer);
-      }
-      setIsLongWait(false);
-    };
-  }, [isVisible]);
-  
   if (!isVisible) return null;
   
   return (
@@ -38,7 +16,7 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ isVisible }) =
           alt="Ixty AI" 
           className="w-5 h-5 mr-2"
         />
-        <span>{isLongWait ? "Ixty AI is responding" : "Ixty AI is thinking"}</span>
+        <span>Ixty AI is responding</span>
         <div className="typing-dots">
           <div className="typing-dot" style={{ animationDelay: '0ms' }}></div>
           <div className="typing-dot" style={{ animationDelay: '200ms' }}></div>
@@ -48,3 +26,4 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ isVisible }) =
     </div>
   );
 };
+
