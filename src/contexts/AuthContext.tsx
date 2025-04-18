@@ -28,19 +28,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('Auth state changed:', event);
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          fetchProfile(session.user.id);
-        } else {
+        if (event === 'SIGNED_OUT') {
+          console.log('User signed out, clearing all auth state');
+          setSession(null);
+          setUser(null);
           setProfile(null);
+          // Force clear any potential cached auth data
+          localStorage.removeItem('supabase.auth.token');
+        } else {
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            console.log('User authenticated, fetching profile');
+            fetchProfile(session.user.id);
+          }
         }
       }
     );
 
     // Then check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session ? 'User is authenticated' : 'No active session');
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -128,10 +137,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
+      console.log('Signing out user...');
+      const { error } = await supabase.auth.signOut({
+        scope: 'global' // Ensure all sessions are terminated
+      });
+      
       if (error) {
         throw error;
       }
+      
+      // Force clear auth state immediately
+      setSession(null);
+      setUser(null);
+      setProfile(null);
+      
+      // Clear any potential cached auth data
+      localStorage.removeItem('supabase.auth.token');
+      
+      console.log('User has been signed out, auth state cleared');
     } catch (error: any) {
       console.error('Error during sign out:', error);
       throw error;

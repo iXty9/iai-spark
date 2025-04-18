@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 /**
@@ -14,14 +15,15 @@ const AUTH_WEBHOOK_URL = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3
  * Get the appropriate webhook URL based on authentication status and user profile
  */
 const getWebhookUrl = async (): Promise<string> => {
+  // Force a fresh session check each time to ensure we have the latest auth state
   const { data: { session } } = await supabase.auth.getSession();
   
   if (!session?.user) {
-    console.log('User is not authenticated, using DEFAULT_WEBHOOK_URL');
+    console.log('User is not authenticated, using DEFAULT_WEBHOOK_URL:', DEFAULT_WEBHOOK_URL);
     return DEFAULT_WEBHOOK_URL;
   }
   
-  console.log('User is authenticated, using AUTH_WEBHOOK_URL');
+  console.log('User is authenticated, using AUTH_WEBHOOK_URL:', AUTH_WEBHOOK_URL);
   return AUTH_WEBHOOK_URL;
 };
 
@@ -52,6 +54,7 @@ export const sendMessage = async (message: string): Promise<string> => {
   try {
     console.log('Sending message to Ixty AI webhook:', message);
     
+    // Get a fresh webhook URL for this specific request to ensure authentication status is current
     const webhookUrl = await getWebhookUrl();
     console.log('Using webhook URL:', webhookUrl);
     

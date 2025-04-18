@@ -1,14 +1,19 @@
-
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Message as MessageType } from '@/types/chat';
 import { sendMessage, exportChat } from '@/services/chatService';
 import { toast } from '@/components/ui/sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const useChat = () => {
   const [messages, setMessages] = useState<MessageType[]>([]);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    console.log('Authentication state change in useChat:', user ? 'User is logged in' : 'User is logged out');
+  }, [user]);
 
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     if (e) {
@@ -17,7 +22,6 @@ export const useChat = () => {
 
     if (!message.trim()) return;
 
-    // Add user message
     const userMessage: MessageType = {
       id: uuidv4(),
       content: message,
@@ -26,19 +30,17 @@ export const useChat = () => {
     };
     
     setMessages(prev => [...prev, userMessage]);
-    setMessage(''); // Clear input
+    setMessage('');
     setIsLoading(true);
     
-    // Add a timeout warning after 60 seconds
     const timeoutWarning = setTimeout(() => {
       toast.info("Ixty AI is still thinking. This might take a moment...");
     }, 60000);
 
     try {
-      // Send to API and get response
+      console.log('Sending message with auth state:', user ? 'authenticated' : 'unauthenticated');
       const aiResponse = await sendMessage(message);
       
-      // Add AI response message
       const aiMessage: MessageType = {
         id: uuidv4(),
         content: aiResponse,
@@ -54,7 +56,7 @@ export const useChat = () => {
       clearTimeout(timeoutWarning);
       setIsLoading(false);
     }
-  }, [message]);
+  }, [message, user]);
 
   const handleClearChat = useCallback(() => {
     if (messages.length === 0) return;
@@ -75,8 +77,8 @@ export const useChat = () => {
 
   const startChat = useCallback((initialMessage: string) => {
     console.log("startChat called with:", initialMessage);
+    console.log('Auth state during startChat:', user ? 'authenticated' : 'unauthenticated');
     
-    // Create and add the user message directly
     const userMessage: MessageType = {
       id: uuidv4(),
       content: initialMessage,
@@ -87,15 +89,12 @@ export const useChat = () => {
     setMessages([userMessage]);
     setIsLoading(true);
     
-    // Add a timeout warning after 60 seconds
     const timeoutWarning = setTimeout(() => {
       toast.info("Ixty AI is still thinking. This might take a moment...");
     }, 60000);
     
-    // Process the message directly
     sendMessage(initialMessage)
       .then(aiResponse => {
-        // Add AI response message
         const aiMessage: MessageType = {
           id: uuidv4(),
           content: aiResponse,
@@ -113,7 +112,7 @@ export const useChat = () => {
         clearTimeout(timeoutWarning);
         setIsLoading(false);
       });
-  }, []);
+  }, [user]);
 
   return {
     messages,
