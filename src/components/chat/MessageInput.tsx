@@ -21,8 +21,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isMobile = useIsMobile();
   
+  // Focus the textarea whenever it renders or message changes (but not on mobile)
   useEffect(() => {
-    if (textareaRef.current) {
+    if (textareaRef.current && !isMobile) {
       textareaRef.current.focus();
       
       // Ensure the textarea resizes properly
@@ -30,13 +31,14 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       textareaRef.current.style.height = 
         Math.min(textareaRef.current.scrollHeight, 120) + 'px';
     }
-  }, [message]);
+  }, [message, isMobile]);
 
+  // Try to focus the textarea when AI stops responding, but not on mobile
   useEffect(() => {
-    if (!isLoading && textareaRef.current) {
+    if (!isLoading && textareaRef.current && !isMobile) {
       textareaRef.current.focus();
     }
-  }, [isLoading]);
+  }, [isLoading, isMobile]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -82,8 +84,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="message-input-container">
-      <div className="flex items-end gap-2">
+    <form onSubmit={handleSubmit} className="message-input-container w-full">
+      <div className="flex items-end gap-2 w-full">
         <Button 
           type="button" 
           variant="ghost" 

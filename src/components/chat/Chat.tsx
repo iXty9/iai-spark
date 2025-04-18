@@ -5,7 +5,6 @@ import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { Welcome } from './Welcome';
 import { useChat } from '@/hooks/use-chat';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 export const Chat = () => {
   const {
@@ -40,18 +39,16 @@ export const Chat = () => {
         {messages.length === 0 ? (
           <Welcome onStartChat={startChat} />
         ) : (
-          <ScrollArea className="h-full py-4 px-2">
-            <MessageList
-              messages={messages}
-              isLoading={isLoading}
-              scrollRef={scrollRef}
-            />
-          </ScrollArea>
+          <MessageList
+            messages={messages}
+            isLoading={isLoading}
+            scrollRef={scrollRef}
+          />
         )}
       </div>
       
-      {/* Always render the input bar, but hide it if no messages and not in welcome state */}
-      <div className={`p-4 border-t bg-background sticky bottom-0 z-10 ${messages.length === 0 ? 'hidden' : ''}`}>
+      {/* Always render the input bar regardless of message state */}
+      <div className={`p-4 border-t bg-background sticky bottom-0 z-10 ${messages.length === 0 ? 'hidden md:block' : ''}`}>
         <MessageInput
           message={message}
           onChange={setMessage}

@@ -23,7 +23,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('Auth state changed:', event);
@@ -32,9 +31,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(null);
           setUser(null);
           setProfile(null);
-          // Force clear any potential cached auth data
           localStorage.removeItem('supabase.auth.token');
-          // Also clear other potential cached items
           ['sb-refresh-token', 'sb-access-token'].forEach(key => {
             try {
               localStorage.removeItem(key);
@@ -54,7 +51,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    // Then check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log('Initial session check:', session ? 'User is authenticated' : 'No active session');
       setSession(session);
@@ -146,51 +142,61 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       console.log('Signing out user...');
       
-      // First clear state to ensure UI updates immediately
       setSession(null);
       setUser(null);
       setProfile(null);
       
-      // Clear any cached auth data in localStorage and cookies
       try {
-        localStorage.removeItem('supabase.auth.token');
-        // Clear other potential cached items
-        ['sb-refresh-token', 'sb-access-token'].forEach(key => {
+        ['supabase.auth.token', 'sb-refresh-token', 'sb-access-token', 'supabase-auth-token'].forEach(key => {
           try {
             localStorage.removeItem(key);
+            sessionStorage.removeItem(key);
           } catch (e) {
-            console.warn(`Failed to remove ${key} from localStorage:`, e);
+            console.warn(`Failed to remove ${key} from storage:`, e);
           }
         });
       } catch (e) {
         console.warn('Error clearing localStorage:', e);
       }
       
-      // Then attempt the actual signout from Supabase
-      const { error } = await supabase.auth.signOut({
-        scope: 'global' // Ensure all sessions are terminated
-      });
-      
-      if (error) {
-        console.error('Error during sign out API call:', error);
-        // Even if the API call fails, we've already cleared local state
-        // so the user will perceive being signed out
-        toast({
-          variant: "default",
-          title: "Signed out",
-          description: "You have been signed out. Some cleanup may happen in the background.",
+      try {
+        const { error } = await supabase.auth.signOut({
+          scope: 'global'
         });
-      } else {
-        console.log('User has been signed out successfully, auth state cleared');
+        
+        if (error) {
+          console.error('Error during sign out API call:', error);
+          toast({
+            variant: "default",
+            title: "Signed out",
+            description: "You have been signed out. Some cleanup may happen in the background.",
+          });
+        } else {
+          console.log('User has been signed out successfully, auth state cleared');
+          toast({
+            variant: "default",
+            title: "Signed out",
+            description: "You have been signed out successfully",
+          });
+        }
+      } catch (apiError) {
+        console.error('Supabase API call failed during signout:', apiError);
         toast({
           variant: "default",
           title: "Signed out",
-          description: "You have been signed out successfully",
+          description: "You have been signed out locally. Some cleanup may happen in the background.",
         });
       }
+      
+      const isMobileFirefox = /Firefox/.test(navigator.userAgent) && /Mobile/.test(navigator.userAgent);
+      if (isMobileFirefox) {
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
+      }
+      
     } catch (error: any) {
       console.error('Error during sign out process:', error);
-      // Even on error, ensure user is signed out locally
       toast({
         variant: "default",
         title: "Signed out",
