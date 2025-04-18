@@ -338,3 +338,14 @@
     margin-top: 0.5rem;
   }
 }
+
+@layer utilities {
+  .scrollbar-none {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+}
