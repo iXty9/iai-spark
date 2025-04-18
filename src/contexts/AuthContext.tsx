@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,6 +34,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setProfile(null);
           // Force clear any potential cached auth data
           localStorage.removeItem('supabase.auth.token');
+          // Also clear other potential cached items
+          ['sb-refresh-token', 'sb-access-token'].forEach(key => {
+            try {
+              localStorage.removeItem(key);
+            } catch (e) {
+              console.warn(`Failed to remove ${key} from localStorage:`, e);
+            }
+          });
         } else {
           setSession(session);
           setUser(session?.user ?? null);
@@ -138,26 +145,57 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     try {
       console.log('Signing out user...');
+      
+      // First clear state to ensure UI updates immediately
+      setSession(null);
+      setUser(null);
+      setProfile(null);
+      
+      // Clear any cached auth data in localStorage and cookies
+      try {
+        localStorage.removeItem('supabase.auth.token');
+        // Clear other potential cached items
+        ['sb-refresh-token', 'sb-access-token'].forEach(key => {
+          try {
+            localStorage.removeItem(key);
+          } catch (e) {
+            console.warn(`Failed to remove ${key} from localStorage:`, e);
+          }
+        });
+      } catch (e) {
+        console.warn('Error clearing localStorage:', e);
+      }
+      
+      // Then attempt the actual signout from Supabase
       const { error } = await supabase.auth.signOut({
         scope: 'global' // Ensure all sessions are terminated
       });
       
       if (error) {
-        throw error;
+        console.error('Error during sign out API call:', error);
+        // Even if the API call fails, we've already cleared local state
+        // so the user will perceive being signed out
+        toast({
+          variant: "default",
+          title: "Signed out",
+          description: "You have been signed out. Some cleanup may happen in the background.",
+        });
+      } else {
+        console.log('User has been signed out successfully, auth state cleared');
+        toast({
+          variant: "default",
+          title: "Signed out",
+          description: "You have been signed out successfully",
+        });
       }
-      
-      // Force clear auth state immediately
-      setSession(null);
-      setUser(null);
-      setProfile(null);
-      
-      // Clear any potential cached auth data
-      localStorage.removeItem('supabase.auth.token');
-      
-      console.log('User has been signed out, auth state cleared');
     } catch (error: any) {
-      console.error('Error during sign out:', error);
-      throw error;
+      console.error('Error during sign out process:', error);
+      // Even on error, ensure user is signed out locally
+      toast({
+        variant: "default",
+        title: "Signed out",
+        description: "You have been signed out locally. Some cleanup may happen in the background.",
+      });
     }
   };
 
