@@ -96,6 +96,15 @@
 }
 
 @layer base {
+  html, body {
+    height: 100%;
+    width: 100%;
+    position: fixed;
+    overflow: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: none;
+  }
+
   * {
     @apply border-border;
   }
@@ -115,6 +124,8 @@
     width: 100%;
     margin: 0;
     padding: 0;
+    display: flex;
+    flex-direction: column;
   }
 }
 
@@ -158,6 +169,18 @@
   
   .typing-dot {
     @apply w-1.5 h-1.5 bg-primary rounded-full animate-pulse;
+  }
+
+  [data-radix-scroll-area-viewport] {
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  .message-list {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
   }
 
   /* Enhanced Markdown specific styles */

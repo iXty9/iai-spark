@@ -24,7 +24,7 @@ export const Chat = () => {
         onClearChat={handleClearChat}
         onExportChat={handleExportChat}
       />
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden relative">
         {messages.length === 0 ? (
           <Welcome onStartChat={startChat} />
         ) : (
@@ -34,8 +34,8 @@ export const Chat = () => {
           />
         )}
       </div>
-      {messages.length > 0 && (  // Only show MessageInput when there are messages
-        <div className="p-4 border-t">
+      {messages.length > 0 && (
+        <div className="p-4 border-t bg-background sticky bottom-0 z-10">
           <MessageInput
             message={message}
             onChange={setMessage}

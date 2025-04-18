@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
+
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Message as MessageType } from '@/types/chat';
 import { sendMessage, exportChat } from '@/services/chatService';
@@ -10,6 +11,7 @@ export const useChat = () => {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
+  const messageListRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     console.log('Authentication state change in useChat:', user ? 'User is logged in' : 'User is logged out');
