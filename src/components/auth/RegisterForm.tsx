@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +26,6 @@ export const RegisterForm = () => {
     setIsLoading(true);
     try {
       await signUp(registerData.email, registerData.password, registerData.username);
-      // Don't navigate - user needs to confirm email first
     } catch (error) {
       console.error('Register error:', error);
     } finally {
@@ -36,7 +34,10 @@ export const RegisterForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form 
+      onSubmit={handleSubmit} 
+      className="space-y-4 max-h-[90vh] overflow-y-auto pb-4"
+    >
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="register-email">Email</Label>

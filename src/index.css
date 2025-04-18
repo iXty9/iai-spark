@@ -54,7 +54,7 @@
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 0 0% 9.8%; /* #191919 converted to HSL */
     --foreground: 210 40% 98%;
 
     --card: 222.2 84% 4.9%;

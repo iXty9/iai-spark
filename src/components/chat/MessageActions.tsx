@@ -1,9 +1,9 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { ThumbsUp, ThumbsDown, Copy, Volume2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 
 interface MessageActionsProps {
   messageId: string;
@@ -11,40 +11,34 @@ interface MessageActionsProps {
 }
 
 export const MessageActions: React.FC<MessageActionsProps> = ({ messageId, content }) => {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content);
     toast.success('Message copied to clipboard');
   };
 
   const handleReadAloud = () => {
-    // Safari requires user interaction before playing audio
-    // Create an audio context only when needed
     if ('speechSynthesis' in window) {
-      // Cancel any ongoing speech
       window.speechSynthesis.cancel();
       
       const utterance = new SpeechSynthesisUtterance(content);
       
-      // Set voice to a common one that works across browsers
       const voices = window.speechSynthesis.getVoices();
       if (voices.length > 0) {
-        // Try to find a default voice
         const defaultVoice = voices.find(voice => voice.default) || voices[0];
         utterance.voice = defaultVoice;
       }
       
-      // Set parameters that improve compatibility
       utterance.rate = 1.0;
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
       
-      // Handle errors
       utterance.onerror = (event) => {
         console.error('Speech synthesis error:', event);
         toast.error('Could not read message aloud');
       };
       
-      // Speak the text
       window.speechSynthesis.speak(utterance);
       toast.success('Reading message aloud');
     } else {
@@ -99,16 +93,16 @@ export const MessageActions: React.FC<MessageActionsProps> = ({ messageId, conte
           </TooltipContent>
         </Tooltip>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
             <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Token usage info">
               <Info className="h-4 w-4" />
             </Button>
-          </TooltipTrigger>
-          <TooltipContent>
+          </DialogTrigger>
+          <DialogContent>
             <p>Token usage information not available in this version</p>
-          </TooltipContent>
-        </Tooltip>
+          </DialogContent>
+        </Dialog>
       </TooltipProvider>
     </div>
   );
