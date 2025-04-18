@@ -35,9 +35,13 @@ export const useChat = () => {
     setMessage('');
     setIsLoading(true);
     
-    const timeoutWarning = setTimeout(() => {
+    // First warning after 30 seconds if response is still loading
+    const firstWarningTimeout = setTimeout(() => {
       toast.info("Ixty AI is still thinking. This might take a moment...");
-    }, 60000);
+      
+      // Dispatch a custom event for the typing indicator to switch messages
+      window.dispatchEvent(new CustomEvent('aiResponseStatus', { detail: { status: 'responding' } }));
+    }, 30000);
 
     try {
       console.log('Sending message with auth state:', user ? 'authenticated' : 'unauthenticated');
@@ -55,7 +59,7 @@ export const useChat = () => {
       console.error('Error getting AI response:', error);
       toast.error('Failed to get a response. Please try again.');
     } finally {
-      clearTimeout(timeoutWarning);
+      clearTimeout(firstWarningTimeout);
       setIsLoading(false);
     }
   }, [message, user]);
@@ -91,9 +95,13 @@ export const useChat = () => {
     setMessages([userMessage]);
     setIsLoading(true);
     
-    const timeoutWarning = setTimeout(() => {
+    // First warning after 30 seconds if response is still loading
+    const firstWarningTimeout = setTimeout(() => {
       toast.info("Ixty AI is still thinking. This might take a moment...");
-    }, 60000);
+      
+      // Dispatch a custom event for the typing indicator to switch messages
+      window.dispatchEvent(new CustomEvent('aiResponseStatus', { detail: { status: 'responding' } }));
+    }, 30000);
     
     sendMessage(initialMessage)
       .then(aiResponse => {
@@ -111,7 +119,7 @@ export const useChat = () => {
         toast.error('Failed to get a response. Please try again.');
       })
       .finally(() => {
-        clearTimeout(timeoutWarning);
+        clearTimeout(firstWarningTimeout);
         setIsLoading(false);
       });
   }, [user]);

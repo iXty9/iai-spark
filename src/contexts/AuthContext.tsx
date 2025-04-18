@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -151,15 +152,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(null);
       setProfile(null);
       
-      // Clear any cached auth data in localStorage and cookies
+      // Aggressively clear any cached auth data from localStorage
       try {
         localStorage.removeItem('supabase.auth.token');
-        // Clear other potential cached items
-        ['sb-refresh-token', 'sb-access-token'].forEach(key => {
+        // Clear any other auth-related items
+        ['sb-refresh-token', 'sb-access-token', 'supabase.auth.expires_at', 'supabase.auth.refreshToken'].forEach(key => {
           try {
             localStorage.removeItem(key);
           } catch (e) {
             console.warn(`Failed to remove ${key} from localStorage:`, e);
+          }
+        });
+        
+        // Clear all storage items that contain 'supabase' or 'sb-'
+        Object.keys(localStorage).forEach(key => {
+          if (key.includes('supabase') || key.startsWith('sb-')) {
+            try {
+              localStorage.removeItem(key);
+            } catch (e) {
+              console.warn(`Failed to remove ${key} from localStorage:`, e);
+            }
           }
         });
       } catch (e) {
@@ -180,6 +192,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           title: "Signed out",
           description: "You have been signed out. Some cleanup may happen in the background.",
         });
+        
+        // For Firefox Mobile: force a page refresh to clear any cached state
+        if (navigator.userAgent.includes('Firefox') && navigator.userAgent.includes('Mobile')) {
+          console.log('Firefox Mobile detected, forcing page refresh');
+          setTimeout(() => {
+            window.location.href = '/';
+            window.location.reload();
+          }, 500);
+        }
       } else {
         console.log('User has been signed out successfully, auth state cleared');
         toast({
@@ -196,6 +217,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         title: "Signed out",
         description: "You have been signed out locally. Some cleanup may happen in the background.",
       });
+      
+      // For Firefox Mobile: force a page refresh to clear any cached state
+      if (navigator.userAgent.includes('Firefox') && navigator.userAgent.includes('Mobile')) {
+        console.log('Firefox Mobile detected, forcing page refresh');
+        setTimeout(() => {
+          window.location.href = '/';
+          window.location.reload();
+        }, 500);
+      }
     }
   };
 
