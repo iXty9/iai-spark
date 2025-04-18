@@ -25,10 +25,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     if (textareaRef.current) {
       textareaRef.current.focus();
       
-      // Ensure the textarea resizes properly without showing scrollbars
+      // Ensure the textarea resizes properly
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = 
-        `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+        Math.min(textareaRef.current.scrollHeight, 120) + 'px';
     }
   }, [message]);
 
@@ -63,11 +63,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     onChange(e.target.value);
     
-    // Auto-resize textarea without showing scrollbars
+    // Auto-resize textarea
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = 
-        `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+        Math.min(textareaRef.current.scrollHeight, 120) + 'px';
     }
   };
 
@@ -101,7 +101,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             placeholder="How can I help you?"
-            className="pr-10 resize-none min-h-[40px] max-h-[120px] rounded-2xl py-2.5 scrollbar-none"
+            className="pr-10 resize-none min-h-[40px] max-h-[120px] rounded-2xl py-2.5"
             disabled={isLoading}
             aria-label="Message input"
             rows={1}

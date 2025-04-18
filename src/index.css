@@ -54,13 +54,13 @@
   }
 
   .dark {
-    --background: 0 0% 9.8%; /* #191919 converted to HSL */
+    --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
 
-    --card: 0 0% 9.8%; /* Changed to match background (#191919) */
+    --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 0 0% 9.8%; /* Changed to match background (#191919) */
+    --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
     --primary: 0 76% 53%;
@@ -78,19 +78,19 @@
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 0 0% 15%; /* Darkened to match #191919 theme */
-    --input: 0 0% 15%; /* Darkened to match #191919 theme */
+    --border: 216 34% 17%;
+    --input: 216 34% 17%;
     --ring: 0 76% 53%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 9.8%; /* Changed to match background (#191919) */
+    --sidebar-background: 222.2 84% 4.9%;
     --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 0 76% 53%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 0 0% 15%; /* Adjusted for better contrast with #191919 */
+    --sidebar-accent: 217.2 32.6% 17.5%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 0 0% 20%; /* Adjusted for better contrast with #191919 */
+    --sidebar-border: 216 34% 17%;
     --sidebar-ring: 0 76% 53%;
   }
 }
@@ -117,11 +117,6 @@
     height: 100vh;
     width: 100vw;
     overflow: hidden;
-    background-color: hsl(var(--background)) !important; /* Ensure background color is applied */
-  }
-
-  .dark body {
-    background-color: #191919 !important; /* Direct override for dark mode */
   }
 
   #root {
@@ -131,18 +126,13 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    background-color: hsl(var(--background)) !important; /* Ensure background color is applied */
-  }
-
-  .dark #root {
-    background-color: #191919 !important; /* Direct override for dark mode */
   }
 }
 
 /* Custom chat UI styles */
 @layer components {
   .chat-container {
-    @apply h-screen w-full bg-white dark:bg-[#191919] overflow-hidden;
+    @apply h-screen w-full bg-white dark:bg-gray-900 overflow-hidden;
   }
   
   .message-list {
@@ -158,7 +148,7 @@
   }
   
   .ai-message {
-    @apply bg-secondary text-secondary-foreground dark:bg-[#222] dark:text-white;
+    @apply bg-secondary text-secondary-foreground;
   }
   
   .message-input-container {
@@ -311,7 +301,6 @@
   /* Fix oversized code blocks */
   .ai-message .markdown-content pre {
     max-width: calc(100% - 1rem);
-    @apply bg-muted dark:bg-[#222] dark:text-white;
   }
 
   /* Fix table overflow */
@@ -336,16 +325,5 @@
   
   .markdown-content > p + p {
     margin-top: 0.5rem;
-  }
-}
-
-@layer utilities {
-  .scrollbar-none {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
-  }
-  
-  .scrollbar-none::-webkit-scrollbar {
-    display: none;  /* Chrome, Safari and Opera */
   }
 }

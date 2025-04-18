@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Message as MessageType } from '@/types/chat';
@@ -28,7 +27,7 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
     <div 
       className={cn(
         "message py-6",
-        isUser ? "user-message" : "ai-message dark:bg-[#191919]",
+        isUser ? "user-message" : "ai-message",
         message.pending && "opacity-70"
       )}
       aria-label={`${isUser ? 'Your' : 'Ixty AI'} message`}
