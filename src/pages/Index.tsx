@@ -39,6 +39,50 @@ const Index = () => {
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
+    // Add an iOS-specific listener for keyboard appearance
+    const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
+                       /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    
+    if (isIOSSafari) {
+      // For iOS, track viewport height changes which indicate keyboard appearance
+      let lastHeight = window.innerHeight;
+      
+      const checkHeight = () => {
+        if (window.innerHeight !== lastHeight) {
+          console.log(`Height changed from ${lastHeight} to ${window.innerHeight}`);
+          lastHeight = window.innerHeight;
+          
+          // When keyboard closes (height increases), make sure input is visible
+          // When keyboard opens (height decreases), also check visibility
+          setTimeout(() => {
+            const inputContainer = document.getElementById('message-input-container');
+            if (inputContainer) {
+              const rect = inputContainer.getBoundingClientRect();
+              console.log("Input position after height change:", rect);
+              
+              // Force visibility and proper positioning regardless of keyboard state
+              inputContainer.style.display = 'block';
+              inputContainer.style.position = 'relative';
+              inputContainer.style.bottom = '0';
+              inputContainer.style.visibility = 'visible';
+              inputContainer.style.opacity = '1';
+              
+              // Scroll to make the input visible if it's offscreen
+              if (rect.top > window.innerHeight || rect.bottom < 0) {
+                inputContainer.scrollIntoView(false); // false = align to bottom
+              }
+            }
+          }, 300);
+        }
+      };
+      
+      window.addEventListener('resize', checkHeight);
+      
+      return () => {
+        window.removeEventListener('resize', checkHeight);
+      };
+    }
+    
     // Log when messages state changes in localStorage for persistence
     const originalSetItem = localStorage.setItem;
     localStorage.setItem = function(key, value) {
@@ -59,8 +103,8 @@ const Index = () => {
   
   return (
     <div className={`h-screen w-full bg-background ${isIOSSafari ? 'ios-safari-page' : ''}`}>
-      {/* Added iOS-specific wrapper div with full height and explicit display mode */}
-      <div className={`h-full w-full ios-viewport-fix ${isIOSSafari ? 'ios-debug' : ''}`}>
+      {/* Use a container div with iOS-specific height handling */}
+      <div className={`h-full w-full ${isIOSSafari ? 'ios-viewport-fix' : ''}`}>
         <Chat />
       </div>
       

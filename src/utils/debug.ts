@@ -177,6 +177,23 @@ export const setupDebugListeners = () => {
             display: style.display,
             isVisibleInViewport: rect.bottom <= window.innerHeight && rect.top >= 0
           });
+          
+          // Additional fix: If keyboard is shown and input is off-screen, make it visible
+          const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
+                            /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+          
+          if (isIOSSafari && (rect.top > window.innerHeight || rect.bottom < 0)) {
+            console.log("Input detected as off-screen, forcing visibility");
+            inputContainer.style.position = 'sticky';
+            inputContainer.style.bottom = '0';
+            inputContainer.style.display = 'block';
+            inputContainer.style.visibility = 'visible';
+            
+            // Ensure it's in view
+            setTimeout(() => {
+              inputContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }, 100);
+          }
         }
       }, 500);
     });
@@ -215,6 +232,32 @@ export const setupDebugListeners = () => {
         },
         formExists: !!inputForm
       });
+      
+      // Add an automatic fix for iOS Safari - if input exists but is off-screen
+      const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
+                         /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      
+      if (isIOSSafari) {
+        const isOffScreen = rect.top > window.innerHeight || rect.bottom < 0;
+        const notVisible = computed.display === 'none' || computed.visibility === 'hidden';
+        
+        if (isOffScreen || notVisible) {
+          console.log("Automatically fixing off-screen or hidden input");
+          
+          // Force the input to be visible and positioned at the bottom
+          inputContainer.style.position = 'sticky';
+          inputContainer.style.bottom = '0';
+          inputContainer.style.display = 'block';
+          inputContainer.style.visibility = 'visible';
+          inputContainer.style.zIndex = '1000';
+          
+          // Show the fallback button if we can't fix the main input
+          const fallbackInput = document.getElementById('ios-fallback-input');
+          if (fallbackInput && (isOffScreen || notVisible)) {
+            fallbackInput.style.display = 'block';
+          }
+        }
+      }
     } else {
       console.log("Periodic input container check: Not found in DOM");
     }
@@ -238,9 +281,10 @@ export const testAlternativeLayout = () => {
         inputContainer.style.bottom = 'auto';
         inputContainer.style.height = 'auto';
         inputContainer.style.minHeight = '80px';
-        inputContainer.style.backgroundColor = 'rgba(255,0,0,0.3)';
+        inputContainer.style.backgroundColor = 'rgba(255,255,255,0.95)';
+        inputContainer.style.transform = 'translateZ(0)'; // Force hardware acceleration
         
-        // Let's also check all parent containers for overflow issues
+        // Also check for parent overflow issues
         let parent = inputContainer.parentElement;
         while (parent) {
           const style = window.getComputedStyle(parent);
@@ -253,7 +297,7 @@ export const testAlternativeLayout = () => {
           // Check for height constraints
           if (style.height === '100%' || style.height.includes('vh')) {
             console.log("Found parent with height constraints", parent);
-            // Try temporarily setting explicit height
+            // Try setting explicit height
             parent.style.height = 'auto';
             parent.style.minHeight = '100%';
           }

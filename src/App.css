@@ -30,7 +30,7 @@
   
   /* Input container fix for iOS Safari */
   .ios-input-container {
-    position: relative !important; /* Change from fixed/sticky to relative */
+    position: relative !important; /* Use relative instead of fixed/sticky */
     bottom: 0 !important;
     left: 0 !important;
     right: 0 !important;
@@ -41,6 +41,7 @@
     min-height: 60px !important; /* Ensure minimum height */
     margin-top: auto !important; /* Push to bottom of flex container */
     background-color: var(--background) !important; /* Ensure background is visible */
+    transform: translateZ(0) !important; /* Force hardware acceleration */
   }
   
   /* Input form fix for iOS Safari */
@@ -50,6 +51,7 @@
     visibility: visible !important;
     position: relative !important;
     min-height: 40px !important;
+    transform: translateZ(0) !important; /* Force hardware acceleration */
   }
   
   /* Debug styles for iOS testing */
@@ -132,7 +134,7 @@
       overflow: auto !important;
     }
     
-    /* Try a different positioning approach for the input bar */
+    /* Fix position for message input container - explicitly make it visible and stay at bottom */
     #message-input-container {
       position: sticky !important;
       bottom: 0 !important;
@@ -144,6 +146,9 @@
       margin-top: 8px !important;
       min-height: 60px !important;
       box-shadow: 0 -2px 10px rgba(0,0,0,0.1) !important;
+      /* Testing fix for iOS Safari - force hardware acceleration */
+      transform: translateZ(0) !important;
+      -webkit-transform: translateZ(0) !important;
     }
   }
 }

@@ -198,28 +198,6 @@ export const Chat = () => {
       </div>
     );
   };
-  
-  // Function to try modifying styles temporarily (for debugging)
-  const applyTestStyles = (element: HTMLElement | null) => {
-    if (element && debugInfo.isIOSSafari) {
-      // Try removing positions that might cause issues
-      element.style.position = 'relative';
-      element.style.bottom = 'auto';
-      element.style.minHeight = '100px';
-      element.style.backgroundColor = 'rgba(255,0,0,0.3)';
-      
-      console.log("Applied test styles to input container");
-    }
-  };
-  
-  // Apply test styles after the first message is sent on iOS
-  useEffect(() => {
-    if (messages.length > 0 && debugInfo.isIOSSafari) {
-      setTimeout(() => {
-        applyTestStyles(inputContainerRef.current);
-      }, 1000);
-    }
-  }, [messages.length, debugInfo.isIOSSafari]);
 
   return (
     <div className="chat-container flex flex-col h-full overflow-hidden">
@@ -242,15 +220,14 @@ export const Chat = () => {
         )}
       </div>
       
-      {/* Input container with ref for debugging */}
+      {/* Input container with ref for debugging - FIXED iOS Safari positioning */}
       <div 
         ref={inputContainerRef}
-        className={`p-4 border-t bg-background ios-input-container ${messages.length === 0 ? 'hidden' : 'block'}`}
+        className={`p-4 border-t bg-background ${messages.length === 0 ? 'hidden' : 'block'} ${debugInfo.isIOSSafari ? 'ios-input-container' : ''}`}
         id="message-input-container"
         style={debugInfo.isIOSSafari ? { 
-          // Force visibility styles for iOS Safari for testing
-          display: 'block !important',
-          position: 'relative !important',
+          display: 'block',
+          position: 'relative',
           minHeight: '80px',
           border: '2px solid blue'
         } : {}}
