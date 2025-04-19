@@ -1,5 +1,4 @@
-
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Chat } from '@/components/chat/Chat';
 import { 
   logIOSSafariInfo, 
@@ -9,6 +8,8 @@ import {
 } from '@/utils/debug';
 
 const Index = () => {
+  const [showFallbackInput, setShowFallbackInput] = useState(false);
+
   useEffect(() => {
     // Run initial debugging
     logIOSSafariInfo();
@@ -90,7 +91,28 @@ const Index = () => {
       originalSetItem.apply(this, [key, value]);
     };
     
+    // New logic to manage fallback input visibility
+    const checkInputVisibility = () => {
+      const inputContainer = document.getElementById('message-input-container');
+      const messageInput = inputContainer?.querySelector('textarea');
+      
+      if (inputContainer && messageInput) {
+        const isVisible = 
+          inputContainer.offsetHeight > 0 && 
+          inputContainer.offsetWidth > 0 && 
+          window.getComputedStyle(inputContainer).display !== 'none';
+        
+        setShowFallbackInput(!isVisible);
+      }
+    };
+
+    // Run checks periodically and after potential layout changes
+    const visibilityInterval = setInterval(checkInputVisibility, 1000);
+    window.addEventListener('resize', checkInputVisibility);
+
     return () => {
+      clearInterval(visibilityInterval);
+      window.removeEventListener('resize', checkInputVisibility);
       // Restore original function
       localStorage.setItem = originalSetItem;
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -108,8 +130,8 @@ const Index = () => {
         <Chat />
       </div>
       
-      {/* Fallback input container that is always visible on iOS Safari */}
-      {isIOSSafari && (
+      {/* Only show fallback if explicitly determined necessary */}
+      {isIOSSafari && showFallbackInput && (
         <div 
           id="ios-fallback-input" 
           style={{
@@ -122,7 +144,7 @@ const Index = () => {
             backgroundColor: 'var(--background)',
             borderTop: '1px solid var(--border)',
             minHeight: '40px',
-            display: 'none', // Initially hidden, will be shown via JS if the main input disappears
+            display: 'block', // Always visible if condition is met
           }}
         >
           <button 
@@ -135,18 +157,20 @@ const Index = () => {
               textAlign: 'center',
             }}
             onClick={() => {
-              // When clicked, try to focus the real input or make it visible
               const realInput = document.querySelector('#message-input-container textarea');
+              const container = document.getElementById('message-input-container');
+              
               if (realInput) {
                 (realInput as HTMLTextAreaElement).focus();
               }
               
-              // Also try to force the container to be visible
-              const container = document.getElementById('message-input-container');
               if (container) {
                 container.style.display = 'block';
                 container.style.visibility = 'visible';
                 container.style.opacity = '1';
+                
+                // Force scroll to input
+                container.scrollIntoView({ behavior: 'smooth', block: 'end' });
               }
             }}
           >
