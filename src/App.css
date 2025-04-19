@@ -4,7 +4,7 @@
   height: 100vh; /* Changed from 100% to 100vh for explicit viewport height */
   margin: 0;
   padding: 0;
-  overflow: hidden; /* Prevent unexpected overflows */
+  overflow: auto; /* Change from hidden to auto to prevent clipping */
 }
 
 /* Mobile Safari fixes for proper rendering */
@@ -17,6 +17,7 @@
     height: 100%;
     width: 100%;
     -webkit-overflow-scrolling: touch; /* Improve scrolling on iOS */
+    overflow: auto; /* Change from hidden to auto */
   }
   
   .ios-fix {
@@ -27,9 +28,9 @@
     z-index: 100 !important;
   }
   
-  /* New specific fix for the input container */
+  /* Input container fix for iOS Safari */
   .ios-input-container {
-    position: relative !important;
+    position: relative !important; /* Change from fixed/sticky to relative */
     bottom: 0 !important;
     left: 0 !important;
     right: 0 !important;
@@ -37,15 +38,52 @@
     display: block !important;
     z-index: 1000 !important;
     visibility: visible !important;
+    min-height: 60px !important; /* Ensure minimum height */
+    margin-top: auto !important; /* Push to bottom of flex container */
+    background-color: var(--background) !important; /* Ensure background is visible */
   }
   
-  /* New specific fix for the input form */
+  /* Input form fix for iOS Safari */
   .ios-input-fix {
     display: flex !important;
     width: 100% !important;
     visibility: visible !important;
     position: relative !important;
+    min-height: 40px !important;
   }
+  
+  /* Debug styles for iOS testing */
+  .ios-debug {
+    border: 1px solid red !important;
+  }
+  
+  /* Chat container iOS-specific fix */
+  .chat-container {
+    height: auto !important; /* Avoid using 100vh */
+    min-height: 100% !important;
+    max-height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  /* Ensure input is visible on iOS Safari */
+  #message-input-container {
+    position: relative !important;
+    bottom: 0 !important;
+    display: block !important;
+    visibility: visible !important;
+    z-index: 1000 !important;
+    transform: translateY(0) !important; /* Prevent transform hiding */
+    opacity: 1 !important;
+  }
+}
+
+/* Add CSS variables to track safe area insets for iOS */
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
 }
 
 /* Keep any other necessary styles but remove size constraints */
@@ -80,4 +118,32 @@
 /* Add debug-friendly styles */
 .debug-highlight {
   outline: 2px solid red !important;
+}
+
+/* Test alternative layout approach for iOS Safari */
+@media screen and (max-width: 767px) {
+  @supports (-webkit-touch-callout: none) {
+    /* Reset all flex and height constraints */
+    .chat-container, 
+    .ios-viewport-fix {
+      display: block !important;
+      height: auto !important;
+      min-height: 100% !important;
+      overflow: auto !important;
+    }
+    
+    /* Try a different positioning approach for the input bar */
+    #message-input-container {
+      position: sticky !important;
+      bottom: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      background-color: var(--background) !important;
+      z-index: 1000 !important;
+      padding: 8px !important;
+      margin-top: 8px !important;
+      min-height: 60px !important;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.1) !important;
+    }
+  }
 }

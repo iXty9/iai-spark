@@ -21,15 +21,22 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const isMobile = useIsMobile();
+  const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
+                     /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
   
   // Log when component mounts/unmounts to track lifecycle
   useEffect(() => {
     console.log("MessageInput mounted");
     
+    // Check for iOS Safari and apply specific fixes if needed
+    if (isIOSSafari) {
+      console.log("Applying iOS Safari specific fixes to MessageInput");
+    }
+    
     return () => {
       console.log("MessageInput unmounted");
     };
-  }, []);
+  }, [isIOSSafari]);
   
   // Monitor form visibility
   useEffect(() => {
@@ -53,6 +60,27 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             position: computedStyle.position,
             zIndex: computedStyle.zIndex
           });
+          
+          // If on iOS Safari and the form is not visible, try to apply fixes
+          if (isIOSSafari && (rect.height === 0 || computedStyle.display === 'none')) {
+            console.log("Attempting to fix invisible form on iOS Safari");
+            
+            // Apply direct styling to make it visible
+            formEl.style.display = 'flex';
+            formEl.style.visibility = 'visible';
+            formEl.style.position = 'relative';
+            formEl.style.zIndex = '1000';
+            formEl.style.width = '100%';
+            formEl.style.minHeight = '50px';
+            
+            // Check parent container
+            const parent = formEl.parentElement;
+            if (parent) {
+              parent.style.display = 'block';
+              parent.style.visibility = 'visible';
+              parent.style.position = 'relative';
+            }
+          }
         }
       };
       
@@ -62,7 +90,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       
       return () => clearTimeout(timer);
     }
-  }, [message]); // Re-check when message changes
+  }, [message, isIOSSafari]); // Re-check when message changes
   
   useEffect(() => {
     if (textareaRef.current) {
@@ -145,10 +173,19 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     <form 
       ref={formRef}
       onSubmit={handleSubmit} 
-      className="message-input-container ios-input-fix"
+      className={`message-input-container ios-input-fix ${isIOSSafari ? 'ios-debug' : ''}`}
       id="message-input-form"
+      style={isIOSSafari ? {
+        display: 'flex',
+        visibility: 'visible',
+        position: 'relative',
+        zIndex: 1000,
+        width: '100%',
+        minHeight: '50px',
+        border: '1px solid red' // Visual indicator for debugging
+      } : undefined}
     >
-      <div className="flex items-end gap-2">
+      <div className="flex items-end gap-2 w-full">
         <Button 
           type="button" 
           variant="ghost" 
@@ -189,7 +226,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           size="icon" 
           disabled={!message.trim() || isLoading}
           aria-label="Send message"
-          className="rounded-full shrink-0 animate-[sonar-pulse_10s_cubic-bezier(0.4,0,0.6,1)_infinite]"
+          className="rounded-full shrink-0"
           onClick={handleSendClick}
         >
           <Send className="h-5 w-5" />

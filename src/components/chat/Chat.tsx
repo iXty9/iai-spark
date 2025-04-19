@@ -23,13 +23,28 @@ export const Chat = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
   
-  // Debug state to track iOS Safari rendering
+  // Enhanced debug state to track iOS Safari rendering
   const [debugInfo, setDebugInfo] = useState({
     viewportHeight: 0,
     inputVisible: true,
     inputPosition: { top: 0, left: 0, bottom: 0 },
     messageCount: 0,
-    isIOSSafari: false
+    isIOSSafari: false,
+    computedStyles: {
+      position: '',
+      display: '',
+      visibility: '',
+      height: '',
+      zIndex: '',
+      overflow: '',
+      transform: '',
+      opacity: ''
+    },
+    parentInfo: {
+      overflow: '',
+      height: '',
+      position: ''
+    }
   });
 
   // Detect iOS Safari
@@ -90,6 +105,12 @@ export const Chat = () => {
         const rect = inputContainerRef.current.getBoundingClientRect();
         const computedStyle = window.getComputedStyle(inputContainerRef.current);
         
+        // Get parent element's style info
+        const parentStyle = inputContainerRef.current.parentElement 
+          ? window.getComputedStyle(inputContainerRef.current.parentElement)
+          : null;
+          
+        // Enhanced logging of styles that could affect visibility
         setDebugInfo(prev => ({
           ...prev,
           inputVisible: computedStyle.display !== 'none' && 
@@ -98,17 +119,47 @@ export const Chat = () => {
             top: rect.top, 
             left: rect.left, 
             bottom: rect.bottom 
-          }
+          },
+          computedStyles: {
+            position: computedStyle.position,
+            display: computedStyle.display,
+            visibility: computedStyle.visibility,
+            height: computedStyle.height,
+            zIndex: computedStyle.zIndex,
+            overflow: computedStyle.overflow,
+            transform: computedStyle.transform,
+            opacity: computedStyle.opacity
+          },
+          parentInfo: parentStyle ? {
+            overflow: parentStyle.overflow,
+            height: parentStyle.height,
+            position: parentStyle.position
+          } : prev.parentInfo
         }));
         
-        console.log("Input container state:", {
+        console.log("Input container detailed styles:", {
           exists: !!inputContainerRef.current,
           rect: rect,
-          display: computedStyle.display,
-          visibility: computedStyle.visibility,
-          position: computedStyle.position,
-          zIndex: computedStyle.zIndex,
-          overflow: computedStyle.overflow
+          computed: {
+            display: computedStyle.display,
+            visibility: computedStyle.visibility,
+            position: computedStyle.position,
+            zIndex: computedStyle.zIndex,
+            overflow: computedStyle.overflow,
+            top: computedStyle.top,
+            bottom: computedStyle.bottom,
+            height: computedStyle.height,
+            minHeight: computedStyle.minHeight,
+            opacity: computedStyle.opacity,
+            transform: computedStyle.transform
+          },
+          parent: {
+            tag: inputContainerRef.current.parentElement?.tagName,
+            id: inputContainerRef.current.parentElement?.id,
+            overflow: parentStyle?.overflow,
+            height: parentStyle?.height,
+            position: parentStyle?.position
+          }
         });
       } else {
         console.log("Input container not found in DOM");
@@ -116,7 +167,7 @@ export const Chat = () => {
     }, 500);
   }, [messages.length, hasInteracted]);
 
-  // Render debugging overlay on iOS Safari
+  // Render debugging overlay on iOS Safari with enhanced information
   const renderDebugOverlay = () => {
     if (!debugInfo.isIOSSafari) return null;
     
@@ -140,9 +191,35 @@ export const Chat = () => {
         <div>Viewport: {debugInfo.viewportHeight}px</div>
         <div>Input pos: T{debugInfo.inputPosition.top.toFixed(0)} 
           B{debugInfo.inputPosition.bottom.toFixed(0)}</div>
+        <div>Style: {debugInfo.computedStyles.position} {debugInfo.computedStyles.display} 
+          h:{debugInfo.computedStyles.height}</div>
+        <div>Parent: {debugInfo.parentInfo.position} {debugInfo.parentInfo.overflow} 
+          h:{debugInfo.parentInfo.height}</div>
       </div>
     );
   };
+  
+  // Function to try modifying styles temporarily (for debugging)
+  const applyTestStyles = (element: HTMLElement | null) => {
+    if (element && debugInfo.isIOSSafari) {
+      // Try removing positions that might cause issues
+      element.style.position = 'relative';
+      element.style.bottom = 'auto';
+      element.style.minHeight = '100px';
+      element.style.backgroundColor = 'rgba(255,0,0,0.3)';
+      
+      console.log("Applied test styles to input container");
+    }
+  };
+  
+  // Apply test styles after the first message is sent on iOS
+  useEffect(() => {
+    if (messages.length > 0 && debugInfo.isIOSSafari) {
+      setTimeout(() => {
+        applyTestStyles(inputContainerRef.current);
+      }, 1000);
+    }
+  }, [messages.length, debugInfo.isIOSSafari]);
 
   return (
     <div className="chat-container flex flex-col h-full overflow-hidden">
@@ -170,6 +247,13 @@ export const Chat = () => {
         ref={inputContainerRef}
         className={`p-4 border-t bg-background ios-input-container ${messages.length === 0 ? 'hidden' : 'block'}`}
         id="message-input-container"
+        style={debugInfo.isIOSSafari ? { 
+          // Force visibility styles for iOS Safari for testing
+          display: 'block !important',
+          position: 'relative !important',
+          minHeight: '80px',
+          border: '2px solid blue'
+        } : {}}
       >
         <MessageInput
           message={message}
