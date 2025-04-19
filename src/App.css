@@ -4,6 +4,28 @@
   height: 100vh; /* Changed from 100% to 100vh for explicit viewport height */
   margin: 0;
   padding: 0;
+  overflow: hidden; /* Prevent unexpected overflows */
+}
+
+/* Mobile Safari fixes for proper rendering */
+@supports (-webkit-touch-callout: none) {
+  .ios-viewport-fix {
+    /* Force iOS Safari to correctly render elements */
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    -webkit-overflow-scrolling: touch; /* Improve scrolling on iOS */
+  }
+  
+  .ios-fix {
+    /* Force display in Safari iOS */
+    display: flex !important;
+    position: relative !important;
+    visibility: visible !important;
+    z-index: 100 !important;
+  }
 }
 
 /* Keep any other necessary styles but remove size constraints */

@@ -81,8 +81,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     }
   };
 
+  // Added className to fix iOS Safari rendering issue
   return (
-    <form onSubmit={handleSubmit} className="message-input-container">
+    <form onSubmit={handleSubmit} className="message-input-container ios-fix">
       <div className="flex items-end gap-2">
         <Button 
           type="button" 

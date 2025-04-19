@@ -50,8 +50,8 @@ export const Chat = () => {
         )}
       </div>
       
-      {/* Always render the input bar, but hide it if no messages and not in welcome state */}
-      <div className={`p-4 border-t bg-background sticky bottom-0 z-10 ${messages.length === 0 ? 'hidden' : ''}`}>
+      {/* Fixed visibility for message input - always show it when there are messages */}
+      <div className={`p-4 border-t bg-background sticky bottom-0 z-10 ${messages.length === 0 ? 'hidden' : 'block'}`}>
         <MessageInput
           message={message}
           onChange={setMessage}

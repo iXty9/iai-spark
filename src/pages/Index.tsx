@@ -5,7 +5,8 @@ import { Chat } from '@/components/chat/Chat';
 const Index = () => {
   return (
     <div className="h-screen w-full bg-background">
-      <div className="h-full w-full">
+      {/* Added iOS-specific wrapper div with full height and explicit display mode */}
+      <div className="h-full w-full ios-viewport-fix">
         <Chat />
       </div>
     </div>
