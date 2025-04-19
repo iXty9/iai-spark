@@ -19,7 +19,50 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   isLoading 
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const isMobile = useIsMobile();
+  
+  // Log when component mounts/unmounts to track lifecycle
+  useEffect(() => {
+    console.log("MessageInput mounted");
+    
+    return () => {
+      console.log("MessageInput unmounted");
+    };
+  }, []);
+  
+  // Monitor form visibility
+  useEffect(() => {
+    if (formRef.current) {
+      const checkVisibility = () => {
+        const formEl = formRef.current;
+        if (formEl) {
+          const rect = formEl.getBoundingClientRect();
+          const computedStyle = window.getComputedStyle(formEl);
+          
+          console.log("MessageInput form visibility:", {
+            rect: {
+              top: rect.top,
+              bottom: rect.bottom,
+              height: rect.height,
+              width: rect.width
+            },
+            isVisible: rect.height > 0 && rect.width > 0,
+            display: computedStyle.display,
+            visibility: computedStyle.visibility,
+            position: computedStyle.position,
+            zIndex: computedStyle.zIndex
+          });
+        }
+      };
+      
+      // Check immediately and after a delay
+      checkVisibility();
+      const timer = setTimeout(checkVisibility, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [message]); // Re-check when message changes
   
   useEffect(() => {
     if (textareaRef.current) {
@@ -40,18 +83,34 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
+    console.log("Form submission triggered");
+    
     if (message.trim() && !isLoading) {
       onSubmit(e);
       // Reset textarea height after submission
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
+      
+      // Check visibility after submission (with delay)
+      setTimeout(() => {
+        if (formRef.current) {
+          const rect = formRef.current.getBoundingClientRect();
+          console.log("Post-submission form position:", {
+            rect,
+            visible: rect.height > 0 && rect.width > 0
+          });
+        } else {
+          console.log("Form ref not available after submission");
+        }
+      }, 500);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && message.trim() && !isLoading) {
       e.preventDefault();
+      console.log("Enter key submission triggered");
       onSubmit();
       // Reset textarea height after submission
       if (textareaRef.current) {
@@ -72,6 +131,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   const handleSendClick = () => {
+    console.log("Send button clicked");
     if (message.trim() && !isLoading) {
       onSubmit();
       // Reset textarea height after submission
@@ -81,9 +141,13 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     }
   };
 
-  // Added className to fix iOS Safari rendering issue
   return (
-    <form onSubmit={handleSubmit} className="message-input-container ios-fix">
+    <form 
+      ref={formRef}
+      onSubmit={handleSubmit} 
+      className="message-input-container ios-input-fix"
+      id="message-input-form"
+    >
       <div className="flex items-end gap-2">
         <Button 
           type="button" 

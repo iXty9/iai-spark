@@ -26,6 +26,26 @@
     visibility: visible !important;
     z-index: 100 !important;
   }
+  
+  /* New specific fix for the input container */
+  .ios-input-container {
+    position: relative !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    display: block !important;
+    z-index: 1000 !important;
+    visibility: visible !important;
+  }
+  
+  /* New specific fix for the input form */
+  .ios-input-fix {
+    display: flex !important;
+    width: 100% !important;
+    visibility: visible !important;
+    position: relative !important;
+  }
 }
 
 /* Keep any other necessary styles but remove size constraints */
@@ -55,4 +75,9 @@
   a:nth-of-type(2) .logo {
     animation: logo-spin infinite 20s linear;
   }
+}
+
+/* Add debug-friendly styles */
+.debug-highlight {
+  outline: 2px solid red !important;
 }

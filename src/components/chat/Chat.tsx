@@ -21,13 +21,128 @@ export const Chat = () => {
   
   const [hasInteracted, setHasInteracted] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputContainerRef = useRef<HTMLDivElement>(null);
   
-  // Effect to start interaction tracking
+  // Debug state to track iOS Safari rendering
+  const [debugInfo, setDebugInfo] = useState({
+    viewportHeight: 0,
+    inputVisible: true,
+    inputPosition: { top: 0, left: 0, bottom: 0 },
+    messageCount: 0,
+    isIOSSafari: false
+  });
+
+  // Detect iOS Safari
+  useEffect(() => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
+                  !(window as any).MSStream;
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    
+    setDebugInfo(prev => ({
+      ...prev,
+      isIOSSafari: isIOS && isSafari,
+      viewportHeight: window.innerHeight
+    }));
+    
+    console.log("Browser detection:", { 
+      isIOS, 
+      isSafari, 
+      userAgent: navigator.userAgent, 
+      viewportHeight: window.innerHeight
+    });
+  }, []);
+  
+  // Track viewport changes
+  useEffect(() => {
+    const handleResize = () => {
+      setDebugInfo(prev => ({
+        ...prev,
+        viewportHeight: window.innerHeight
+      }));
+      console.log("Viewport changed:", { height: window.innerHeight });
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  // Effect to start interaction tracking and debug input visibility
   useEffect(() => {
     if (messages.length > 0 && !hasInteracted) {
       setHasInteracted(true);
     }
+    
+    // Log message state changes
+    console.log("Messages state changed:", { 
+      count: messages.length, 
+      hasInteracted, 
+      isInputHidden: messages.length === 0
+    });
+    
+    setDebugInfo(prev => ({
+      ...prev,
+      messageCount: messages.length
+    }));
+    
+    // Add a small delay to check input container after render
+    setTimeout(() => {
+      if (inputContainerRef.current) {
+        const rect = inputContainerRef.current.getBoundingClientRect();
+        const computedStyle = window.getComputedStyle(inputContainerRef.current);
+        
+        setDebugInfo(prev => ({
+          ...prev,
+          inputVisible: computedStyle.display !== 'none' && 
+                        computedStyle.visibility !== 'hidden',
+          inputPosition: { 
+            top: rect.top, 
+            left: rect.left, 
+            bottom: rect.bottom 
+          }
+        }));
+        
+        console.log("Input container state:", {
+          exists: !!inputContainerRef.current,
+          rect: rect,
+          display: computedStyle.display,
+          visibility: computedStyle.visibility,
+          position: computedStyle.position,
+          zIndex: computedStyle.zIndex,
+          overflow: computedStyle.overflow
+        });
+      } else {
+        console.log("Input container not found in DOM");
+      }
+    }, 500);
   }, [messages.length, hasInteracted]);
+
+  // Render debugging overlay on iOS Safari
+  const renderDebugOverlay = () => {
+    if (!debugInfo.isIOSSafari) return null;
+    
+    return (
+      <div 
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: 'rgba(0,0,0,0.7)',
+          color: 'white',
+          fontSize: '10px',
+          padding: '4px',
+          zIndex: 9999,
+          pointerEvents: 'none'
+        }}
+      >
+        <div>Messages: {debugInfo.messageCount}</div>
+        <div>Input visible: {debugInfo.inputVisible ? 'Yes' : 'No'}</div>
+        <div>Viewport: {debugInfo.viewportHeight}px</div>
+        <div>Input pos: T{debugInfo.inputPosition.top.toFixed(0)} 
+          B{debugInfo.inputPosition.bottom.toFixed(0)}</div>
+      </div>
+    );
+  };
 
   return (
     <div className="chat-container flex flex-col h-full overflow-hidden">
@@ -50,8 +165,12 @@ export const Chat = () => {
         )}
       </div>
       
-      {/* Fixed visibility for message input - always show it when there are messages */}
-      <div className={`p-4 border-t bg-background sticky bottom-0 z-10 ${messages.length === 0 ? 'hidden' : 'block'}`}>
+      {/* Input container with ref for debugging */}
+      <div 
+        ref={inputContainerRef}
+        className={`p-4 border-t bg-background ios-input-container ${messages.length === 0 ? 'hidden' : 'block'}`}
+        id="message-input-container"
+      >
         <MessageInput
           message={message}
           onChange={setMessage}
@@ -59,6 +178,9 @@ export const Chat = () => {
           isLoading={isLoading}
         />
       </div>
+      
+      {/* Debug overlay */}
+      {renderDebugOverlay()}
     </div>
   );
 };
