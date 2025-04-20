@@ -23,12 +23,14 @@ export const useChatSubmit = (
 
     if (!message.trim()) return;
     
+    // Early return for auth loading with proper state reset
     if (isAuthLoading) {
       console.warn('Message submission blocked: Auth still loading');
       toast.error("Please wait while we load your profile...");
       return;
     }
 
+    // Create user message regardless of auth state
     const userMessage: Message = {
       id: uuidv4(),
       content: message,
@@ -39,7 +41,8 @@ export const useChatSubmit = (
     console.log('New message created:', {
       messageId: userMessage.id,
       timestamp: userMessage.timestamp,
-      contentLength: message.length
+      contentLength: message.length,
+      isAuthenticated: isAuthenticated
     });
     
     addMessage(userMessage);
@@ -109,6 +112,17 @@ export const useChatSubmit = (
       }
       
       toast.error('Failed to get a response. Please try again.');
+      
+      // Important: Add an error message to the chat so the user knows what happened
+      const errorMessage: Message = {
+        id: uuidv4(),
+        content: "I'm sorry, but I encountered an error processing your message. Please try again.",
+        sender: 'ai',
+        timestamp: new Date(),
+        metadata: { error: true }
+      };
+      
+      addMessage(errorMessage);
     } finally {
       clearTimeout(firstWarningTimeout);
       setIsLoading(false);

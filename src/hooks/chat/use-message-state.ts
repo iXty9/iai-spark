@@ -9,7 +9,14 @@ export const useMessageState = () => {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
+  // Use useCallback for all functions to prevent unnecessary re-renders
   const addMessage = useCallback((newMessage: Message) => {
+    console.log('Adding message to state:', {
+      id: newMessage.id,
+      sender: newMessage.sender,
+      timestamp: new Date().toISOString()
+    });
+    
     setMessages(prev => [...prev, newMessage]);
   }, []);
 
@@ -25,6 +32,11 @@ export const useMessageState = () => {
     toast.success('Chat history cleared');
   }, [messages.length]);
 
+  const resetState = useCallback(() => {
+    setMessage('');
+    setIsLoading(false);
+  }, []);
+
   return {
     messages,
     message,
@@ -33,6 +45,7 @@ export const useMessageState = () => {
     setIsLoading,
     addMessage,
     clearMessages,
-    setMessages
+    setMessages,
+    resetState
   };
 };

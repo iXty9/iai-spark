@@ -1,5 +1,5 @@
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMessageState } from './chat/use-message-state';
 import { useChatSubmit } from './chat/use-chat-submit';
@@ -9,6 +9,7 @@ import { toast } from '@/components/ui/sonner';
 export const useChat = () => {
   const { user, isLoading: authLoading } = useAuth();
   const hasLoadedAuth = useRef(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   
   const {
     messages,
@@ -21,6 +22,7 @@ export const useChat = () => {
     setMessages
   } = useMessageState();
 
+  // Make sure user state is properly passed to useChatSubmit
   const { handleSubmit } = useChatSubmit(
     message,
     setMessage,
@@ -30,8 +32,9 @@ export const useChat = () => {
     authLoading
   );
 
+  // Ensure we track auth state properly
   useEffect(() => {
-    if (!authLoading && !hasLoadedAuth.current) {
+    if (!authLoading) {
       hasLoadedAuth.current = true;
       console.log('Chat auth state loaded:', {
         isAuthenticated: !!user,
@@ -52,10 +55,16 @@ export const useChat = () => {
       timestamp: new Date().toISOString()
     });
     
-    exportChat(messages);
-    toast.success('Chat exported successfully');
+    try {
+      exportChat(messages);
+      toast.success('Chat exported successfully');
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Failed to export chat');
+    }
   }, [messages]);
 
+  // Safely start a chat with proper error handling
   const startChat = useCallback((initialMessage: string) => {
     if (authLoading) {
       console.warn('Chat start blocked: Auth still loading');
@@ -83,18 +92,31 @@ export const useChat = () => {
       isLoading,
       authLoading,
       hasLoadedAuth: hasLoadedAuth.current,
+      isAuthenticated: !!user,
       timestamp: new Date().toISOString()
     });
-  }, [messages.length, isLoading, authLoading]);
+  }, [messages.length, isLoading, authLoading, user]);
+
+  // Wrapped submit handler with error handling
+  const wrappedSubmit = useCallback((e?: React.FormEvent) => {
+    try {
+      handleSubmit(e);
+    } catch (error) {
+      console.error('Error in submit handler:', error);
+      setIsLoading(false);
+      toast.error('An error occurred while sending your message');
+    }
+  }, [handleSubmit, setIsLoading]);
 
   return {
     messages,
     message,
     isLoading,
     setMessage,
-    handleSubmit,
+    handleSubmit: wrappedSubmit,
     handleClearChat: clearMessages,
     handleExportChat,
-    startChat
+    startChat,
+    authError
   };
 };
