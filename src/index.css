@@ -1,366 +1,110 @@
+
+@import "./styles/theme.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
+ 
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 0 0% 3.9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
+    --card-foreground: 0 0% 3.9%;
+ 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 0 76% 53%; /* Ixty brand red #dd3333 */
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 0 76% 53%; /* Ixty brand red */
-    --accent-foreground: 0 0% 100%;
-
+    --popover-foreground: 0 0% 3.9%;
+ 
+    --primary: 0 72.2% 50.6%;
+    --primary-foreground: 0 85.7% 97.3%;
+ 
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+ 
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+ 
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+ 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 0 76% 53%; /* Ixty brand red for focus rings */
-
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 72.2% 50.6%;
+ 
     --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 0 76% 53%; /* Ixty brand red */
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 0 76% 53%; /* Ixty brand red */
-    
-    /* Ixty brand colors */
-    --ixty-red: 0 76% 53%;
-    --ixty-light-red: 0 76% 65%;
-    --ixty-dark-red: 0 76% 43%;
-    
-    /* Code highlight colors */
-    --code-bg: 210 40% 96.1%;
-    --code-fg: 222.2 84% 4.9%;
   }
-
+ 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 0 76% 53%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 0 76% 53%;
-    --accent-foreground: 0 0% 100%;
-
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+ 
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+ 
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+ 
+    --primary: 0 72.2% 50.6%;
+    --primary-foreground: 0 85.7% 97.3%;
+ 
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+ 
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+ 
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+ 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 216 34% 17%;
-    --input: 216 34% 17%;
-    --ring: 0 76% 53%;
-
-    --radius: 0.5rem;
-
-    --sidebar-background: 222.2 84% 4.9%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 0 76% 53%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 217.2 32.6% 17.5%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 216 34% 17%;
-    --sidebar-ring: 0 76% 53%;
+    --destructive-foreground: 0 0% 98%;
+ 
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 72.2% 50.6%;
   }
 }
-
+ 
 @layer base {
-  html, body {
-    height: 100%;
-    width: 100%;
-    position: fixed;
-    overflow: hidden;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: none;
-  }
-
   * {
     @apply border-border;
   }
-
   body {
     @apply bg-background text-foreground;
-    font-family: 'Roboto', sans-serif;
-    margin: 0;
-    padding: 0;
-    height: 100vh;
-    width: 100vw;
-    overflow: hidden;
-  }
-
-  #root {
-    height: 100vh;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
   }
 }
 
-/* Custom chat UI styles */
-@layer components {
-  .chat-container {
-    @apply h-screen w-full bg-white dark:bg-gray-900 overflow-hidden;
-  }
-  
-  .message-list {
-    @apply p-4 space-y-4;
-  }
-  
-  .message {
-    @apply p-3 rounded-lg max-w-[85%] overflow-hidden;
-  }
-  
-  .user-message {
-    @apply bg-primary text-primary-foreground ml-auto;
-  }
-  
-  .ai-message {
-    @apply bg-secondary text-secondary-foreground;
-  }
-  
+/* iOS Safari fixes */
+.ios-safari-page {
+  height: -webkit-fill-available;
+  position: fixed;
+  width: 100%;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+}
+
+.ios-viewport-fix {
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.ios-input-container {
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 100 !important;
+  background-color: var(--background-color);
+}
+
+@media (max-width: 767px) {
   .message-input-container {
-    @apply p-4 border-t border-border;
-  }
-  
-  .file-button {
-    @apply p-2 rounded-full hover:bg-muted transition-colors;
-  }
-  
-  .typing-indicator {
-    @apply flex items-center text-sm text-muted-foreground p-2;
-  }
-  
-  .typing-dots {
-    @apply flex space-x-1 ml-2;
-  }
-  
-  .typing-dot {
-    @apply w-1.5 h-1.5 bg-primary rounded-full animate-pulse;
-  }
-
-  [data-radix-scroll-area-viewport] {
-    scrollbar-width: thin;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-  }
-
-  .message-list {
-    min-height: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* Enhanced Markdown specific styles */
-  .markdown-content {
-    @apply text-sm leading-normal break-words;
-    max-width: 100%;
-  }
-  
-  .markdown-content strong, 
-  .markdown-content b {
-    @apply font-bold text-foreground;
-  }
-  
-  .markdown-content em, 
-  .markdown-content i {
-    @apply italic;
-  }
-  
-  .markdown-content a {
-    @apply text-primary underline hover:text-primary/80 transition-colors font-medium;
-    word-break: break-all;
-  }
-  
-  /* Adjust all spacing for horizontal rules and other block elements */
-  .markdown-content hr {
-    @apply my-2 border-t border-muted;
-    height: 1px;
-    background-color: hsl(var(--muted));
-    border: none;
-  }
-  
-  /* Adjust heading spacing */
-  .markdown-content h1 {
-    @apply text-xl font-bold my-2;
-  }
-  
-  .markdown-content h2 {
-    @apply text-lg font-bold my-2;
-  }
-  
-  .markdown-content h3 {
-    @apply text-base font-bold my-1.5;
-  }
-  
-  .markdown-content blockquote {
-    @apply border-l-4 border-primary/30 pl-4 italic my-2 py-1 text-muted-foreground;
-  }
-  
-  /* Adjust list spacing */
-  .markdown-content ul, 
-  .markdown-content ol {
-    @apply pl-5 my-2;
-  }
-  
-  .markdown-content ul {
-    @apply list-disc;
-  }
-  
-  .markdown-content ol {
-    @apply list-decimal;
-  }
-  
-  .markdown-content li {
-    @apply my-0.5;
-  }
-  
-  .markdown-content li + li {
-    @apply mt-0.5;
-  }
-  
-  .markdown-content code {
-    @apply font-mono text-sm bg-muted px-1.5 py-0.5 rounded;
-    overflow-wrap: break-word;
-    word-wrap: break-word;
-  }
-  
-  .markdown-content pre {
-    @apply my-2 rounded-md;
-    background-color: hsl(var(--muted));
-  }
-
-  .markdown-content pre code {
-    @apply block p-3 bg-[#23272a] text-white rounded-md;
-    overflow-x: auto;
-    white-space: pre;
-  }
-  
-  /* Table styling with proper spacing */
-  .markdown-content table {
-    @apply w-full border-collapse my-2 text-sm;
-    font-size: 0.9em;
-  }
-  
-  .markdown-content th {
-    @apply px-3 py-1.5 text-left text-xs font-medium uppercase tracking-wider bg-muted border-b border-border;
-  }
-  
-  .markdown-content td {
-    @apply px-3 py-1.5 border-b border-border;
-    word-break: break-word;
-  }
-  
-  .markdown-content tr:last-child td {
-    @apply border-b-0;
-  }
-  
-  /* Paragraph spacing */
-  .markdown-content p {
-    @apply my-1;
-    overflow-wrap: break-word;
-    word-wrap: break-word;
-    hyphens: auto;
-  }
-  
-  .markdown-content p + p {
-    @apply mt-1;
-  }
-  
-  .markdown-content del {
-    @apply line-through text-muted-foreground;
-  }
-
-  /* Details/Summary with appropriate spacing */
-  .markdown-content details {
-    @apply my-2 p-2 bg-muted/50 rounded-md;
-  }
-  
-  .markdown-content summary {
-    @apply cursor-pointer font-medium p-1;
-  }
-
-  /* Fix for horizontal overflow in chat bubbles */
-  .ai-message .markdown-content {
-    max-width: 100%;
-    overflow-x: hidden;
-  }
-
-  /* Fix oversized code blocks */
-  .ai-message .markdown-content pre {
-    max-width: calc(100% - 1rem);
-  }
-
-  /* Fix table overflow */
-  .ai-message .markdown-content div[class*="overflow-x-auto"] {
-    max-width: calc(100% - 1rem);
-  }
-  
-  /* Fix spacing between elements */
-  .markdown-content > * + * {
-    margin-top: 0.5rem;
-  }
-  
-  /* Adjust spacing between headings and content */
-  .markdown-content > h1 + *,
-  .markdown-content > h2 + *,
-  .markdown-content > h3 + * {
-    margin-top: 0.25rem;
-  }
-  
-  /* Adjust HR spacing to prevent extra space */
-  .markdown-content > hr {
-    margin-top: 0.75rem;
-    margin-bottom: 0.75rem;
-    height: 1px;
-  }
-  
-  .markdown-content > hr + * {
-    margin-top: 0.5rem;
-  }
-  
-  /* No extra space after dividers */
-  .markdown-content hr + p,
-  .markdown-content hr + h1,
-  .markdown-content hr + h2,
-  .markdown-content hr + h3 {
-    margin-top: 0.5rem !important;
-  }
-  
-  /* Remove any extra paragraph margin after dividers */
-  .markdown-content hr + p + p {
-    margin-top: 0.5rem !important;
+    padding-bottom: env(safe-area-inset-bottom, 0);
   }
 }

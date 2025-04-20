@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -23,6 +24,10 @@ export const UserMenu = () => {
 
   const handleProfileClick = () => {
     navigate('/profile');
+  };
+
+  const handleSettingsClick = () => {
+    navigate('/settings');
   };
 
   const handleLoginClick = () => {
@@ -142,7 +147,7 @@ export const UserMenu = () => {
                 />
               </label>
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSettingsClick}>
               <Settings className="mr-2 h-4 w-4" />
               <span>Settings</span>
             </DropdownMenuItem>
@@ -153,10 +158,16 @@ export const UserMenu = () => {
             </DropdownMenuItem>
           </>
         ) : (
-          <DropdownMenuItem onClick={handleLoginClick}>
-            <User className="mr-2 h-4 w-4" />
-            <span>Log in</span>
-          </DropdownMenuItem>
+          <>
+            <DropdownMenuItem onClick={handleLoginClick}>
+              <User className="mr-2 h-4 w-4" />
+              <span>Log in</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSettingsClick}>
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </DropdownMenuItem>
+          </>
         )}
       </DropdownMenuContent>
     </DropdownMenu>

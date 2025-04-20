@@ -87,40 +87,54 @@ export const sendMessage = async (message: string): Promise<string> => {
       console.log('Raw response from webhook:', responseText);
       
       try {
-        const data: ApiResponse[] = JSON.parse(responseText);
-        console.log('Parsed response data:', data);
-        
-        if (Array.isArray(data) && data.length > 0) {
-          // Dispatch token usage event if available
-          if (data[0].usage) {
-            const event = new CustomEvent('tokenUsage', { 
-              detail: data[0].usage 
-            });
-            window.dispatchEvent(event);
+        // First attempt to parse as JSON
+        try {
+          const data: ApiResponse[] = JSON.parse(responseText);
+          console.log('Parsed response data:', data);
+          
+          if (Array.isArray(data) && data.length > 0) {
+            // Dispatch token usage event if available
+            if (data[0].usage) {
+              const event = new CustomEvent('tokenUsage', { 
+                detail: data[0].usage 
+              });
+              window.dispatchEvent(event);
+            }
+            return data[0].output || 'I received your message but got an unexpected response format. Please try again.';
           }
-          return data[0].output || 'I received your message but got an unexpected response format. Please try again.';
-        }
-        
-        // Handle non-array responses (fallback)
-        const nonArrayData = data as unknown as ApiResponse;
-        if (nonArrayData.output) {
-          if (nonArrayData.usage) {
-            const event = new CustomEvent('tokenUsage', { 
-              detail: nonArrayData.usage 
-            });
-            window.dispatchEvent(event);
+          
+          // Handle non-array responses (fallback)
+          const nonArrayData = data as unknown as ApiResponse;
+          if (nonArrayData.output) {
+            if (nonArrayData.usage) {
+              const event = new CustomEvent('tokenUsage', { 
+                detail: nonArrayData.usage 
+              });
+              window.dispatchEvent(event);
+            }
+            return nonArrayData.output;
           }
-          return nonArrayData.output;
+          
+          console.log('Unexpected response format:', data);
+          return 'I received your message but the response format was unexpected. Please try again.';
+        } catch (parseError) {
+          // If JSON parsing fails, treat response as plain text
+          console.warn('Response is not valid JSON, treating as plain text:', parseError);
+          
+          // This is the critical change to fix the blank screen issue
+          // If the response is not valid JSON but starts with text that looks like a message
+          // we'll just return it directly instead of throwing an error
+          if (responseText && typeof responseText === 'string' && responseText.trim()) {
+            console.log('Using plain text response:', responseText.substring(0, 100) + '...');
+            return responseText.trim();
+          }
+          
+          console.error('Could not parse response as JSON or use as text:', parseError);
+          return "I received your message but couldn't process the response format. Please try again.";
         }
-        
-        console.log('Unexpected response format:', data);
-        return 'I received your message but the response format was unexpected. Please try again.';
-      } catch (parseError) {
-        console.error('Error parsing response as JSON:', parseError);
-        if (responseText && typeof responseText === 'string' && responseText.trim()) {
-          return responseText.trim();
-        }
-        return "I received your message but couldn't process the response format. Please try again.";
+      } catch (error) {
+        console.error('Unexpected error processing response:', error);
+        return "I encountered an issue processing your response. Please try again.";
       }
     } catch (networkError) {
       clearTimeout(timeoutId);

@@ -5,10 +5,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, UserRound } from 'lucide-react';
+import { Upload, UserRound, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function Profile() {
@@ -87,6 +87,10 @@ export default function Profile() {
     }
   };
 
+  const handleGoBack = () => {
+    navigate('/');
+  };
+
   const getInitials = () => {
     if (profile?.username) {
       return profile.username.charAt(0).toUpperCase();
@@ -100,8 +104,17 @@ export default function Profile() {
   return (
     <div className="container max-w-2xl py-10">
       <Card>
-        <CardHeader>
-          <CardTitle>Profile Settings</CardTitle>
+        <CardHeader className="relative">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="absolute left-2 top-2" 
+            onClick={handleGoBack}
+            aria-label="Go back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <CardTitle className="text-center">Profile Settings</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -161,13 +174,17 @@ export default function Profile() {
                   onChange={handleChange}
                 />
               </div>
-
-              <Button type="submit" className="w-full">
-                Save Changes
-              </Button>
             </div>
           </form>
         </CardContent>
+        <CardFooter className="flex justify-between">
+          <Button variant="outline" onClick={handleGoBack}>
+            Cancel
+          </Button>
+          <Button type="submit" onClick={handleSubmit}>
+            Save Changes
+          </Button>
+        </CardFooter>
       </Card>
     </div>
   );
