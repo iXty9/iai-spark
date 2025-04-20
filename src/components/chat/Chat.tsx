@@ -220,17 +220,18 @@ export const Chat = () => {
         )}
       </div>
       
-      {/* Input container with ref for debugging - FIXED iOS Safari positioning */}
+      {/* Input container - remove conditional display that was causing issues */}
       <div 
         ref={inputContainerRef}
-        className={`p-4 border-t bg-background ${messages.length === 0 ? 'hidden' : 'block'} ${debugInfo.isIOSSafari ? 'ios-input-container' : ''}`}
+        className={`p-4 border-t bg-background ${debugInfo.isIOSSafari ? 'ios-input-container' : ''}`}
         id="message-input-container"
-        style={debugInfo.isIOSSafari ? { 
-          display: 'block',
-          position: 'relative',
+        style={{
+          display: "block", // Always show the container
+          position: "relative",
+          visibility: "visible",
           minHeight: '80px',
-          border: '2px solid blue'
-        } : {}}
+          zIndex: 100
+        }}
       >
         <MessageInput
           message={message}

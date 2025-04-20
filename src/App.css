@@ -42,6 +42,7 @@
     margin-top: auto !important; /* Push to bottom of flex container */
     background-color: var(--background) !important; /* Ensure background is visible */
     transform: translateZ(0) !important; /* Force hardware acceleration */
+    opacity: 1 !important;
   }
   
   /* Input form fix for iOS Safari */
@@ -52,6 +53,7 @@
     position: relative !important;
     min-height: 40px !important;
     transform: translateZ(0) !important; /* Force hardware acceleration */
+    opacity: 1 !important;
   }
   
   /* Debug styles for iOS testing */
@@ -77,6 +79,18 @@
     z-index: 1000 !important;
     transform: translateY(0) !important; /* Prevent transform hiding */
     opacity: 1 !important;
+  }
+  
+  /* Explicitly style the fallback input for iOS */
+  #ios-fallback-input {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 1100 !important;
+    background-color: var(--background) !important;
+    border-top: 1px solid var(--border) !important;
+    padding: 8px !important;
   }
 }
 
@@ -136,7 +150,7 @@
     
     /* Fix position for message input container - explicitly make it visible and stay at bottom */
     #message-input-container {
-      position: sticky !important;
+      position: relative !important;
       bottom: 0 !important;
       left: 0 !important;
       width: 100% !important;
@@ -149,6 +163,10 @@
       /* Testing fix for iOS Safari - force hardware acceleration */
       transform: translateZ(0) !important;
       -webkit-transform: translateZ(0) !important;
+      /* Ensure visibility */
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
     }
   }
 }

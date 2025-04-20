@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Chat } from '@/components/chat/Chat';
 import { 
@@ -22,7 +23,6 @@ const Index = () => {
     }, 2000);
     
     // Try forcing visibility whenever the page loses and regains focus
-    // (which can happen when the keyboard appears/disappears)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         console.log("Page visibility changed to visible");
@@ -97,12 +97,35 @@ const Index = () => {
       const messageInput = inputContainer?.querySelector('textarea');
       
       if (inputContainer && messageInput) {
-        const isVisible = 
-          inputContainer.offsetHeight > 0 && 
-          inputContainer.offsetWidth > 0 && 
-          window.getComputedStyle(inputContainer).display !== 'none';
+        // Check multiple properties to determine if the input is truly visible
+        const rect = inputContainer.getBoundingClientRect();
+        const style = window.getComputedStyle(inputContainer);
         
-        setShowFallbackInput(!isVisible);
+        const isHidden = 
+          rect.height === 0 || 
+          style.display === 'none' || 
+          style.visibility === 'hidden' ||
+          style.opacity === '0' ||
+          rect.bottom <= 0 || 
+          rect.top >= window.innerHeight;
+        
+        // Only show fallback on iOS Safari when main input is truly hidden
+        setShowFallbackInput(isIOSSafari && isHidden);
+        
+        console.log("Fallback visibility check:", {
+          isHidden,
+          showFallback: isIOSSafari && isHidden,
+          rect: {
+            height: rect.height,
+            top: rect.top,
+            bottom: rect.bottom
+          },
+          style: {
+            display: style.display,
+            visibility: style.visibility,
+            opacity: style.opacity
+          }
+        });
       }
     };
 
@@ -121,7 +144,7 @@ const Index = () => {
   
   // Detect iOS Safari for conditional rendering
   const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
-                       /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+                     /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
   
   return (
     <div className={`h-screen w-full bg-background ${isIOSSafari ? 'ios-safari-page' : ''}`}>
@@ -130,7 +153,7 @@ const Index = () => {
         <Chat />
       </div>
       
-      {/* Only show fallback if explicitly determined necessary */}
+      {/* Only show fallback when required on iOS Safari */}
       {isIOSSafari && showFallbackInput && (
         <div 
           id="ios-fallback-input" 
@@ -150,31 +173,46 @@ const Index = () => {
           <button 
             style={{
               width: '100%',
-              padding: '8px',
+              padding: '12px',
               borderRadius: '20px',
               backgroundColor: 'var(--primary)',
               color: 'white',
               textAlign: 'center',
+              fontSize: '16px',
+              fontWeight: 'bold'
             }}
             onClick={() => {
+              // Enhanced handler for the fallback button
               const realInput = document.querySelector('#message-input-container textarea');
               const container = document.getElementById('message-input-container');
               
-              if (realInput) {
-                (realInput as HTMLTextAreaElement).focus();
-              }
-              
               if (container) {
+                // Force proper display
                 container.style.display = 'block';
                 container.style.visibility = 'visible';
                 container.style.opacity = '1';
+                container.style.position = 'relative';
+                container.style.bottom = '0';
+                container.style.zIndex = '1000';
                 
-                // Force scroll to input
+                // Scroll to input
                 container.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                
+                // Focus the textarea
+                if (realInput) {
+                  setTimeout(() => {
+                    (realInput as HTMLTextAreaElement).focus();
+                  }, 300);
+                }
+                
+                // Hide the fallback after focusing the real input
+                setTimeout(() => {
+                  setShowFallbackInput(false);
+                }, 500);
               }
             }}
           >
-            Type a message...
+            Tap here to type your message...
           </button>
         </div>
       )}
