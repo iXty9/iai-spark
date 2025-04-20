@@ -1,6 +1,3 @@
-
-// If this file is read-only, please let me know and I'll create a new service instead
-
 import { Message } from '@/types/chat';
 
 export type SendMessageParams = {
@@ -91,7 +88,7 @@ export const sendMessage = async ({
       sender: 'ai', // Changed from 'role' to 'sender'
       content: "I'm sorry, but I encountered an error processing your message. Please try again.",
       timestamp: new Date(),
-      isError: true,
+      metadata: { error: true }  // Use metadata instead of isError
     };
   }
 };
