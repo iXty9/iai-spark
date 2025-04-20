@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -23,11 +22,7 @@ export const UserMenu = () => {
   const [uploading, setUploading] = useState(false);
 
   const handleProfileClick = () => {
-    // For now, just show a toast since we haven't built a profile page yet
-    toast({
-      title: "Profile",
-      description: `Logged in as ${profile?.username || user?.email}`,
-    });
+    navigate('/profile');
   };
 
   const handleLoginClick = () => {

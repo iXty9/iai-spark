@@ -13,6 +13,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           id: string
+          phone_number: string | null
           updated_at: string | null
           username: string | null
           webhook_url: string | null
@@ -20,6 +21,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           id: string
+          phone_number?: string | null
           updated_at?: string | null
           username?: string | null
           webhook_url?: string | null
@@ -27,6 +29,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           id?: string
+          phone_number?: string | null
           updated_at?: string | null
           username?: string | null
           webhook_url?: string | null

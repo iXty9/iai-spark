@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,7 +9,7 @@ type AuthContextType = {
   profile: any | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, username: string) => Promise<void>;
+  signUp: (email: string, password: string, username: string, phone_number?: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<any>) => Promise<void>;
 };
@@ -24,7 +23,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('Auth state changed:', event);
@@ -33,9 +31,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(null);
           setUser(null);
           setProfile(null);
-          // Force clear any potential cached auth data
           localStorage.removeItem('supabase.auth.token');
-          // Also clear other potential cached items
           ['sb-refresh-token', 'sb-access-token'].forEach(key => {
             try {
               localStorage.removeItem(key);
@@ -55,7 +51,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    // Then check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log('Initial session check:', session ? 'User is authenticated' : 'No active session');
       setSession(session);
@@ -112,7 +107,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const signUp = async (email: string, password: string, username: string) => {
+  const signUp = async (email: string, password: string, username: string, phone_number?: string) => {
     try {
       const { error } = await supabase.auth.signUp({
         email,
@@ -120,6 +115,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         options: {
           data: {
             username,
+            phone_number,
           },
         },
       });
@@ -147,53 +143,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       console.log('Signing out user...');
       
-      // First clear state to ensure UI updates immediately
       setSession(null);
       setUser(null);
       setProfile(null);
       
-      // Aggressively clear any cached auth data from localStorage
-      try {
-        localStorage.removeItem('supabase.auth.token');
-        // Clear any other auth-related items
-        ['sb-refresh-token', 'sb-access-token', 'supabase.auth.expires_at', 'supabase.auth.refreshToken'].forEach(key => {
+      localStorage.removeItem('supabase.auth.token');
+      ['sb-refresh-token', 'sb-access-token', 'supabase.auth.expires_at', 'supabase.auth.refreshToken'].forEach(key => {
+        try {
+          localStorage.removeItem(key);
+        } catch (e) {
+          console.warn(`Failed to remove ${key} from localStorage:`, e);
+        }
+      });
+      
+      Object.keys(localStorage).forEach(key => {
+        if (key.includes('supabase') || key.startsWith('sb-')) {
           try {
             localStorage.removeItem(key);
           } catch (e) {
             console.warn(`Failed to remove ${key} from localStorage:`, e);
           }
-        });
-        
-        // Clear all storage items that contain 'supabase' or 'sb-'
-        Object.keys(localStorage).forEach(key => {
-          if (key.includes('supabase') || key.startsWith('sb-')) {
-            try {
-              localStorage.removeItem(key);
-            } catch (e) {
-              console.warn(`Failed to remove ${key} from localStorage:`, e);
-            }
-          }
-        });
-      } catch (e) {
-        console.warn('Error clearing localStorage:', e);
-      }
+        }
+      });
       
-      // Then attempt the actual signout from Supabase
       const { error } = await supabase.auth.signOut({
-        scope: 'global' // Ensure all sessions are terminated
+        scope: 'global'
       });
       
       if (error) {
         console.error('Error during sign out API call:', error);
-        // Even if the API call fails, we've already cleared local state
-        // so the user will perceive being signed out
         toast({
           variant: "default",
           title: "Signed out",
           description: "You have been signed out. Some cleanup may happen in the background.",
         });
         
-        // For Firefox Mobile: force a page refresh to clear any cached state
         if (navigator.userAgent.includes('Firefox') && navigator.userAgent.includes('Mobile')) {
           console.log('Firefox Mobile detected, forcing page refresh');
           setTimeout(() => {
@@ -211,14 +195,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch (error: any) {
       console.error('Error during sign out process:', error);
-      // Even on error, ensure user is signed out locally
       toast({
         variant: "default",
         title: "Signed out",
         description: "You have been signed out locally. Some cleanup may happen in the background.",
       });
       
-      // For Firefox Mobile: force a page refresh to clear any cached state
       if (navigator.userAgent.includes('Firefox') && navigator.userAgent.includes('Mobile')) {
         console.log('Firefox Mobile detected, forcing page refresh');
         setTimeout(() => {
