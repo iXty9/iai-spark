@@ -220,26 +220,28 @@ export const Chat = () => {
         )}
       </div>
       
-      {/* Input container - remove conditional display that was causing issues */}
-      <div 
-        ref={inputContainerRef}
-        className={`p-4 border-t bg-background ${debugInfo.isIOSSafari ? 'ios-input-container' : ''}`}
-        id="message-input-container"
-        style={{
-          display: "block", // Always show the container
-          position: "relative",
-          visibility: "visible",
-          minHeight: '80px',
-          zIndex: 100
-        }}
-      >
-        <MessageInput
-          message={message}
-          onChange={setMessage}
-          onSubmit={handleSubmit}
-          isLoading={isLoading}
-        />
-      </div>
+      {/* Only render the Message Input container when there are messages */}
+      {messages.length > 0 && (
+        <div 
+          ref={inputContainerRef}
+          className={`p-4 border-t bg-background ${debugInfo.isIOSSafari ? 'ios-input-container' : ''}`}
+          id="message-input-container"
+          style={{
+            display: "block", 
+            position: "relative",
+            visibility: "visible",
+            minHeight: '80px',
+            zIndex: 100
+          }}
+        >
+          <MessageInput
+            message={message}
+            onChange={setMessage}
+            onSubmit={handleSubmit}
+            isLoading={isLoading}
+          />
+        </div>
+      )}
       
       {/* Debug overlay */}
       {renderDebugOverlay()}

@@ -10,6 +10,7 @@ import {
 
 const Index = () => {
   const [showFallbackInput, setShowFallbackInput] = useState(false);
+  const [hasMessages, setHasMessages] = useState(false);
 
   useEffect(() => {
     // Run initial debugging
@@ -28,7 +29,7 @@ const Index = () => {
         console.log("Page visibility changed to visible");
         setTimeout(() => {
           const inputContainer = document.getElementById('message-input-container');
-          if (inputContainer) {
+          if (inputContainer && hasMessages) {
             console.log("Forcing input container visibility after focus change");
             inputContainer.style.display = 'block';
             inputContainer.style.visibility = 'visible';
@@ -39,6 +40,18 @@ const Index = () => {
     };
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Check if we have messages (whether we're on the welcome screen or not)
+    const checkMessageState = () => {
+      // Look for message elements as an indicator that we've moved past the welcome screen
+      const messageElements = document.querySelectorAll('.chat-message');
+      setHasMessages(messageElements.length > 0);
+      console.log("Message check: found", messageElements.length, "messages");
+    };
+
+    // Check initially and then periodically
+    checkMessageState();
+    const messageCheckInterval = setInterval(checkMessageState, 1000);
     
     // Add an iOS-specific listener for keyboard appearance
     const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
@@ -57,7 +70,7 @@ const Index = () => {
           // When keyboard opens (height decreases), also check visibility
           setTimeout(() => {
             const inputContainer = document.getElementById('message-input-container');
-            if (inputContainer) {
+            if (inputContainer && hasMessages) {
               const rect = inputContainer.getBoundingClientRect();
               console.log("Input position after height change:", rect);
               
@@ -81,18 +94,18 @@ const Index = () => {
       
       return () => {
         window.removeEventListener('resize', checkHeight);
+        clearInterval(messageCheckInterval);
       };
     }
     
-    // Log when messages state changes in localStorage for persistence
-    const originalSetItem = localStorage.setItem;
-    localStorage.setItem = function(key, value) {
-      console.log(`localStorage.setItem('${key}', '${value.substring(0, 50)}...')`);
-      originalSetItem.apply(this, [key, value]);
-    };
-    
-    // New logic to manage fallback input visibility
+    // New logic to manage fallback input visibility - only show fallback when we have messages
+    // and the main input is hidden
     const checkInputVisibility = () => {
+      if (!hasMessages) {
+        setShowFallbackInput(false);
+        return;
+      }
+      
       const inputContainer = document.getElementById('message-input-container');
       const messageInput = inputContainer?.querySelector('textarea');
       
@@ -109,12 +122,13 @@ const Index = () => {
           rect.bottom <= 0 || 
           rect.top >= window.innerHeight;
         
-        // Only show fallback on iOS Safari when main input is truly hidden
-        setShowFallbackInput(isIOSSafari && isHidden);
+        // Only show fallback on iOS Safari when main input is truly hidden AND we have messages
+        setShowFallbackInput(isIOSSafari && isHidden && hasMessages);
         
         console.log("Fallback visibility check:", {
+          hasMessages,
           isHidden,
-          showFallback: isIOSSafari && isHidden,
+          showFallback: isIOSSafari && isHidden && hasMessages,
           rect: {
             height: rect.height,
             top: rect.top,
@@ -135,12 +149,11 @@ const Index = () => {
 
     return () => {
       clearInterval(visibilityInterval);
+      clearInterval(messageCheckInterval);
       window.removeEventListener('resize', checkInputVisibility);
-      // Restore original function
-      localStorage.setItem = originalSetItem;
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [hasMessages]);
   
   // Detect iOS Safari for conditional rendering
   const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
@@ -153,7 +166,7 @@ const Index = () => {
         <Chat />
       </div>
       
-      {/* Only show fallback when required on iOS Safari */}
+      {/* Only show fallback when required on iOS Safari AND we have messages */}
       {isIOSSafari && showFallbackInput && (
         <div 
           id="ios-fallback-input" 
