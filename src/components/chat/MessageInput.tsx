@@ -1,4 +1,3 @@
-
 import React, { useRef, FormEvent, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -173,17 +172,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     <form 
       ref={formRef}
       onSubmit={handleSubmit} 
-      className={`message-input-container ios-input-fix ${isIOSSafari ? 'ios-debug' : ''}`}
-      id="message-input-form"
-      style={isIOSSafari ? {
-        display: 'flex',
-        visibility: 'visible',
-        position: 'relative',
-        zIndex: 1000,
-        width: '100%',
-        minHeight: '50px',
-        border: '1px solid red' // Visual indicator for debugging
-      } : undefined}
+      className={`message-input-container ${isIOSSafari ? 'ios-debug' : ''}`}
     >
       <div className="flex items-end gap-2 w-full">
         <Button 
@@ -203,7 +192,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             placeholder="How can I help you?"
-            className="pr-10 resize-none min-h-[40px] max-h-[120px] rounded-2xl py-2.5"
+            className="pr-10 resize-none min-h-[40px] max-h-[120px] rounded-2xl py-2.5 overflow-hidden"
             disabled={isLoading}
             aria-label="Message input"
             rows={1}

@@ -185,9 +185,8 @@
 
   /* Enhanced Markdown specific styles */
   .markdown-content {
-    @apply text-sm leading-relaxed break-words;
+    @apply text-sm leading-normal break-words;
     max-width: 100%;
-    line-height: 1.4;
   }
   
   .markdown-content strong, 
@@ -274,10 +273,14 @@
   }
   
   .markdown-content p {
-    @apply my-1;
+    @apply my-1.5;
     overflow-wrap: break-word;
     word-wrap: break-word;
     hyphens: auto;
+  }
+  
+  .markdown-content p + p {
+    @apply mt-2;
   }
   
   .markdown-content del {

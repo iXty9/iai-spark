@@ -1,16 +1,30 @@
-
 import React from 'react';
 import { ThumbsUp, ThumbsDown, Copy, Volume2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+
+interface TokenInfo {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  threadId?: string;
+}
 
 interface MessageActionsProps {
   messageId: string;
   content: string;
+  tokenInfo?: TokenInfo;
 }
 
-export const MessageActions: React.FC<MessageActionsProps> = ({ messageId, content }) => {
+export const MessageActions: React.FC<MessageActionsProps> = ({ 
+  messageId, 
+  content,
+  tokenInfo 
+}) => {
+  const [showTokenInfo, setShowTokenInfo] = React.useState(false);
+
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content);
     toast.success('Message copied to clipboard');
@@ -101,15 +115,61 @@ export const MessageActions: React.FC<MessageActionsProps> = ({ messageId, conte
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Token usage info">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-7 w-7" 
+              onClick={() => setShowTokenInfo(true)}
+              disabled={!tokenInfo}
+            >
               <Info className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Token usage information not available in this version</p>
+            <p>Token usage info</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
+
+      <Dialog open={showTokenInfo} onOpenChange={setShowTokenInfo}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Token Usage Information</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 text-sm">
+            {tokenInfo ? (
+              <>
+                {tokenInfo.threadId && (
+                  <p className="flex justify-between">
+                    <span className="font-medium">Thread ID:</span>
+                    <span className="text-muted-foreground">{tokenInfo.threadId}</span>
+                  </p>
+                )}
+                {tokenInfo.promptTokens !== undefined && (
+                  <p className="flex justify-between">
+                    <span className="font-medium">Prompt Tokens:</span>
+                    <span className="text-muted-foreground">{tokenInfo.promptTokens}</span>
+                  </p>
+                )}
+                {tokenInfo.completionTokens !== undefined && (
+                  <p className="flex justify-between">
+                    <span className="font-medium">Completion Tokens:</span>
+                    <span className="text-muted-foreground">{tokenInfo.completionTokens}</span>
+                  </p>
+                )}
+                {tokenInfo.totalTokens !== undefined && (
+                  <p className="flex justify-between">
+                    <span className="font-medium">Total Tokens:</span>
+                    <span className="text-muted-foreground">{tokenInfo.totalTokens}</span>
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-muted-foreground">No token information available</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
