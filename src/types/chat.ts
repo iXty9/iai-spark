@@ -1,4 +1,3 @@
-
 export interface Message {
   id: string;
   content: string;
@@ -11,4 +10,31 @@ export interface ChatState {
   messages: Message[];
   isTyping: boolean;
   error?: string | null;
+}
+
+export interface DebugInfo {
+  viewportHeight: number;
+  inputVisible: boolean;
+  inputPosition: {
+    top: number;
+    left: number;
+    bottom: number;
+  };
+  messageCount: number;
+  isIOSSafari: boolean;
+  computedStyles: {
+    position: string;
+    display: string;
+    visibility: string;
+    height: string;
+    zIndex: string;
+    overflow: string;
+    transform: string;
+    opacity: string;
+  };
+  parentInfo: {
+    overflow: string;
+    height: string;
+    position: string;
+  };
 }
