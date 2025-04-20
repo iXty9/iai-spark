@@ -273,7 +273,7 @@
   }
   
   .markdown-content p {
-    @apply my-1.5;
+    @apply my-1;
     overflow-wrap: break-word;
     word-wrap: break-word;
     hyphens: auto;

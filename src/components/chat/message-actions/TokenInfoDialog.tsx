@@ -12,7 +12,7 @@ interface TokenInfoDialogProps {
 export const TokenInfoDialog: React.FC<TokenInfoDialogProps> = ({
   open,
   onOpenChange,
-  tokenInfo
+  tokenInfo,
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

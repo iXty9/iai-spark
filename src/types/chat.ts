@@ -12,6 +12,13 @@ export interface ChatState {
   error?: string | null;
 }
 
+export interface TokenInfo {
+  threadId?: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+}
+
 export interface DebugInfo {
   viewportHeight: number;
   inputVisible: boolean;

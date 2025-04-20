@@ -23,11 +23,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
                      /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
   
-  // Log when component mounts/unmounts to track lifecycle
   useEffect(() => {
     console.log("MessageInput mounted");
     
-    // Check for iOS Safari and apply specific fixes if needed
     if (isIOSSafari) {
       console.log("Applying iOS Safari specific fixes to MessageInput");
     }
@@ -37,7 +35,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     };
   }, [isIOSSafari]);
   
-  // Monitor form visibility
   useEffect(() => {
     if (formRef.current) {
       const checkVisibility = () => {
@@ -60,11 +57,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             zIndex: computedStyle.zIndex
           });
           
-          // If on iOS Safari and the form is not visible, try to apply fixes
           if (isIOSSafari && (rect.height === 0 || computedStyle.display === 'none')) {
             console.log("Attempting to fix invisible form on iOS Safari");
             
-            // Apply direct styling to make it visible
             formEl.style.display = 'flex';
             formEl.style.visibility = 'visible';
             formEl.style.position = 'relative';
@@ -72,7 +67,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             formEl.style.width = '100%';
             formEl.style.minHeight = '50px';
             
-            // Check parent container
             const parent = formEl.parentElement;
             if (parent) {
               parent.style.display = 'block';
@@ -83,19 +77,17 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         }
       };
       
-      // Check immediately and after a delay
       checkVisibility();
       const timer = setTimeout(checkVisibility, 1000);
       
       return () => clearTimeout(timer);
     }
-  }, [message, isIOSSafari]); // Re-check when message changes
+  }, [message, isIOSSafari]);
   
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.focus();
       
-      // Ensure the textarea resizes properly
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = 
         Math.min(textareaRef.current.scrollHeight, 120) + 'px';
@@ -114,12 +106,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     
     if (message.trim() && !isLoading) {
       onSubmit(e);
-      // Reset textarea height after submission
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
       
-      // Check visibility after submission (with delay)
       setTimeout(() => {
         if (formRef.current) {
           const rect = formRef.current.getBoundingClientRect();
@@ -139,7 +129,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       e.preventDefault();
       console.log("Enter key submission triggered");
       onSubmit();
-      // Reset textarea height after submission
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
@@ -149,7 +138,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     onChange(e.target.value);
     
-    // Auto-resize textarea
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = 
@@ -161,7 +149,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     console.log("Send button clicked");
     if (message.trim() && !isLoading) {
       onSubmit();
-      // Reset textarea height after submission
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
@@ -192,7 +179,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             placeholder="How can I help you?"
-            className="pr-10 resize-none min-h-[40px] max-h-[120px] rounded-2xl py-2.5 overflow-hidden"
+            className="pr-10 resize-none min-h-[40px] max-h-[120px] rounded-2xl py-2.5"
             disabled={isLoading}
             aria-label="Message input"
             rows={1}
