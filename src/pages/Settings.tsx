@@ -99,10 +99,15 @@ export default function Settings() {
       document.body.style.backgroundPosition = 'center';
       document.body.style.backgroundRepeat = 'no-repeat';
       document.body.style.backgroundAttachment = 'fixed';
-      document.body.style.backgroundBlendMode = 'overlay';
-      document.body.style.backgroundOpacity = backgroundOpacity.toString();
+      
+      // Fix: Set the background opacity using CSS variable instead of direct style property
+      document.documentElement.style.setProperty('--bg-opacity', backgroundOpacity.toString());
+      
+      // Add the class that uses the CSS variable for background opacity
+      document.body.classList.add('with-bg-image');
     } else {
       document.body.style.backgroundImage = 'none';
+      document.body.classList.remove('with-bg-image');
     }
     
   }, [theme, lightTheme, darkTheme, backgroundImage, backgroundOpacity]);
