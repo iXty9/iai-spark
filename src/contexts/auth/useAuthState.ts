@@ -8,30 +8,67 @@ export const useAuthState = () => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [lastError, setLastError] = useState<Error | null>(null);
   const isFetchingProfile = useRef<boolean>(false);
+  const fetchAttempts = useRef<number>(0);
+  const maxRetries = 3;
 
   const fetchProfile = async (userId: string) => {
     // Prevent concurrent fetch requests for the same profile
-    if (isFetchingProfile.current || !userId) return;
+    if (isFetchingProfile.current || !userId) {
+      console.log('Profile fetch skipped:', !userId ? 'No userId provided' : 'Already fetching');
+      return;
+    }
     
     try {
       isFetchingProfile.current = true;
-      console.log('Fetching profile for user:', userId);
+      fetchAttempts.current++;
       
-      const { data, error } = await supabase
+      console.log('Fetching profile attempt', fetchAttempts.current, 'for user:', userId);
+      console.time('profileFetch');
+      
+      const { data, error, status } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
+
+      console.timeEnd('profileFetch');
 
       if (error) {
-        console.error('Error fetching profile:', error);
-        return;
+        console.error('Profile fetch error:', {
+          error,
+          status,
+          attempt: fetchAttempts.current,
+          userId
+        });
+        
+        setLastError(error);
+
+        // Retry logic for specific errors
+        if (fetchAttempts.current < maxRetries && status !== 404) {
+          console.log('Scheduling retry...');
+          setTimeout(() => {
+            fetchProfile(userId);
+          }, Math.pow(2, fetchAttempts.current) * 1000); // Exponential backoff
+          return;
+        }
       }
 
-      setProfile(data);
+      if (data) {
+        console.log('Profile fetched successfully:', {
+          userId,
+          hasData: !!data,
+          timestamp: new Date().toISOString()
+        });
+        setProfile(data);
+        setLastError(null);
+      } else {
+        console.warn('No profile data found for user:', userId);
+      }
     } catch (error) {
-      console.error('Error in fetchProfile:', error);
+      console.error('Unexpected error in fetchProfile:', error);
+      setLastError(error as Error);
     } finally {
       isFetchingProfile.current = false;
     }
@@ -47,5 +84,6 @@ export const useAuthState = () => {
     isLoading,
     setIsLoading,
     fetchProfile,
+    lastError,
   };
 };
