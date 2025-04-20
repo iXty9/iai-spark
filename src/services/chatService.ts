@@ -34,7 +34,7 @@ export const sendMessage = async ({
       id: `user_${messageId}`,
       role: 'user',
       content: message,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(),
     };
     
     // Create the initial assistant message
@@ -42,8 +42,8 @@ export const sendMessage = async ({
       id: messageId,
       role: 'assistant',
       content: '',
-      timestamp: new Date().toISOString(),
-      isLoading: true,
+      timestamp: new Date(),
+      pending: true,
     };
     
     // Notify that the message has started
@@ -70,7 +70,7 @@ export const sendMessage = async ({
     
     // Update the assistant message with the full content
     assistantMessage.content = accumulatedContent;
-    assistantMessage.isLoading = false;
+    assistantMessage.pending = false;
     
     // Notify that the message is complete
     if (onMessageComplete) {
@@ -90,9 +90,41 @@ export const sendMessage = async ({
       id: `error_${Date.now()}`,
       role: 'assistant',
       content: "I'm sorry, but I encountered an error processing your message. Please try again.",
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(),
       isError: true,
     };
+  }
+};
+
+/**
+ * Export chat messages to a JSON file
+ */
+export const exportChat = (messages: Message[]): void => {
+  try {
+    // Convert messages to a JSON string
+    const chatData = JSON.stringify(messages, null, 2);
+    
+    // Create a blob from the JSON string
+    const blob = new Blob([chatData], { type: 'application/json' });
+    
+    // Create a download URL for the blob
+    const url = URL.createObjectURL(blob);
+    
+    // Create a temporary link element to trigger the download
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `chat-export-${new Date().toISOString().split('T')[0]}.json`;
+    
+    // Append the link to the body, trigger the download, and clean up
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Revoke the URL to free up memory
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Error exporting chat:', error);
+    throw new Error('Failed to export chat');
   }
 };
 

@@ -79,12 +79,17 @@ export const useChat = () => {
       });
       
       console.time(`messageResponse_${userMessage.id}`);
-      const aiResponse = await sendMessage(message);
+      const aiResponse = await sendMessage({
+        message: message,
+        onError: (error) => {
+          console.error('Error in AI response:', error);
+        }
+      });
       console.timeEnd(`messageResponse_${userMessage.id}`);
       
       const aiMessage: MessageType = {
         id: uuidv4(),
-        content: aiResponse,
+        content: aiResponse.content,
         sender: 'ai',
         timestamp: new Date()
       };
@@ -92,7 +97,7 @@ export const useChat = () => {
       console.log('AI response received:', {
         messageId: aiMessage.id,
         responseTime: aiMessage.timestamp.getTime() - userMessage.timestamp.getTime(),
-        contentLength: aiResponse.length
+        contentLength: aiResponse.content.length
       });
       
       setMessages(prev => [...prev, aiMessage]);
@@ -187,13 +192,18 @@ export const useChat = () => {
     }, 30000);
     
     console.time(`initialResponse_${userMessage.id}`);
-    sendMessage(initialMessage)
+    sendMessage({
+      message: initialMessage,
+      onError: (error) => {
+        console.error('Error in initial AI response:', error);
+      }
+    })
       .then(aiResponse => {
         console.timeEnd(`initialResponse_${userMessage.id}`);
         
         const aiMessage: MessageType = {
           id: uuidv4(),
-          content: aiResponse,
+          content: aiResponse.content,
           sender: 'ai',
           timestamp: new Date()
         };
@@ -201,7 +211,7 @@ export const useChat = () => {
         console.log('Initial AI response received:', {
           messageId: aiMessage.id,
           responseTime: aiMessage.timestamp.getTime() - userMessage.timestamp.getTime(),
-          contentLength: aiResponse.length
+          contentLength: aiResponse.content.length
         });
         
         setMessages(prev => [...prev, aiMessage]);
