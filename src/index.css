@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -205,41 +206,57 @@
   }
   
   .markdown-content pre {
-    @apply bg-muted p-2 rounded my-2 shadow-sm;
+    @apply bg-muted p-2 rounded my-1.5 shadow-sm;
     overflow-x: auto;
     max-width: 100%;
   }
   
   .markdown-content img {
-    @apply max-w-full h-auto my-2 rounded shadow-sm;
+    @apply max-w-full h-auto my-1.5 rounded shadow-sm;
   }
   
+  /* Reduce spacing for horizontal rules */
   .markdown-content hr {
-    @apply my-2 border-t border-muted;
+    @apply my-1.5 border-t border-muted;
   }
   
+  /* Adjust heading spacing */
   .markdown-content h1 {
-    @apply text-xl font-bold my-2 pb-1 border-b border-muted;
+    @apply text-xl font-bold mt-2 mb-1 pb-1 border-b border-muted;
   }
   
   .markdown-content h2 {
-    @apply text-lg font-bold my-2;
+    @apply text-lg font-bold mt-2 mb-1;
   }
   
   .markdown-content h3 {
-    @apply text-base font-bold my-1;
+    @apply text-base font-bold mt-1.5 mb-0.5;
   }
   
   .markdown-content blockquote {
-    @apply border-l-4 border-primary/30 pl-4 italic my-2 py-1 text-muted-foreground;
+    @apply border-l-4 border-primary/30 pl-4 italic my-1.5 py-1 text-muted-foreground;
+  }
+  
+  /* Adjust list spacing */
+  .markdown-content ul, 
+  .markdown-content ol {
+    @apply pl-5 my-1.5;
   }
   
   .markdown-content ul {
-    @apply list-disc pl-5 my-2 space-y-0.5;
+    @apply list-disc;
   }
   
   .markdown-content ol {
-    @apply list-decimal pl-5 my-2 space-y-0.5;
+    @apply list-decimal;
+  }
+  
+  .markdown-content li {
+    @apply my-0.5;
+  }
+  
+  .markdown-content li + li {
+    @apply mt-0.5;
   }
   
   .markdown-content code {
@@ -254,17 +271,18 @@
     white-space: pre;
   }
   
+  /* Table styling with tighter spacing */
   .markdown-content table {
-    @apply w-full border-collapse my-2 text-sm;
+    @apply w-full border-collapse my-1.5 text-sm;
     font-size: 0.9em;
   }
   
   .markdown-content th {
-    @apply px-3 py-2 text-left text-xs font-medium uppercase tracking-wider bg-muted border-b border-border;
+    @apply px-3 py-1.5 text-left text-xs font-medium uppercase tracking-wider bg-muted border-b border-border;
   }
   
   .markdown-content td {
-    @apply px-3 py-2 border-b border-border;
+    @apply px-3 py-1.5 border-b border-border;
     word-break: break-word;
   }
   
@@ -272,23 +290,25 @@
     @apply border-b-0;
   }
   
+  /* Paragraph spacing */
   .markdown-content p {
-    @apply my-1;
+    @apply my-0.5;
     overflow-wrap: break-word;
     word-wrap: break-word;
     hyphens: auto;
   }
   
   .markdown-content p + p {
-    @apply mt-2;
+    @apply mt-1;
   }
   
   .markdown-content del {
     @apply line-through text-muted-foreground;
   }
 
+  /* Details/Summary with less spacing */
   .markdown-content details {
-    @apply my-2 p-2 bg-muted/50 rounded-md;
+    @apply my-1.5 p-2 bg-muted/50 rounded-md;
   }
   
   .markdown-content summary {
@@ -317,16 +337,27 @@
     margin-bottom: 0.5rem;
   }
   
+  /* Adjust spacing between headings and content */
+  .markdown-content > h1 + *,
+  .markdown-content > h2 + *,
+  .markdown-content > h3 + * {
+    margin-top: 0.25rem;
+  }
+  
+  /* Adjust spacing after headings */
   .markdown-content > h2,
   .markdown-content > h3 {
     margin-top: 1rem;
+    margin-bottom: 0.25rem;
+  }
+  
+  /* Adjust HR spacing */
+  .markdown-content > hr {
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
   }
   
   .markdown-content > hr + * {
-    margin-top: 0.5rem;
-  }
-  
-  .markdown-content > p + p {
     margin-top: 0.5rem;
   }
 }
