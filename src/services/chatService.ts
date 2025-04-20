@@ -32,7 +32,7 @@ export const sendMessage = async ({
     // Create the initial user message
     const userMessage: Message = {
       id: `user_${messageId}`,
-      role: 'user',
+      sender: 'user', // Changed from 'role' to 'sender'
       content: message,
       timestamp: new Date(),
     };
@@ -40,7 +40,7 @@ export const sendMessage = async ({
     // Create the initial assistant message
     const assistantMessage: Message = {
       id: messageId,
-      role: 'assistant',
+      sender: 'ai', // Changed from 'role' to 'sender'
       content: '',
       timestamp: new Date(),
       pending: true,
@@ -88,7 +88,7 @@ export const sendMessage = async ({
     // Return a fallback message on error
     return {
       id: `error_${Date.now()}`,
-      role: 'assistant',
+      sender: 'ai', // Changed from 'role' to 'sender'
       content: "I'm sorry, but I encountered an error processing your message. Please try again.",
       timestamp: new Date(),
       isError: true,
