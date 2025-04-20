@@ -1,3 +1,4 @@
+
 import { Message } from '@/types/chat';
 
 export type SendMessageParams = {
@@ -29,7 +30,7 @@ export const sendMessage = async ({
     // Create the initial user message
     const userMessage: Message = {
       id: `user_${messageId}`,
-      sender: 'user', // Changed from 'role' to 'sender'
+      sender: 'user',
       content: message,
       timestamp: new Date(),
     };
@@ -37,7 +38,7 @@ export const sendMessage = async ({
     // Create the initial assistant message
     const assistantMessage: Message = {
       id: messageId,
-      sender: 'ai', // Changed from 'role' to 'sender'
+      sender: 'ai',
       content: '',
       timestamp: new Date(),
       pending: true,
@@ -78,17 +79,19 @@ export const sendMessage = async ({
   } catch (error) {
     console.error('Error in sendMessage:', error);
     
-    if (onError) {
-      onError(error as Error);
+    if (onError && error instanceof Error) {
+      onError(error);
+    } else if (onError) {
+      onError(new Error('Unknown error occurred'));
     }
     
     // Return a fallback message on error
     return {
       id: `error_${Date.now()}`,
-      sender: 'ai', // Changed from 'role' to 'sender'
+      sender: 'ai',
       content: "I'm sorry, but I encountered an error processing your message. Please try again.",
       timestamp: new Date(),
-      metadata: { error: true }  // Use metadata instead of isError
+      metadata: { error: true }
     };
   }
 };

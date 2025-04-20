@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Message } from '@/types/chat';
 import { toast } from '@/components/ui/sonner';
@@ -9,11 +9,11 @@ export const useMessageState = () => {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
-  const addMessage = (newMessage: Message) => {
+  const addMessage = useCallback((newMessage: Message) => {
     setMessages(prev => [...prev, newMessage]);
-  };
+  }, []);
 
-  const clearMessages = () => {
+  const clearMessages = useCallback(() => {
     if (messages.length === 0) return;
     
     console.log('Clearing chat history:', {
@@ -23,7 +23,7 @@ export const useMessageState = () => {
     
     setMessages([]);
     toast.success('Chat history cleared');
-  };
+  }, [messages.length]);
 
   return {
     messages,

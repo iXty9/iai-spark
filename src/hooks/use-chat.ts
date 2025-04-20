@@ -70,7 +70,10 @@ export const useChat = () => {
     });
     
     setMessage(initialMessage);
-    handleSubmit();
+    // Use setTimeout to avoid state update conflicts
+    setTimeout(() => {
+      handleSubmit();
+    }, 0);
   }, [user, authLoading, setMessage, handleSubmit]);
 
   // Debug effect to monitor state changes

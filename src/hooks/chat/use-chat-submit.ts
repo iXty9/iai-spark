@@ -76,6 +76,7 @@ export const useChatSubmit = (
       });
       console.timeEnd(`messageResponse_${userMessage.id}`);
       
+      // Create AI response message
       const aiMessage: Message = {
         id: uuidv4(),
         content: response.content,
