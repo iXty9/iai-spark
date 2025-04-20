@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Card, 
   CardContent, 
@@ -32,6 +32,7 @@ interface ThemeSettings {
 
 export default function Settings() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   
@@ -71,6 +72,10 @@ export default function Settings() {
       
       if (savedBackgroundImage) {
         setBackgroundImage(savedBackgroundImage);
+        // Apply background immediately if it exists
+        document.body.style.backgroundImage = `url(${savedBackgroundImage})`;
+        document.documentElement.style.setProperty('--bg-opacity', savedBackgroundOpacity || '0.1');
+        document.body.classList.add('with-bg-image');
       }
       
       if (savedBackgroundOpacity) {
@@ -151,6 +156,21 @@ export default function Settings() {
       
       localStorage.setItem('backgroundOpacity', backgroundOpacity.toString());
       
+      // Apply settings immediately
+      const currentTheme = theme === 'dark' ? darkTheme : lightTheme;
+      const root = document.documentElement;
+      
+      root.style.setProperty('--background-color', currentTheme.backgroundColor);
+      root.style.setProperty('--primary-color', currentTheme.primaryColor);
+      root.style.setProperty('--text-color', currentTheme.textColor);
+      root.style.setProperty('--accent-color', currentTheme.accentColor);
+      
+      if (backgroundImage) {
+        document.body.style.backgroundImage = `url(${backgroundImage})`;
+        document.documentElement.style.setProperty('--bg-opacity', backgroundOpacity.toString());
+        document.body.classList.add('with-bg-image');
+      }
+      
       toast({
         title: "Settings saved",
         description: "Your theme settings have been saved successfully",
@@ -196,7 +216,8 @@ export default function Settings() {
   };
 
   const handleGoBack = () => {
-    navigate('/');
+    // Go back to previous page instead of always going to home
+    navigate(-1);
   };
 
   return (

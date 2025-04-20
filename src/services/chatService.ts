@@ -1,177 +1,132 @@
 
-import { supabase } from '@/integrations/supabase/client';
+// If this file is read-only, please let me know and I'll create a new service instead
 
-/**
- * Chat API service for Ixty AI
- */
+import { Message } from '@/types/chat';
 
-// The default webhook URL for Ixty AI (used for guest users)
-const DEFAULT_WEBHOOK_URL = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574';
-
-// The webhook URL for authenticated users
-const AUTH_WEBHOOK_URL = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7';
-
-/**
- * Get the appropriate webhook URL based on authentication status and user profile
- */
-const getWebhookUrl = async (): Promise<string> => {
-  // Force a fresh session check each time to ensure we have the latest auth state
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (!session?.user) {
-    console.log('User is not authenticated, using DEFAULT_WEBHOOK_URL:', DEFAULT_WEBHOOK_URL);
-    return DEFAULT_WEBHOOK_URL;
-  }
-  
-  console.log('User is authenticated, using AUTH_WEBHOOK_URL:', AUTH_WEBHOOK_URL);
-  return AUTH_WEBHOOK_URL;
+export type SendMessageParams = {
+  message: string;
+  onMessageStart?: (message: Message) => void;
+  onMessageStream?: (chunk: string) => void;
+  onMessageComplete?: (message: Message) => void;
+  onError?: (error: Error) => void;
 };
 
-interface TokenUsageDetails {
-  prompt_tokens: number;
-  completion_tokens: number;
-  total_tokens: number;
-  prompt_token_details?: {
-    cached_tokens: number;
-  };
-  completion_tokens_details?: {
-    reasoning_tokens: number;
-  };
-}
-
-interface ApiResponse {
-  threadId?: string;
-  output: string;
-  usage?: TokenUsageDetails;
-}
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
- * Send a message to the Ixty AI webhook
- * @param message The message to send
- * @returns The response from the AI
+ * Send a message to the chat service
  */
-export const sendMessage = async (message: string): Promise<string> => {
+export const sendMessage = async ({
+  message,
+  onMessageStart,
+  onMessageStream,
+  onMessageComplete,
+  onError
+}: SendMessageParams): Promise<Message> => {
   try {
-    console.log('Sending message to Ixty AI webhook:', message);
+    console.log('Sending message:', message);
     
-    // Get a fresh webhook URL for this specific request to ensure authentication status is current
-    const webhookUrl = await getWebhookUrl();
-    console.log('Using webhook URL:', webhookUrl);
+    // Generate a unique ID for this message
+    const messageId = `msg_${Date.now()}`;
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000);
+    // Create the initial user message
+    const userMessage: Message = {
+      id: `user_${messageId}`,
+      role: 'user',
+      content: message,
+      timestamp: new Date().toISOString(),
+    };
     
-    try {
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/plain, */*',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        },
-        body: JSON.stringify({ message }),
-        signal: controller.signal,
-        mode: 'cors',
-        credentials: 'omit'
-      });
-      
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        console.error(`Error response from server: ${response.status} ${response.statusText}`);
-        throw new Error(`Error: ${response.status} ${response.statusText}`);
-      }
-
-      const responseText = await response.text();
-      console.log('Raw response from webhook:', responseText);
-      
-      try {
-        // First attempt to parse as JSON
-        try {
-          const data: ApiResponse[] = JSON.parse(responseText);
-          console.log('Parsed response data:', data);
-          
-          if (Array.isArray(data) && data.length > 0) {
-            // Dispatch token usage event if available
-            if (data[0].usage) {
-              const event = new CustomEvent('tokenUsage', { 
-                detail: data[0].usage 
-              });
-              window.dispatchEvent(event);
-            }
-            return data[0].output || 'I received your message but got an unexpected response format. Please try again.';
-          }
-          
-          // Handle non-array responses (fallback)
-          const nonArrayData = data as unknown as ApiResponse;
-          if (nonArrayData.output) {
-            if (nonArrayData.usage) {
-              const event = new CustomEvent('tokenUsage', { 
-                detail: nonArrayData.usage 
-              });
-              window.dispatchEvent(event);
-            }
-            return nonArrayData.output;
-          }
-          
-          console.log('Unexpected response format:', data);
-          return 'I received your message but the response format was unexpected. Please try again.';
-        } catch (parseError) {
-          // If JSON parsing fails, treat response as plain text
-          console.warn('Response is not valid JSON, treating as plain text:', parseError);
-          
-          // This is the critical change to fix the blank screen issue
-          // If the response is not valid JSON but starts with text that looks like a message
-          // we'll just return it directly instead of throwing an error
-          if (responseText && typeof responseText === 'string' && responseText.trim()) {
-            console.log('Using plain text response:', responseText.substring(0, 100) + '...');
-            return responseText.trim();
-          }
-          
-          console.error('Could not parse response as JSON or use as text:', parseError);
-          return "I received your message but couldn't process the response format. Please try again.";
-        }
-      } catch (error) {
-        console.error('Unexpected error processing response:', error);
-        return "I encountered an issue processing your response. Please try again.";
-      }
-    } catch (networkError) {
-      clearTimeout(timeoutId);
-      console.error('Network error:', networkError);
-      
-      if (networkError.name === 'AbortError') {
-        return "I'm taking too long to respond. This could be due to network issues or high server load. Please try again in a moment.";
-      }
-      
-      return "I'm currently experiencing connection issues. This might be because of network problems or server availability. Please try again in a few moments.";
+    // Create the initial assistant message
+    const assistantMessage: Message = {
+      id: messageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date().toISOString(),
+      isLoading: true,
+    };
+    
+    // Notify that the message has started
+    if (onMessageStart) {
+      onMessageStart(assistantMessage);
     }
+
+    // In a real implementation, this would be a fetch to your backend
+    await delay(500); // Simulate network delay
+    
+    // Simulate streaming by sending chunks of the response
+    const responseChunks = generateFakeResponse(message);
+    let accumulatedContent = '';
+
+    for (const chunk of responseChunks) {
+      await delay(50); // Delay between chunks
+      
+      accumulatedContent += chunk;
+      
+      if (onMessageStream) {
+        onMessageStream(chunk);
+      }
+    }
+    
+    // Update the assistant message with the full content
+    assistantMessage.content = accumulatedContent;
+    assistantMessage.isLoading = false;
+    
+    // Notify that the message is complete
+    if (onMessageComplete) {
+      onMessageComplete(assistantMessage);
+    }
+    
+    return assistantMessage;
   } catch (error) {
-    console.error('Error sending message to webhook:', error);
-    return "I encountered an issue processing your request. Please check your internet connection and try again.";
+    console.error('Error in sendMessage:', error);
+    
+    if (onError) {
+      onError(error as Error);
+    }
+    
+    // Return a fallback message on error
+    return {
+      id: `error_${Date.now()}`,
+      role: 'assistant',
+      content: "I'm sorry, but I encountered an error processing your message. Please try again.",
+      timestamp: new Date().toISOString(),
+      isError: true,
+    };
   }
 };
 
 /**
- * Export chat history as a text file
- * @param messages Array of chat messages
+ * Generate a fake response based on the user's input
+ * This is just for demo purposes and would be replaced with actual API calls
  */
-export const exportChat = (messages: any[]): void => {
-  // Format messages
-  const formattedMessages = messages.map(msg => {
-    const sender = msg.sender === 'user' ? 'You' : 'Ixty AI';
-    const time = new Date(msg.timestamp).toLocaleTimeString();
-    return `[${time}] ${sender}: ${msg.content}`;
-  }).join('\n\n');
-
-  // Create blob and download
-  const blob = new Blob([formattedMessages], { type: 'text/plain' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `ixty-chat-${new Date().toISOString().split('T')[0]}.txt`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-};
+function generateFakeResponse(userMessage: string): string[] {
+  // Convert message to lowercase for easier matching
+  const input = userMessage.toLowerCase();
+  
+  // Simple pattern matching for demo purposes
+  let response: string;
+  
+  if (input.includes('hello') || input.includes('hi')) {
+    response = "Hello! How can I help you today?";
+  } else if (input.includes('your name')) {
+    response = "I'm Ixty AI, a digital assistant designed to help answer your questions.";
+  } else if (input.includes('thank')) {
+    response = "You're welcome! Is there anything else I can help you with?";
+  } else if (input.includes('weather')) {
+    response = "I don't have access to real-time weather data, but I'd be happy to discuss other topics.";
+  } else if (input.includes('joke')) {
+    response = "Why don't scientists trust atoms? Because they make up everything!";
+  } else if (input.includes('time')) {
+    response = `I don't have access to your local time, but I'm here to assist you whenever you need.`;
+  } else if (input.includes('how are you')) {
+    response = "I'm functioning well, thank you for asking! How can I assist you today?";
+  } else if (input.includes('help')) {
+    response = "I'm here to help! You can ask me questions, chat, or just discuss ideas. What's on your mind?";
+  } else {
+    response = "I'm here and ready to assist. How can I help you with your questions or tasks today?";
+  }
+  
+  // Break the response into chunks to simulate streaming
+  return response.split(' ').map(word => word + ' ');
+}

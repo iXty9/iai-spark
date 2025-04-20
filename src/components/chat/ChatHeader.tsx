@@ -22,9 +22,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({ onClearChat, onExportCha
   const { theme, setTheme } = useTheme();
   const { isDevMode, toggleDevMode } = useDevMode();
   
+  const handleLogoClick = () => {
+    window.open('https://ixty9.com', '_blank', 'noopener,noreferrer');
+  };
+  
   return (
     <header className="p-4 border-b border-border flex items-center justify-between">
-      <div className="flex items-center">
+      <div className="flex items-center cursor-pointer" onClick={handleLogoClick}>
         <img 
           src="https://ixty9.com/wp-content/uploads/2023/10/cropped-faviconV4.png" 
           alt="Ixty AI" 
