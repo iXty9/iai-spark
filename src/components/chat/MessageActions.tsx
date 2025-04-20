@@ -1,16 +1,11 @@
+
 import React from 'react';
 import { ThumbsUp, ThumbsDown, Copy, Volume2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-
-interface TokenInfo {
-  promptTokens?: number;
-  completionTokens?: number;
-  totalTokens?: number;
-  threadId?: string;
-}
+import { TokenInfo } from '@/types/chat';
 
 interface MessageActionsProps {
   messageId: string;
@@ -63,6 +58,14 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
       toast.success('Reading message aloud');
     } else {
       toast.error('Text-to-speech is not supported in your browser');
+    }
+  };
+
+  const handleTokenInfo = () => {
+    if (tokenInfo) {
+      setShowTokenInfo(true);
+    } else {
+      toast.error('No token usage information available');
     }
   };
 
@@ -119,7 +122,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
               variant="ghost" 
               size="icon" 
               className="h-7 w-7" 
-              onClick={() => setShowTokenInfo(true)}
+              onClick={handleTokenInfo}
               disabled={!tokenInfo}
             >
               <Info className="h-4 w-4" />
@@ -131,45 +134,47 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
         </Tooltip>
       </TooltipProvider>
 
-      <Dialog open={showTokenInfo} onOpenChange={setShowTokenInfo}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Token Usage Information</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2 text-sm">
-            {tokenInfo ? (
-              <>
-                {tokenInfo.threadId && (
-                  <p className="flex justify-between">
-                    <span className="font-medium">Thread ID:</span>
-                    <span className="text-muted-foreground">{tokenInfo.threadId}</span>
-                  </p>
-                )}
-                {tokenInfo.promptTokens !== undefined && (
-                  <p className="flex justify-between">
-                    <span className="font-medium">Prompt Tokens:</span>
-                    <span className="text-muted-foreground">{tokenInfo.promptTokens}</span>
-                  </p>
-                )}
-                {tokenInfo.completionTokens !== undefined && (
-                  <p className="flex justify-between">
-                    <span className="font-medium">Completion Tokens:</span>
-                    <span className="text-muted-foreground">{tokenInfo.completionTokens}</span>
-                  </p>
-                )}
-                {tokenInfo.totalTokens !== undefined && (
-                  <p className="flex justify-between">
-                    <span className="font-medium">Total Tokens:</span>
-                    <span className="text-muted-foreground">{tokenInfo.totalTokens}</span>
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="text-muted-foreground">No token information available</p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {tokenInfo && (
+        <Dialog open={showTokenInfo} onOpenChange={setShowTokenInfo}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Token Usage Information</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2 text-sm">
+              {tokenInfo ? (
+                <>
+                  {tokenInfo.threadId && (
+                    <p className="flex justify-between">
+                      <span className="font-medium">Thread ID:</span>
+                      <span className="text-muted-foreground">{tokenInfo.threadId}</span>
+                    </p>
+                  )}
+                  {tokenInfo.promptTokens !== undefined && (
+                    <p className="flex justify-between">
+                      <span className="font-medium">Prompt Tokens:</span>
+                      <span className="text-muted-foreground">{tokenInfo.promptTokens}</span>
+                    </p>
+                  )}
+                  {tokenInfo.completionTokens !== undefined && (
+                    <p className="flex justify-between">
+                      <span className="font-medium">Completion Tokens:</span>
+                      <span className="text-muted-foreground">{tokenInfo.completionTokens}</span>
+                    </p>
+                  )}
+                  {tokenInfo.totalTokens !== undefined && (
+                    <p className="flex justify-between">
+                      <span className="font-medium">Total Tokens:</span>
+                      <span className="text-muted-foreground">{tokenInfo.totalTokens}</span>
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-muted-foreground">No token information available</p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

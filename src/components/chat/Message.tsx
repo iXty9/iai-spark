@@ -38,7 +38,7 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
             <div className="text-xs opacity-60">
               {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </div>
-            {!isUser && <MessageActions messageId={message.id} content={message.content} />}
+            {!isUser && <MessageActions messageId={message.id} content={message.content} tokenInfo={message.tokenInfo} />}
           </div>
         </div>
       </div>

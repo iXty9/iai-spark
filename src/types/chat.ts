@@ -1,9 +1,14 @@
+
 export interface Message {
   id: string;
   content: string;
   sender: 'user' | 'ai';
   timestamp: Date;
   pending?: boolean;
+  rawResponse?: string;
+  tokenInfo?: TokenInfo;
+  threadId?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface ChatState {
