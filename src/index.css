@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -205,42 +204,35 @@
     word-break: break-all;
   }
   
-  .markdown-content pre {
-    @apply bg-muted p-2 rounded my-1.5 shadow-sm;
-    overflow-x: auto;
-    max-width: 100%;
-  }
-  
-  .markdown-content img {
-    @apply max-w-full h-auto my-1.5 rounded shadow-sm;
-  }
-  
-  /* Reduce spacing for horizontal rules */
+  /* Adjust all spacing for horizontal rules and other block elements */
   .markdown-content hr {
-    @apply my-1.5 border-t border-muted;
+    @apply my-2 border-t border-muted;
+    height: 1px;
+    background-color: hsl(var(--muted));
+    border: none;
   }
   
   /* Adjust heading spacing */
   .markdown-content h1 {
-    @apply text-xl font-bold mt-2 mb-1 pb-1 border-b border-muted;
+    @apply text-xl font-bold my-2;
   }
   
   .markdown-content h2 {
-    @apply text-lg font-bold mt-2 mb-1;
+    @apply text-lg font-bold my-2;
   }
   
   .markdown-content h3 {
-    @apply text-base font-bold mt-1.5 mb-0.5;
+    @apply text-base font-bold my-1.5;
   }
   
   .markdown-content blockquote {
-    @apply border-l-4 border-primary/30 pl-4 italic my-1.5 py-1 text-muted-foreground;
+    @apply border-l-4 border-primary/30 pl-4 italic my-2 py-1 text-muted-foreground;
   }
   
   /* Adjust list spacing */
   .markdown-content ul, 
   .markdown-content ol {
-    @apply pl-5 my-1.5;
+    @apply pl-5 my-2;
   }
   
   .markdown-content ul {
@@ -265,15 +257,20 @@
     word-wrap: break-word;
   }
   
+  .markdown-content pre {
+    @apply my-2 rounded-md;
+    background-color: hsl(var(--muted));
+  }
+
   .markdown-content pre code {
     @apply block p-3 bg-[#23272a] text-white rounded-md;
     overflow-x: auto;
     white-space: pre;
   }
   
-  /* Table styling with tighter spacing */
+  /* Table styling with proper spacing */
   .markdown-content table {
-    @apply w-full border-collapse my-1.5 text-sm;
+    @apply w-full border-collapse my-2 text-sm;
     font-size: 0.9em;
   }
   
@@ -292,7 +289,7 @@
   
   /* Paragraph spacing */
   .markdown-content p {
-    @apply my-0.5;
+    @apply my-1;
     overflow-wrap: break-word;
     word-wrap: break-word;
     hyphens: auto;
@@ -306,9 +303,9 @@
     @apply line-through text-muted-foreground;
   }
 
-  /* Details/Summary with less spacing */
+  /* Details/Summary with appropriate spacing */
   .markdown-content details {
-    @apply my-1.5 p-2 bg-muted/50 rounded-md;
+    @apply my-2 p-2 bg-muted/50 rounded-md;
   }
   
   .markdown-content summary {
@@ -331,10 +328,9 @@
     max-width: calc(100% - 1rem);
   }
   
-  /* Fix large spaces between elements */
+  /* Fix spacing between elements */
   .markdown-content > * + * {
     margin-top: 0.5rem;
-    margin-bottom: 0.5rem;
   }
   
   /* Adjust spacing between headings and content */
@@ -344,20 +340,27 @@
     margin-top: 0.25rem;
   }
   
-  /* Adjust spacing after headings */
-  .markdown-content > h2,
-  .markdown-content > h3 {
-    margin-top: 1rem;
-    margin-bottom: 0.25rem;
-  }
-  
-  /* Adjust HR spacing */
+  /* Adjust HR spacing to prevent extra space */
   .markdown-content > hr {
     margin-top: 0.75rem;
     margin-bottom: 0.75rem;
+    height: 1px;
   }
   
   .markdown-content > hr + * {
     margin-top: 0.5rem;
+  }
+  
+  /* No extra space after dividers */
+  .markdown-content hr + p,
+  .markdown-content hr + h1,
+  .markdown-content hr + h2,
+  .markdown-content hr + h3 {
+    margin-top: 0.5rem !important;
+  }
+  
+  /* Remove any extra paragraph margin after dividers */
+  .markdown-content hr + p + p {
+    margin-top: 0.5rem !important;
   }
 }

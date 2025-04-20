@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -68,6 +69,47 @@ export default {
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
 			},
+			typography: {
+				DEFAULT: {
+					css: {
+						maxWidth: '100%',
+						color: 'hsl(var(--foreground))',
+						a: {
+							color: 'hsl(var(--primary))',
+							'&:hover': {
+								color: 'hsl(var(--primary))',
+							},
+						},
+						p: {
+							marginTop: '0.25rem',
+							marginBottom: '0.25rem',
+						},
+						h1: {
+							marginTop: '0.5rem',
+							marginBottom: '0.5rem',
+						},
+						h2: {
+							marginTop: '0.5rem',
+							marginBottom: '0.5rem',
+						},
+						h3: {
+							marginTop: '0.5rem',
+							marginBottom: '0.25rem',
+						},
+						hr: {
+							marginTop: '0.75rem',
+							marginBottom: '0.75rem',
+						},
+						blockquote: {
+							color: 'hsl(var(--muted-foreground))',
+							borderLeftColor: 'hsl(var(--primary) / 0.3)',
+						},
+						pre: {
+							backgroundColor: 'hsl(var(--muted))',
+						},
+					},
+				},
+			},
 			keyframes: {
 				'accordion-down': {
 					from: {
@@ -97,5 +139,8 @@ export default {
 			}
 		}
 	},
-	plugins: [require("tailwindcss-animate")],
+	plugins: [
+		require("tailwindcss-animate"),
+		require('@tailwindcss/typography'),
+	],
 } satisfies Config;

@@ -20,12 +20,14 @@ export const MessageContent: React.FC<MessageContentProps> = ({ message, isUser 
     }
 
     return (
-      <ReactMarkdown 
-        remarkPlugins={[remarkGfm]}
-        components={markdownComponents}
-      >
-        {message.content}
-      </ReactMarkdown>
+      <div className="markdown-content prose prose-sm max-w-none dark:prose-invert prose-headings:my-2 prose-p:my-1 prose-hr:my-2">
+        <ReactMarkdown 
+          remarkPlugins={[remarkGfm]}
+          components={markdownComponents}
+        >
+          {message.content}
+        </ReactMarkdown>
+      </div>
     );
   }
 

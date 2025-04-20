@@ -17,7 +17,7 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
   return (
     <div 
       className={cn(
-        "message py-6",
+        "message py-4",
         isUser ? "user-message" : "ai-message",
         message.pending && "opacity-70"
       )}
@@ -31,7 +31,7 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
           <p className="text-sm font-medium mb-1">
             {isUser ? 'You' : 'Ixty AI'}
           </p>
-          <div className="markdown-content whitespace-pre-wrap text-sm">
+          <div className="whitespace-pre-line text-sm">
             <MessageContent message={message} isUser={isUser} />
           </div>
           <div className="flex items-center justify-between mt-1">

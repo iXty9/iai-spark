@@ -16,22 +16,22 @@ export const markdownComponents = {
       className="text-primary underline hover:text-primary/80 transition-colors"
     />
   ),
-  h1: ({ node, ...props }: MarkdownComponentProps) => <h1 {...props} className="text-xl font-bold mt-2 mb-1" />,
-  h2: ({ node, ...props }: MarkdownComponentProps) => <h2 {...props} className="text-lg font-bold mt-2 mb-1" />,
-  h3: ({ node, ...props }: MarkdownComponentProps) => <h3 {...props} className="text-md font-bold mt-1.5 mb-0.5" />,
-  p: ({ node, ...props }: MarkdownComponentProps) => <p {...props} className="my-0.5" />,
-  ul: ({ node, ...props }: MarkdownComponentProps) => <ul {...props} className="list-disc pl-5 my-1.5" />,
-  ol: ({ node, ...props }: MarkdownComponentProps) => <ol {...props} className="list-decimal pl-5 my-1.5" />,
+  h1: ({ node, ...props }: MarkdownComponentProps) => <h1 {...props} className="text-xl font-bold my-2" />,
+  h2: ({ node, ...props }: MarkdownComponentProps) => <h2 {...props} className="text-lg font-bold my-2" />,
+  h3: ({ node, ...props }: MarkdownComponentProps) => <h3 {...props} className="text-md font-bold my-1.5" />,
+  p: ({ node, ...props }: MarkdownComponentProps) => <p {...props} className="my-1" />,
+  ul: ({ node, ...props }: MarkdownComponentProps) => <ul {...props} className="list-disc pl-5 my-2" />,
+  ol: ({ node, ...props }: MarkdownComponentProps) => <ol {...props} className="list-decimal pl-5 my-2" />,
   li: ({ node, ...props }: MarkdownComponentProps) => <li {...props} className="my-0.5" />,
-  hr: ({ node, ...props }: MarkdownComponentProps) => <hr {...props} className="my-1.5 border-muted" />,
+  hr: ({ node, ...props }: MarkdownComponentProps) => <hr {...props} className="my-2 border-muted" />,
   blockquote: ({ node, ...props }: MarkdownComponentProps) => (
     <blockquote 
       {...props} 
-      className="border-l-4 border-primary/30 pl-4 italic my-1.5 text-muted-foreground" 
+      className="border-l-4 border-primary/30 pl-4 italic my-2 text-muted-foreground" 
     />
   ),
   table: ({ node, ...props }: MarkdownComponentProps) => (
-    <div className="overflow-x-auto my-1.5 rounded-md border border-border">
+    <div className="overflow-x-auto my-2 rounded-md border border-border">
       <table {...props} className="min-w-full divide-y divide-border" />
     </div>
   ),
@@ -51,7 +51,7 @@ export const markdownComponents = {
     };
     
     return imgError ? (
-      <div className="max-w-full p-4 text-center border border-muted rounded-md my-1.5 bg-muted/30">
+      <div className="max-w-full p-4 text-center border border-muted rounded-md my-2 bg-muted/30">
         <p className="text-sm text-muted-foreground">Image could not be loaded</p>
         <p className="text-xs text-muted-foreground mt-1 break-all">
           {props.src?.toString().substring(0, 50)}...
@@ -60,7 +60,7 @@ export const markdownComponents = {
     ) : (
       <img 
         {...props} 
-        className="max-w-full h-auto rounded-md my-1.5" 
+        className="max-w-full h-auto rounded-md my-2" 
         alt={props.alt || "Image"} 
         loading="lazy"
         onError={handleError}
@@ -71,4 +71,19 @@ export const markdownComponents = {
       />
     );
   },
+  // Make sure we properly handle line breaks in the Markdown
+  pre: ({ node, ...props }: MarkdownComponentProps) => (
+    <pre {...props} className="bg-muted p-4 rounded-md overflow-x-auto my-2" />
+  ),
+  code: ({ node, inline, className, ...props }: MarkdownComponentProps & { inline?: boolean }) => (
+    inline ? 
+      <code {...props} className="font-mono text-sm bg-muted px-1.5 py-0.5 rounded" /> :
+      <code {...props} className="block p-0 bg-transparent text-current rounded-none font-mono" />
+  ),
+  details: ({ node, ...props }: MarkdownComponentProps) => (
+    <details {...props} className="my-2 p-2 bg-muted/50 rounded-md" />
+  ),
+  summary: ({ node, ...props }: MarkdownComponentProps) => (
+    <summary {...props} className="cursor-pointer font-medium p-1" />
+  ),
 };
