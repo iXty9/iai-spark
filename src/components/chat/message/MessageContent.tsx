@@ -31,10 +31,19 @@ export const MessageContent: React.FC<MessageContentProps> = ({ message, isUser 
     );
   }
 
+  // Show all available message data in dev mode
+  const messageData = {
+    ...message,
+    rawResponse: message.rawResponse || null,
+    tokenInfo: message.tokenInfo || null,
+    threadId: message.threadId || null,
+    metadata: message.metadata || null
+  };
+
   return (
     <pre className="bg-muted p-4 rounded-md overflow-x-auto">
       <code className="text-xs">
-        {JSON.stringify(message, null, 2)}
+        {JSON.stringify(messageData, null, 2)}
       </code>
     </pre>
   );

@@ -73,6 +73,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             disabled={isLoading}
             aria-label="Message input"
             rows={1}
+            spellCheck="true"
           />
         </div>
         

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ThumbsUp, ThumbsDown, Copy, Volume2, Info } from 'lucide-react';
 import { toast } from 'sonner';
@@ -48,6 +47,14 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
     }
   };
 
+  const handleTokenInfo = () => {
+    if (tokenInfo) {
+      setShowTokenInfo(true);
+    } else {
+      toast.error('No token usage information available');
+    }
+  };
+
   return (
     <div className="flex items-center gap-1 mt-2">
       <ActionTooltip icon={ThumbsUp} label="Helpful response" />
@@ -57,15 +64,17 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
       <ActionTooltip 
         icon={Info} 
         label="Token usage info" 
-        onClick={() => setShowTokenInfo(true)}
+        onClick={handleTokenInfo}
         disabled={!tokenInfo}
       />
 
-      <TokenInfoDialog 
-        open={showTokenInfo}
-        onOpenChange={setShowTokenInfo}
-        tokenInfo={tokenInfo}
-      />
+      {tokenInfo && (
+        <TokenInfoDialog 
+          open={showTokenInfo}
+          onOpenChange={setShowTokenInfo}
+          tokenInfo={tokenInfo}
+        />
+      )}
     </div>
   );
 };
