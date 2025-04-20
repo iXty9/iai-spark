@@ -1,5 +1,4 @@
-
-import { createContext, useContext, useEffect } from 'react';
+import { createContext, useContext, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { AuthContextType } from './auth/types';
 import { useAuthState } from './auth/useAuthState';
@@ -20,34 +19,46 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     fetchProfile,
   } = useAuthState();
 
+  const currentUserIdRef = useRef<string | null>(null);
+  
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (event, newSession) => {
         console.log('Auth state changed:', event);
+        
         if (event === 'SIGNED_OUT') {
           console.log('User signed out, clearing all auth state');
           setSession(null);
           setUser(null);
           setProfile(null);
+          currentUserIdRef.current = null;
         } else {
-          setSession(session);
-          setUser(session?.user ?? null);
-          
-          if (session?.user) {
-            console.log('User authenticated, fetching profile');
-            fetchProfile(session.user.id);
+          if (JSON.stringify(newSession) !== JSON.stringify(session)) {
+            setSession(newSession);
+            setUser(newSession?.user ?? null);
+            
+            if (newSession?.user && currentUserIdRef.current !== newSession.user.id) {
+              currentUserIdRef.current = newSession.user.id;
+              console.log('User authenticated, fetching profile');
+              setTimeout(() => {
+                fetchProfile(newSession.user.id);
+              }, 0);
+            }
           }
         }
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session check:', session ? 'User is authenticated' : 'No active session');
-      setSession(session);
-      setUser(session?.user ?? null);
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      console.log('Initial session check:', initialSession ? 'User is authenticated' : 'No active session');
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
       
-      if (session?.user) {
-        fetchProfile(session.user.id);
+      if (initialSession?.user) {
+        currentUserIdRef.current = initialSession.user.id;
+        setTimeout(() => {
+          fetchProfile(initialSession.user.id);
+        }, 0);
       }
       setIsLoading(false);
     });

@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Message as MessageType } from '@/types/chat';
@@ -10,12 +9,16 @@ export const useChat = () => {
   const [messages, setMessages] = useState<MessageType[]>([]);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const messageListRef = useRef<HTMLDivElement>(null);
+  const hasLoadedAuth = useRef(false);
 
   useEffect(() => {
-    console.log('Authentication state change in useChat:', user ? 'User is logged in' : 'User is logged out');
-  }, [user]);
+    if (!authLoading && !hasLoadedAuth.current) {
+      hasLoadedAuth.current = true;
+      console.log('Authentication state loaded in useChat:', user ? 'User is logged in' : 'User is logged out');
+    }
+  }, [user, authLoading]);
 
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     if (e) {
@@ -23,6 +26,12 @@ export const useChat = () => {
     }
 
     if (!message.trim()) return;
+    
+    // Prevent sending if auth is still loading
+    if (authLoading) {
+      toast.error("Please wait while we load your profile...");
+      return;
+    }
 
     const userMessage: MessageType = {
       id: uuidv4(),
@@ -62,7 +71,7 @@ export const useChat = () => {
       clearTimeout(firstWarningTimeout);
       setIsLoading(false);
     }
-  }, [message, user]);
+  }, [message, user, authLoading]);
 
   const handleClearChat = useCallback(() => {
     if (messages.length === 0) return;
@@ -82,6 +91,12 @@ export const useChat = () => {
   }, [messages]);
 
   const startChat = useCallback((initialMessage: string) => {
+    // Prevent starting if auth is still loading
+    if (authLoading) {
+      toast.error("Please wait while we load your profile...");
+      return;
+    }
+    
     console.log("startChat called with:", initialMessage);
     console.log('Auth state during startChat:', user ? 'authenticated' : 'unauthenticated');
     
@@ -122,7 +137,7 @@ export const useChat = () => {
         clearTimeout(firstWarningTimeout);
         setIsLoading(false);
       });
-  }, [user]);
+  }, [user, authLoading]);
 
   return {
     messages,
