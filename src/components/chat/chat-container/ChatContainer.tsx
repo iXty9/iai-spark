@@ -59,8 +59,15 @@ export const ChatContainer = () => {
     }));
   }, []);
 
+  // Critical effect to track UI transition
   useEffect(() => {
     if (messages.length > 0 && !hasInteracted) {
+      console.log('Transitioning from Welcome to Chat UI:', {
+        messageCount: messages.length,
+        hasInteracted: hasInteracted,
+        isLoading: isLoading,
+        timestamp: new Date().toISOString()
+      });
       setHasInteracted(true);
     }
     
@@ -102,7 +109,7 @@ export const ChatContainer = () => {
         } : prev.parentInfo
       }));
     }
-  }, [messages.length, hasInteracted]);
+  }, [messages.length, hasInteracted, isLoading]);
 
   return (
     <div className="chat-container flex flex-col h-full overflow-hidden">

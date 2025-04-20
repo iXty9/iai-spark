@@ -21,8 +21,10 @@ export const sendMessage = async ({
   onMessageComplete,
   onError
 }: SendMessageParams): Promise<Message> => {
+  let canceled = false;
+  
   try {
-    console.log('Sending message:', message);
+    console.log('Sending message to service:', message);
     
     // Generate a unique ID for this message
     const messageId = `msg_${Date.now()}`;
@@ -52,11 +54,20 @@ export const sendMessage = async ({
     // In a real implementation, this would be a fetch to your backend
     await delay(500); // Simulate network delay
     
+    // Add a check to ensure we haven't been canceled during the delay
+    if (canceled) {
+      throw new Error('Message sending was canceled');
+    }
+    
     // Simulate streaming by sending chunks of the response
     const responseChunks = generateFakeResponse(message);
     let accumulatedContent = '';
 
     for (const chunk of responseChunks) {
+      if (canceled) {
+        throw new Error('Message sending was canceled');
+      }
+      
       await delay(50); // Delay between chunks
       
       accumulatedContent += chunk;
@@ -94,6 +105,13 @@ export const sendMessage = async ({
       metadata: { error: true }
     };
   }
+  
+  // Cleanup function to allow for cancellation
+  return {
+    cancel: () => {
+      canceled = true;
+    }
+  } as any;
 };
 
 /**

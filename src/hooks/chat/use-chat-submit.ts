@@ -15,18 +15,29 @@ export const useChatSubmit = (
 ) => {
   const messageAttempts = useRef<number>(0);
   const maxRetries = 3;
+  const pendingTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     if (e) {
       e.preventDefault();
     }
 
-    if (!message.trim()) return;
+    // Clear any pending timeouts to prevent multiple submissions
+    if (pendingTimeout.current) {
+      clearTimeout(pendingTimeout.current);
+      pendingTimeout.current = null;
+    }
+
+    if (!message.trim()) {
+      console.warn('Submit attempted with empty message');
+      return;
+    }
     
     // Early return for auth loading with proper state reset
     if (isAuthLoading) {
       console.warn('Message submission blocked: Auth still loading');
       toast.error("Please wait while we load your profile...");
+      setIsLoading(false);
       return;
     }
 
@@ -40,7 +51,7 @@ export const useChatSubmit = (
     
     console.log('New message created:', {
       messageId: userMessage.id,
-      timestamp: userMessage.timestamp,
+      timestamp: userMessage.timestamp.toISOString(),
       contentLength: message.length,
       isAuthenticated: isAuthenticated
     });
@@ -50,6 +61,7 @@ export const useChatSubmit = (
     setIsLoading(true);
     messageAttempts.current++;
     
+    // Set a warning timeout
     const firstWarningTimeout = setTimeout(() => {
       console.log('Long response warning triggered');
       toast.info("Ixty AI is still thinking. This might take a moment...");
@@ -105,7 +117,7 @@ export const useChatSubmit = (
       if (messageAttempts.current < maxRetries && error instanceof Error && 
           !error.message.includes('abort')) {
         console.log('Scheduling message retry...');
-        setTimeout(() => {
+        pendingTimeout.current = setTimeout(() => {
           handleSubmit();
         }, Math.pow(2, messageAttempts.current) * 1000);
         return;
@@ -125,7 +137,19 @@ export const useChatSubmit = (
       addMessage(errorMessage);
     } finally {
       clearTimeout(firstWarningTimeout);
+      if (pendingTimeout.current) {
+        clearTimeout(pendingTimeout.current);
+        pendingTimeout.current = null;
+      }
+      
+      // Ensure we ALWAYS reset loading state
       setIsLoading(false);
+      
+      console.log('Message submission flow completed', {
+        messageId: userMessage.id,
+        successful: messageAttempts.current === 0,
+        timestamp: new Date().toISOString()
+      });
     }
   }, [message, isAuthenticated, isAuthLoading, addMessage, setMessage, setIsLoading]);
 

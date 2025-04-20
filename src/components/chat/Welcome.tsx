@@ -1,5 +1,4 @@
-
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -38,13 +37,22 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   const submitMessage = () => {
     if (!message.trim() || isSubmitting) return;
     
+    console.log('Welcome screen: Starting chat with message:', {
+      message: message.trim(),
+      timestamp: new Date().toISOString()
+    });
+    
     setIsSubmitting(true);
     
     const messageToSend = message.trim();
-    
     setMessage('');
     
-    onStartChat(messageToSend);
+    // We use setTimeout to ensure React state updates complete before transition
+    setTimeout(() => {
+      onStartChat(messageToSend);
+      // We keep isSubmitting true - it will be reset by the parent component
+      // after the message is processed
+    }, 0);
   };
 
   const handleImageError = () => {

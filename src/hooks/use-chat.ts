@@ -10,6 +10,7 @@ export const useChat = () => {
   const { user, isLoading: authLoading } = useAuth();
   const hasLoadedAuth = useRef(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const transitionInProgress = useRef(false);
   
   const {
     messages,
@@ -19,7 +20,8 @@ export const useChat = () => {
     setIsLoading,
     addMessage,
     clearMessages,
-    setMessages
+    setMessages,
+    resetState
   } = useMessageState();
 
   // Make sure user state is properly passed to useChatSubmit
@@ -72,18 +74,32 @@ export const useChat = () => {
       return;
     }
     
+    if (transitionInProgress.current) {
+      console.warn('Chat start blocked: Transition already in progress');
+      return;
+    }
+    
     console.log("Starting new chat:", {
       initialMessage,
       isAuthenticated: !!user,
       timestamp: new Date().toISOString()
     });
     
+    transitionInProgress.current = true;
     setMessage(initialMessage);
+    
     // Use setTimeout to avoid state update conflicts
     setTimeout(() => {
-      handleSubmit();
+      try {
+        wrappedSubmit();
+      } catch (error) {
+        console.error('Error in startChat:', error);
+        setIsLoading(false);
+        transitionInProgress.current = false;
+        toast.error('Failed to start chat. Please try again.');
+      }
     }, 0);
-  }, [user, authLoading, setMessage, handleSubmit]);
+  }, [user, authLoading, setMessage, setIsLoading]);
 
   // Debug effect to monitor state changes
   useEffect(() => {
@@ -93,20 +109,38 @@ export const useChat = () => {
       authLoading,
       hasLoadedAuth: hasLoadedAuth.current,
       isAuthenticated: !!user,
+      transitionInProgress: transitionInProgress.current,
       timestamp: new Date().toISOString()
     });
+    
+    // Reset transition flag when loading completes
+    if (!isLoading && transitionInProgress.current) {
+      console.log('Resetting transition flag');
+      transitionInProgress.current = false;
+    }
   }, [messages.length, isLoading, authLoading, user]);
 
   // Wrapped submit handler with error handling
   const wrappedSubmit = useCallback((e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    
     try {
+      console.log('Submitting message:', {
+        hasMessage: !!message.trim(),
+        isLoading,
+        timestamp: new Date().toISOString()
+      });
+      
       handleSubmit(e);
     } catch (error) {
       console.error('Error in submit handler:', error);
       setIsLoading(false);
+      transitionInProgress.current = false;
       toast.error('An error occurred while sending your message');
     }
-  }, [handleSubmit, setIsLoading]);
+  }, [handleSubmit, setIsLoading, message, isLoading]);
 
   return {
     messages,
