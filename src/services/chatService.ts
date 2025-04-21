@@ -1,25 +1,13 @@
+
 import { Message } from '@/types/chat';
 import { emitDebugEvent } from '@/utils/debug-events';
-import { logWebhookCommunication, parseWebhookResponse } from '@/utils/debug';
-
-export type SendMessageParams = {
-  message: string;
-  onMessageStart?: (message: Message) => void;
-  onMessageStream?: (chunk: string) => void;
-  onMessageComplete?: (message: Message) => void;
-  onError?: (error: Error) => void;
-  isAuthenticated?: boolean;
-};
+import { parseWebhookResponse } from '@/utils/debug';
+import { SendMessageParams } from './types/messageTypes';
+import { sendWebhookMessage } from './webhook/webhookService';
+export { exportChat } from './export/exportService';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Real webhook URLs
-const AUTHENTICATED_WEBHOOK_URL = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7';
-const ANONYMOUS_WEBHOOK_URL = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574';
-
-/**
- * Send a message to the chat service
- */
 export const sendMessage = async ({
   message,
   onMessageStart,
@@ -62,45 +50,7 @@ export const sendMessage = async ({
       onMessageStart(assistantMessage);
     }
 
-    // Determine which webhook URL to use based on authentication status
-    const webhookUrl = isAuthenticated ? AUTHENTICATED_WEBHOOK_URL : ANONYMOUS_WEBHOOK_URL;
-    
-    // Emit webhook call event for debugging
-    window.dispatchEvent(new CustomEvent('webhookCall', { 
-      detail: { 
-        webhookUrl: webhookUrl,
-        isAuthenticated: isAuthenticated 
-      } 
-    }));
-    
-    console.log(`Using webhook URL for ${isAuthenticated ? 'authenticated' : 'anonymous'} user:`, webhookUrl);
-    emitDebugEvent({
-      lastAction: `API: Sending to webhook: ${webhookUrl}`,
-      isLoading: true
-    });
-    
-    // Log webhook request for debugging
-    logWebhookCommunication(webhookUrl, 'REQUEST_SENT');
-    
-    // Make the actual API call to the webhook
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        message: message,
-        timestamp: new Date().toISOString(),
-        isAuthenticated: isAuthenticated
-      }),
-    });
-    
-    if (!response.ok) {
-      logWebhookCommunication(webhookUrl, 'ERROR', { status: response.status });
-      throw new Error(`Webhook responded with status: ${response.status}`);
-    }
-    
-    // Check if request was canceled during fetch
+    // Check if request was canceled
     if (canceled) {
       emitDebugEvent({
         lastAction: 'API: Message sending was canceled',
@@ -109,19 +59,10 @@ export const sendMessage = async ({
       throw new Error('Message sending was canceled');
     }
     
-    // Parse the response JSON
-    const data = await response.json();
-    console.log('Webhook response received:', data);
+    // Send message to webhook and get response
+    const data = await sendWebhookMessage(message, isAuthenticated);
     
-    // Log webhook response for debugging
-    logWebhookCommunication(webhookUrl, 'RESPONSE_RECEIVED', data);
-    
-    emitDebugEvent({
-      lastAction: `API: Real webhook response received from ${webhookUrl}`,
-      isLoading: false
-    });
-    
-    // Parse the response content using our improved parser
+    // Parse the response text using our improved parser
     let responseText;
     try {
       responseText = parseWebhookResponse(data);
@@ -133,15 +74,12 @@ export const sendMessage = async ({
       });
     } catch (error) {
       console.error('Failed to parse webhook response:', error);
-      logWebhookCommunication(webhookUrl, 'PARSE_ERROR', { error: error.message, data });
-      
       emitDebugEvent({
         lastError: `API: Failed to parse webhook response: ${error.message}`,
         isLoading: false
       });
       
-      // Use fallback content if we couldn't parse
-      responseText = "I received your message, but I'm having trouble processing the response format. Please try again.";
+      throw error;
     }
     
     // Process the actual webhook response for streaming
@@ -243,34 +181,3 @@ export const sendMessage = async ({
   } as any;
 };
 
-/**
- * Export chat messages to a JSON file
- */
-export const exportChat = (messages: Message[]): void => {
-  try {
-    // Convert messages to a JSON string
-    const chatData = JSON.stringify(messages, null, 2);
-    
-    // Create a blob from the JSON string
-    const blob = new Blob([chatData], { type: 'application/json' });
-    
-    // Create a download URL for the blob
-    const url = URL.createObjectURL(blob);
-    
-    // Create a temporary link element to trigger the download
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `chat-export-${new Date().toISOString().split('T')[0]}.json`;
-    
-    // Append the link to the body, trigger the download, and clean up
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    // Revoke the URL to free up memory
-    URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error('Error exporting chat:', error);
-    throw new Error('Failed to export chat');
-  }
-};
