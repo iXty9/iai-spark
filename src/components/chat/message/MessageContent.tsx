@@ -43,21 +43,21 @@ export const MessageContent: React.FC<MessageContentProps> = ({ message, isUser 
 
   // Use DOMPurify but create a new trusted policy for TrustedHTML
   if (typeof window !== 'undefined' && window.trustedTypes && window.trustedTypes.createPolicy) {
+    // Check if policy already exists to avoid errors on re-render
     if (!window.trustedTypes.defaultPolicy) {
       window.trustedTypes.createPolicy('default', {
-        createHTML: (string) => DOMPurify.sanitize(string, { RETURN_TRUSTED_TYPE: true })
+        createHTML: (string) => string
       });
     }
   }
 
   const sanitizedJson = DOMPurify.sanitize(
-    JSON.stringify(messageData, null, 2),
-    { RETURN_TRUSTED_TYPE: true }
+    JSON.stringify(messageData, null, 2)
   );
 
   return (
     <pre className="bg-muted p-4 rounded-md overflow-x-auto">
-      <code className="text-xs" dangerouslySetInnerHTML={{ __html: sanitizedJson }}></code>
+      <code className="text-xs" dangerouslySetInnerHTML={{ __html: sanitizedJson as string }}></code>
     </pre>
   );
 };

@@ -13,6 +13,15 @@ if (typeof window !== 'undefined') {
     ADD_ATTR: ['target', 'rel'],
     FORBID_TAGS: ['style', 'script'],
   });
+  
+  // Create trusted types policy if supported by browser
+  if (window.trustedTypes && window.trustedTypes.createPolicy) {
+    if (!window.trustedTypes.defaultPolicy) {
+      window.trustedTypes.createPolicy('default', {
+        createHTML: (string) => string
+      });
+    }
+  }
 }
 
 export const markdownComponents = {
