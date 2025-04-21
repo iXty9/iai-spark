@@ -20,7 +20,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ message, isUser 
     if (isUser) {
       // User message: normal text (horizontal, no per-letter line breaks)
       return (
-        <div className="whitespace-pre-wrap text-base font-medium break-words w-full">
+        <div className="whitespace-pre-wrap text-base font-medium break-words">
           {message.content}
         </div>
       );
@@ -51,13 +51,9 @@ export const MessageContent: React.FC<MessageContentProps> = ({ message, isUser 
   if (typeof window !== 'undefined' && window.trustedTypes && window.trustedTypes.createPolicy) {
     // Check if policy already exists to avoid errors on re-render
     if (!window.trustedTypes.defaultPolicy) {
-      try {
-        window.trustedTypes.createPolicy('default', {
-          createHTML: (string) => string
-        });
-      } catch (e) {
-        console.error('Error creating trusted types policy:', e);
-      }
+      window.trustedTypes.createPolicy('default', {
+        createHTML: (string) => string
+      });
     }
   }
 

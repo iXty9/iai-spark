@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { MessageList } from '../MessageList';
 import { MessageInput } from '../MessageInput';
 import { Welcome } from '../Welcome';
@@ -30,33 +30,13 @@ export const ChatContainer = () => {
                     !(window as any).MSStream &&
                     /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
-  // Save chat state to sessionStorage when messages change
-  useEffect(() => {
-    if (messages.length > 0) {
-      sessionStorage.setItem('chatMessages', JSON.stringify(messages));
-      sessionStorage.setItem('hasStartedChat', 'true');
-    }
-  }, [messages]);
-
-  // Load chat state from sessionStorage on component mount
-  useEffect(() => {
-    const savedMessages = sessionStorage.getItem('chatMessages');
-    const hasStartedChat = sessionStorage.getItem('hasStartedChat');
-    
-    if (savedMessages && hasStartedChat === 'true') {
-      // We don't directly set messages here as it's managed by useChat
-      // This just tells our component to show the chat interface instead of welcome
-      setHasInteracted(true);
-    }
-  }, []);
-
   return (
     <ChatLayout
       onClearChat={handleClearChat}
       onExportChat={handleExportChat}
     >
       <div className="flex-1 overflow-hidden relative">
-        {messages.length === 0 && !sessionStorage.getItem('hasStartedChat') ? (
+        {messages.length === 0 ? (
           <Welcome onStartChat={startChat} />
         ) : (
           <ScrollArea className="h-full py-4 px-2">
@@ -69,18 +49,17 @@ export const ChatContainer = () => {
         )}
       </div>
       
-      {(messages.length > 0 || sessionStorage.getItem('hasStartedChat')) && (
+      {messages.length > 0 && (
         <div 
           ref={inputContainerRef}
-          className={`p-4 bg-background ${isIOSSafari ? 'ios-input-container' : ''}`}
+          className={`p-4 border-t bg-background ${isIOSSafari ? 'ios-input-container' : ''}`}
           id="message-input-container"
           style={{
             display: "block", 
             position: "relative",
             visibility: "visible",
             minHeight: '80px',
-            zIndex: 100,
-            borderTop: 'none' // Remove border
+            zIndex: 100
           }}
         >
           <MessageInput
