@@ -59,7 +59,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     <form 
       ref={formRef}
       onSubmit={handleSubmit} 
-      className={`message-input-container ${isIOSSafari ? 'ios-debug' : ''}`}
+      className={`message-input-container ${isIOSSafari ? 'ios-debug' : ''} border-0 shadow-none`} // remove borders and shadows
+      style={{ borderTop: 'none', boxShadow: 'none' }} // double assurance
     >
       <div className="flex items-end gap-2 w-full">
         <div className="relative flex-1">
@@ -69,7 +70,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             placeholder="How can I help you?"
-            className="pr-10 resize-none min-h-[40px] max-h-[120px] rounded-2xl py-2.5"
+            className="pr-10 resize-none min-h-[40px] max-h-[120px] rounded-2xl py-2.5 !scrollbar-none"
             disabled={isLoading}
             aria-label="Message input"
             rows={1}

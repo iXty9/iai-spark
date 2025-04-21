@@ -16,12 +16,12 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
 
   // Enhanced bubble styling for better visibility in light & dark modes with a glassmorphism effect
   const bubbleBase =
-    'rounded-2xl px-4 py-2 max-w-[80vw] md:max-w-[70%] shadow transition-all break-words';
+    'rounded-2xl px-4 py-2 max-w-[80vw] md:max-w-[70%] min-w-[140px] shadow transition-all break-words'; // added min-width
 
   const bubbleUser =
     'bg-gradient-to-br from-primary/20 to-primary/40 text-right text-white ml-auto border border-primary/30 backdrop-blur-lg ' +
     'dark:from-[#6E59A5]/80 dark:to-[#9b87f5]/50 dark:text-white ' +
-    'light:from-[#fdf6fa] light:to-[#fad0c4] light:text-[#822]';
+    'light:bg-[#FFD6E1] light:text-[#390A27] light:border-[#f9bfcf]';
 
   const bubbleAI =
     'bg-muted/80 text-left text-foreground mr-auto border border-border/40 backdrop-blur-md ' +

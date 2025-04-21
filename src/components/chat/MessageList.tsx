@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import { Message as MessageType } from '@/types/chat';
 import { Message } from './Message';
@@ -20,7 +19,6 @@ export const MessageList: React.FC<MessageListProps> = ({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [userHasScrolled, setUserHasScrolled] = useState(false);
   
-  // Handle smooth scrolling to bottom when new messages arrive
   useEffect(() => {
     const scrollToBottom = () => {
       if (!userHasScrolled && messagesEndRef.current) {
@@ -32,14 +30,12 @@ export const MessageList: React.FC<MessageListProps> = ({
       scrollToBottom();
     }
     
-    // Reset userHasScrolled when typing indicator appears
     if (isLoading) {
       setUserHasScrolled(false);
       scrollToBottom();
     }
   }, [messages, isLoading, userHasScrolled]);
   
-  // Detect when user manually scrolls
   useEffect(() => {
     const scrollArea = scrollAreaRef.current;
     
@@ -48,13 +44,11 @@ export const MessageList: React.FC<MessageListProps> = ({
         const { scrollTop, scrollHeight, clientHeight } = e.target as HTMLElement;
         const isScrolledToBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 10;
         
-        // Only set userHasScrolled to true if we're not at the bottom
         setUserHasScrolled(!isScrolledToBottom);
       }
     };
     
     if (scrollArea) {
-      // Find the actual scrollable element within the ScrollArea component
       const scrollableElement = scrollArea.querySelector('[data-radix-scroll-area-viewport]');
       if (scrollableElement) {
         scrollableElement.addEventListener('scroll', handleScroll);
@@ -84,7 +78,6 @@ export const MessageList: React.FC<MessageListProps> = ({
         
         <TypingIndicator isVisible={isLoading} />
         
-        {/* This div helps us scroll to the bottom of the messages */}
         <div ref={messagesEndRef} aria-hidden="true" />
         {scrollRef && <div ref={scrollRef} aria-hidden="true" />}
       </div>

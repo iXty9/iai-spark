@@ -1,3 +1,4 @@
+
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -17,9 +18,9 @@ export const MessageContent: React.FC<MessageContentProps> = ({ message, isUser 
   // Use enhanced styling for both user and AI bubbles
   if (isUser || !isDevMode) {
     if (isUser) {
-      // User message: slightly larger text and responsive break.
+      // User message: normal text (horizontal, no per-letter line breaks)
       return (
-        <div className="whitespace-pre-line text-base font-medium">
+        <div className="whitespace-pre-wrap text-base font-medium break-words">
           {message.content}
         </div>
       );
