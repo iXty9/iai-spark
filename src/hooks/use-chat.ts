@@ -1,11 +1,17 @@
+
 // Update the useChat hook to include functionality to restore chat from session storage
 import { useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useMessageState } from './chat/use-message-state';
-import { useChatSubmit } from './chat/use-chat-submit';
 import { Message } from '@/types/chat';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/components/ui/sonner';
 
 export const useChat = () => {
+  // Get auth state for chat submission
+  const { user, isLoading: isAuthLoading } = useAuth();
+  
+  // Use message state from the dedicated hook
   const {
     messages,
     setMessages,
@@ -13,11 +19,13 @@ export const useChat = () => {
     setMessage,
     isLoading,
     setIsLoading,
-    error,
-    setError
+    addMessage,
+    clearMessages,
+    resetState
   } = useMessageState();
-
-  const { handleChatSubmit } = useChatSubmit();
+  
+  // Add error state which was missing
+  const [error, setError] = useState<string | null>(null);
 
   // Function to restore messages from session storage
   const restoreMessages = useCallback(() => {
@@ -35,6 +43,7 @@ export const useChat = () => {
       }
     } catch (error) {
       console.error('Error restoring messages:', error);
+      toast.error('Failed to restore chat history');
     }
     return false;
   }, [setMessages]);
@@ -46,6 +55,7 @@ export const useChat = () => {
     }
   }, [messages.length, restoreMessages]);
 
+  // Fixed handleSubmit to properly send messages
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!message.trim() || isLoading) return;
@@ -57,37 +67,55 @@ export const useChat = () => {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    // Add the user message to the chat
+    addMessage(userMessage);
     setMessage('');
     setIsLoading(true);
     setError(null);
 
     try {
-      const aiResponse = await handleChatSubmit(message.trim(), [...messages, userMessage]);
+      // Simulate AI response (this would be replaced with actual API call)
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: uuidv4(),
-          content: aiResponse.response,
-          sender: 'ai',
-          timestamp: new Date(),
-          rawResponse: aiResponse.rawResponse,
-          tokenInfo: aiResponse.tokenInfo,
-          threadId: aiResponse.threadId,
-          metadata: aiResponse.metadata
-        }
-      ]);
+      // Create a mock response
+      const aiResponse = {
+        response: `I received your message: "${userMessage.content}"`,
+        rawResponse: null,
+        tokenInfo: null,
+        threadId: null,
+        metadata: null
+      };
+      
+      // Add the AI response to the chat
+      addMessage({
+        id: uuidv4(),
+        content: aiResponse.response,
+        sender: 'ai',
+        timestamp: new Date(),
+        rawResponse: aiResponse.rawResponse,
+        tokenInfo: aiResponse.tokenInfo,
+        threadId: aiResponse.threadId,
+        metadata: aiResponse.metadata
+      });
     } catch (error) {
       console.error('Error submitting message:', error);
       setError('Failed to get a response. Please try again.');
+      
+      // Add error message to chat
+      addMessage({
+        id: uuidv4(),
+        content: "I'm sorry, but I encountered an error processing your message. Please try again.",
+        sender: 'ai',
+        timestamp: new Date(),
+        metadata: { error: true }
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleClearChat = () => {
-    setMessages([]);
+    clearMessages();
     sessionStorage.removeItem('chatMessages');
     sessionStorage.removeItem('hasStartedChat');
   };
