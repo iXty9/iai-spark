@@ -30,6 +30,7 @@ export const ChatContainer = () => {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
+  const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [debugInfo, setDebugInfo] = useState<DebugInfo>({
     viewportHeight: 0,
     inputVisible: true,
@@ -67,6 +68,7 @@ export const ChatContainer = () => {
 
   // Critical effect to track UI transition
   useEffect(() => {
+    // If we have messages but haven't interacted yet, trigger transition
     if (messages.length > 0 && !hasInteracted) {
       console.log('Transitioning from Welcome to Chat UI:', {
         messageCount: messages.length,
@@ -78,11 +80,17 @@ export const ChatContainer = () => {
       setIsTransitioning(true);
       emitDebugEvent({ 
         lastAction: 'Starting transition to chat',
-        isTransitioning: true
+        isTransitioning: true,
+        screen: 'Transitioning to Chat'
       });
       
+      // Clear any existing timeout
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current);
+      }
+      
       // Add a small delay to ensure state updates fully propagate
-      setTimeout(() => {
+      transitionTimeoutRef.current = setTimeout(() => {
         setHasInteracted(true);
         setIsTransitioning(false);
         emitDebugEvent({ 
@@ -91,7 +99,21 @@ export const ChatContainer = () => {
           hasInteracted: true,
           screen: 'Chat Screen'
         });
-      }, 50);
+        
+        transitionTimeoutRef.current = null;
+      }, 100);
+    }
+    
+    // If messages are cleared, reset to welcome screen
+    if (messages.length === 0 && hasInteracted) {
+      console.log('Resetting to Welcome screen (messages cleared)');
+      setHasInteracted(false);
+      emitDebugEvent({
+        screen: 'Welcome Screen',
+        lastAction: 'Reset to welcome screen (messages cleared)',
+        hasInteracted: false,
+        isTransitioning: false
+      });
     }
     
     setDebugInfo(prev => ({
@@ -133,6 +155,53 @@ export const ChatContainer = () => {
       }));
     }
   }, [messages.length, hasInteracted, isLoading]);
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current);
+        transitionTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  // Handle force reset if stuck in transition
+  useEffect(() => {
+    // If stuck in transition for more than 5 seconds, force reset
+    let forceResetTimeout: NodeJS.Timeout | null = null;
+    
+    if (isTransitioning) {
+      console.log('Transition state detected, setting safety timeout');
+      forceResetTimeout = setTimeout(() => {
+        console.warn('Force resetting transition state after timeout');
+        setIsTransitioning(false);
+        
+        if (messages.length > 0) {
+          setHasInteracted(true);
+          emitDebugEvent({
+            lastAction: 'Force completed transition to chat (timeout)',
+            isTransitioning: false, 
+            hasInteracted: true,
+            screen: 'Chat Screen'
+          });
+        } else {
+          emitDebugEvent({
+            lastAction: 'Force reset to welcome screen (timeout)',
+            isTransitioning: false,
+            hasInteracted: false,
+            screen: 'Welcome Screen'
+          });
+        }
+      }, 5000);
+    }
+    
+    return () => {
+      if (forceResetTimeout) {
+        clearTimeout(forceResetTimeout);
+      }
+    };
+  }, [isTransitioning, messages.length]);
 
   return (
     <div className="chat-container flex flex-col h-full overflow-hidden">

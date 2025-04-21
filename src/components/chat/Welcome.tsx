@@ -17,6 +17,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   const [avatarError, setAvatarError] = React.useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const hasSubmitted = useRef<boolean>(false);
   
   useEffect(() => {
     if (inputRef.current) {
@@ -27,7 +28,8 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
       screen: 'Welcome Screen',
       lastAction: 'Welcome screen loaded',
       isLoading: false,
-      hasInteracted: false
+      hasInteracted: false,
+      isTransitioning: false
     });
   }, []);
 
@@ -44,7 +46,20 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   };
 
   const submitMessage = () => {
-    if (!message.trim() || isSubmitting) return;
+    // Prevent multiple submissions
+    if (isSubmitting || hasSubmitted.current) {
+      console.warn('Submission prevented: already submitting or submitted');
+      return;
+    }
+    
+    if (!message.trim()) {
+      console.warn('Welcome screen: Empty message prevented');
+      emitDebugEvent({
+        lastAction: 'Submit prevented: Empty message',
+        isLoading: false
+      });
+      return;
+    }
     
     console.log('Welcome screen: Starting chat with message:', {
       message: message.trim(),
@@ -54,10 +69,12 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     emitDebugEvent({
       lastAction: `Welcome screen: Submit clicked with message: "${message.trim()}"`,
       isLoading: true,
-      inputState: 'Submitting'
+      inputState: 'Submitting',
+      isTransitioning: true
     });
     
     setIsSubmitting(true);
+    hasSubmitted.current = true;
     
     const messageToSend = message.trim();
     setMessage('');
@@ -66,12 +83,11 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     setTimeout(() => {
       emitDebugEvent({
         lastAction: 'Starting chat from welcome screen',
-        isTransitioning: true
+        isTransitioning: true,
+        hasInteracted: true
       });
       
       onStartChat(messageToSend);
-      // We keep isSubmitting true - it will be reset by the parent component
-      // after the message is processed
     }, 0);
   };
 
@@ -85,7 +101,8 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     if (isSubmitting) {
       emitDebugEvent({
         inputState: 'Disabled - Submitting',
-        isLoading: true
+        isLoading: true,
+        isTransitioning: true
       });
     }
   }, [isSubmitting]);

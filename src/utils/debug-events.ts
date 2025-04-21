@@ -9,12 +9,19 @@ interface DebugEvent {
   lastError?: string | null;
   inputState?: string;
   authState?: string;
+  timestamp?: string; // Add timestamp
 }
 
 export const emitDebugEvent = (details: DebugEvent) => {
-  console.log('DEBUG EVENT:', details);
+  // Add timestamp to all events
+  const eventWithTimestamp = {
+    ...details,
+    timestamp: new Date().toISOString()
+  };
+  
+  console.log('DEBUG EVENT:', eventWithTimestamp);
   const event = new CustomEvent('chatDebug', { 
-    detail: details 
+    detail: eventWithTimestamp 
   });
   window.dispatchEvent(event);
 };

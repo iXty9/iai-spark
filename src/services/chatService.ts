@@ -1,5 +1,6 @@
 
 import { Message } from '@/types/chat';
+import { emitDebugEvent } from '@/utils/debug-events';
 
 export type SendMessageParams = {
   message: string;
@@ -25,6 +26,10 @@ export const sendMessage = async ({
   
   try {
     console.log('Sending message to service:', message);
+    emitDebugEvent({
+      lastAction: 'API: Starting to process message',
+      isLoading: true
+    });
     
     // Generate a unique ID for this message
     const messageId = `msg_${Date.now()}`;
@@ -56,6 +61,10 @@ export const sendMessage = async ({
     
     // Add a check to ensure we haven't been canceled during the delay
     if (canceled) {
+      emitDebugEvent({
+        lastAction: 'API: Message sending was canceled',
+        isLoading: false
+      });
       throw new Error('Message sending was canceled');
     }
     
@@ -65,6 +74,10 @@ export const sendMessage = async ({
 
     for (const chunk of responseChunks) {
       if (canceled) {
+        emitDebugEvent({
+          lastAction: 'API: Message streaming was canceled',
+          isLoading: false
+        });
         throw new Error('Message sending was canceled');
       }
       
@@ -81,6 +94,11 @@ export const sendMessage = async ({
     assistantMessage.content = accumulatedContent;
     assistantMessage.pending = false;
     
+    emitDebugEvent({
+      lastAction: 'API: Message completed successfully',
+      isLoading: false
+    });
+    
     // Notify that the message is complete
     if (onMessageComplete) {
       onMessageComplete(assistantMessage);
@@ -89,6 +107,11 @@ export const sendMessage = async ({
     return assistantMessage;
   } catch (error) {
     console.error('Error in sendMessage:', error);
+    
+    emitDebugEvent({
+      lastError: error instanceof Error ? `API Error: ${error.message}` : 'Unknown API error',
+      isLoading: false
+    });
     
     if (onError && error instanceof Error) {
       onError(error);
@@ -110,6 +133,10 @@ export const sendMessage = async ({
   return {
     cancel: () => {
       canceled = true;
+      emitDebugEvent({
+        lastAction: 'API: Message sending was canceled by user',
+        isLoading: false
+      });
     }
   } as any;
 };

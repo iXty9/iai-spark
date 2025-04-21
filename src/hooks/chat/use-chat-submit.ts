@@ -17,10 +17,21 @@ export const useChatSubmit = (
   const messageAttempts = useRef<number>(0);
   const maxRetries = 3;
   const pendingTimeout = useRef<NodeJS.Timeout | null>(null);
+  const isSubmitting = useRef<boolean>(false);
 
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     if (e) {
       e.preventDefault();
+    }
+
+    // Prevent multiple submissions
+    if (isSubmitting.current) {
+      console.warn('Submit prevented: Already submitting a message');
+      emitDebugEvent({
+        lastAction: 'Submit prevented: Already submitting another message',
+        isLoading: true
+      });
+      return;
     }
 
     // Clear any pending timeouts to prevent multiple submissions
@@ -29,8 +40,9 @@ export const useChatSubmit = (
       pendingTimeout.current = null;
     }
 
+    // Check for empty message
     if (!message.trim()) {
-      console.warn('Submit attempted with empty message');
+      console.warn('Submit prevented: Empty message');
       emitDebugEvent({
         lastAction: 'Submit prevented: Empty message',
         isLoading: false
@@ -51,6 +63,9 @@ export const useChatSubmit = (
       });
       return;
     }
+
+    // Set submission flag
+    isSubmitting.current = true;
 
     // Emit event before we start processing
     emitDebugEvent({
@@ -79,8 +94,12 @@ export const useChatSubmit = (
       isLoading: true
     });
     
-    addMessage(userMessage);
+    // Clear the input before adding the message
+    const originalMessage = message;
     setMessage('');
+    
+    // Add the message to the chat
+    addMessage(userMessage);
     setIsLoading(true);
     messageAttempts.current++;
     
@@ -131,7 +150,7 @@ export const useChatSubmit = (
       
       emitDebugEvent({
         lastAction: 'API response received',
-        isLoading: true
+        isLoading: false
       });
       
       // Create AI response message
@@ -167,7 +186,7 @@ export const useChatSubmit = (
         lastError: error instanceof Error 
           ? `API Error: ${error.message}`
           : 'Unknown API error',
-        isLoading: true
+        isLoading: false
       });
       
       if (messageAttempts.current < maxRetries && error instanceof Error && 
@@ -213,6 +232,7 @@ export const useChatSubmit = (
       
       // Ensure we ALWAYS reset loading state
       setIsLoading(false);
+      isSubmitting.current = false;
       
       console.log('Message submission flow completed', {
         messageId: userMessage.id,
@@ -223,7 +243,8 @@ export const useChatSubmit = (
       emitDebugEvent({
         lastAction: 'Message submission completed',
         isLoading: false,
-        inputState: 'Ready'
+        inputState: 'Ready',
+        isTransitioning: false
       });
     }
   }, [message, isAuthenticated, isAuthLoading, addMessage, setMessage, setIsLoading]);

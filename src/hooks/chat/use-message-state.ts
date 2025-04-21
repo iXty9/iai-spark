@@ -23,7 +23,8 @@ export const useMessageState = () => {
     
     emitDebugEvent({
       lastAction: `Adding ${newMessage.sender} message to state`,
-      messagesCount: messages.length + 1
+      messagesCount: messages.length + 1,
+      hasInteracted: true
     });
     
     if (messages.length === 0 && !initializing.current) {
@@ -32,11 +33,17 @@ export const useMessageState = () => {
       
       emitDebugEvent({
         lastAction: 'First message - initializing chat state',
-        isTransitioning: true
+        isTransitioning: true,
+        hasInteracted: true
       });
     }
     
-    setMessages(prev => [...prev, newMessage]);
+    // Using a function form of setState to ensure we have the latest state
+    setMessages(prev => {
+      const newMessages = [...prev, newMessage];
+      console.log(`Messages updated: now have ${newMessages.length} messages`);
+      return newMessages;
+    });
     
     // Reset initializing flag after first message is added
     if (initializing.current && newMessage.sender === 'ai') {
@@ -61,10 +68,14 @@ export const useMessageState = () => {
     
     emitDebugEvent({
       lastAction: 'Clearing chat history',
-      messagesCount: 0
+      messagesCount: 0,
+      screen: 'Welcome Screen',
+      hasInteracted: false,
+      isTransitioning: false
     });
     
     setMessages([]);
+    initializing.current = false;
     toast.success('Chat history cleared');
   }, [messages.length]);
 
@@ -74,7 +85,8 @@ export const useMessageState = () => {
     emitDebugEvent({
       lastAction: 'Resetting message state',
       isLoading: false,
-      inputState: 'Ready'
+      inputState: 'Ready',
+      isTransitioning: false
     });
     
     setMessage('');
