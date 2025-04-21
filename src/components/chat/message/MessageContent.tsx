@@ -5,6 +5,14 @@ import remarkGfm from 'remark-gfm';
 import { markdownComponents } from '@/utils/markdown-config';
 import { useDevMode } from '@/store/use-dev-mode';
 import { Message as MessageType } from '@/types/chat';
+import DOMPurify from 'dompurify';
+
+// Create a trusted types policy
+if (typeof window !== 'undefined' && window.trustedTypes) {
+  window.trustedTypes.createPolicy('default', {
+    createHTML: (string) => string
+  });
+}
 
 interface MessageContentProps {
   message: MessageType;
@@ -13,6 +21,16 @@ interface MessageContentProps {
 
 export const MessageContent: React.FC<MessageContentProps> = ({ message, isUser }) => {
   const { isDevMode } = useDevMode();
+
+  // Setup DOMPurify configuration
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      DOMPurify.setConfig({
+        ADD_ATTR: ['target', 'rel'], // Allow target and rel attributes
+        FORBID_TAGS: ['style', 'script'], // Explicitly forbid these tags
+      });
+    }
+  }, []);
 
   if (isUser || !isDevMode) {
     if (isUser) {
@@ -40,11 +58,17 @@ export const MessageContent: React.FC<MessageContentProps> = ({ message, isUser 
     metadata: message.metadata || null
   };
 
+  // Sanitize the JSON string for safe display
+  const sanitizedJson = DOMPurify.sanitize(
+    JSON.stringify(messageData, null, 2),
+    { RETURN_TRUSTED_TYPE: true }
+  );
+
   return (
     <pre className="bg-muted p-4 rounded-md overflow-x-auto">
-      <code className="text-xs">
-        {JSON.stringify(messageData, null, 2)}
-      </code>
+      <code className="text-xs" 
+        dangerouslySetInnerHTML={{ __html: sanitizedJson as string }}
+      />
     </pre>
   );
 };

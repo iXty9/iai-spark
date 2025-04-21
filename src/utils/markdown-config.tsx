@@ -1,10 +1,18 @@
-
 import React from 'react';
+import DOMPurify from 'dompurify';
 
 interface MarkdownComponentProps {
   node?: any;
   children?: React.ReactNode;
   [key: string]: any;
+}
+
+// Configure DOMPurify if in browser environment
+if (typeof window !== 'undefined') {
+  DOMPurify.setConfig({
+    ADD_ATTR: ['target', 'rel'],
+    FORBID_TAGS: ['style', 'script'],
+  });
 }
 
 export const markdownComponents = {
@@ -50,16 +58,20 @@ export const markdownComponents = {
       setImgError(true);
     };
     
+    // Sanitize the src attribute to prevent XSS
+    const sanitizedSrc = props.src ? DOMPurify.sanitize(props.src.toString()) : '';
+    
     return imgError ? (
       <div className="max-w-full p-4 text-center border border-muted rounded-md my-2 bg-muted/30">
         <p className="text-sm text-muted-foreground">Image could not be loaded</p>
         <p className="text-xs text-muted-foreground mt-1 break-all">
-          {props.src?.toString().substring(0, 50)}...
+          {sanitizedSrc.substring(0, 50)}...
         </p>
       </div>
     ) : (
       <img 
         {...props} 
+        src={sanitizedSrc}
         className="max-w-full h-auto rounded-md my-2" 
         alt={props.alt || "Image"} 
         loading="lazy"
@@ -71,7 +83,6 @@ export const markdownComponents = {
       />
     );
   },
-  // Make sure we properly handle line breaks in the Markdown
   pre: ({ node, ...props }: MarkdownComponentProps) => (
     <pre {...props} className="bg-muted p-4 rounded-md overflow-x-auto my-2" />
   ),
