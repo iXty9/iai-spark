@@ -1,10 +1,13 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Message } from '@/types/chat';
 import { useDevMode } from '@/store/use-dev-mode';
 import { Button } from '@/components/ui/button';
 import { Clipboard, ClipboardCheck, ChevronDown, ChevronUp } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { PerformanceMetrics } from './PerformanceMetrics';
+import { BrowserInfoPanel } from './BrowserInfoPanel';
+import { DomInfoPanel } from './DomInfoPanel';
+import { EventsActionsPanel } from './EventsActionsPanel';
 
 interface DebugState {
   screen: string;
@@ -17,7 +20,6 @@ interface DebugState {
   timestamp: string;
   inputState: string;
   authState: string;
-  // Enhanced debug info
   browserInfo: {
     userAgent: string;
     platform: string;
@@ -97,7 +99,6 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
     }
   });
 
-  // Listen for custom events from the chat flow
   useEffect(() => {
     const handleDebugEvent = (e: CustomEvent) => {
       setDebugState(prev => ({
@@ -112,7 +113,6 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
     };
   }, []);
 
-  // Update performance metrics
   useEffect(() => {
     let frameId: number;
     
@@ -134,7 +134,6 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
     return () => cancelAnimationFrame(frameId);
   }, [lastFrameTime]);
 
-  // Update state based on props and collected metrics
   useEffect(() => {
     setDebugState(prev => ({
       ...prev,
@@ -164,7 +163,6 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
     }));
   }, [messages.length, isLoading, hasInteracted, message, isAuthLoading, isAuthenticated, fps]);
 
-  // Window resize listener
   useEffect(() => {
     const handleResize = () => {
       setDebugState(prev => ({
@@ -198,12 +196,11 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
     setIsExpanded(!isExpanded);
   };
 
-  // Positioned at top of input, not covering it
   return (
     <div
       className="fixed left-0 w-full bg-black/90 text-white p-2 z-[9999] font-mono text-xs rounded-t-md border border-gray-700"
       style={{
-        bottom: messages.length > 0 ? '80px' : '10px', // Position above input when visible
+        bottom: messages.length > 0 ? '80px' : '10px',
         maxHeight: isExpanded ? '40vh' : '32px',
         overflow: isExpanded ? 'auto' : 'hidden',
         transition: 'all 0.3s ease'
@@ -243,39 +240,23 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
 
             <Separator className="col-span-2 my-1 bg-gray-700" />
             
-            <div className="col-span-2 font-bold text-blue-300">Performance Metrics</div>
-            <div><span className="text-blue-200">FPS:</span> {debugState.performanceInfo.fps}</div>
-            <div><span className="text-blue-200">Memory Usage:</span> {
-              debugState.performanceInfo.memory?.usedJSHeapSize 
-                ? Math.round(debugState.performanceInfo.memory.usedJSHeapSize / (1024 * 1024)) + ' MB' 
-                : 'N/A'
-            }</div>
+            <PerformanceMetrics fps={debugState.performanceInfo.fps ?? 0} memory={debugState.performanceInfo.memory} />
             
             <Separator className="col-span-2 my-1 bg-gray-700" />
             
-            <div className="col-span-2 font-bold text-green-300">Browser & Environment</div>
-            <div className="col-span-2"><span className="text-green-200">Viewport:</span> {debugState.browserInfo.viewport.width}×{debugState.browserInfo.viewport.height}</div>
-            <div className="col-span-2"><span className="text-green-200">Device Pixel Ratio:</span> {debugState.browserInfo.devicePixelRatio}</div>
-            <div className="col-span-2"><span className="text-green-200">iOS Safari:</span> {debugState.browserInfo.isIOSSafari ? 'Yes' : 'No'}</div>
+            <BrowserInfoPanel browserInfo={debugState.browserInfo} />
             
             <Separator className="col-span-2 my-1 bg-gray-700" />
             
-            <div className="col-span-2 font-bold text-purple-300">DOM Information</div>
-            <div><span className="text-purple-200">Total Elements:</span> {debugState.domInfo.totalElements}</div>
-            <div><span className="text-purple-200">Input Elements:</span> {debugState.domInfo.inputElements}</div>
+            <DomInfoPanel domInfo={debugState.domInfo} />
 
             <Separator className="col-span-2 my-1 bg-gray-700" />
             
-            <div className="col-span-2 font-bold text-orange-300">Events & Actions</div>
-            <div className="col-span-2"><span className="text-orange-200">Last Action:</span> {debugState.lastAction}</div>
-            {debugState.lastError && (
-              <div className="col-span-2">
-                <span className="text-red-400">Error:</span> {debugState.lastError}
-              </div>
-            )}
-            <div className="col-span-2 text-gray-400 text-[10px]">
-              {debugState.timestamp}
-            </div>
+            <EventsActionsPanel
+              lastAction={debugState.lastAction}
+              lastError={debugState.lastError}
+              timestamp={debugState.timestamp}
+            />
           </div>
         </>
       )}

@@ -1,4 +1,5 @@
 
+// Mobile debug overlay fully removed (was already a stub returning null)
 import React from 'react';
 import { DebugInfo } from '@/types/chat';
 
@@ -7,6 +8,6 @@ interface ChatDebugOverlayProps {
 }
 
 export const ChatDebugOverlay: React.FC<ChatDebugOverlayProps> = ({ debugInfo }) => {
-  // This component is now disabled/empty to remove the mobile debug overlay
+  // Mobile debug overlay completely removed.
   return null;
 };
