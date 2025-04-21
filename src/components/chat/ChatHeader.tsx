@@ -7,7 +7,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { useTheme } from '@/hooks/use-theme';
 import { useDevMode } from '@/store/use-dev-mode';
@@ -57,7 +56,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({ onClearChat, onExportCha
               Actions
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="border-none shadow-md">
             <DropdownMenuItem onClick={onExportChat}>
               <Download className="mr-2 h-4 w-4" />
               <span>Export Chat</span>

@@ -65,4 +65,3 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
     </div>
   );
 };
-
