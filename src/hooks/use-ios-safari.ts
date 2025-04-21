@@ -1,11 +1,5 @@
 
 import { useEffect, useState } from 'react';
-import { 
-  logIOSSafariInfo, 
-  setupDebugListeners,
-  testAlternativeLayout, 
-  checkLayoutRoot 
-} from '@/utils/debug';
 
 export const useIOSSafari = () => {
   const [showFallbackInput, setShowFallbackInput] = useState(false);
@@ -16,21 +10,10 @@ export const useIOSSafari = () => {
                      /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
   useEffect(() => {
-    // Initial debugging
-    logIOSSafariInfo();
-    setupDebugListeners();
-    checkLayoutRoot();
-    
-    // Test alternative layout after DOM is settled
-    setTimeout(() => {
-      testAlternativeLayout();
-    }, 2000);
-    
     // Check for messages periodically
     const checkMessageState = () => {
       const messageElements = document.querySelectorAll('.chat-message');
       setHasMessages(messageElements.length > 0);
-      console.log("Message check: found", messageElements.length, "messages");
     };
 
     // Check message state initially and periodically
@@ -40,11 +23,9 @@ export const useIOSSafari = () => {
     // Handle visibility changes
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log("Page visibility changed to visible");
         setTimeout(() => {
           const inputContainer = document.getElementById('message-input-container');
           if (inputContainer && hasMessages) {
-            console.log("Forcing input container visibility after focus change");
             inputContainer.style.display = 'block';
             inputContainer.style.visibility = 'visible';
             inputContainer.style.opacity = '1';
@@ -61,14 +42,12 @@ export const useIOSSafari = () => {
       
       const checkHeight = () => {
         if (window.innerHeight !== lastHeight) {
-          console.log(`Height changed from ${lastHeight} to ${window.innerHeight}`);
           lastHeight = window.innerHeight;
           
           setTimeout(() => {
             const inputContainer = document.getElementById('message-input-container');
             if (inputContainer && hasMessages) {
               const rect = inputContainer.getBoundingClientRect();
-              console.log("Input position after height change:", rect);
               
               inputContainer.style.display = 'block';
               inputContainer.style.position = 'relative';
