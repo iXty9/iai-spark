@@ -1,6 +1,7 @@
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Message } from '@/types/chat';
+import { useDevMode } from '@/store/use-dev-mode';
 
 interface DebugState {
   screen: string;
@@ -32,7 +33,8 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
   isAuthLoading,
   isAuthenticated,
 }) => {
-  const [debugState, setDebugState] = useState<DebugState>({
+  const { isDevMode } = useDevMode();
+  const [debugState, setDebugState] = React.useState<DebugState>({
     screen: 'Initializing...',
     messagesCount: 0,
     isLoading: false,
@@ -46,7 +48,7 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
   });
 
   // Listen for custom events from the chat flow
-  useEffect(() => {
+  React.useEffect(() => {
     const handleDebugEvent = (e: CustomEvent) => {
       setDebugState(prev => ({
         ...prev,
@@ -54,16 +56,14 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
         timestamp: new Date().toISOString()
       }));
     };
-
     window.addEventListener('chatDebug' as any, handleDebugEvent);
-    
     return () => {
       window.removeEventListener('chatDebug' as any, handleDebugEvent);
     };
   }, []);
 
   // Update state based on props
-  useEffect(() => {
+  React.useEffect(() => {
     setDebugState(prev => ({
       ...prev,
       screen: messages.length === 0 ? 'Welcome Screen' : 'Chat Screen',
@@ -75,10 +75,19 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
     }));
   }, [messages.length, isLoading, hasInteracted, message, isAuthLoading, isAuthenticated]);
 
+  if (!isDevMode) return null;
+
+  // Absolute position at bottom above input, high z-index
   return (
-    <div 
-      className="fixed bottom-0 left-0 w-full bg-black/80 text-white p-2 z-[9999] font-mono text-xs"
-      style={{ maxHeight: '40vh', overflow: 'auto' }}
+    <div
+      className="fixed left-0 w-full bg-black/80 text-white p-2 z-[9999] font-mono text-xs rounded-t-md"
+      style={{
+        bottom: '80px', // raise panel above input
+        pointerEvents: 'none',
+        maxHeight: '32vh',
+        overflow: 'auto',
+        transition: 'bottom 0.3s'
+      }}
     >
       <h3 className="font-bold text-red-400 mb-1">DEBUG PANEL - STATE TRANSITIONS</h3>
       <div className="grid grid-cols-2 gap-1">
@@ -102,3 +111,4 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
     </div>
   );
 };
+
