@@ -14,13 +14,19 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
   const isUser = message.sender === 'user';
   const [aiIconError, setAiIconError] = React.useState(false);
 
-  // Chat bubble styling
+  // Enhanced bubble styling for better visibility in light & dark modes with a glassmorphism effect
   const bubbleBase =
-    'rounded-2xl px-4 py-2 max-w-[80vw] md:max-w-[70%] shadow-sm transition-all';
+    'rounded-2xl px-4 py-2 max-w-[80vw] md:max-w-[70%] shadow transition-all break-words';
+
   const bubbleUser =
-    'bg-gradient-to-tr from-primary/50 via-primary/30 to-primary/20 text-right text-white ml-auto border border-primary/30 backdrop-blur-lg';
+    'bg-gradient-to-br from-primary/20 to-primary/40 text-right text-white ml-auto border border-primary/30 backdrop-blur-lg ' +
+    'dark:from-[#6E59A5]/80 dark:to-[#9b87f5]/50 dark:text-white ' +
+    'light:from-[#fdf6fa] light:to-[#fad0c4] light:text-[#822]';
+
   const bubbleAI =
-    'bg-muted/50 text-left text-foreground mr-auto border border-border/20 backdrop-blur-[2px]';
+    'bg-muted/80 text-left text-foreground mr-auto border border-border/40 backdrop-blur-md ' +
+    'dark:bg-black/30 dark:text-white dark:border-[#6E59A5] ' +
+    'light:bg-white/80 light:text-black light:border-[#ccc]';
 
   return (
     <div
