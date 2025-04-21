@@ -13,6 +13,7 @@ export type SendMessageParams = {
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Real webhook URLs
 const AUTHENTICATED_WEBHOOK_URL = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7';
 const ANONYMOUS_WEBHOOK_URL = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574';
 
@@ -65,6 +66,10 @@ export const sendMessage = async ({
     const webhookUrl = isAuthenticated ? AUTHENTICATED_WEBHOOK_URL : ANONYMOUS_WEBHOOK_URL;
     
     console.log(`Using webhook URL for ${isAuthenticated ? 'authenticated' : 'anonymous'} user:`, webhookUrl);
+    emitDebugEvent({
+      lastAction: `API: Sending to webhook: ${webhookUrl}`,
+      isLoading: true
+    });
     
     // Make the actual API call to the webhook
     const response = await fetch(webhookUrl, {
@@ -92,42 +97,44 @@ export const sendMessage = async ({
       throw new Error('Message sending was canceled');
     }
     
-    // Parse the response
+    // Parse the response - DIRECTLY USE THE REAL WEBHOOK RESPONSE
     const data = await response.json();
-    console.log('Webhook response:', data);
+    console.log('Webhook response received:', data);
+    emitDebugEvent({
+      lastAction: `API: Real webhook response received from ${webhookUrl}`,
+      isLoading: false
+    });
     
     // Extract the response content from the webhook response
     const responseText = data.response || data.message || data.content || 
       "I received your message, but I'm not sure how to respond to that.";
     
-    // For streaming simulation (replace with actual streaming if the API supports it)
-    const responseChunks = responseText.split(' ').map(word => word + ' ');
+    // Process the actual webhook response for streaming
     let accumulatedContent = '';
-    
-    for (const chunk of responseChunks) {
-      if (canceled) {
-        emitDebugEvent({
-          lastAction: 'API: Message streaming was canceled',
-          isLoading: false
-        });
-        throw new Error('Message sending was canceled');
-      }
-      
-      await delay(50); // Delay between chunks
-      
-      accumulatedContent += chunk;
-      
-      if (onMessageStream) {
+    if (onMessageStream) {
+      // Simple streaming implementation
+      const chunks = responseText.split(' ');
+      for (const word of chunks) {
+        if (canceled) {
+          throw new Error('Message streaming was canceled');
+        }
+        
+        await delay(50); // Small delay for UI
+        const chunk = word + ' ';
+        accumulatedContent += chunk;
         onMessageStream(chunk);
       }
+    } else {
+      // If no streaming callback, just use the full response
+      accumulatedContent = responseText;
     }
     
-    // Update the assistant message with the full content
-    assistantMessage.content = accumulatedContent;
+    // Update the assistant message with the full content from the REAL webhook
+    assistantMessage.content = accumulatedContent.trim() || responseText;
     assistantMessage.pending = false;
     
     emitDebugEvent({
-      lastAction: 'API: Message completed successfully',
+      lastAction: 'API: Message from webhook completed successfully',
       isLoading: false
     });
     
@@ -152,7 +159,7 @@ export const sendMessage = async ({
       onError(new Error('Unknown error occurred'));
     }
     
-    // Return an error message
+    // Return an error message - NOT A FAKE RESPONSE
     return {
       id: `error_${Date.now()}`,
       sender: 'ai',
