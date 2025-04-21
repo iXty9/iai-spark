@@ -7,7 +7,10 @@ import { Welcome } from '../Welcome';
 import { useChat } from '@/hooks/use-chat';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatDebugOverlay } from './ChatDebugOverlay';
+import { StateDebugPanel } from '@/components/debug/StateDebugPanel';
 import { DebugInfo } from '@/types/chat';
+import { emitDebugEvent } from '@/utils/debug-events';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const ChatContainer = () => {
   const {
@@ -18,10 +21,13 @@ export const ChatContainer = () => {
     handleSubmit,
     handleClearChat,
     handleExportChat,
-    startChat
+    startChat,
+    authError
   } = useChat();
   
+  const { user, isLoading: authLoading } = useAuth();
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
   const [debugInfo, setDebugInfo] = useState<DebugInfo>({
@@ -68,7 +74,24 @@ export const ChatContainer = () => {
         isLoading: isLoading,
         timestamp: new Date().toISOString()
       });
-      setHasInteracted(true);
+      
+      setIsTransitioning(true);
+      emitDebugEvent({ 
+        lastAction: 'Starting transition to chat',
+        isTransitioning: true
+      });
+      
+      // Add a small delay to ensure state updates fully propagate
+      setTimeout(() => {
+        setHasInteracted(true);
+        setIsTransitioning(false);
+        emitDebugEvent({ 
+          lastAction: 'Completed transition to chat',
+          isTransitioning: false,
+          hasInteracted: true,
+          screen: 'Chat Screen'
+        });
+      }, 50);
     }
     
     setDebugInfo(prev => ({
@@ -155,6 +178,15 @@ export const ChatContainer = () => {
       )}
       
       <ChatDebugOverlay debugInfo={debugInfo} />
+
+      <StateDebugPanel 
+        messages={messages}
+        isLoading={isLoading}
+        hasInteracted={hasInteracted}
+        message={message}
+        isAuthLoading={authLoading}
+        isAuthenticated={!!user}
+      />
     </div>
   );
 };

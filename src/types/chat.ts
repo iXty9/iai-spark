@@ -50,3 +50,16 @@ export interface DebugInfo {
     position: string;
   };
 }
+
+export interface DebugEvent {
+  screen?: string;
+  messagesCount?: number;
+  isLoading?: boolean;
+  hasInteracted?: boolean;
+  isTransitioning?: boolean;
+  lastAction?: string;
+  lastError?: string | null;
+  inputState?: string;
+  authState?: string;
+  timestamp?: string;
+}

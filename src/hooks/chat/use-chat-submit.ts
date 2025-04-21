@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Message } from '@/types/chat';
 import { sendMessage } from '@/services/chatService';
 import { toast } from '@/components/ui/sonner';
+import { emitDebugEvent } from '@/utils/debug-events';
 
 export const useChatSubmit = (
   message: string,
@@ -30,6 +31,10 @@ export const useChatSubmit = (
 
     if (!message.trim()) {
       console.warn('Submit attempted with empty message');
+      emitDebugEvent({
+        lastAction: 'Submit prevented: Empty message',
+        isLoading: false
+      });
       return;
     }
     
@@ -38,8 +43,21 @@ export const useChatSubmit = (
       console.warn('Message submission blocked: Auth still loading');
       toast.error("Please wait while we load your profile...");
       setIsLoading(false);
+      emitDebugEvent({
+        lastAction: 'Message submission blocked: Auth still loading',
+        lastError: 'Auth loading in progress',
+        isLoading: false,
+        inputState: 'Ready'
+      });
       return;
     }
+
+    // Emit event before we start processing
+    emitDebugEvent({
+      lastAction: 'Message submission starting',
+      isLoading: true,
+      inputState: 'Sending'
+    });
 
     // Create user message regardless of auth state
     const userMessage: Message = {
@@ -56,6 +74,11 @@ export const useChatSubmit = (
       isAuthenticated: isAuthenticated
     });
     
+    emitDebugEvent({
+      lastAction: `User message created (ID: ${userMessage.id.substring(0, 8)}...)`,
+      isLoading: true
+    });
+    
     addMessage(userMessage);
     setMessage('');
     setIsLoading(true);
@@ -65,6 +88,12 @@ export const useChatSubmit = (
     const firstWarningTimeout = setTimeout(() => {
       console.log('Long response warning triggered');
       toast.info("Ixty AI is still thinking. This might take a moment...");
+      
+      emitDebugEvent({
+        lastAction: 'Long response warning triggered',
+        isLoading: true,
+        inputState: 'Waiting for response'
+      });
       
       window.dispatchEvent(new CustomEvent('aiResponseStatus', { 
         detail: { 
@@ -82,14 +111,28 @@ export const useChatSubmit = (
         timestamp: new Date().toISOString()
       });
       
+      emitDebugEvent({
+        lastAction: `Sending to API (attempt ${messageAttempts.current})`,
+        isLoading: true
+      });
+      
       console.time(`messageResponse_${userMessage.id}`);
       const response = await sendMessage({
         message: userMessage.content,
         onError: (error) => {
           console.error('Error in AI response:', error);
+          emitDebugEvent({
+            lastError: `Error in AI response: ${error.message}`,
+            isLoading: true
+          });
         }
       });
       console.timeEnd(`messageResponse_${userMessage.id}`);
+      
+      emitDebugEvent({
+        lastAction: 'API response received',
+        isLoading: true
+      });
       
       // Create AI response message
       const aiMessage: Message = {
@@ -105,6 +148,12 @@ export const useChatSubmit = (
         contentLength: response.content.length
       });
       
+      emitDebugEvent({
+        lastAction: `AI response received (ID: ${aiMessage.id.substring(0, 8)}...)`,
+        isLoading: false,
+        inputState: 'Ready'
+      });
+      
       addMessage(aiMessage);
       messageAttempts.current = 0;
     } catch (error) {
@@ -114,9 +163,22 @@ export const useChatSubmit = (
         messageId: userMessage.id
       });
       
+      emitDebugEvent({
+        lastError: error instanceof Error 
+          ? `API Error: ${error.message}`
+          : 'Unknown API error',
+        isLoading: true
+      });
+      
       if (messageAttempts.current < maxRetries && error instanceof Error && 
           !error.message.includes('abort')) {
         console.log('Scheduling message retry...');
+        
+        emitDebugEvent({
+          lastAction: `Scheduling retry ${messageAttempts.current}/${maxRetries}`,
+          isLoading: true
+        });
+        
         pendingTimeout.current = setTimeout(() => {
           handleSubmit();
         }, Math.pow(2, messageAttempts.current) * 1000);
@@ -134,6 +196,13 @@ export const useChatSubmit = (
         metadata: { error: true }
       };
       
+      emitDebugEvent({
+        lastAction: 'Adding error message to chat',
+        lastError: 'Failed to get API response after max retries',
+        isLoading: false,
+        inputState: 'Ready'
+      });
+      
       addMessage(errorMessage);
     } finally {
       clearTimeout(firstWarningTimeout);
@@ -149,6 +218,12 @@ export const useChatSubmit = (
         messageId: userMessage.id,
         successful: messageAttempts.current === 0,
         timestamp: new Date().toISOString()
+      });
+      
+      emitDebugEvent({
+        lastAction: 'Message submission completed',
+        isLoading: false,
+        inputState: 'Ready'
       });
     }
   }, [message, isAuthenticated, isAuthLoading, addMessage, setMessage, setIsLoading]);

@@ -1,9 +1,11 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Send, Circle, Info } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { emitDebugEvent } from '@/utils/debug-events';
 
 interface WelcomeProps {
   onStartChat: (message: string) => void;
@@ -20,6 +22,13 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     if (inputRef.current) {
       inputRef.current.focus();
     }
+    
+    emitDebugEvent({
+      screen: 'Welcome Screen',
+      lastAction: 'Welcome screen loaded',
+      isLoading: false,
+      hasInteracted: false
+    });
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -42,6 +51,12 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
       timestamp: new Date().toISOString()
     });
     
+    emitDebugEvent({
+      lastAction: `Welcome screen: Submit clicked with message: "${message.trim()}"`,
+      isLoading: true,
+      inputState: 'Submitting'
+    });
+    
     setIsSubmitting(true);
     
     const messageToSend = message.trim();
@@ -49,6 +64,11 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     
     // We use setTimeout to ensure React state updates complete before transition
     setTimeout(() => {
+      emitDebugEvent({
+        lastAction: 'Starting chat from welcome screen',
+        isTransitioning: true
+      });
+      
       onStartChat(messageToSend);
       // We keep isSubmitting true - it will be reset by the parent component
       // after the message is processed
@@ -59,6 +79,16 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     console.log("Avatar image failed to load");
     setAvatarError(true);
   };
+  
+  // Track state changes in submission
+  useEffect(() => {
+    if (isSubmitting) {
+      emitDebugEvent({
+        inputState: 'Disabled - Submitting',
+        isLoading: true
+      });
+    }
+  }, [isSubmitting]);
 
   return (
     <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto px-4">
@@ -97,6 +127,8 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
             placeholder={isMobile ? "Ask me anything..." : "What can I assist you with today?"}
             className="flex-1 rounded-full shadow-sm"
             disabled={isSubmitting}
+            aria-label="Message input"
+            spellCheck="true"
           />
           <Button 
             type="submit" 
