@@ -1,4 +1,3 @@
-
 import { useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Message } from '@/types/chat';
@@ -138,6 +137,7 @@ export const useChatSubmit = (
       console.time(`messageResponse_${userMessage.id}`);
       const response = await sendMessage({
         message: userMessage.content,
+        isAuthenticated: isAuthenticated,
         onError: (error) => {
           console.error('Error in AI response:', error);
           emitDebugEvent({

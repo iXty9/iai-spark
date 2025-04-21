@@ -8,9 +8,13 @@ export type SendMessageParams = {
   onMessageStream?: (chunk: string) => void;
   onMessageComplete?: (message: Message) => void;
   onError?: (error: Error) => void;
+  isAuthenticated?: boolean;
 };
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const AUTHENTICATED_WEBHOOK_URL = 'https://api.webhook.site/your-auth-webhook-id';
+const ANONYMOUS_WEBHOOK_URL = 'https://api.webhook.site/your-anon-webhook-id';
 
 /**
  * Send a message to the chat service
@@ -20,12 +24,13 @@ export const sendMessage = async ({
   onMessageStart,
   onMessageStream,
   onMessageComplete,
-  onError
+  onError,
+  isAuthenticated = false
 }: SendMessageParams): Promise<Message> => {
   let canceled = false;
   
   try {
-    console.log('Sending message to service:', message);
+    console.log('Sending message to service:', message, 'isAuthenticated:', isAuthenticated);
     emitDebugEvent({
       lastAction: 'API: Starting to process message',
       isLoading: true
@@ -56,55 +61,129 @@ export const sendMessage = async ({
       onMessageStart(assistantMessage);
     }
 
-    // In a real implementation, this would be a fetch to your backend
-    await delay(500); // Simulate network delay
+    // Determine which webhook URL to use based on authentication status
+    const webhookUrl = isAuthenticated ? AUTHENTICATED_WEBHOOK_URL : ANONYMOUS_WEBHOOK_URL;
     
-    // Add a check to ensure we haven't been canceled during the delay
-    if (canceled) {
-      emitDebugEvent({
-        lastAction: 'API: Message sending was canceled',
-        isLoading: false
+    console.log(`Using webhook URL for ${isAuthenticated ? 'authenticated' : 'anonymous'} user:`, webhookUrl);
+    
+    try {
+      // Make the actual API call to the webhook
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: message,
+          timestamp: new Date().toISOString(),
+          isAuthenticated: isAuthenticated
+        }),
       });
-      throw new Error('Message sending was canceled');
-    }
-    
-    // Simulate streaming by sending chunks of the response
-    const responseChunks = generateFakeResponse(message);
-    let accumulatedContent = '';
-
-    for (const chunk of responseChunks) {
+      
+      if (!response.ok) {
+        throw new Error(`Webhook responded with status: ${response.status}`);
+      }
+      
+      // Check if request was canceled during fetch
       if (canceled) {
         emitDebugEvent({
-          lastAction: 'API: Message streaming was canceled',
+          lastAction: 'API: Message sending was canceled',
           isLoading: false
         });
         throw new Error('Message sending was canceled');
       }
       
-      await delay(50); // Delay between chunks
+      // Parse the response
+      const data = await response.json();
+      console.log('Webhook response:', data);
       
-      accumulatedContent += chunk;
+      // In case the webhook doesn't return a proper response format,
+      // fallback to a default message
+      const responseText = data.response || data.message || data.content || 
+        "I received your message, but I'm not sure how to respond to that.";
       
-      if (onMessageStream) {
-        onMessageStream(chunk);
+      // For streaming simulation (replace with actual streaming if the API supports it)
+      const responseChunks = responseText.split(' ').map(word => word + ' ');
+      let accumulatedContent = '';
+      
+      for (const chunk of responseChunks) {
+        if (canceled) {
+          emitDebugEvent({
+            lastAction: 'API: Message streaming was canceled',
+            isLoading: false
+          });
+          throw new Error('Message sending was canceled');
+        }
+        
+        await delay(50); // Delay between chunks
+        
+        accumulatedContent += chunk;
+        
+        if (onMessageStream) {
+          onMessageStream(chunk);
+        }
       }
+      
+      // Update the assistant message with the full content
+      assistantMessage.content = accumulatedContent;
+      assistantMessage.pending = false;
+      
+      emitDebugEvent({
+        lastAction: 'API: Message completed successfully',
+        isLoading: false
+      });
+      
+      // Notify that the message is complete
+      if (onMessageComplete) {
+        onMessageComplete(assistantMessage);
+      }
+      
+      return assistantMessage;
+      
+    } catch (error) {
+      console.error('Error calling webhook:', error);
+      
+      // If the webhook fails, fall back to the generateFakeResponse function
+      console.log('Falling back to fake response generation');
+      
+      // Simulate streaming by sending chunks of the response
+      const responseChunks = generateFakeResponse(message);
+      let accumulatedContent = '';
+
+      for (const chunk of responseChunks) {
+        if (canceled) {
+          emitDebugEvent({
+            lastAction: 'API: Message streaming was canceled',
+            isLoading: false
+          });
+          throw new Error('Message sending was canceled');
+        }
+        
+        await delay(50); // Delay between chunks
+        
+        accumulatedContent += chunk;
+        
+        if (onMessageStream) {
+          onMessageStream(chunk);
+        }
+      }
+      
+      // Update the assistant message with the full content
+      assistantMessage.content = accumulatedContent;
+      assistantMessage.pending = false;
+      
+      emitDebugEvent({
+        lastAction: 'API: Message completed with fallback response',
+        isLoading: false
+      });
+      
+      // Notify that the message is complete
+      if (onMessageComplete) {
+        onMessageComplete(assistantMessage);
+      }
+      
+      return assistantMessage;
     }
-    
-    // Update the assistant message with the full content
-    assistantMessage.content = accumulatedContent;
-    assistantMessage.pending = false;
-    
-    emitDebugEvent({
-      lastAction: 'API: Message completed successfully',
-      isLoading: false
-    });
-    
-    // Notify that the message is complete
-    if (onMessageComplete) {
-      onMessageComplete(assistantMessage);
-    }
-    
-    return assistantMessage;
   } catch (error) {
     console.error('Error in sendMessage:', error);
     
