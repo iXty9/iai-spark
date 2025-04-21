@@ -66,124 +66,78 @@ export const sendMessage = async ({
     
     console.log(`Using webhook URL for ${isAuthenticated ? 'authenticated' : 'anonymous'} user:`, webhookUrl);
     
-    try {
-      // Make the actual API call to the webhook
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: message,
-          timestamp: new Date().toISOString(),
-          isAuthenticated: isAuthenticated
-        }),
+    // Make the actual API call to the webhook
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: message,
+        timestamp: new Date().toISOString(),
+        isAuthenticated: isAuthenticated
+      }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Webhook responded with status: ${response.status}`);
+    }
+    
+    // Check if request was canceled during fetch
+    if (canceled) {
+      emitDebugEvent({
+        lastAction: 'API: Message sending was canceled',
+        isLoading: false
       });
-      
-      if (!response.ok) {
-        throw new Error(`Webhook responded with status: ${response.status}`);
-      }
-      
-      // Check if request was canceled during fetch
+      throw new Error('Message sending was canceled');
+    }
+    
+    // Parse the response
+    const data = await response.json();
+    console.log('Webhook response:', data);
+    
+    // Extract the response content from the webhook response
+    const responseText = data.response || data.message || data.content || 
+      "I received your message, but I'm not sure how to respond to that.";
+    
+    // For streaming simulation (replace with actual streaming if the API supports it)
+    const responseChunks = responseText.split(' ').map(word => word + ' ');
+    let accumulatedContent = '';
+    
+    for (const chunk of responseChunks) {
       if (canceled) {
         emitDebugEvent({
-          lastAction: 'API: Message sending was canceled',
+          lastAction: 'API: Message streaming was canceled',
           isLoading: false
         });
         throw new Error('Message sending was canceled');
       }
       
-      // Parse the response
-      const data = await response.json();
-      console.log('Webhook response:', data);
+      await delay(50); // Delay between chunks
       
-      // In case the webhook doesn't return a proper response format,
-      // fallback to a default message
-      const responseText = data.response || data.message || data.content || 
-        "I received your message, but I'm not sure how to respond to that.";
+      accumulatedContent += chunk;
       
-      // For streaming simulation (replace with actual streaming if the API supports it)
-      const responseChunks = responseText.split(' ').map(word => word + ' ');
-      let accumulatedContent = '';
-      
-      for (const chunk of responseChunks) {
-        if (canceled) {
-          emitDebugEvent({
-            lastAction: 'API: Message streaming was canceled',
-            isLoading: false
-          });
-          throw new Error('Message sending was canceled');
-        }
-        
-        await delay(50); // Delay between chunks
-        
-        accumulatedContent += chunk;
-        
-        if (onMessageStream) {
-          onMessageStream(chunk);
-        }
+      if (onMessageStream) {
+        onMessageStream(chunk);
       }
-      
-      // Update the assistant message with the full content
-      assistantMessage.content = accumulatedContent;
-      assistantMessage.pending = false;
-      
-      emitDebugEvent({
-        lastAction: 'API: Message completed successfully',
-        isLoading: false
-      });
-      
-      // Notify that the message is complete
-      if (onMessageComplete) {
-        onMessageComplete(assistantMessage);
-      }
-      
-      return assistantMessage;
-      
-    } catch (error) {
-      console.error('Error calling webhook:', error);
-      
-      // If the webhook fails, fall back to the generateFakeResponse function
-      console.log('Falling back to fake response generation');
-      
-      // Simulate streaming by sending chunks of the response
-      const responseChunks = generateFakeResponse(message);
-      let accumulatedContent = '';
-
-      for (const chunk of responseChunks) {
-        if (canceled) {
-          emitDebugEvent({
-            lastAction: 'API: Message streaming was canceled',
-            isLoading: false
-          });
-          throw new Error('Message sending was canceled');
-        }
-        
-        await delay(50); // Delay between chunks
-        
-        accumulatedContent += chunk;
-        
-        if (onMessageStream) {
-          onMessageStream(chunk);
-        }
-      }
-      
-      // Update the assistant message with the full content
-      assistantMessage.content = accumulatedContent;
-      assistantMessage.pending = false;
-      
-      emitDebugEvent({
-        lastAction: 'API: Message completed with fallback response',
-        isLoading: false
-      });
-      
-      // Notify that the message is complete
-      if (onMessageComplete) {
-        onMessageComplete(assistantMessage);
-      }
-      
-      return assistantMessage;
     }
+    
+    // Update the assistant message with the full content
+    assistantMessage.content = accumulatedContent;
+    assistantMessage.pending = false;
+    
+    emitDebugEvent({
+      lastAction: 'API: Message completed successfully',
+      isLoading: false
+    });
+    
+    // Notify that the message is complete
+    if (onMessageComplete) {
+      onMessageComplete(assistantMessage);
+    }
+    
+    return assistantMessage;
+    
   } catch (error) {
     console.error('Error in sendMessage:', error);
     
@@ -198,7 +152,7 @@ export const sendMessage = async ({
       onError(new Error('Unknown error occurred'));
     }
     
-    // Return a fallback message on error
+    // Return an error message
     return {
       id: `error_${Date.now()}`,
       sender: 'ai',
@@ -251,38 +205,3 @@ export const exportChat = (messages: Message[]): void => {
     throw new Error('Failed to export chat');
   }
 };
-
-/**
- * Generate a fake response based on the user's input
- * This is just for demo purposes and would be replaced with actual API calls
- */
-function generateFakeResponse(userMessage: string): string[] {
-  // Convert message to lowercase for easier matching
-  const input = userMessage.toLowerCase();
-  
-  // Simple pattern matching for demo purposes
-  let response: string;
-  
-  if (input.includes('hello') || input.includes('hi')) {
-    response = "Hello! How can I help you today?";
-  } else if (input.includes('your name')) {
-    response = "I'm Ixty AI, a digital assistant designed to help answer your questions.";
-  } else if (input.includes('thank')) {
-    response = "You're welcome! Is there anything else I can help you with?";
-  } else if (input.includes('weather')) {
-    response = "I don't have access to real-time weather data, but I'd be happy to discuss other topics.";
-  } else if (input.includes('joke')) {
-    response = "Why don't scientists trust atoms? Because they make up everything!";
-  } else if (input.includes('time')) {
-    response = `I don't have access to your local time, but I'm here to assist you whenever you need.`;
-  } else if (input.includes('how are you')) {
-    response = "I'm functioning well, thank you for asking! How can I assist you today?";
-  } else if (input.includes('help')) {
-    response = "I'm here to help! You can ask me questions, chat, or just discuss ideas. What's on your mind?";
-  } else {
-    response = "I'm here and ready to assist. How can I help you with your questions or tasks today?";
-  }
-  
-  // Break the response into chunks to simulate streaming
-  return response.split(' ').map(word => word + ' ');
-}
