@@ -59,8 +59,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     <form 
       ref={formRef}
       onSubmit={handleSubmit} 
-      className={`message-input-container ${isIOSSafari ? 'ios-debug' : ''} border-0 shadow-none`} // remove borders and shadows
-      style={{ borderTop: 'none', boxShadow: 'none' }} // double assurance
+      className={`message-input-container ${isIOSSafari ? 'ios-debug' : ''} border-0 shadow-none mt-2`} // Added mt-2 to create spacing
+      style={{ border: 'none', boxShadow: 'none' }} // Removing borders explicitly
     >
       <div className="flex items-end gap-2 w-full">
         <div className="relative flex-1">
