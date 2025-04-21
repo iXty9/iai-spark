@@ -1,6 +1,7 @@
 
 import { Message } from '@/types/chat';
 import { emitDebugEvent } from '@/utils/debug-events';
+import { logWebhookCommunication } from '@/utils/debug';
 
 export type SendMessageParams = {
   message: string;
@@ -65,11 +66,22 @@ export const sendMessage = async ({
     // Determine which webhook URL to use based on authentication status
     const webhookUrl = isAuthenticated ? AUTHENTICATED_WEBHOOK_URL : ANONYMOUS_WEBHOOK_URL;
     
+    // Emit webhook call event for debugging
+    window.dispatchEvent(new CustomEvent('webhookCall', { 
+      detail: { 
+        webhookUrl: webhookUrl,
+        isAuthenticated: isAuthenticated 
+      } 
+    }));
+    
     console.log(`Using webhook URL for ${isAuthenticated ? 'authenticated' : 'anonymous'} user:`, webhookUrl);
     emitDebugEvent({
       lastAction: `API: Sending to webhook: ${webhookUrl}`,
       isLoading: true
     });
+    
+    // Log webhook request for debugging
+    logWebhookCommunication(webhookUrl, 'REQUEST_SENT');
     
     // Make the actual API call to the webhook
     const response = await fetch(webhookUrl, {
@@ -85,6 +97,7 @@ export const sendMessage = async ({
     });
     
     if (!response.ok) {
+      logWebhookCommunication(webhookUrl, 'ERROR', { status: response.status });
       throw new Error(`Webhook responded with status: ${response.status}`);
     }
     
@@ -100,6 +113,10 @@ export const sendMessage = async ({
     // Parse the response - DIRECTLY USE THE REAL WEBHOOK RESPONSE
     const data = await response.json();
     console.log('Webhook response received:', data);
+    
+    // Log webhook response for debugging
+    logWebhookCommunication(webhookUrl, 'RESPONSE_RECEIVED', data);
+    
     emitDebugEvent({
       lastAction: `API: Real webhook response received from ${webhookUrl}`,
       isLoading: false

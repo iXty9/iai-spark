@@ -1,3 +1,4 @@
+
 import { emitDebugEvent } from './debug-events';
 
 /**
@@ -14,6 +15,16 @@ export const logWebhookCommunication = (url: string, status: string, response?: 
     lastAction: message,
     lastError: status === 'ERROR' ? 'Webhook communication failed' : null
   });
+  
+  // Emit webhook call event with details
+  window.dispatchEvent(new CustomEvent('webhookCall', { 
+    detail: { 
+      webhookUrl: url,
+      webhookType,
+      status,
+      timestamp: new Date().toISOString()
+    } 
+  }));
   
   // Return a debug-friendly object
   return {
@@ -62,3 +73,13 @@ export const createWebhookDebugPanel = () => {
     }
   };
 };
+
+/**
+ * Get the webhook URL based on authentication status
+ */
+export const getWebhookUrl = (isAuthenticated: boolean): string => {
+  return isAuthenticated 
+    ? 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7'
+    : 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574';
+};
+

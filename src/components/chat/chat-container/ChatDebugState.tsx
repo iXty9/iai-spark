@@ -5,6 +5,8 @@ import { StateDebugPanel } from '@/components/debug/StateDebugPanel';
 import { ChatDebugOverlay } from './ChatDebugOverlay';
 import { Message, DebugInfo } from '@/types/chat';
 import { useEffect, useState, useRef } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useDevMode } from '@/store/use-dev-mode';
 
 interface ChatDebugStateProps {
   messages: Message[];
@@ -52,8 +54,25 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
     }
   });
   
+  const { isDevMode } = useDevMode();
   const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const inputContainerRef = useRef<HTMLDivElement | null>(null);
+  const [lastWebhookCall, setLastWebhookCall] = useState<string | null>(null);
+  
+  // Setup event listener for webhook calls
+  useEffect(() => {
+    const handleWebhookEvent = (e: CustomEvent) => {
+      if (e.detail && e.detail.webhookUrl) {
+        const isAuthenticated = e.detail.webhookUrl.includes('9553f3d014f7');
+        setLastWebhookCall(`Using ${isAuthenticated ? 'AUTHENTICATED' : 'ANONYMOUS'} webhook`);
+      }
+    };
+    
+    window.addEventListener('webhookCall' as any, handleWebhookEvent);
+    return () => {
+      window.removeEventListener('webhookCall' as any, handleWebhookEvent);
+    };
+  }, []);
 
   // Detect iOS Safari
   useEffect(() => {
@@ -211,6 +230,13 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
 
   return (
     <>
+      {isDevMode && lastWebhookCall && (
+        <div className="fixed top-16 right-4 z-[9999] max-w-md">
+          <Alert variant="default" className="border-green-500 bg-green-100 text-green-800">
+            <AlertDescription>{lastWebhookCall}</AlertDescription>
+          </Alert>
+        </div>
+      )}
       <ChatDebugOverlay debugInfo={debugInfo} />
       <StateDebugPanel 
         messages={messages}
@@ -219,6 +245,7 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
         message={message}
         isAuthLoading={isAuthLoading}
         isAuthenticated={isAuthenticated}
+        lastWebhookCall={lastWebhookCall}
       />
     </>
   );

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Message } from '@/types/chat';
 import { useDevMode } from '@/store/use-dev-mode';
@@ -20,6 +21,7 @@ interface DebugState {
   timestamp: string;
   inputState: string;
   authState: string;
+  lastWebhookCall: string | null;
   browserInfo: {
     userAgent: string;
     platform: string;
@@ -46,6 +48,7 @@ interface StateDebugPanelProps {
   message: string;
   isAuthLoading: boolean;
   isAuthenticated: boolean;
+  lastWebhookCall?: string | null;
 }
 
 export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
@@ -55,6 +58,7 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
   message,
   isAuthLoading,
   isAuthenticated,
+  lastWebhookCall = null
 }) => {
   const { isDevMode } = useDevMode();
   const [copied, setCopied] = useState(false);
@@ -73,6 +77,7 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
     timestamp: new Date().toISOString(),
     inputState: 'Ready',
     authState: 'Unknown',
+    lastWebhookCall: null,
     browserInfo: {
       userAgent: navigator.userAgent,
       platform: navigator.platform,
@@ -141,6 +146,7 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
       messagesCount: messages.length,
       isLoading,
       hasInteracted,
+      lastWebhookCall,
       inputState: isLoading ? 'Disabled' : message.trim() ? 'Ready to Send' : 'Empty',
       authState: isAuthLoading ? 'Loading...' : isAuthenticated ? 'Authenticated' : 'Not Authenticated',
       browserInfo: {
@@ -161,7 +167,7 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
         inputElements: document.getElementsByTagName('input').length
       }
     }));
-  }, [messages.length, isLoading, hasInteracted, message, isAuthLoading, isAuthenticated, fps]);
+  }, [messages.length, isLoading, hasInteracted, message, isAuthLoading, isAuthenticated, fps, lastWebhookCall]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -237,6 +243,12 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
             <div><span className="text-yellow-300">Has Interacted:</span> {debugState.hasInteracted.toString()}</div>
             <div><span className="text-yellow-300">Input State:</span> {debugState.inputState}</div>
             <div><span className="text-yellow-300">Auth:</span> {debugState.authState}</div>
+            
+            {debugState.lastWebhookCall && (
+              <div className="col-span-2">
+                <span className="text-green-400">Last Webhook:</span> {debugState.lastWebhookCall}
+              </div>
+            )}
 
             <Separator className="col-span-2 my-1 bg-gray-700" />
             

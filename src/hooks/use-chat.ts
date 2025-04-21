@@ -3,9 +3,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMessageState } from './chat/use-message-state';
 import { useChatSubmit } from './chat/use-chat-submit';
-import { exportChat } from '@/services/chatService';
+import { exportChat, sendMessage } from '@/services/chatService';
 import { toast } from '@/components/ui/sonner';
 import { emitDebugEvent } from '@/utils/debug-events';
+import { v4 as uuidv4 } from 'uuid';
 
 export const useChat = () => {
   const { user, isLoading: authLoading } = useAuth();
@@ -80,7 +81,7 @@ export const useChat = () => {
   }, [messages]);
 
   // Safely start a chat with proper error handling
-  const startChat = useCallback((initialMessage: string) => {
+  const startChat = useCallback(async (initialMessage: string) => {
     if (authLoading) {
       console.warn('Chat start blocked: Auth still loading');
       toast.error("Please wait while we load your profile...");
@@ -110,14 +111,14 @@ export const useChat = () => {
       return;
     }
     
-    console.log("Starting new chat:", {
+    console.log("Starting new chat using real webhook:", {
       initialMessage,
       isAuthenticated: !!user,
       timestamp: new Date().toISOString()
     });
     
     emitDebugEvent({
-      lastAction: `Starting new chat with: "${initialMessage}"`,
+      lastAction: `Starting new chat with: "${initialMessage}" (using real webhook)`,
       isTransitioning: true,
       isLoading: true,
       hasInteracted: true
@@ -125,81 +126,94 @@ export const useChat = () => {
     
     transitionInProgress.current = true;
     
-    // Set initial message - NOT HERE! This will interfere with submissions
-    // Use a local variable instead
-    const messageToSend = initialMessage;
-    
-    // Use setTimeout to avoid state update conflicts
-    setTimeout(() => {
+    try {
+      // Create initial user message
+      const userMessage = {
+        id: uuidv4(),
+        content: initialMessage,
+        sender: 'user' as const,
+        timestamp: new Date()
+      };
+      
+      // Add the user message to the chat
+      addMessage(userMessage);
+      
+      emitDebugEvent({
+        lastAction: 'Added initial user message, calling webhook...',
+        messagesCount: 1,
+        hasInteracted: true
+      });
+      
+      // Use the real webhook integration to get a response
+      setIsLoading(true);
+      
       try {
-        console.log('Creating initial user message in startChat');
+        const response = await sendMessage({
+          message: initialMessage,
+          isAuthenticated: !!user,
+          onError: (error) => {
+            console.error('Error in welcome screen AI response:', error);
+            emitDebugEvent({
+              lastError: `Error in welcome screen AI response: ${error.message}`,
+              isLoading: false
+            });
+          }
+        });
         
-        // Create the user message directly
-        const userMessage = {
-          id: `user_${Date.now()}`,
-          content: messageToSend,
-          sender: 'user' as const,
+        // Add the real AI response from the webhook
+        const aiMessage = {
+          id: uuidv4(),
+          content: response.content,
+          sender: 'ai' as const,
           timestamp: new Date()
         };
         
-        // Add the message directly to trigger UI transition
-        addMessage(userMessage);
-        
-        emitDebugEvent({
-          lastAction: 'Added initial user message',
-          messagesCount: 1,
-          hasInteracted: true
-        });
-        
-        // Now simulate an AI response
-        setIsLoading(true);
-        
-        setTimeout(() => {
-          try {
-            // Add AI response after a delay
-            const aiMessage = {
-              id: `ai_${Date.now()}`,
-              content: "Hello! How can I help you today?",
-              sender: 'ai' as const,
-              timestamp: new Date()
-            };
-            
-            addMessage(aiMessage);
-            setIsLoading(false);
-            transitionInProgress.current = false;
-            
-            emitDebugEvent({
-              lastAction: 'Chat started successfully',
-              isLoading: false,
-              isTransitioning: false,
-              hasInteracted: true,
-              screen: 'Chat Screen',
-              messagesCount: 2
-            });
-          } catch (error) {
-            console.error('Error in AI response generation:', error);
-            setIsLoading(false);
-            transitionInProgress.current = false;
-            
-            emitDebugEvent({
-              lastError: 'Error in AI response generation',
-              isLoading: false,
-              isTransitioning: false
-            });
-          }
-        }, 1000);
-      } catch (error) {
-        console.error('Error in startChat:', error);
+        addMessage(aiMessage);
         setIsLoading(false);
         transitionInProgress.current = false;
         
         emitDebugEvent({
-          lastError: error instanceof Error ? error.message : 'Unknown error in startChat',
+          lastAction: 'Chat started successfully with real webhook response',
           isLoading: false,
-          isTransitioning: false
+          isTransitioning: false,
+          hasInteracted: true,
+          screen: 'Chat Screen',
+          messagesCount: 2
+        });
+      } catch (error) {
+        console.error('Error in welcome screen webhook call:', error);
+        setIsLoading(false);
+        
+        // If webhook failed, still add an error message to complete the transition
+        const errorMessage = {
+          id: uuidv4(),
+          content: "I'm sorry, but I encountered an error processing your message. Please try again.",
+          sender: 'ai' as const,
+          timestamp: new Date(),
+          metadata: { error: true }
+        };
+        
+        addMessage(errorMessage);
+        transitionInProgress.current = false;
+        
+        emitDebugEvent({
+          lastError: error instanceof Error ? `Welcome screen webhook error: ${error.message}` : 'Unknown webhook error',
+          isLoading: false,
+          isTransitioning: false,
+          screen: 'Chat Screen'
         });
       }
-    }, 100);
+    } catch (error) {
+      console.error('Error in startChat:', error);
+      setIsLoading(false);
+      transitionInProgress.current = false;
+      
+      emitDebugEvent({
+        lastError: error instanceof Error ? error.message : 'Unknown error in startChat',
+        isLoading: false,
+        isTransitioning: false
+      });
+    }
   }, [user, authLoading, setIsLoading, addMessage]);
 
   // Clean up logic - ensure we reset flags if component unmounts while loading

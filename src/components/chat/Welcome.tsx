@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Send, Circle, Info } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { emitDebugEvent } from '@/utils/debug-events';
+import { useDevMode } from '@/store/use-dev-mode';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface WelcomeProps {
   onStartChat: (message: string) => void;
@@ -18,6 +20,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const hasSubmitted = useRef<boolean>(false);
+  const { isDevMode } = useDevMode();
   
   useEffect(() => {
     if (inputRef.current) {
@@ -67,7 +70,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     });
     
     emitDebugEvent({
-      lastAction: `Welcome screen: Submit clicked with message: "${message.trim()}"`,
+      lastAction: `Welcome screen: Submit clicked with message: "${message.trim()}" (Using real webhook)`,
       isLoading: true,
       inputState: 'Submitting',
       isTransitioning: true
@@ -82,7 +85,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     // We use setTimeout to ensure React state updates complete before transition
     setTimeout(() => {
       emitDebugEvent({
-        lastAction: 'Starting chat from welcome screen',
+        lastAction: 'Starting chat from welcome screen (Using real webhook)',
         isTransitioning: true,
         hasInteracted: true
       });
@@ -109,6 +112,14 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
 
   return (
     <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto px-4">
+      {isDevMode && (
+        <Alert variant="destructive" className="mb-4 max-w-md">
+          <AlertDescription>
+            Welcome flow is using real webhook integration
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <div className="w-full text-center space-y-6">
         <div className="flex items-center justify-center gap-3">
           <Avatar className="w-16 h-16 relative">
