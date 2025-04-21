@@ -40,7 +40,10 @@ export const MessageContent: React.FC<MessageContentProps> = ({ message, isUser 
 
   // Dev mode: show all message data in a well-styled code block
   const messageData = {
-    ...message,
+    id: message.id,
+    sender: message.sender,
+    content: message.content.substring(0, 100) + (message.content.length > 100 ? '...' : ''),
+    timestamp: message.timestamp,
     rawResponse: message.rawResponse || null,
     tokenInfo: message.tokenInfo || null,
     threadId: message.threadId || null,
@@ -62,8 +65,19 @@ export const MessageContent: React.FC<MessageContentProps> = ({ message, isUser 
   );
 
   return (
-    <pre className="bg-black/80 dark:bg-white/10 text-white dark:text-green-300 p-2 rounded-lg overflow-x-auto text-xs mt-2">
-      <code dangerouslySetInnerHTML={{ __html: sanitizedJson as string }}></code>
-    </pre>
+    <div>
+      <div className="markdown-content prose prose-sm max-w-none dark:prose-invert prose-headings:my-2 prose-p:my-1 prose-hr:my-2">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={markdownComponents}
+        >
+          {message.content}
+        </ReactMarkdown>
+      </div>
+      
+      <pre className="bg-black/80 dark:bg-white/10 text-white dark:text-green-300 p-2 rounded-lg overflow-x-auto text-xs mt-2">
+        <code dangerouslySetInnerHTML={{ __html: sanitizedJson as string }}></code>
+      </pre>
+    </div>
   );
 };

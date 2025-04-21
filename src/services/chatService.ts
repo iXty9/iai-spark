@@ -1,7 +1,7 @@
 
 import { Message } from '@/types/chat';
 import { emitDebugEvent } from '@/utils/debug-events';
-import { logWebhookCommunication } from '@/utils/debug';
+import { logWebhookCommunication, parseWebhookResponse } from '@/utils/debug';
 
 export type SendMessageParams = {
   message: string;
@@ -110,7 +110,7 @@ export const sendMessage = async ({
       throw new Error('Message sending was canceled');
     }
     
-    // Parse the response - DIRECTLY USE THE REAL WEBHOOK RESPONSE
+    // Parse the response JSON
     const data = await response.json();
     console.log('Webhook response received:', data);
     
@@ -122,9 +122,29 @@ export const sendMessage = async ({
       isLoading: false
     });
     
-    // Extract the response content from the webhook response
-    const responseText = data.response || data.message || data.content || 
-      "I received your message, but I'm not sure how to respond to that.";
+    // Parse the response content using our improved parser
+    let responseText;
+    try {
+      responseText = parseWebhookResponse(data);
+      console.log('Parsed response text:', responseText);
+      
+      // Add further debug information to show what we extracted
+      emitDebugEvent({
+        lastAction: `API: Successfully parsed webhook response`,
+        isLoading: false
+      });
+    } catch (error) {
+      console.error('Failed to parse webhook response:', error);
+      logWebhookCommunication(webhookUrl, 'PARSE_ERROR', { error: error.message, data });
+      
+      emitDebugEvent({
+        lastError: `API: Failed to parse webhook response: ${error.message}`,
+        isLoading: false
+      });
+      
+      // Use fallback content if we couldn't parse
+      responseText = "I received your message, but I'm having trouble processing the response format. Please try again.";
+    }
     
     // Process the actual webhook response for streaming
     let accumulatedContent = '';
@@ -146,9 +166,33 @@ export const sendMessage = async ({
       accumulatedContent = responseText;
     }
     
-    // Update the assistant message with the full content from the REAL webhook
+    // Update the assistant message with the full content from the webhook
     assistantMessage.content = accumulatedContent.trim() || responseText;
     assistantMessage.pending = false;
+    
+    // Add metadata for debugging purposes
+    assistantMessage.metadata = {
+      responseFormat: typeof data,
+      responseStructure: Array.isArray(data) ? 'array' : (typeof data === 'object' ? 'object' : 'other'),
+      webhookType: isAuthenticated ? 'authenticated' : 'anonymous'
+    };
+    
+    // Store the raw response for debugging
+    assistantMessage.rawResponse = data;
+    
+    // If there's token info, store it
+    if (Array.isArray(data) && data[0]?.usage) {
+      assistantMessage.tokenInfo = data[0].usage;
+    } else if (data?.usage) {
+      assistantMessage.tokenInfo = data.usage;
+    }
+    
+    // If there's thread info, store it
+    if (Array.isArray(data) && data[0]?.threadId) {
+      assistantMessage.threadId = data[0].threadId;
+    } else if (data?.threadId) {
+      assistantMessage.threadId = data.threadId;
+    }
     
     emitDebugEvent({
       lastAction: 'API: Message from webhook completed successfully',
@@ -176,13 +220,16 @@ export const sendMessage = async ({
       onError(new Error('Unknown error occurred'));
     }
     
-    // Return an error message - NOT A FAKE RESPONSE
+    // Return an error message
     return {
       id: `error_${Date.now()}`,
       sender: 'ai',
       content: "I'm sorry, but I encountered an error processing your message. Please try again.",
       timestamp: new Date(),
-      metadata: { error: true }
+      metadata: { 
+        error: true,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
+      }
     };
   }
   

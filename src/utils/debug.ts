@@ -22,7 +22,8 @@ export const logWebhookCommunication = (url: string, status: string, response?: 
       webhookUrl: url,
       webhookType,
       status,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      responseData: status === 'RESPONSE_RECEIVED' ? response : null
     } 
   }));
   
@@ -34,6 +35,66 @@ export const logWebhookCommunication = (url: string, status: string, response?: 
     timestamp: new Date().toISOString(),
     response: response
   };
+};
+
+/**
+ * Parse webhook response to get the actual content
+ * Handles different response formats from the webhook
+ */
+export const parseWebhookResponse = (data: any): string => {
+  console.log('Parsing webhook response:', data);
+  
+  try {
+    // Case 1: Array with objects containing 'output' property
+    if (Array.isArray(data) && data.length > 0 && data[0].output) {
+      console.log('Parsed webhook response format: Array with output object');
+      return data[0].output;
+    }
+    
+    // Case 2: Direct object with 'output' property
+    if (data && typeof data === 'object' && data.output) {
+      console.log('Parsed webhook response format: Object with output property');
+      return data.output;
+    }
+    
+    // Case 3: Object with 'response' property
+    if (data && typeof data === 'object' && data.response) {
+      console.log('Parsed webhook response format: Object with response property');
+      return data.response;
+    }
+    
+    // Case 4: Object with 'message' property
+    if (data && typeof data === 'object' && data.message) {
+      console.log('Parsed webhook response format: Object with message property');
+      return data.message;
+    }
+    
+    // Case 5: Object with 'content' property
+    if (data && typeof data === 'object' && data.content) {
+      console.log('Parsed webhook response format: Object with content property');
+      return data.content;
+    }
+    
+    // Case 6: Direct string
+    if (typeof data === 'string') {
+      console.log('Parsed webhook response format: Direct string');
+      return data;
+    }
+    
+    // Fallback: Try to stringify the response if it's an object
+    if (data && typeof data === 'object') {
+      console.log('Parsed webhook response format: Unknown object structure, trying to use as is');
+      const jsonString = JSON.stringify(data);
+      return jsonString !== '{}' ? `Response: ${jsonString}` : "Received empty response object";
+    }
+    
+    // No valid response format found
+    console.error('Could not parse webhook response - unknown format:', data);
+    throw new Error('Unknown response format');
+  } catch (error) {
+    console.error('Error parsing webhook response:', error, data);
+    throw error;
+  }
 };
 
 /**
@@ -82,4 +143,3 @@ export const getWebhookUrl = (isAuthenticated: boolean): string => {
     ? 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7'
     : 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574';
 };
-

@@ -22,6 +22,7 @@ interface DebugState {
   inputState: string;
   authState: string;
   lastWebhookCall: string | null;
+  lastWebhookResponse: any | null;
   browserInfo: {
     userAgent: string;
     platform: string;
@@ -65,6 +66,7 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
   const [isExpanded, setIsExpanded] = useState(true);
   const [lastFrameTime, setLastFrameTime] = useState(performance.now());
   const [fps, setFps] = useState(0);
+  const [lastWebhookResponse, setLastWebhookResponse] = useState<any>(null);
   
   const [debugState, setDebugState] = useState<DebugState>({
     screen: 'Initializing...',
@@ -78,6 +80,7 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
     inputState: 'Ready',
     authState: 'Unknown',
     lastWebhookCall: null,
+    lastWebhookResponse: null,
     browserInfo: {
       userAgent: navigator.userAgent,
       platform: navigator.platform,
@@ -112,9 +115,22 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
         timestamp: new Date().toISOString()
       }));
     };
+    
+    const handleWebhookCall = (e: CustomEvent) => {
+      const detail = e.detail;
+      console.log('Webhook call event:', detail);
+      
+      if (detail.status === 'RESPONSE_RECEIVED' && detail.responseData) {
+        setLastWebhookResponse(detail.responseData);
+      }
+    };
+    
     window.addEventListener('chatDebug' as any, handleDebugEvent);
+    window.addEventListener('webhookCall' as any, handleWebhookCall);
+    
     return () => {
       window.removeEventListener('chatDebug' as any, handleDebugEvent);
+      window.removeEventListener('webhookCall' as any, handleWebhookCall);
     };
   }, []);
 
@@ -147,6 +163,7 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
       isLoading,
       hasInteracted,
       lastWebhookCall,
+      lastWebhookResponse,
       inputState: isLoading ? 'Disabled' : message.trim() ? 'Ready to Send' : 'Empty',
       authState: isAuthLoading ? 'Loading...' : isAuthenticated ? 'Authenticated' : 'Not Authenticated',
       browserInfo: {
@@ -167,7 +184,7 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
         inputElements: document.getElementsByTagName('input').length
       }
     }));
-  }, [messages.length, isLoading, hasInteracted, message, isAuthLoading, isAuthenticated, fps, lastWebhookCall]);
+  }, [messages.length, isLoading, hasInteracted, message, isAuthLoading, isAuthenticated, fps, lastWebhookCall, lastWebhookResponse]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -268,6 +285,7 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
               lastAction={debugState.lastAction}
               lastError={debugState.lastError}
               timestamp={debugState.timestamp}
+              lastWebhookResponse={debugState.lastWebhookResponse}
             />
           </div>
         </>
