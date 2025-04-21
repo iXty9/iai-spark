@@ -13,8 +13,8 @@ export type SendMessageParams = {
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-const AUTHENTICATED_WEBHOOK_URL = 'https://api.webhook.site/your-auth-webhook-id';
-const ANONYMOUS_WEBHOOK_URL = 'https://api.webhook.site/your-anon-webhook-id';
+const AUTHENTICATED_WEBHOOK_URL = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7';
+const ANONYMOUS_WEBHOOK_URL = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574';
 
 /**
  * Send a message to the chat service
