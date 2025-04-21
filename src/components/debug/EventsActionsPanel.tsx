@@ -12,6 +12,12 @@ export function EventsActionsPanel({
   timestamp: string;
   lastWebhookResponse?: any;
 }) {
+  // Format webhook response for display
+  const formatWebhookResponse = (response: any) => {
+    if (!response) return null;
+    return typeof response === 'object' ? JSON.stringify(response, null, 2) : response;
+  };
+  
   return (
     <>
       <div className="col-span-2 font-bold text-orange-300">Events & Actions</div>
@@ -26,11 +32,9 @@ export function EventsActionsPanel({
       
       {lastWebhookResponse && (
         <div className="col-span-2">
-          <span className="text-green-400">Webhook Response:</span>
+          <span className="text-green-400">Raw Webhook Response:</span>
           <pre className="text-[10px] overflow-x-auto max-h-20 bg-black/50 p-1 mt-1">
-            {typeof lastWebhookResponse === 'object' 
-              ? JSON.stringify(lastWebhookResponse, null, 2)
-              : lastWebhookResponse}
+            {formatWebhookResponse(lastWebhookResponse)}
           </pre>
         </div>
       )}

@@ -1,4 +1,3 @@
-
 import { Message } from '@/types/chat';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { logWebhookCommunication, parseWebhookResponse } from '@/utils/debug';
@@ -128,7 +127,6 @@ export const sendMessage = async ({
       responseText = parseWebhookResponse(data);
       console.log('Parsed response text:', responseText);
       
-      // Add further debug information to show what we extracted
       emitDebugEvent({
         lastAction: `API: Successfully parsed webhook response`,
         isLoading: false
@@ -170,15 +168,15 @@ export const sendMessage = async ({
     assistantMessage.content = accumulatedContent.trim() || responseText;
     assistantMessage.pending = false;
     
+    // Store the raw response for debugging
+    assistantMessage.rawResponse = data;
+    
     // Add metadata for debugging purposes
     assistantMessage.metadata = {
       responseFormat: typeof data,
       responseStructure: Array.isArray(data) ? 'array' : (typeof data === 'object' ? 'object' : 'other'),
       webhookType: isAuthenticated ? 'authenticated' : 'anonymous'
     };
-    
-    // Store the raw response for debugging
-    assistantMessage.rawResponse = data;
     
     // If there's token info, store it
     if (Array.isArray(data) && data[0]?.usage) {

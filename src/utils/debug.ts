@@ -45,50 +45,50 @@ export const parseWebhookResponse = (data: any): string => {
   console.log('Parsing webhook response:', data);
   
   try {
-    // Case 1: Array with objects containing 'output' property
+    // Case 1: Array with text field (anonymous users)
+    if (Array.isArray(data) && data.length > 0 && data[0].text) {
+      console.log('Parsed webhook response format: Array with text field');
+      return data[0].text;
+    }
+    
+    // Case 2: Array with output field (authenticated users)
     if (Array.isArray(data) && data.length > 0 && data[0].output) {
       console.log('Parsed webhook response format: Array with output object');
       return data[0].output;
     }
     
-    // Case 2: Direct object with 'output' property
+    // Case 3: Direct object with text field
+    if (data && typeof data === 'object' && data.text) {
+      console.log('Parsed webhook response format: Object with text field');
+      return data.text;
+    }
+    
+    // Case 4: Direct object with output field
     if (data && typeof data === 'object' && data.output) {
-      console.log('Parsed webhook response format: Object with output property');
+      console.log('Parsed webhook response format: Object with output field');
       return data.output;
     }
     
-    // Case 3: Object with 'response' property
-    if (data && typeof data === 'object' && data.response) {
-      console.log('Parsed webhook response format: Object with response property');
-      return data.response;
-    }
-    
-    // Case 4: Object with 'message' property
-    if (data && typeof data === 'object' && data.message) {
-      console.log('Parsed webhook response format: Object with message property');
-      return data.message;
-    }
-    
-    // Case 5: Object with 'content' property
-    if (data && typeof data === 'object' && data.content) {
-      console.log('Parsed webhook response format: Object with content property');
-      return data.content;
-    }
-    
-    // Case 6: Direct string
+    // Case 5: Direct string
     if (typeof data === 'string') {
       console.log('Parsed webhook response format: Direct string');
       return data;
     }
     
-    // Fallback: Try to stringify the response if it's an object
-    if (data && typeof data === 'object') {
-      console.log('Parsed webhook response format: Unknown object structure, trying to use as is');
-      const jsonString = JSON.stringify(data);
-      return jsonString !== '{}' ? `Response: ${jsonString}` : "Received empty response object";
+    // Fallback: Try to extract any meaningful text content
+    console.log('Could not find standard fields, attempting to extract content');
+    if (Array.isArray(data) && data.length > 0) {
+      const firstItem = data[0];
+      // Look for any property that might contain the message
+      const possibleKeys = ['content', 'message', 'response'];
+      for (const key of possibleKeys) {
+        if (firstItem[key] && typeof firstItem[key] === 'string') {
+          return firstItem[key];
+        }
+      }
     }
     
-    // No valid response format found
+    // If we still can't parse it, throw an error
     console.error('Could not parse webhook response - unknown format:', data);
     throw new Error('Unknown response format');
   } catch (error) {
