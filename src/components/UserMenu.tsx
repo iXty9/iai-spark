@@ -147,10 +147,12 @@ export const UserMenu = () => {
                 />
               </label>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleSettingsClick}>
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
-            </DropdownMenuItem>
+            {user && (
+              <DropdownMenuItem onClick={handleSettingsClick}>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" />
@@ -162,10 +164,6 @@ export const UserMenu = () => {
             <DropdownMenuItem onClick={handleLoginClick}>
               <User className="mr-2 h-4 w-4" />
               <span>Log in</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleSettingsClick}>
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
             </DropdownMenuItem>
           </>
         )}
