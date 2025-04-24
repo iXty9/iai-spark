@@ -7,7 +7,7 @@ export type AuthContextType = {
   profile: any | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, username: string, phone_number?: string) => Promise<void>;
+  signUp: (email: string, password: string, username: string, options?: { phone_number?: string, full_name?: string }) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<any>) => Promise<void>;
 };

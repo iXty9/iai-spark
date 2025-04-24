@@ -29,7 +29,7 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({ isUser, onAiIconEr
     return (
       <Avatar className="w-6 h-6" title={displayName}>
         <AvatarImage
-          src="https://ixty9.com/wp-content/uploads/2025/04/profile-circle-icon-256x256-1.png"
+          src={profile?.avatar_url || "https://ixty9.com/wp-content/uploads/2025/04/profile-circle-icon-256x256-1.png"}
           alt={`${displayName}'s Avatar`}
         />
         <AvatarFallback className="bg-primary/10 text-primary text-xs">

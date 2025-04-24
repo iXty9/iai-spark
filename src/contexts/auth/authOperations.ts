@@ -1,12 +1,20 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "@/hooks/use-toast";
 
+const API_TIMEOUT = 180000; // 3 minutes (180 seconds)
+
 export const signIn = async (email: string, password: string) => {
   try {
-    const { error } = await supabase.auth.signInWithPassword({
+    const authPromise = supabase.auth.signInWithPassword({
       email,
       password,
     });
+    
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Login request timed out after 3 minutes")), API_TIMEOUT);
+    });
+    
+    const { error } = await Promise.race([authPromise, timeoutPromise]) as any;
 
     if (error) {
       toast({
@@ -18,6 +26,14 @@ export const signIn = async (email: string, password: string) => {
     }
   } catch (error: any) {
     console.error('Error during sign in:', error);
+    
+    const errorMessage = error.message || "Login failed. Please try again later.";
+    toast({
+      variant: "destructive",
+      title: "Login error",
+      description: errorMessage,
+    });
+    
     throw error;
   }
 };
@@ -29,7 +45,7 @@ export const signUp = async (
   options?: { phone_number?: string, full_name?: string }
 ) => {
   try {
-    const { error } = await supabase.auth.signUp({
+    const authPromise = supabase.auth.signUp({
       email,
       password,
       options: {
@@ -40,6 +56,12 @@ export const signUp = async (
         },
       },
     });
+    
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Registration request timed out after 3 minutes")), API_TIMEOUT);
+    });
+    
+    const { error } = await Promise.race([authPromise, timeoutPromise]) as any;
 
     if (error) {
       toast({
@@ -56,6 +78,14 @@ export const signUp = async (
     });
   } catch (error: any) {
     console.error('Error during sign up:', error);
+    
+    const errorMessage = error.message || "Sign up failed. Please try again later.";
+    toast({
+      variant: "destructive",
+      title: "Registration error",
+      description: errorMessage,
+    });
+    
     throw error;
   }
 };
