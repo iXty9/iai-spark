@@ -4,21 +4,48 @@ import { Chat } from '@/components/chat/Chat';
 import { useIOSSafari } from '@/hooks/use-ios-safari';
 import { IOSFallbackInput } from '@/components/chat/IOSFallbackInput';
 import { useLocation } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
   const { isIOSSafari, showFallbackInput } = useIOSSafari();
   const location = useLocation();
+  const { user, profile } = useAuth();
   
-  // Apply any background image and theme settings from localStorage on component mount
+  // Apply background image and theme settings from localStorage or profile
   useEffect(() => {
     try {
-      const savedBackgroundImage = localStorage.getItem('backgroundImage');
-      const savedBackgroundOpacity = localStorage.getItem('backgroundOpacity');
-      
-      if (savedBackgroundImage) {
-        document.body.style.backgroundImage = `url(${savedBackgroundImage})`;
-        document.documentElement.style.setProperty('--bg-opacity', savedBackgroundOpacity || '0.1');
-        document.body.classList.add('with-bg-image');
+      // Only apply background to the chat interface for logged in users
+      if (user) {
+        let backgroundImage = null;
+        let backgroundOpacity = "0.1";
+        
+        // If user is logged in and has profile settings, use those
+        if (profile && profile.theme_settings) {
+          try {
+            const themeSettings = JSON.parse(profile.theme_settings);
+            backgroundImage = themeSettings.backgroundImage;
+            backgroundOpacity = themeSettings.backgroundOpacity || "0.1";
+          } catch (e) {
+            console.error('Error parsing theme settings from profile:', e);
+          }
+        } else {
+          // Fallback to localStorage
+          backgroundImage = localStorage.getItem('backgroundImage');
+          backgroundOpacity = localStorage.getItem('backgroundOpacity') || "0.1";
+        }
+        
+        if (backgroundImage) {
+          document.body.style.backgroundImage = `url(${backgroundImage})`;
+          document.documentElement.style.setProperty('--bg-opacity', backgroundOpacity);
+          document.body.classList.add('with-bg-image');
+        } else {
+          document.body.style.backgroundImage = 'none';
+          document.body.classList.remove('with-bg-image');
+        }
+      } else {
+        // Remove background for non-logged in users
+        document.body.style.backgroundImage = 'none';
+        document.body.classList.remove('with-bg-image');
       }
       
       // Apply theme colors from localStorage
@@ -38,7 +65,7 @@ const Index = () => {
     } catch (error) {
       console.error('Error applying saved theme settings:', error);
     }
-  }, [location.pathname]);
+  }, [location.pathname, user, profile]);
   
   return (
     <div className={`h-screen w-full bg-background ${isIOSSafari ? 'ios-safari-page' : ''}`}>

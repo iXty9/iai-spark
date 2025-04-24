@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { 
   Card, 
   CardContent, 
@@ -13,28 +13,29 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Moon, Sun, Upload } from 'lucide-react';
-import { Switch } from '@/components/ui/switch';
-import { useTheme } from '@/hooks/use-theme';
+import { ArrowLeft, Moon, Sun, Upload, Palette } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
+import { useTheme } from '@/hooks/use-theme';
+import { useAuth } from '@/contexts/AuthContext';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
-// ThemeSettings interface for localStorage
+// ThemeSettings interface for localStorage and Supabase
 interface ThemeSettings {
-  mode: 'light' | 'dark' | 'system';
+  mode: 'light' | 'dark';
   backgroundColor: string;
   primaryColor: string;
   textColor: string;
   accentColor: string;
   backgroundImage: string | null;
-  backgroundOpacity: number;
+  backgroundOpacity: string;
 }
 
 export default function Settings() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
+  const { user, profile, updateProfile } = useAuth();
   
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const [backgroundOpacity, setBackgroundOpacity] = useState(0.1);
@@ -54,41 +55,71 @@ export default function Settings() {
     accentColor: '#9b87f5'
   });
 
-  // Load saved settings from localStorage on mount
+  // Load saved settings from profile or localStorage on mount
   useEffect(() => {
     try {
-      const savedLightTheme = localStorage.getItem('lightTheme');
-      const savedDarkTheme = localStorage.getItem('darkTheme');
-      const savedBackgroundImage = localStorage.getItem('backgroundImage');
-      const savedBackgroundOpacity = localStorage.getItem('backgroundOpacity');
-      
-      if (savedLightTheme) {
-        setLightTheme(JSON.parse(savedLightTheme));
+      // First try to load from profile if user is logged in
+      if (user && profile && profile.theme_settings) {
+        try {
+          const themeSettings = JSON.parse(profile.theme_settings);
+          
+          if (themeSettings.mode) {
+            setTheme(themeSettings.mode);
+          }
+          
+          if (themeSettings.lightTheme) {
+            setLightTheme(themeSettings.lightTheme);
+          }
+          
+          if (themeSettings.darkTheme) {
+            setDarkTheme(themeSettings.darkTheme);
+          }
+          
+          if (themeSettings.backgroundImage) {
+            setBackgroundImage(themeSettings.backgroundImage);
+          }
+          
+          if (themeSettings.backgroundOpacity !== undefined) {
+            setBackgroundOpacity(parseFloat(themeSettings.backgroundOpacity));
+          }
+          
+        } catch (e) {
+          console.error('Error parsing theme settings from profile:', e);
+        }
+      } else {
+        // Fallback to localStorage
+        const savedLightTheme = localStorage.getItem('lightTheme');
+        const savedDarkTheme = localStorage.getItem('darkTheme');
+        const savedBackgroundImage = localStorage.getItem('backgroundImage');
+        const savedBackgroundOpacity = localStorage.getItem('backgroundOpacity');
+        
+        if (savedLightTheme) {
+          setLightTheme(JSON.parse(savedLightTheme));
+        }
+        
+        if (savedDarkTheme) {
+          setDarkTheme(JSON.parse(savedDarkTheme));
+        }
+        
+        if (savedBackgroundImage) {
+          setBackgroundImage(savedBackgroundImage);
+        }
+        
+        if (savedBackgroundOpacity) {
+          setBackgroundOpacity(parseFloat(savedBackgroundOpacity));
+        }
       }
       
-      if (savedDarkTheme) {
-        setDarkTheme(JSON.parse(savedDarkTheme));
-      }
-      
-      if (savedBackgroundImage) {
-        setBackgroundImage(savedBackgroundImage);
-        // Apply background immediately if it exists
-        document.body.style.backgroundImage = `url(${savedBackgroundImage})`;
-        document.documentElement.style.setProperty('--bg-opacity', savedBackgroundOpacity || '0.1');
-        document.body.classList.add('with-bg-image');
-      }
-      
-      if (savedBackgroundOpacity) {
-        setBackgroundOpacity(parseFloat(savedBackgroundOpacity));
-      }
+      // Apply settings to DOM
+      applyThemeSettings();
       
     } catch (error) {
       console.error('Error loading saved theme settings:', error);
     }
-  }, []);
+  }, [profile, user]);
 
-  // Apply theme settings
-  useEffect(() => {
+  // Apply theme settings to the document
+  const applyThemeSettings = () => {
     const currentTheme = theme === 'dark' ? darkTheme : lightTheme;
     const root = document.documentElement;
     
@@ -105,7 +136,7 @@ export default function Settings() {
       document.body.style.backgroundRepeat = 'no-repeat';
       document.body.style.backgroundAttachment = 'fixed';
       
-      // Fix: Set the background opacity using CSS variable instead of direct style property
+      // Fix: Set the background opacity using CSS variable
       document.documentElement.style.setProperty('--bg-opacity', backgroundOpacity.toString());
       
       // Add the class that uses the CSS variable for background opacity
@@ -114,7 +145,10 @@ export default function Settings() {
       document.body.style.backgroundImage = 'none';
       document.body.classList.remove('with-bg-image');
     }
-    
+  };
+
+  useEffect(() => {
+    applyThemeSettings();
   }, [theme, lightTheme, darkTheme, backgroundImage, backgroundOpacity]);
 
   const handleLightThemeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -145,31 +179,46 @@ export default function Settings() {
     reader.readAsDataURL(file);
   };
 
-  const handleSaveSettings = () => {
+  const handleSaveSettings = async () => {
     try {
+      // Create theme settings object
+      const themeSettings: ThemeSettings = {
+        mode: theme as 'light' | 'dark',
+        backgroundColor: theme === 'light' ? lightTheme.backgroundColor : darkTheme.backgroundColor,
+        primaryColor: theme === 'light' ? lightTheme.primaryColor : darkTheme.primaryColor,
+        textColor: theme === 'light' ? lightTheme.textColor : darkTheme.textColor,
+        accentColor: theme === 'light' ? lightTheme.accentColor : darkTheme.accentColor,
+        backgroundImage,
+        backgroundOpacity: backgroundOpacity.toString()
+      };
+      
+      // Save to localStorage for immediate use
       localStorage.setItem('lightTheme', JSON.stringify(lightTheme));
       localStorage.setItem('darkTheme', JSON.stringify(darkTheme));
       
       if (backgroundImage) {
         localStorage.setItem('backgroundImage', backgroundImage);
+      } else {
+        localStorage.removeItem('backgroundImage');
       }
       
       localStorage.setItem('backgroundOpacity', backgroundOpacity.toString());
       
-      // Apply settings immediately
-      const currentTheme = theme === 'dark' ? darkTheme : lightTheme;
-      const root = document.documentElement;
-      
-      root.style.setProperty('--background-color', currentTheme.backgroundColor);
-      root.style.setProperty('--primary-color', currentTheme.primaryColor);
-      root.style.setProperty('--text-color', currentTheme.textColor);
-      root.style.setProperty('--accent-color', currentTheme.accentColor);
-      
-      if (backgroundImage) {
-        document.body.style.backgroundImage = `url(${backgroundImage})`;
-        document.documentElement.style.setProperty('--bg-opacity', backgroundOpacity.toString());
-        document.body.classList.add('with-bg-image');
+      // If user is logged in, save to profile
+      if (user) {
+        const fullThemeSettings = {
+          mode: theme,
+          lightTheme,
+          darkTheme,
+          backgroundImage,
+          backgroundOpacity: backgroundOpacity.toString()
+        };
+        
+        await updateProfile({ theme_settings: JSON.stringify(fullThemeSettings) });
       }
+      
+      // Apply settings immediately
+      applyThemeSettings();
       
       toast({
         title: "Settings saved",
@@ -209,10 +258,24 @@ export default function Settings() {
     localStorage.removeItem('backgroundImage');
     localStorage.removeItem('backgroundOpacity');
     
-    toast({
-      title: "Settings reset",
-      description: "Your theme settings have been reset to defaults",
-    });
+    // If user is logged in, clear profile settings
+    if (user) {
+      updateProfile({ theme_settings: null })
+        .then(() => {
+          toast({
+            title: "Settings reset",
+            description: "Your theme settings have been reset to defaults",
+          });
+        })
+        .catch((error) => {
+          console.error('Error resetting theme settings in profile:', error);
+        });
+    } else {
+      toast({
+        title: "Settings reset",
+        description: "Your theme settings have been reset to defaults",
+      });
+    }
   };
 
   const handleGoBack = () => {
@@ -249,29 +312,29 @@ export default function Settings() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <Sun className="h-5 w-5" />
-                    <Label htmlFor="theme-toggle">Theme Mode</Label>
+                    <Palette className="h-5 w-5" />
+                    <Label>Theme Mode</Label>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Label htmlFor="theme-light">Light</Label>
-                    <Switch
-                      id="theme-light"
-                      checked={theme === 'light'}
-                      onCheckedChange={() => setTheme('light')}
-                    />
-                    <Label htmlFor="theme-dark">Dark</Label>
-                    <Switch
-                      id="theme-dark"
-                      checked={theme === 'dark'}
-                      onCheckedChange={() => setTheme('dark')}
-                    />
-                    <Label htmlFor="theme-system">System</Label>
-                    <Switch
-                      id="theme-system"
-                      checked={theme === 'system'}
-                      onCheckedChange={() => setTheme('system')}
-                    />
-                  </div>
+                  <RadioGroup 
+                    defaultValue={theme} 
+                    className="flex items-center space-x-4"
+                    onValueChange={value => setTheme(value as 'light' | 'dark')}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="light" id="theme-light" />
+                      <Label htmlFor="theme-light" className="flex items-center">
+                        <Sun className="h-4 w-4 mr-1" />
+                        Light
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="dark" id="theme-dark" />
+                      <Label htmlFor="theme-dark" className="flex items-center">
+                        <Moon className="h-4 w-4 mr-1" />
+                        Dark
+                      </Label>
+                    </div>
+                  </RadioGroup>
                 </div>
                 
                 <div className="border rounded-lg p-4">
@@ -496,7 +559,7 @@ export default function Settings() {
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <Label htmlFor="opacity">Background Opacity</Label>
-                        <span>{backgroundOpacity * 100}%</span>
+                        <span>{Math.round(backgroundOpacity * 100)}%</span>
                       </div>
                       <Slider
                         id="opacity"

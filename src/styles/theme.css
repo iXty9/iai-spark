@@ -4,6 +4,7 @@
   --primary-color: #ea384c;
   --text-color: #000000;
   --accent-color: #9b87f5;
+  --bg-opacity: 0.1;
 }
 
 .dark {
@@ -42,4 +43,9 @@ body.with-bg-image::before {
   background-attachment: fixed;
   z-index: -1;
   opacity: var(--bg-opacity, 0.1);
+}
+
+/* Ensure the background image is actually visible */
+body.with-bg-image {
+  position: relative;
 }
