@@ -5,7 +5,6 @@ import { StateDebugPanel } from '@/components/debug/StateDebugPanel';
 import { ChatDebugOverlay } from './ChatDebugOverlay';
 import { Message, DebugInfo } from '@/types/chat';
 import { useEffect, useState, useRef } from 'react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDevMode } from '@/store/use-dev-mode';
 
 interface ChatDebugStateProps {
@@ -230,13 +229,6 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
 
   return (
     <>
-      {isDevMode && lastWebhookCall && (
-        <div className="fixed top-16 right-4 z-[9999] max-w-md">
-          <Alert variant="default" className="border-green-500 bg-green-100 text-green-800">
-            <AlertDescription>{lastWebhookCall}</AlertDescription>
-          </Alert>
-        </div>
-      )}
       <ChatDebugOverlay debugInfo={debugInfo} />
       <StateDebugPanel 
         messages={messages}

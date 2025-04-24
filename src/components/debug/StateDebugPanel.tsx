@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Message } from '@/types/chat';
 import { useDevMode } from '@/store/use-dev-mode';
@@ -52,6 +51,8 @@ interface StateDebugPanelProps {
   lastWebhookCall?: string | null;
 }
 
+const MAX_LOG_ENTRIES = 100;
+
 export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
   messages,
   isLoading,
@@ -67,6 +68,8 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
   const [lastFrameTime, setLastFrameTime] = useState(performance.now());
   const [fps, setFps] = useState(0);
   const [lastWebhookResponse, setLastWebhookResponse] = useState<any>(null);
+  
+  const [logEntries, setLogEntries] = useState<Array<{timestamp: string, message: string}>>([]);
   
   const [debugState, setDebugState] = useState<DebugState>({
     screen: 'Initializing...',
@@ -109,6 +112,16 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
 
   useEffect(() => {
     const handleDebugEvent = (e: CustomEvent) => {
+      const newLogEntry = {
+        timestamp: new Date().toISOString(),
+        message: e.detail.lastAction || 'Debug event'
+      };
+      
+      setLogEntries(prev => {
+        const updated = [newLogEntry, ...prev];
+        return updated.slice(0, MAX_LOG_ENTRIES);
+      });
+      
       setDebugState(prev => ({
         ...prev,
         ...e.detail,
@@ -122,6 +135,17 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
       
       if (detail.status === 'RESPONSE_RECEIVED' && detail.responseData) {
         setLastWebhookResponse(detail.responseData);
+        
+        setLogEntries(prev => {
+          const updated = [
+            {
+              timestamp: new Date().toISOString(),
+              message: `Webhook response: ${detail.webhookType || 'Unknown'}`
+            },
+            ...prev
+          ];
+          return updated.slice(0, MAX_LOG_ENTRIES);
+        });
       }
     };
     
@@ -136,14 +160,19 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
 
   useEffect(() => {
     let frameId: number;
+    let lastUpdate = performance.now();
+    const updateInterval = 500;
     
     const updateFps = () => {
       const now = performance.now();
       const delta = now - lastFrameTime;
       
-      if (delta > 0) {
-        const newFps = Math.round(1000 / delta);
-        setFps(newFps > 60 ? 60 : newFps); // Cap at 60 FPS for display
+      if (now - lastUpdate > updateInterval) {
+        if (delta > 0) {
+          const newFps = Math.round(1000 / delta);
+          setFps(newFps > 60 ? 60 : newFps);
+        }
+        lastUpdate = now;
       }
       
       setLastFrameTime(now);
@@ -156,49 +185,61 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
   }, [lastFrameTime]);
 
   useEffect(() => {
-    setDebugState(prev => ({
-      ...prev,
-      screen: messages.length === 0 ? 'Welcome Screen' : 'Chat Screen',
-      messagesCount: messages.length,
-      isLoading,
-      hasInteracted,
-      lastWebhookCall,
-      lastWebhookResponse,
-      inputState: isLoading ? 'Disabled' : message.trim() ? 'Ready to Send' : 'Empty',
-      authState: isAuthLoading ? 'Loading...' : isAuthenticated ? 'Authenticated' : 'Not Authenticated',
-      browserInfo: {
-        ...prev.browserInfo,
-        viewport: { width: window.innerWidth, height: window.innerHeight }
-      },
-      performanceInfo: {
-        ...prev.performanceInfo,
-        memory: (performance as any).memory ? {
-          usedJSHeapSize: (performance as any).memory.usedJSHeapSize,
-          totalJSHeapSize: (performance as any).memory.totalJSHeapSize
-        } : undefined,
-        fps
-      },
-      domInfo: {
-        bodyChildren: document.body ? document.body.children.length : 0,
-        totalElements: document.getElementsByTagName('*').length,
-        inputElements: document.getElementsByTagName('input').length
-      }
-    }));
-  }, [messages.length, isLoading, hasInteracted, message, isAuthLoading, isAuthenticated, fps, lastWebhookCall, lastWebhookResponse]);
-
-  useEffect(() => {
-    const handleResize = () => {
+    const updateTimer = setTimeout(() => {
       setDebugState(prev => ({
         ...prev,
+        screen: messages.length === 0 ? 'Welcome Screen' : 'Chat Screen',
+        messagesCount: messages.length,
+        isLoading,
+        hasInteracted,
+        lastWebhookCall,
+        lastWebhookResponse,
+        inputState: isLoading ? 'Disabled' : message.trim() ? 'Ready to Send' : 'Empty',
+        authState: isAuthLoading ? 'Loading...' : isAuthenticated ? 'Authenticated' : 'Not Authenticated',
         browserInfo: {
           ...prev.browserInfo,
           viewport: { width: window.innerWidth, height: window.innerHeight }
+        },
+        performanceInfo: {
+          ...prev.performanceInfo,
+          memory: (performance as any).memory ? {
+            usedJSHeapSize: (performance as any).memory.usedJSHeapSize,
+            totalJSHeapSize: (performance as any).memory.totalJSHeapSize
+          } : undefined,
+          fps
+        },
+        domInfo: {
+          bodyChildren: document.body ? document.body.children.length : 0,
+          totalElements: document.getElementsByTagName('*').length,
+          inputElements: document.getElementsByTagName('input').length
         }
       }));
+    }, 250);
+    
+    return () => clearTimeout(updateTimer);
+  }, [messages.length, isLoading, hasInteracted, message, isAuthLoading, isAuthenticated, fps, lastWebhookCall, lastWebhookResponse]);
+
+  useEffect(() => {
+    let resizeTimer: NodeJS.Timeout;
+    
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        setDebugState(prev => ({
+          ...prev,
+          browserInfo: {
+            ...prev.browserInfo,
+            viewport: { width: window.innerWidth, height: window.innerHeight }
+          }
+        }));
+      }, 250);
     };
     
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(resizeTimer);
+    };
   }, []);
 
   if (!isDevMode) return null;
@@ -287,6 +328,18 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
               timestamp={debugState.timestamp}
               lastWebhookResponse={debugState.lastWebhookResponse}
             />
+            
+            <div className="col-span-2 mt-2">
+              <div className="text-orange-300 font-bold mb-1">Recent Log Entries ({logEntries.length}/{MAX_LOG_ENTRIES})</div>
+              <div className="max-h-32 overflow-y-auto bg-black/40 p-1 rounded text-[10px]">
+                {logEntries.map((entry, index) => (
+                  <div key={index} className="mb-1">
+                    <span className="text-gray-400">{new Date(entry.timestamp).toLocaleTimeString()}</span>: {entry.message}
+                  </div>
+                ))}
+                {logEntries.length === 0 && <div className="text-gray-500">No logs yet</div>}
+              </div>
+            </div>
           </div>
         </>
       )}

@@ -5,14 +5,28 @@ import { Message as MessageType } from '@/types/chat';
 import { MessageActions } from './MessageActions';
 import { MessageAvatar } from './message/MessageAvatar';
 import { MessageContent } from './message/MessageContent';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface MessageProps {
   message: MessageType;
 }
 
 export const Message: React.FC<MessageProps> = ({ message }) => {
+  const { user, profile } = useAuth();
   const isUser = message.sender === 'user';
   const [aiIconError, setAiIconError] = React.useState(false);
+  
+  // Get display name for the user messages
+  const getDisplayName = (): string => {
+    if (!isUser) return 'Ixty AI';
+    if (!user) return 'User';
+    
+    if (profile?.full_name) return profile.full_name;
+    if (profile?.username) return profile.username;
+    return 'User';
+  };
+
+  const displayName = getDisplayName();
 
   // Enhanced bubble styling for better visibility in light & dark modes with a glassmorphism effect
   const bubbleBase =
@@ -43,6 +57,9 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
         </div>
       )}
       <div className={cn('flex flex-col', isUser ? 'items-end' : 'items-start')}>
+        <div className={cn('flex items-center text-xs mb-1', isUser ? 'justify-end' : 'justify-start')}>
+          <span className="font-medium">{displayName}</span>
+        </div>
         <div
           className={cn(
             bubbleBase,
