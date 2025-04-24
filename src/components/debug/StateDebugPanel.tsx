@@ -2,12 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Message } from '@/types/chat';
 import { useDevMode } from '@/store/use-dev-mode';
 import { Button } from '@/components/ui/button';
-import { Clipboard, ClipboardCheck, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clipboard, ClipboardCheck, ChevronDown, ChevronUp, Send } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { PerformanceMetrics } from './PerformanceMetrics';
 import { BrowserInfoPanel } from './BrowserInfoPanel';
 import { DomInfoPanel } from './DomInfoPanel';
 import { EventsActionsPanel } from './EventsActionsPanel';
+import { toast } from "@/hooks/use-toast";
 
 interface DebugState {
   screen: string;
@@ -52,6 +53,7 @@ interface StateDebugPanelProps {
 }
 
 const MAX_LOG_ENTRIES = 100;
+const DEBUG_WEBHOOK_URL = "https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d8534";
 
 export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
   messages,
@@ -68,6 +70,7 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
   const [lastFrameTime, setLastFrameTime] = useState(performance.now());
   const [fps, setFps] = useState(0);
   const [lastWebhookResponse, setLastWebhookResponse] = useState<any>(null);
+  const [isSendingDebug, setIsSendingDebug] = useState(false);
   
   const [logEntries, setLogEntries] = useState<Array<{timestamp: string, message: string}>>([]);
   
@@ -242,6 +245,55 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
     };
   }, []);
 
+  const sendDebugInfo = async () => {
+    setIsSendingDebug(true);
+    try {
+      const debugInfo = {
+        ...debugState,
+        timestamp: new Date().toISOString(),
+        logs: logEntries.slice(0, 20),
+        userAgent: navigator.userAgent,
+        url: window.location.href,
+      };
+      
+      const response = await fetch(DEBUG_WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(debugInfo),
+      });
+      
+      if (response.ok) {
+        toast({
+          title: "Debug Info Sent",
+          description: "Successfully sent debug information to webhook",
+        });
+        
+        setLogEntries(prev => [{
+          timestamp: new Date().toISOString(),
+          message: "Debug info sent to webhook"
+        }, ...prev].slice(0, MAX_LOG_ENTRIES));
+      } else {
+        throw new Error(`Server responded with status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error("Error sending debug info:", error);
+      toast({
+        variant: "destructive",
+        title: "Failed to Send Debug Info",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+      });
+      
+      setLogEntries(prev => [{
+        timestamp: new Date().toISOString(),
+        message: `Error sending debug info: ${error instanceof Error ? error.message : "Unknown error"}`
+      }, ...prev].slice(0, MAX_LOG_ENTRIES));
+    } finally {
+      setIsSendingDebug(false);
+    }
+  };
+
   if (!isDevMode) return null;
 
   const copyToClipboard = () => {
@@ -277,7 +329,18 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
             variant="ghost" 
             size="icon" 
             className="h-6 w-6 text-gray-400 hover:text-white" 
+            onClick={sendDebugInfo}
+            disabled={isSendingDebug}
+            title="Send debug info to webhook"
+          >
+            <Send size={16} className={isSendingDebug ? "animate-pulse" : ""} />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-6 w-6 text-gray-400 hover:text-white" 
             onClick={copyToClipboard}
+            title="Copy debug info to clipboard"
           >
             {copied ? <ClipboardCheck size={16} /> : <Clipboard size={16} />}
           </Button>
@@ -286,6 +349,7 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
             size="icon" 
             className="h-6 w-6 text-gray-400 hover:text-white" 
             onClick={toggleExpand}
+            title={isExpanded ? "Collapse panel" : "Expand panel"}
           >
             {isExpanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
           </Button>

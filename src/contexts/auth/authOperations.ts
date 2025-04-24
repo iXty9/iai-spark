@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "@/hooks/use-toast";
 
@@ -27,8 +26,7 @@ export const signUp = async (
   email: string, 
   password: string, 
   username: string, 
-  phone_number?: string,
-  full_name?: string
+  options?: { phone_number?: string, full_name?: string }
 ) => {
   try {
     const { error } = await supabase.auth.signUp({
@@ -37,8 +35,8 @@ export const signUp = async (
       options: {
         data: {
           username,
-          phone_number,
-          full_name,
+          phone_number: options?.phone_number,
+          full_name: options?.full_name,
         },
       },
     });

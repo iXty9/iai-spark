@@ -28,13 +28,15 @@ export const RegisterForm = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      // Pass full_name to signUp function
+      // Fixed: Pass full_name as an option in the 4th parameter object instead of as a 5th parameter
       await signUp(
         registerData.email, 
         registerData.password, 
-        registerData.username, 
-        registerData.phone_number,
-        registerData.full_name
+        registerData.username,
+        {
+          phone_number: registerData.phone_number,
+          full_name: registerData.full_name
+        }
       );
       // Don't navigate - user needs to confirm email first
     } catch (error) {
