@@ -1,5 +1,5 @@
-
 @import "./styles/theme.css";
+@import "./styles/chat-theme.css";
 
 @tailwind base;
 @tailwind components;

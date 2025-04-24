@@ -34,21 +34,41 @@ export function ThemeControls({ theme, colors, onColorChange }: ThemeControlsPro
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="primaryColor">Primary Color</Label>
+        <Label htmlFor="userBubbleColor">User Message Color</Label>
         <div className="flex items-center space-x-2">
           <Input
-            id="primaryColor"
-            name="primaryColor"
+            id="userBubbleColor"
+            name="userBubbleColor"
             type="color"
-            value={colors.primaryColor}
+            value={colors.userBubbleColor || colors.primaryColor}
             onChange={onColorChange}
             className="w-12 h-8"
           />
           <Input
             type="text"
-            value={colors.primaryColor}
+            value={colors.userBubbleColor || colors.primaryColor}
             onChange={onColorChange}
-            name="primaryColor"
+            name="userBubbleColor"
+            className="flex-1"
+          />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="aiBubbleColor">AI Message Color</Label>
+        <div className="flex items-center space-x-2">
+          <Input
+            id="aiBubbleColor"
+            name="aiBubbleColor"
+            type="color"
+            value={colors.aiBubbleColor || colors.accentColor}
+            onChange={onColorChange}
+            className="w-12 h-8"
+          />
+          <Input
+            type="text"
+            value={colors.aiBubbleColor || colors.accentColor}
+            onChange={onColorChange}
+            name="aiBubbleColor"
             className="flex-1"
           />
         </div>
@@ -69,26 +89,6 @@ export function ThemeControls({ theme, colors, onColorChange }: ThemeControlsPro
             value={colors.textColor}
             onChange={onColorChange}
             name="textColor"
-            className="flex-1"
-          />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="accentColor">Accent Color</Label>
-        <div className="flex items-center space-x-2">
-          <Input
-            id="accentColor"
-            name="accentColor"
-            type="color"
-            value={colors.accentColor}
-            onChange={onColorChange}
-            className="w-12 h-8"
-          />
-          <Input
-            type="text"
-            value={colors.accentColor}
-            onChange={onColorChange}
-            name="accentColor"
             className="flex-1"
           />
         </div>

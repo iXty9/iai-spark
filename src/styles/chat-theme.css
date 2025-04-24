@@ -1,0 +1,11 @@
+
+/* Chat message bubble styles */
+.user-message {
+  background-color: var(--user-bubble-color, var(--primary-color));
+  color: white;
+}
+
+.ai-message {
+  background-color: var(--ai-bubble-color, var(--accent-color));
+  color: var(--text-color);
+}
