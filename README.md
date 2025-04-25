@@ -79,4 +79,4 @@ Let’s make it lovable. Let’s make it IXTY9!**
 
 
 
-Want a version more playful, technical, or with extra IXTY9 sparkle? Just ask!
+Want a version more playful, technical, or with extra IXTY9 sparkle? Just ask! 🚀
