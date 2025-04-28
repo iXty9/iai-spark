@@ -1,5 +1,8 @@
-
 import { emitDebugEvent } from './debug-events';
+
+// Track last log time to limit console output
+let lastWebhookLogTime = Date.now();
+const WEBHOOK_LOG_INTERVAL = 2000; // 2 seconds
 
 /**
  * Debug utility to track webhook communication
@@ -8,7 +11,12 @@ export const logWebhookCommunication = (url: string, status: string, response?: 
   const webhookType = url.includes('9553f3d014f7') ? 'AUTHENTICATED' : 'ANONYMOUS';
   const message = `${status} - ${webhookType} WEBHOOK (${url.split('/').pop()})`;
   
-  console.log(`WEBHOOK DEBUG: ${message}`, response);
+  // Throttle console logging
+  const currentTime = Date.now();
+  if (currentTime - lastWebhookLogTime > WEBHOOK_LOG_INTERVAL) {
+    console.log(`WEBHOOK DEBUG: ${message}`, response);
+    lastWebhookLogTime = currentTime;
+  }
   
   // Emit the debug event to show in UI
   emitDebugEvent({
@@ -37,46 +45,76 @@ export const logWebhookCommunication = (url: string, status: string, response?: 
   };
 };
 
+// Track parse attempt counts
+let parseAttempts = 0;
+const PARSE_LOG_LIMIT = 5;
+let lastParseResetTime = Date.now();
+const PARSE_RESET_INTERVAL = 30000; // 30 seconds
+
 /**
  * Parse webhook response to get the actual content
  * Handles different response formats from the webhook
  */
 export const parseWebhookResponse = (data: any): string => {
-  console.log('Parsing webhook response:', data);
+  // Reset parse attempts counter periodically
+  const currentTime = Date.now();
+  if (currentTime - lastParseResetTime > PARSE_RESET_INTERVAL) {
+    parseAttempts = 0;
+    lastParseResetTime = currentTime;
+  }
+  
+  // Limit logging of parse attempts
+  parseAttempts++;
+  if (parseAttempts <= PARSE_LOG_LIMIT) {
+    console.log('Parsing webhook response:', data);
+  }
   
   try {
     // Case 1: Array with text field (anonymous users)
     if (Array.isArray(data) && data.length > 0 && data[0].text) {
-      console.log('Parsed webhook response format: Array with text field');
+      if (parseAttempts <= PARSE_LOG_LIMIT) {
+        console.log('Parsed webhook response format: Array with text field');
+      }
       return data[0].text;
     }
     
     // Case 2: Array with output field (authenticated users)
     if (Array.isArray(data) && data.length > 0 && data[0].output) {
-      console.log('Parsed webhook response format: Array with output object');
+      if (parseAttempts <= PARSE_LOG_LIMIT) {
+        console.log('Parsed webhook response format: Array with output object');
+      }
       return data[0].output;
     }
     
     // Case 3: Direct object with text field
     if (data && typeof data === 'object' && data.text) {
-      console.log('Parsed webhook response format: Object with text field');
+      if (parseAttempts <= PARSE_LOG_LIMIT) {
+        console.log('Parsed webhook response format: Object with text field');
+      }
       return data.text;
     }
     
     // Case 4: Direct object with output field
     if (data && typeof data === 'object' && data.output) {
-      console.log('Parsed webhook response format: Object with output field');
+      if (parseAttempts <= PARSE_LOG_LIMIT) {
+        console.log('Parsed webhook response format: Object with output field');
+      }
       return data.output;
     }
     
     // Case 5: Direct string
     if (typeof data === 'string') {
-      console.log('Parsed webhook response format: Direct string');
+      if (parseAttempts <= PARSE_LOG_LIMIT) {
+        console.log('Parsed webhook response format: Direct string');
+      }
       return data;
     }
     
     // Fallback: Try to extract any meaningful text content
-    console.log('Could not find standard fields, attempting to extract content');
+    if (parseAttempts <= PARSE_LOG_LIMIT) {
+      console.log('Could not find standard fields, attempting to extract content');
+    }
+    
     if (Array.isArray(data) && data.length > 0) {
       const firstItem = data[0];
       // Look for any property that might contain the message
@@ -89,47 +127,61 @@ export const parseWebhookResponse = (data: any): string => {
     }
     
     // If we still can't parse it, throw an error
-    console.error('Could not parse webhook response - unknown format:', data);
+    if (parseAttempts <= PARSE_LOG_LIMIT) {
+      console.error('Could not parse webhook response - unknown format:', data);
+    }
     throw new Error('Unknown response format');
   } catch (error) {
-    console.error('Error parsing webhook response:', error, data);
+    if (parseAttempts <= PARSE_LOG_LIMIT) {
+      console.error('Error parsing webhook response:', error, data);
+    }
     throw error;
   }
 };
+
+// Debug panel state
+let debugPanel: HTMLElement | null = null;
 
 /**
  * Create a debug panel for webhook communication
  */
 export const createWebhookDebugPanel = () => {
   // Check if we already have a debug panel
-  let panel = document.getElementById('webhook-debug-panel');
-  
-  if (!panel) {
-    panel = document.createElement('div');
-    panel.id = 'webhook-debug-panel';
-    panel.style.position = 'fixed';
-    panel.style.bottom = '10px';
-    panel.style.right = '10px';
-    panel.style.backgroundColor = 'rgba(0,0,0,0.8)';
-    panel.style.color = 'white';
-    panel.style.padding = '10px';
-    panel.style.borderRadius = '5px';
-    panel.style.zIndex = '9999';
-    panel.style.maxWidth = '300px';
-    panel.style.overflowY = 'auto';
-    panel.style.maxHeight = '200px';
-    document.body.appendChild(panel);
+  if (!debugPanel) {
+    debugPanel = document.createElement('div');
+    debugPanel.id = 'webhook-debug-panel';
+    debugPanel.style.position = 'fixed';
+    debugPanel.style.bottom = '10px';
+    debugPanel.style.right = '10px';
+    debugPanel.style.backgroundColor = 'rgba(0,0,0,0.8)';
+    debugPanel.style.color = 'white';
+    debugPanel.style.padding = '10px';
+    debugPanel.style.borderRadius = '5px';
+    debugPanel.style.zIndex = '9999';
+    debugPanel.style.maxWidth = '300px';
+    debugPanel.style.overflowY = 'auto';
+    debugPanel.style.maxHeight = '200px';
+    document.body.appendChild(debugPanel);
   }
+  
+  // Throttle log entries
+  let lastLogTime = Date.now();
+  const LOG_INTERVAL = 1000; // 1 second
   
   return {
     log: (message: string) => {
-      const entry = document.createElement('div');
-      entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
-      panel?.appendChild(entry);
-      
-      // Keep only the last 10 entries
-      while (panel && panel.children.length > 10) {
-        panel.removeChild(panel.firstChild as Node);
+      const currentTime = Date.now();
+      if (currentTime - lastLogTime > LOG_INTERVAL && debugPanel) {
+        const entry = document.createElement('div');
+        entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+        debugPanel.appendChild(entry);
+        
+        // Keep only the last 5 entries to avoid DOM bloat
+        while (debugPanel.children.length > 5) {
+          debugPanel.removeChild(debugPanel.firstChild as Node);
+        }
+        
+        lastLogTime = currentTime;
       }
     }
   };

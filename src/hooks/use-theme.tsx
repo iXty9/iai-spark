@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { emitDebugEvent } from '@/utils/debug-events';
 
 type Theme = 'dark' | 'light';
 
@@ -25,33 +26,64 @@ export function useTheme() {
     root.classList.add(theme);
     localStorage.setItem('theme', theme);
     
-    if (user && profile && profile.theme_settings) {
+    if (user && profile) {
       try {
-        const themeSettings = JSON.parse(profile.theme_settings);
-        if (themeSettings.mode !== theme) {
+        // Get existing theme settings or create new ones
+        let themeSettings = profile.theme_settings 
+          ? JSON.parse(profile.theme_settings) 
+          : { mode: theme };
+        
+        // Only update if there's a change to avoid unnecessary API calls
+        const shouldUpdate = themeSettings.mode !== theme;
+        
+        if (shouldUpdate) {
           themeSettings.mode = theme;
-          const currentTheme = theme === 'light' ? themeSettings.lightTheme : themeSettings.darkTheme;
           
-          // Update CSS variables with theme colors
-          root.style.setProperty('--background-color', currentTheme.backgroundColor);
-          root.style.setProperty('--primary-color', currentTheme.primaryColor);
-          root.style.setProperty('--text-color', currentTheme.textColor);
-          root.style.setProperty('--accent-color', currentTheme.accentColor);
-          root.style.setProperty('--user-bubble-color', currentTheme.userBubbleColor || currentTheme.primaryColor);
-          root.style.setProperty('--ai-bubble-color', currentTheme.aiBubbleColor || currentTheme.accentColor);
+          // Get the current theme colors
+          const currentTheme = theme === 'light' 
+            ? themeSettings.lightTheme 
+            : themeSettings.darkTheme;
           
-          // Update theme settings in profile
+          // Only apply CSS variables if theme colors exist
+          if (currentTheme) {
+            // Update CSS variables with theme colors
+            root.style.setProperty('--background-color', currentTheme.backgroundColor);
+            root.style.setProperty('--primary-color', currentTheme.primaryColor);
+            root.style.setProperty('--text-color', currentTheme.textColor);
+            root.style.setProperty('--accent-color', currentTheme.accentColor);
+            root.style.setProperty('--user-bubble-color', currentTheme.userBubbleColor || currentTheme.primaryColor);
+            root.style.setProperty('--ai-bubble-color', currentTheme.aiBubbleColor || currentTheme.accentColor);
+          }
+          
+          // Update theme settings in profile - use a try/catch to handle errors
           updateProfile({ theme_settings: JSON.stringify(themeSettings) })
-            .catch(err => console.error('Error updating theme in profile:', err));
+            .catch(err => {
+              // Log error but don't spam console
+              emitDebugEvent({
+                lastError: `Error updating theme: ${err.message}`,
+                lastAction: 'Theme update failed'
+              });
+            });
         }
       } catch (e) {
-        console.error('Error parsing theme settings from profile:', e);
+        // Handle parsing error but avoid console spam
+        emitDebugEvent({
+          lastError: `Error processing theme settings: ${e instanceof Error ? e.message : String(e)}`,
+          lastAction: 'Theme parse failed'
+        });
+        
+        // Create new theme settings with minimal information
         const themeSettings = { mode: theme };
         updateProfile({ theme_settings: JSON.stringify(themeSettings) })
-          .catch(err => console.error('Error creating theme settings in profile:', err));
+          .catch(err => {
+            emitDebugEvent({
+              lastError: `Error creating theme settings: ${err.message}`,
+              lastAction: 'Theme creation failed'
+            });
+          });
       }
     }
-  }, [theme, user, profile]);
+  }, [theme, user, profile, updateProfile]);
 
   return { theme, setTheme };
 }

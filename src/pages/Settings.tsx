@@ -23,6 +23,7 @@ export default function Settings() {
   
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const [backgroundOpacity, setBackgroundOpacity] = useState(0.1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [lightTheme, setLightTheme] = useState<ThemeColors>({
     backgroundColor: '#ffffff',
@@ -44,7 +45,7 @@ export default function Settings() {
 
   useEffect(() => {
     try {
-      if (user && profile && profile.theme_settings) {
+      if (profile?.theme_settings) {
         try {
           const themeSettings = JSON.parse(profile.theme_settings);
           
@@ -74,7 +75,7 @@ export default function Settings() {
     } catch (error) {
       console.error('Error loading saved theme settings:', error);
     }
-  }, [profile, user, setTheme]);
+  }, [profile, setTheme]);
 
   const handleLightThemeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -102,6 +103,10 @@ export default function Settings() {
   };
 
   const handleSaveSettings = async () => {
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    
     try {
       const themeSettings = {
         mode: theme,
@@ -115,17 +120,32 @@ export default function Settings() {
         await updateProfile({ theme_settings: JSON.stringify(themeSettings) });
       }
       
+      // Update CSS variables for immediate visual feedback
+      const root = window.document.documentElement;
+      const currentTheme = theme === 'light' ? lightTheme : darkTheme;
+      
+      root.style.setProperty('--background-color', currentTheme.backgroundColor);
+      root.style.setProperty('--primary-color', currentTheme.primaryColor);
+      root.style.setProperty('--text-color', currentTheme.textColor);
+      root.style.setProperty('--accent-color', currentTheme.accentColor);
+      root.style.setProperty('--user-bubble-color', currentTheme.userBubbleColor || currentTheme.primaryColor);
+      root.style.setProperty('--ai-bubble-color', currentTheme.aiBubbleColor || currentTheme.accentColor);
+      
       toast({
         title: "Settings saved",
         description: "Your theme settings have been saved successfully",
       });
     } catch (error) {
-      console.error('Error saving theme settings:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error saving theme settings:', errorMessage);
+      
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to save settings. Please try again.",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -161,6 +181,11 @@ export default function Settings() {
         })
         .catch((error) => {
           console.error('Error resetting theme settings in profile:', error);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to reset settings. Please try again.",
+          });
         });
     } else {
       toast({
