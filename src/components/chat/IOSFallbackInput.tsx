@@ -8,6 +8,21 @@ interface IOSFallbackInputProps {
 export const IOSFallbackInput: React.FC<IOSFallbackInputProps> = ({ show }) => {
   if (!show) return null;
 
+  const handleClick = () => {
+    const realInput = document.getElementById('message-input-container');
+    
+    if (realInput) {
+      realInput.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      
+      const textarea = realInput.querySelector('textarea');
+      if (textarea) {
+        setTimeout(() => {
+          textarea.focus();
+        }, 300);
+      }
+    }
+  };
+
   return (
     <div 
       id="ios-fallback-input" 
@@ -35,27 +50,7 @@ export const IOSFallbackInput: React.FC<IOSFallbackInputProps> = ({ show }) => {
           fontSize: '16px',
           fontWeight: 'bold'
         }}
-        onClick={() => {
-          const realInput = document.querySelector('#message-input-container textarea');
-          const container = document.getElementById('message-input-container');
-          
-          if (container) {
-            container.style.display = 'block';
-            container.style.visibility = 'visible';
-            container.style.opacity = '1';
-            container.style.position = 'relative';
-            container.style.bottom = '0';
-            container.style.zIndex = '1000';
-            
-            container.scrollIntoView({ behavior: 'smooth', block: 'end' });
-            
-            if (realInput) {
-              setTimeout(() => {
-                (realInput as HTMLTextAreaElement).focus();
-              }, 300);
-            }
-          }
-        }}
+        onClick={handleClick}
       >
         Tap here to type your message...
       </button>

@@ -1,92 +1,76 @@
 
 import { useEffect, RefObject } from 'react';
 import { logger } from '@/utils/logging';
+import { useDevMode } from '@/store/use-dev-mode';
 
 export const useIOSFixes = (
   formRef: RefObject<HTMLFormElement>, 
   message: string,
   isIOSSafari: boolean
 ) => {
+  const { isDevMode } = useDevMode();
+  
   useEffect(() => {
-    // Only log in development and at most once per session
-    const hasLogged = sessionStorage.getItem('ios-safari-logged');
-    if (process.env.NODE_ENV === 'development' && !hasLogged && isIOSSafari) {
-      logger.info("Checking iOS Safari compatibility", null, { 
+    // Early return if not iOS Safari
+    if (!isIOSSafari || !formRef.current) return;
+
+    // Debug logging only in development or DevMode
+    if ((process.env.NODE_ENV === 'development' || isDevMode) && !sessionStorage.getItem('ios-safari-logged')) {
+      logger.info("iOS Safari compatibility active", null, { 
         once: true, 
         module: 'iOS-compat' 
       });
       sessionStorage.setItem('ios-safari-logged', 'true');
     }
     
-    if (formRef.current && isIOSSafari) {
-      const checkVisibility = () => {
-        const formEl = formRef.current;
-        if (formEl) {
-          const rect = formEl.getBoundingClientRect();
-          const computedStyle = window.getComputedStyle(formEl);
-          
-          // Only log once per session in development mode
-          if (process.env.NODE_ENV === 'development' && !sessionStorage.getItem('form-visibility-logged')) {
-            logger.debug("MessageInput form visibility", {
-              rect: {
-                top: rect.top,
-                bottom: rect.bottom,
-                height: rect.height,
-                width: rect.width
-              },
-              isVisible: rect.height > 0 && rect.width > 0,
-              display: computedStyle.display,
-              visibility: computedStyle.visibility,
-              position: computedStyle.position,
-              zIndex: computedStyle.zIndex
-            }, { once: true, module: 'iOS-compat' });
-            
-            sessionStorage.setItem('form-visibility-logged', 'true');
-          }
-          
-          if (isIOSSafari && (rect.height === 0 || computedStyle.display === 'none')) {
-            // Only log fix attempts in development
-            if (process.env.NODE_ENV === 'development' && !sessionStorage.getItem('ios-fix-attempt-logged')) {
-              logger.info("Attempting to fix invisible form on iOS Safari", null, { 
-                once: true, 
-                module: 'iOS-compat' 
-              });
-              sessionStorage.setItem('ios-fix-attempt-logged', 'true');
-            }
-            
-            formEl.style.display = 'flex';
-            formEl.style.visibility = 'visible';
-            formEl.style.position = 'relative';
-            formEl.style.zIndex = '1000';
-            formEl.style.width = '100%';
-            formEl.style.minHeight = '50px';
-            
-            const parent = formEl.parentElement;
-            if (parent) {
-              parent.style.display = 'block';
-              parent.style.visibility = 'visible';
-              parent.style.position = 'relative';
-            }
-          }
+    // Apply iOS fixes once
+    const applyIOSFixes = () => {
+      const formEl = formRef.current;
+      if (!formEl) return;
+      
+      const rect = formEl.getBoundingClientRect();
+      const computedStyle = window.getComputedStyle(formEl);
+      
+      if (rect.height === 0 || computedStyle.display === 'none') {
+        formEl.style.display = 'flex';
+        formEl.style.visibility = 'visible';
+        formEl.style.position = 'relative';
+        formEl.style.zIndex = '1000';
+        formEl.style.width = '100%';
+        formEl.style.minHeight = '50px';
+        
+        const parent = formEl.parentElement;
+        if (parent) {
+          parent.style.display = 'block';
+          parent.style.visibility = 'visible';
+          parent.style.position = 'relative';
         }
-      };
-      
-      // Only check once initially
-      checkVisibility();
-      
-      // Instead of timeout, we'll use a one-time resize event listener
-      // for iOS keyboard changes which is more efficient
-      const handleResize = () => {
-        setTimeout(checkVisibility, 300);
-        // Remove listener after it fires once
-        window.removeEventListener('resize', handleResize);
-      };
-      
-      window.addEventListener('resize', handleResize);
-      
-      return () => {
-        window.removeEventListener('resize', handleResize);
-      };
-    }
-  }, [isIOSSafari]); // Only re-run when Safari detection changes
+        
+        if (process.env.NODE_ENV === 'development' || isDevMode) {
+          logger.info("Fixed invisible form on iOS Safari", null, { 
+            once: true, 
+            module: 'iOS-compat' 
+          });
+        }
+      }
+    };
+    
+    // Apply fixes immediately
+    applyIOSFixes();
+    
+    // Listen to events that might affect form visibility
+    const events = ['orientationchange', 'resize'];
+    
+    const handleEvent = () => {
+      setTimeout(applyIOSFixes, 300);
+    };
+    
+    // Add event listeners
+    events.forEach(event => window.addEventListener(event, handleEvent, { once: true }));
+    
+    // Clean up
+    return () => {
+      events.forEach(event => window.removeEventListener(event, handleEvent));
+    };
+  }, [isIOSSafari, isDevMode]); // Only re-run when Safari detection or DevMode changes
 };

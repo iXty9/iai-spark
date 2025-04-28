@@ -1,73 +1,21 @@
-
 #root {
   width: 100%;
-  height: 100vh; /* Changed from 100% to 100vh for explicit viewport height */
+  height: 100vh;
   margin: 0;
   padding: 0;
-  overflow: auto; /* Change from hidden to auto to prevent clipping */
+  overflow: auto;
 }
 
-/* Mobile Safari fixes for proper rendering */
+/* Core iOS Safari fixes - streamlined */
 @supports (-webkit-touch-callout: none) {
   .ios-viewport-fix {
-    /* Force iOS Safari to correctly render elements */
     position: relative;
     display: flex;
     flex-direction: column;
     height: 100%;
     width: 100%;
-    -webkit-overflow-scrolling: touch; /* Improve scrolling on iOS */
-    overflow: auto; /* Change from hidden to auto */
-  }
-  
-  .ios-fix {
-    /* Force display in Safari iOS */
-    display: flex !important;
-    position: relative !important;
-    visibility: visible !important;
-    z-index: 100 !important;
-  }
-  
-  /* Input container fix for iOS Safari */
-  .ios-input-container {
-    position: relative !important; /* Use relative instead of fixed/sticky */
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    width: 100% !important;
-    display: block !important;
-    z-index: 1000 !important;
-    visibility: visible !important;
-    min-height: 60px !important; /* Ensure minimum height */
-    margin-top: auto !important; /* Push to bottom of flex container */
-    background-color: var(--background) !important; /* Ensure background is visible */
-    transform: translateZ(0) !important; /* Force hardware acceleration */
-    opacity: 1 !important;
-  }
-  
-  /* Input form fix for iOS Safari */
-  .ios-input-fix {
-    display: flex !important;
-    width: 100% !important;
-    visibility: visible !important;
-    position: relative !important;
-    min-height: 40px !important;
-    transform: translateZ(0) !important; /* Force hardware acceleration */
-    opacity: 1 !important;
-  }
-  
-  /* Debug styles for iOS testing */
-  .ios-debug {
-    border: 1px solid red !important;
-  }
-  
-  /* Chat container iOS-specific fix */
-  .chat-container {
-    height: auto !important; /* Avoid using 100vh */
-    min-height: 100% !important;
-    max-height: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
+    -webkit-overflow-scrolling: touch;
+    overflow: auto;
   }
   
   /* Ensure input is visible on iOS Safari */
@@ -77,7 +25,7 @@
     display: block !important;
     visibility: visible !important;
     z-index: 1000 !important;
-    transform: translateY(0) !important; /* Prevent transform hiding */
+    transform: translateY(0) !important;
     opacity: 1 !important;
   }
   
@@ -102,7 +50,7 @@
   --safe-area-inset-right: env(safe-area-inset-right, 0px);
 }
 
-/* Keep any other necessary styles but remove size constraints */
+/* Keep any other necessary styles */
 .logo {
   height: 6em;
   padding: 1.5em;
@@ -128,45 +76,5 @@
 @media (prefers-reduced-motion: no-preference) {
   a:nth-of-type(2) .logo {
     animation: logo-spin infinite 20s linear;
-  }
-}
-
-/* Add debug-friendly styles */
-.debug-highlight {
-  outline: 2px solid red !important;
-}
-
-/* Test alternative layout approach for iOS Safari */
-@media screen and (max-width: 767px) {
-  @supports (-webkit-touch-callout: none) {
-    /* Reset all flex and height constraints */
-    .chat-container, 
-    .ios-viewport-fix {
-      display: block !important;
-      height: auto !important;
-      min-height: 100% !important;
-      overflow: auto !important;
-    }
-    
-    /* Fix position for message input container - explicitly make it visible and stay at bottom */
-    #message-input-container {
-      position: relative !important;
-      bottom: 0 !important;
-      left: 0 !important;
-      width: 100% !important;
-      background-color: var(--background) !important;
-      z-index: 1000 !important;
-      padding: 8px !important;
-      margin-top: 8px !important;
-      min-height: 60px !important;
-      box-shadow: 0 -2px 10px rgba(0,0,0,0.1) !important;
-      /* Testing fix for iOS Safari - force hardware acceleration */
-      transform: translateZ(0) !important;
-      -webkit-transform: translateZ(0) !important;
-      /* Ensure visibility */
-      display: block !important;
-      visibility: visible !important;
-      opacity: 1 !important;
-    }
   }
 }

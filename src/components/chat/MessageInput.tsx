@@ -21,7 +21,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const isMobile = useIsMobile();
   const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
                      /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
@@ -30,7 +29,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    console.log("Form submission triggered");
     
     if (message.trim() && !isLoading) {
       onSubmit(e);
@@ -49,7 +47,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     // Only submit on plain Enter key (no Shift)
     if (e.key === 'Enter' && !e.shiftKey && message.trim() && !isLoading) {
       e.preventDefault();
-      console.log("Enter key submission triggered");
       onSubmit();
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
@@ -65,8 +62,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     <form 
       ref={formRef}
       onSubmit={handleSubmit} 
-      className={`message-input-container ${isIOSSafari ? 'ios-debug' : ''} border-0 shadow-none`} // remove borders and shadows
-      style={{ borderTop: 'none', boxShadow: 'none' }} // double assurance
+      id="message-input-container"
+      className="border-0 shadow-none"
     >
       <div className="flex items-end gap-2 w-full">
         <div className="relative flex-1">

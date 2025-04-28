@@ -23,7 +23,6 @@ const eventTracker = {
   minInterval: 5000,
   
   // Check if DevMode is enabled globally
-  // We'll use this for conditional execution
   isDevModeEnabled: false,
 
   // For updating the dev mode state
