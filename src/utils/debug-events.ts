@@ -12,49 +12,79 @@ interface DebugEvent {
   timestamp?: string;
 }
 
-// Track event count to limit console output
-const eventCounts: Record<string, number> = {};
-const MAX_EVENTS_PER_TYPE = 5;
-const RESET_INTERVAL = 10000; // 10 seconds
-let lastConsoleLogTime = Date.now();
-
-// Throttle console logs
-const throttledConsoleLog = (message: string, data: any) => {
-  const currentTime = Date.now();
+// Improved event tracking with frequency limiting
+const eventTracker = {
+  // Use a map to store last event by type
+  lastEvents: new Map<string, { timestamp: number; details: string }>(),
   
-  // Only log if at least 1 second has passed since last log
-  if (currentTime - lastConsoleLogTime > 1000) {
-    console.log(message, data);
-    lastConsoleLogTime = currentTime;
+  // Minimum time between similar events (in ms)
+  minInterval: 5000,
+  
+  // Get a fingerprint for an event to identify similar events
+  getEventFingerprint(details: DebugEvent): string {
+    // Create a unique signature for this event type
+    const keys = ['lastAction', 'screen', 'lastError'];
+    return keys.map(key => details[key as keyof DebugEvent] || '').join('|');
+  },
+  
+  // Check if an event is too similar to a recent one
+  isDuplicate(details: DebugEvent): boolean {
+    const fingerprint = this.getEventFingerprint(details);
+    
+    // Always allow error events through
+    if (details.lastError) return false;
+    
+    // Skip checking for empty fingerprints
+    if (!fingerprint.trim()) return false;
+    
+    const lastRecord = this.lastEvents.get(fingerprint);
+    
+    if (lastRecord) {
+      const timeSince = Date.now() - lastRecord.timestamp;
+      
+      // If event is too recent, consider it a duplicate
+      if (timeSince < this.minInterval) {
+        return true;
+      }
+    }
+    
+    // Record this event
+    this.lastEvents.set(fingerprint, {
+      timestamp: Date.now(),
+      details: JSON.stringify(details)
+    });
+    
+    return false;
+  },
+  
+  // Clean up old events (call periodically)
+  cleanup(): void {
+    const cutoff = Date.now() - 60000; // 1 minute ago
+    
+    this.lastEvents.forEach((value, key) => {
+      if (value.timestamp < cutoff) {
+        this.lastEvents.delete(key);
+      }
+    });
   }
 };
 
-// Reset event counts periodically
-setInterval(() => {
-  for (const key in eventCounts) {
-    eventCounts[key] = 0;
-  }
-}, RESET_INTERVAL);
+// Clean up old events every minute
+setInterval(() => eventTracker.cleanup(), 60000);
 
-export const emitDebugEvent = (details: DebugEvent) => {
+export const emitDebugEvent = (details: DebugEvent): void => {
   // Add timestamp to all events
   const eventWithTimestamp = {
     ...details,
     timestamp: new Date().toISOString()
   };
   
-  // Determine event type based on lastAction or screen
-  const eventType = details.lastAction || details.screen || 'general';
-  
-  // Check if we've seen too many of this event type recently
-  eventCounts[eventType] = (eventCounts[eventType] || 0) + 1;
-  
-  // Only log if we haven't seen too many of this event or if it's an error
-  if (details.lastError || eventCounts[eventType] <= MAX_EVENTS_PER_TYPE) {
-    throttledConsoleLog('DEBUG EVENT:', eventWithTimestamp);
+  // Check if this is a duplicate event
+  if (eventTracker.isDuplicate(eventWithTimestamp)) {
+    return;
   }
   
-  // Always dispatch the event to the DOM (for debugging tools)
+  // Dispatch the event to the DOM (for debugging tools)
   const event = new CustomEvent('chatDebug', { 
     detail: eventWithTimestamp 
   });

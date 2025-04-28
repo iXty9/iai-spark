@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { emitDebugEvent } from '@/utils/debug-events';
+import { logger } from '@/utils/logging';
 
 type Theme = 'dark' | 'light';
 
@@ -55,31 +56,32 @@ export function useTheme() {
             root.style.setProperty('--ai-bubble-color', currentTheme.aiBubbleColor || currentTheme.accentColor);
           }
           
-          // Update theme settings in profile with limited logging
+          // Update theme settings in profile
           updateProfile({ theme_settings: JSON.stringify(themeSettings) })
             .catch(err => {
-              // Use emitDebugEvent instead of direct console logging
+              // Use emitDebugEvent and logger for errors
               emitDebugEvent({
-                lastError: `Error updating theme: ${err.message}`,
+                lastError: `Error updating theme`,
                 lastAction: 'Theme update failed'
               });
+              
+              logger.error('Error updating theme settings', err, { module: 'theme' });
             });
         }
       } catch (e) {
-        // Use emitDebugEvent for errors
+        // Use emitDebugEvent and logger for errors
         emitDebugEvent({
-          lastError: `Error processing theme settings: ${e instanceof Error ? e.message : String(e)}`,
+          lastError: `Error processing theme settings`,
           lastAction: 'Theme parse failed'
         });
+        
+        logger.error('Error processing theme settings', e, { module: 'theme' });
         
         // Create new theme settings with minimal information
         const themeSettings = { mode: theme };
         updateProfile({ theme_settings: JSON.stringify(themeSettings) })
           .catch(err => {
-            emitDebugEvent({
-              lastError: `Error creating theme settings: ${err.message}`,
-              lastAction: 'Theme creation failed'
-            });
+            logger.error('Error creating theme settings', err, { module: 'theme' });
           });
       }
     }

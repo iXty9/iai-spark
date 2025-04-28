@@ -7,6 +7,7 @@ import { toast } from '@/components/ui/sonner';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { useMessageRetry } from './use-message-retry';
 import { useSubmitState } from './use-submit-state';
+import { logger } from '@/utils/logging';
 
 export const useChatSubmit = (
   message: string,
@@ -28,7 +29,8 @@ export const useChatSubmit = (
 
     // Prevent multiple submissions
     if (isSubmitting) {
-      console.warn('Submit prevented: Already submitting a message');
+      logger.warn('Submit prevented: Already submitting a message', null, { module: 'chat' });
+      
       emitDebugEvent({
         lastAction: 'Submit prevented: Already submitting another message',
         isLoading: true
@@ -38,7 +40,8 @@ export const useChatSubmit = (
 
     // Check for empty message
     if (!message.trim()) {
-      console.warn('Submit prevented: Empty message');
+      logger.warn('Submit prevented: Empty message', null, { module: 'chat' });
+      
       emitDebugEvent({
         lastAction: 'Submit prevented: Empty message',
         isLoading: false
@@ -48,7 +51,8 @@ export const useChatSubmit = (
     
     // Early return for auth loading
     if (isAuthLoading) {
-      console.warn('Message submission blocked: Auth still loading');
+      logger.warn('Message submission blocked: Auth still loading', null, { module: 'auth' });
+      
       toast.error("Please wait while we load your profile...");
       setIsLoading(false);
       emitDebugEvent({
@@ -71,12 +75,11 @@ export const useChatSubmit = (
       timestamp: new Date()
     };
     
-    console.log('New message created:', {
+    logger.info('New message created', {
       messageId: userMessage.id,
-      timestamp: userMessage.timestamp.toISOString(),
       contentLength: message.length,
-      isAuthenticated: isAuthenticated
-    });
+      isAuthenticated
+    }, { module: 'chat' });
     
     // Clear the input and add user message
     setMessage('');
@@ -86,7 +89,8 @@ export const useChatSubmit = (
     
     // Set a warning timeout for long responses
     const firstWarningTimeout = setTimeout(() => {
-      console.log('Long response warning triggered');
+      logger.info('Long response warning triggered', null, { module: 'chat' });
+      
       toast.info("Ixty AI is still thinking. This might take a moment...");
       
       emitDebugEvent({
@@ -105,30 +109,23 @@ export const useChatSubmit = (
     }, 30000);
 
     try {
-      console.log('Sending message:', {
-        messageId: userMessage.id,
-        isAuthenticated,
-        timestamp: new Date().toISOString()
-      });
-      
       emitDebugEvent({
         lastAction: `Sending to API`,
         isLoading: true
       });
       
-      console.time(`messageResponse_${userMessage.id}`);
       const response = await sendMessage({
         message: userMessage.content,
         isAuthenticated: isAuthenticated,
         onError: (error) => {
-          console.error('Error in AI response:', error);
+          logger.error('Error in AI response', error, { module: 'chat' });
+          
           emitDebugEvent({
             lastError: `Error in AI response: ${error.message}`,
             isLoading: true
           });
         }
       });
-      console.timeEnd(`messageResponse_${userMessage.id}`);
       
       // Create AI response message
       const aiMessage: Message = {
@@ -138,20 +135,20 @@ export const useChatSubmit = (
         timestamp: new Date()
       };
       
-      console.log('AI response received:', {
+      logger.info('AI response received', {
         messageId: aiMessage.id,
         responseTime: aiMessage.timestamp.getTime() - userMessage.timestamp.getTime(),
         contentLength: response.content.length
-      });
+      }, { module: 'chat' });
       
       addMessage(aiMessage);
       clearRetry();
       
     } catch (error) {
-      console.error('Error getting AI response:', {
+      logger.error('Error getting AI response', {
         error,
         messageId: userMessage.id
-      });
+      }, { module: 'chat' });
       
       const shouldRetry = handleRetry(error instanceof Error ? error : new Error('Unknown error'));
       
@@ -173,10 +170,9 @@ export const useChatSubmit = (
       setIsLoading(false);
       setSubmitting(false);
       
-      console.log('Message submission flow completed', {
-        messageId: userMessage.id,
-        timestamp: new Date().toISOString()
-      });
+      logger.info('Message submission flow completed', {
+        messageId: userMessage.id
+      }, { module: 'chat', throttle: true });
     }
   }, [message, isAuthenticated, isAuthLoading, addMessage, setMessage, setIsLoading, handleRetry, clearRetry, incrementAttempt, isSubmitting, setSubmitting]);
 

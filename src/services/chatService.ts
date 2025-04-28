@@ -4,6 +4,7 @@ import { emitDebugEvent } from '@/utils/debug-events';
 import { parseWebhookResponse } from '@/utils/debug';
 import { SendMessageParams } from './types/messageTypes';
 import { sendWebhookMessage } from './webhook/webhookService';
+import { logger } from '@/utils/logging';
 export { exportChat } from './export/exportService';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -19,7 +20,8 @@ export const sendMessage = async ({
   let canceled = false;
   
   try {
-    console.log('Sending message to service:', message, 'isAuthenticated:', isAuthenticated);
+    logger.info('Processing message', { isAuthenticated }, { module: 'chat' });
+    
     emitDebugEvent({
       lastAction: 'API: Starting to process message',
       isLoading: true
@@ -66,14 +68,14 @@ export const sendMessage = async ({
     let responseText;
     try {
       responseText = parseWebhookResponse(data);
-      console.log('Parsed response text:', responseText);
       
       emitDebugEvent({
         lastAction: `API: Successfully parsed webhook response`,
         isLoading: false
       });
     } catch (error) {
-      console.error('Failed to parse webhook response:', error);
+      logger.error('Failed to parse webhook response', error, { module: 'chat' });
+      
       emitDebugEvent({
         lastError: `API: Failed to parse webhook response: ${error.message}`,
         isLoading: false
@@ -143,7 +145,7 @@ export const sendMessage = async ({
     return assistantMessage;
     
   } catch (error) {
-    console.error('Error in sendMessage:', error);
+    logger.error('Error in sendMessage', error, { module: 'chat' });
     
     emitDebugEvent({
       lastError: error instanceof Error ? `API Error: ${error.message}` : 'Unknown API error',
@@ -180,4 +182,3 @@ export const sendMessage = async ({
     }
   } as any;
 };
-

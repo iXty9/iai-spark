@@ -1,5 +1,6 @@
 
 import { useEffect, RefObject } from 'react';
+import { logger } from '@/utils/logging';
 
 export const useIOSFixes = (
   formRef: RefObject<HTMLFormElement>, 
@@ -10,7 +11,10 @@ export const useIOSFixes = (
     // Only log in development and at most once per session
     const hasLogged = sessionStorage.getItem('ios-safari-logged');
     if (process.env.NODE_ENV === 'development' && !hasLogged && isIOSSafari) {
-      console.log("Checking iOS Safari compatibility");
+      logger.info("Checking iOS Safari compatibility", null, { 
+        once: true, 
+        module: 'iOS-compat' 
+      });
       sessionStorage.setItem('ios-safari-logged', 'true');
     }
     
@@ -23,7 +27,7 @@ export const useIOSFixes = (
           
           // Only log once per session in development mode
           if (process.env.NODE_ENV === 'development' && !sessionStorage.getItem('form-visibility-logged')) {
-            console.log("MessageInput form visibility:", {
+            logger.debug("MessageInput form visibility", {
               rect: {
                 top: rect.top,
                 bottom: rect.bottom,
@@ -35,14 +39,18 @@ export const useIOSFixes = (
               visibility: computedStyle.visibility,
               position: computedStyle.position,
               zIndex: computedStyle.zIndex
-            });
+            }, { once: true, module: 'iOS-compat' });
+            
             sessionStorage.setItem('form-visibility-logged', 'true');
           }
           
           if (isIOSSafari && (rect.height === 0 || computedStyle.display === 'none')) {
             // Only log fix attempts in development
             if (process.env.NODE_ENV === 'development' && !sessionStorage.getItem('ios-fix-attempt-logged')) {
-              console.log("Attempting to fix invisible form on iOS Safari");
+              logger.info("Attempting to fix invisible form on iOS Safari", null, { 
+                once: true, 
+                module: 'iOS-compat' 
+              });
               sessionStorage.setItem('ios-fix-attempt-logged', 'true');
             }
             
@@ -63,15 +71,22 @@ export const useIOSFixes = (
         }
       };
       
-      // Only check once initially instead of repeatedly
+      // Only check once initially
       checkVisibility();
       
-      // Reduced frequency - only check again after 3 seconds if needed
-      const timer = isIOSSafari ? setTimeout(checkVisibility, 3000) : null;
+      // Instead of timeout, we'll use a one-time resize event listener
+      // for iOS keyboard changes which is more efficient
+      const handleResize = () => {
+        setTimeout(checkVisibility, 300);
+        // Remove listener after it fires once
+        window.removeEventListener('resize', handleResize);
+      };
+      
+      window.addEventListener('resize', handleResize);
       
       return () => {
-        if (timer) clearTimeout(timer);
+        window.removeEventListener('resize', handleResize);
       };
     }
-  }, [message, isIOSSafari]); // Only re-run on message change or Safari detection change
+  }, [isIOSSafari]); // Only re-run when Safari detection changes
 };

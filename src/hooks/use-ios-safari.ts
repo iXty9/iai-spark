@@ -1,24 +1,25 @@
 
 import { useEffect, useState } from 'react';
+import { logger } from '@/utils/logging';
 
 export const useIOSSafari = () => {
   const [showFallbackInput, setShowFallbackInput] = useState(false);
   const [hasMessages, setHasMessages] = useState(false);
   
-  // Detect iOS Safari
+  // Detect iOS Safari - only once
   const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
                      /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
   useEffect(() => {
-    // Check for messages less frequently
+    // Check for messages much less frequently
     const checkMessageState = () => {
       const messageElements = document.querySelectorAll('.chat-message');
       setHasMessages(messageElements.length > 0);
     };
 
-    // Check message state initially and less frequently
+    // Check message state initially and very infrequently
     checkMessageState();
-    const messageCheckInterval = setInterval(checkMessageState, 3000); // Reduced from 1000ms to 3000ms
+    const messageCheckInterval = setInterval(checkMessageState, 10000); // Reduced to every 10 seconds
 
     // Handle visibility changes
     const handleVisibilityChange = () => {
@@ -36,15 +37,21 @@ export const useIOSSafari = () => {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // iOS-specific keyboard handling - with reduced check frequency
+    // iOS-specific keyboard handling - with drastically reduced check frequency
     if (isIOSSafari) {
       let lastHeight = window.innerHeight;
+      const MIN_CHECK_INTERVAL = 30000; // Minimum 30 seconds between checks
       let lastCheckedAt = Date.now();
-      const MIN_CHECK_INTERVAL = 5000; // Minimum 5 seconds between checks
+      
+      // Log iOS detection once only
+      logger.info("iOS Safari detected, applying compatibility fixes", null, { 
+        once: true, 
+        module: 'iOS-compat' 
+      });
       
       const checkHeight = () => {
         const now = Date.now();
-        // Skip frequent checks
+        // Only check after significant time has passed
         if (now - lastCheckedAt < MIN_CHECK_INTERVAL) {
           return;
         }
@@ -72,17 +79,11 @@ export const useIOSSafari = () => {
         }
       };
       
+      // Use the resize event instead of polling
       window.addEventListener('resize', checkHeight);
       
-      // Manage fallback input visibility with reduced frequency
+      // Don't check input visibility repeatedly - only on key events
       const checkInputVisibility = () => {
-        // Don't check too frequently
-        const now = Date.now();
-        if (now - lastCheckedAt < MIN_CHECK_INTERVAL) {
-          return;
-        }
-        lastCheckedAt = now;
-        
         if (!hasMessages) {
           setShowFallbackInput(false);
           return;
@@ -107,12 +108,14 @@ export const useIOSSafari = () => {
         }
       };
 
-      // Reduced check frequency from 1000ms to 5000ms
-      const visibilityInterval = setInterval(checkInputVisibility, 5000);
+      // Check when something significant happens instead of polling
+      document.addEventListener('visibilitychange', checkInputVisibility);
+      window.addEventListener('orientationchange', checkInputVisibility);
       
       return () => {
         window.removeEventListener('resize', checkHeight);
-        clearInterval(visibilityInterval);
+        window.removeEventListener('orientationchange', checkInputVisibility);
+        document.removeEventListener('visibilitychange', checkInputVisibility);
         clearInterval(messageCheckInterval);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
       };
