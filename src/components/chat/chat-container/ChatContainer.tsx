@@ -8,7 +8,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatLayout } from './ChatLayout';
 import { ChatDebugState } from './ChatDebugState';
 import { useAuth } from '@/contexts/AuthContext';
-import { Message } from '@/types/chat';
 
 export const ChatContainer = () => {
   const {
@@ -16,7 +15,6 @@ export const ChatContainer = () => {
     message,
     isLoading,
     setMessage,
-    setMessages, // Make sure this is properly destructured from useChat hook
     handleSubmit,
     handleClearChat,
     handleExportChat,
@@ -32,22 +30,14 @@ export const ChatContainer = () => {
                     !(window as any).MSStream &&
                     /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
-  const handleImportChat = (importedMessages: Message[]) => {
-    setMessages(importedMessages);
-  };
-
   return (
     <ChatLayout
       onClearChat={handleClearChat}
       onExportChat={handleExportChat}
-      onImportChat={handleImportChat}
     >
       <div className="flex-1 overflow-hidden relative">
         {messages.length === 0 ? (
-          <Welcome 
-            onStartChat={startChat} 
-            onImportChat={handleImportChat}
-          />
+          <Welcome onStartChat={startChat} />
         ) : (
           <ScrollArea className="h-full py-4 px-2">
             <MessageList

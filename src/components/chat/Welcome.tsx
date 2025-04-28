@@ -10,15 +10,12 @@ import { useDevMode } from '@/store/use-dev-mode';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 import { useTextareaResize } from '@/hooks/use-textarea-resize';
-import { ImportChatButton } from './ImportChatButton';
-import { Message } from '@/types/chat';
 
 interface WelcomeProps {
   onStartChat: (message: string) => void;
-  onImportChat: (messages: Message[]) => void;
 }
 
-export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) => {
+export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   const [message, setMessage] = React.useState('');
   const isMobile = useIsMobile();
   const [avatarError, setAvatarError] = React.useState(false);
@@ -27,6 +24,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) =
   const hasSubmitted = useRef<boolean>(false);
   const { isDevMode } = useDevMode();
   
+  // Use the text area resize hook
   useTextareaResize(textareaRef, message);
   
   useEffect(() => {
@@ -49,10 +47,12 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) =
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // If Shift+Enter is pressed, allow default behavior (line break)
     if (e.key === 'Enter' && e.shiftKey) {
-      return;
+      return; // Allow default behavior for Shift+Enter (creates a line break)
     }
     
+    // Only submit on plain Enter key (no Shift)
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       submitMessage();
@@ -60,6 +60,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) =
   };
 
   const submitMessage = () => {
+    // Prevent multiple submissions
     if (isSubmitting || hasSubmitted.current) {
       console.warn('Submission prevented: already submitting or submitted');
       return;
@@ -92,6 +93,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) =
     const messageToSend = message.trim();
     setMessage('');
     
+    // We use setTimeout to ensure React state updates complete before transition
     setTimeout(() => {
       emitDebugEvent({
         lastAction: 'Starting chat from welcome screen (Using real webhook)',
@@ -108,6 +110,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) =
     setAvatarError(true);
   };
   
+  // Track state changes in submission
   useEffect(() => {
     if (isSubmitting) {
       emitDebugEvent({
@@ -154,33 +157,27 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) =
           </div>
         </div>
         
-        <div className="flex flex-col gap-4">
-          <form onSubmit={handleSubmit} className="flex flex-col gap-2 w-full max-w-xl mx-auto">
-            <Textarea
-              ref={textareaRef}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={isMobile ? "Ask me anything..." : "What can I assist you with today?"}
-              className="flex-1 rounded-lg shadow-sm min-h-[60px] max-h-[150px] resize-none"
-              disabled={isSubmitting}
-              aria-label="Message input"
-              spellCheck="true"
-              rows={1}
-            />
-            <Button 
-              type="submit" 
-              disabled={!message.trim() || isSubmitting} 
-              className="rounded-full bg-[#ea384c] hover:bg-[#dd3333] self-end mt-2"
-            >
-              {isMobile ? <Send className="h-4 w-4" /> : <>Send <Send className="ml-2 h-4 w-4" /></>}
-            </Button>
-          </form>
-          
-          <div className="flex justify-center">
-            <ImportChatButton onImport={onImportChat} />
-          </div>
-        </div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-2 w-full max-w-xl mx-auto">
+          <Textarea
+            ref={textareaRef}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={isMobile ? "Ask me anything..." : "What can I assist you with today?"}
+            className="flex-1 rounded-lg shadow-sm min-h-[60px] max-h-[150px] resize-none"
+            disabled={isSubmitting}
+            aria-label="Message input"
+            spellCheck="true"
+            rows={1}
+          />
+          <Button 
+            type="submit" 
+            disabled={!message.trim() || isSubmitting} 
+            className="rounded-full bg-[#ea384c] hover:bg-[#dd3333] self-end mt-2"
+          >
+            {isMobile ? <Send className="h-4 w-4" /> : <>Send <Send className="ml-2 h-4 w-4" /></>}
+          </Button>
+        </form>
       </div>
     </div>
   );

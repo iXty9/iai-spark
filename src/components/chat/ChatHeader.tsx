@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Download, Trash2, Sun, Moon, Code, Upload } from 'lucide-react';
+import { Download, Trash2, Sun, Moon, Code } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,16 +11,13 @@ import {
 import { useTheme } from '@/hooks/use-theme';
 import { useDevMode } from '@/store/use-dev-mode';
 import { UserMenu } from '@/components/UserMenu';
-import { ImportChatButton } from './ImportChatButton';
-import { Message } from '@/types/chat';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
   onExportChat: () => void;
-  onImportChat: (messages: Message[]) => void;
 }
 
-export const ChatHeader: React.FC<ChatHeaderProps> = ({ onClearChat, onExportChat, onImportChat }) => {
+export const ChatHeader: React.FC<ChatHeaderProps> = ({ onClearChat, onExportChat }) => {
   const { theme, setTheme } = useTheme();
   const { isDevMode, toggleDevMode } = useDevMode();
   
@@ -52,8 +49,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({ onClearChat, onExportCha
         </Button>
         
         <UserMenu />
-        
-        <ImportChatButton onImport={onImportChat} />
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
