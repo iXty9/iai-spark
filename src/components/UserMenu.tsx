@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -12,15 +12,27 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { useNavigate } from 'react-router-dom';
-import { User, LogOut, Settings, Upload, UserRound } from 'lucide-react';
+import { User, LogOut, Settings, Upload, UserRound, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { checkIsAdmin } from '@/services/admin/userRolesService';
 
 export const UserMenu = () => {
   const { user, profile, signOut, updateProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      const fetchAdminStatus = async () => {
+        const adminStatus = await checkIsAdmin();
+        setIsAdmin(adminStatus);
+      };
+      fetchAdminStatus();
+    }
+  }, [user]);
 
   const handleProfileClick = () => {
     navigate('/profile');
@@ -28,6 +40,10 @@ export const UserMenu = () => {
 
   const handleSettingsClick = () => {
     navigate('/settings');
+  };
+
+  const handleAdminClick = () => {
+    navigate('/admin');
   };
 
   const handleLoginClick = () => {
@@ -151,6 +167,12 @@ export const UserMenu = () => {
               <DropdownMenuItem onClick={handleSettingsClick}>
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Settings</span>
+              </DropdownMenuItem>
+            )}
+            {isAdmin && (
+              <DropdownMenuItem onClick={handleAdminClick}>
+                <Shield className="mr-2 h-4 w-4" />
+                <span>Admin Panel</span>
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />

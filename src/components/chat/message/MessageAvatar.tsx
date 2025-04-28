@@ -1,8 +1,9 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { fetchAppSettings } from '@/services/admin/settingsService';
 
 interface MessageAvatarProps {
   isUser: boolean;
@@ -11,6 +12,25 @@ interface MessageAvatarProps {
 
 export const MessageAvatar: React.FC<MessageAvatarProps> = ({ isUser, onAiIconError }) => {
   const { user, profile } = useAuth();
+  const [aiAvatarUrl, setAiAvatarUrl] = useState<string>("https://ixty9.com/wp-content/uploads/2023/10/cropped-faviconV4.png");
+  
+  useEffect(() => {
+    if (!isUser) {
+      // Only fetch avatar URL for AI messages
+      const getAvatarUrl = async () => {
+        try {
+          const settings = await fetchAppSettings();
+          if (settings.avatar_url && settings.avatar_url.trim() !== '') {
+            setAiAvatarUrl(settings.avatar_url);
+          }
+        } catch (error) {
+          console.error('Error fetching AI avatar URL:', error);
+        }
+      };
+      
+      getAvatarUrl();
+    }
+  }, [isUser]);
   
   // Get display name for the avatar
   const getDisplayName = (): string => {
@@ -42,7 +62,7 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({ isUser, onAiIconEr
   return (
     <Avatar className="w-6 h-6" title="Ixty AI">
       <AvatarImage 
-        src="https://ixty9.com/wp-content/uploads/2023/10/cropped-faviconV4.png"
+        src={aiAvatarUrl}
         alt="Ixty AI Avatar"
         onError={onAiIconError}
       />

@@ -1,20 +1,61 @@
 
 import { emitDebugEvent } from '@/utils/debug-events';
 import { logger } from '@/utils/logging';
+import { supabase } from '@/integrations/supabase/client';
+import { fetchAppSettings } from '@/services/admin/settingsService';
 
-// Webhook URLs
-const AUTHENTICATED_WEBHOOK_URL = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7';
-const ANONYMOUS_WEBHOOK_URL = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574';
+// Cache for webhook URLs to avoid excessive database queries
+let webhookUrlCache: Record<string, string> = {};
+let lastCacheUpdate = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-// Debug webhook URL - separate from business functionality
-const DEBUG_WEBHOOK_URL = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d8534';
-
-export const getWebhookUrl = (isAuthenticated: boolean): string => {
-  return isAuthenticated ? AUTHENTICATED_WEBHOOK_URL : ANONYMOUS_WEBHOOK_URL;
+export const getWebhookUrl = async (isAuthenticated: boolean): Promise<string> => {
+  try {
+    await refreshWebhookCache();
+    return isAuthenticated 
+      ? webhookUrlCache['authenticated_webhook_url'] 
+      : webhookUrlCache['anonymous_webhook_url'];
+  } catch (error) {
+    logger.error('Failed to get webhook URL, using fallback', error, { module: 'webhook' });
+    // Fallback to the original hardcoded URLs if we can't get from the database
+    return isAuthenticated 
+      ? 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7'
+      : 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574';
+  }
 };
 
-export const getDebugWebhookUrl = (): string => {
-  return DEBUG_WEBHOOK_URL;
+export const getDebugWebhookUrl = async (): Promise<string> => {
+  try {
+    await refreshWebhookCache();
+    return webhookUrlCache['debug_webhook_url'];
+  } catch (error) {
+    logger.error('Failed to get debug webhook URL, using fallback', error, { module: 'webhook' });
+    return 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d8534';
+  }
+};
+
+// Helper to refresh the webhook URL cache
+const refreshWebhookCache = async (): Promise<void> => {
+  const now = Date.now();
+  if (now - lastCacheUpdate < CACHE_TTL && Object.keys(webhookUrlCache).length > 0) {
+    return; // Use cached values if they're fresh
+  }
+
+  try {
+    const settings = await fetchAppSettings();
+    
+    // Update cache with new values
+    webhookUrlCache = {
+      'authenticated_webhook_url': settings['authenticated_webhook_url'] || '',
+      'anonymous_webhook_url': settings['anonymous_webhook_url'] || '',
+      'debug_webhook_url': settings['debug_webhook_url'] || ''
+    };
+    
+    lastCacheUpdate = now;
+  } catch (error) {
+    logger.error('Error refreshing webhook cache:', error, { module: 'webhook' });
+    throw error;
+  }
 };
 
 // Helper for logging webhook activity to prevent code duplication
@@ -60,7 +101,7 @@ export const sendWebhookMessage = async (
   message: string,
   isAuthenticated: boolean
 ): Promise<any> => {
-  const webhookUrl = getWebhookUrl(isAuthenticated);
+  const webhookUrl = await getWebhookUrl(isAuthenticated);
   
   // Log only in development
   if (process.env.NODE_ENV === 'development') {
@@ -115,7 +156,7 @@ export const sendWebhookMessage = async (
 
 // Separate function for debug-only messages
 export const sendDebugWebhookMessage = async (debugInfo: any): Promise<any> => {
-  const webhookUrl = getDebugWebhookUrl();
+  const webhookUrl = await getDebugWebhookUrl();
   
   try {
     const response = await fetch(webhookUrl, {
