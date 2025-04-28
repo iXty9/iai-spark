@@ -25,9 +25,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const authStateChanges = useRef<number>(0);
   const initialSessionCheckRef = useRef(false);
   
+  // Limit logging for production
+  const shouldLog = process.env.NODE_ENV === 'development';
+  
   useEffect(() => {
-    // Limit auth context logs
-    if (process.env.NODE_ENV !== 'development') {
+    // Only log in development and limit frequency
+    if (shouldLog && authStateChanges.current === 0) {
       console.log('AuthProvider mounted, initializing auth state management');
     }
     
@@ -35,20 +38,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       (event, newSession) => {
         authStateChanges.current++;
         
-        // Only log in development and limit frequency
-        if (process.env.NODE_ENV === 'development' && authStateChanges.current % 5 === 0) {
+        // Only log in development and severely limit frequency
+        if (shouldLog && authStateChanges.current <= 2) {
           console.log('Auth state changed:', {
             event,
-            timestamp: new Date().toISOString(),
             changeCount: authStateChanges.current,
-            hasSession: !!newSession,
-            currentUserId: currentUserIdRef.current,
-            newUserId: newSession?.user?.id
+            hasSession: !!newSession
           });
         }
         
         if (event === 'SIGNED_OUT') {
-          if (process.env.NODE_ENV === 'development') {
+          if (shouldLog && authStateChanges.current <= 3) {
             console.log('User signed out, clearing auth state');
           }
           setSession(null);
@@ -58,22 +58,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } else {
           const sessionChanged = JSON.stringify(newSession) !== JSON.stringify(session);
           
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Session comparison:', {
-              changed: sessionChanged,
-              event
-            });
-          }
-
           if (sessionChanged) {
             setSession(newSession);
             setUser(newSession?.user ?? null);
             
             if (newSession?.user && currentUserIdRef.current !== newSession.user.id) {
               currentUserIdRef.current = newSession.user.id;
-              if (process.env.NODE_ENV === 'development') {
-                console.log('User authenticated, scheduling profile fetch');
-              }
+              
+              // Use setTimeout to avoid auth recursion issues
               setTimeout(() => {
                 fetchProfile(newSession.user.id);
               }, 0);
@@ -83,20 +75,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    // Initial session check - remove console.time/timeEnd to fix errors
+    // Initial session check - without console.time/timeEnd
     if (!initialSessionCheckRef.current) {
       initialSessionCheckRef.current = true;
       
       supabase.auth.getSession().then(({ data: { session: initialSession }, error }) => {
-        if (error && process.env.NODE_ENV === 'development') {
+        if (error && shouldLog) {
           console.error('Error during initial session check:', error);
         }
         
-        if (process.env.NODE_ENV === 'development') {
+        if (shouldLog && authStateChanges.current <= 2) {
           console.log('Initial session check:', {
-            hasSession: !!initialSession,
-            timestamp: new Date().toISOString(),
-            error: error?.message
+            hasSession: !!initialSession
           });
         }
         
@@ -114,52 +104,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     return () => {
-      if (process.env.NODE_ENV === 'development') {
+      if (shouldLog && authStateChanges.current <= 3) {
         console.log('AuthProvider unmounting, cleaning up subscription');
       }
       subscription.unsubscribe();
     };
-  }, [setSession, setUser, setProfile, setIsLoading, fetchProfile]);
+  }, [setSession, setUser, setProfile, setIsLoading, fetchProfile, session, shouldLog]);
 
-  // Debug Effect: Log state changes - Reduce logging frequency
+  // Debug Effect: Severely limit logging frequency
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Auth state updated:', {
-        timestamp: new Date().toISOString(),
+    // Only log once at startup in development
+    if (shouldLog && !user && !isLoading && authStateChanges.current <= 2) {
+      console.log('Auth state initialized:', {
         isLoading,
-        hasUser: !!user,
-        hasSession: !!session,
-        hasProfile: !!profile,
-        lastError: lastError?.message
+        hasUser: false
       });
     }
-  }, [isLoading, user, session, profile, lastError]);
+  }, [isLoading, user, shouldLog]);
 
   const handleUpdateProfile = async (data: Partial<any>) => {
     if (!user) {
-      if (process.env.NODE_ENV === 'development') {
+      if (shouldLog) {
         console.warn('Attempted to update profile without authenticated user');
       }
       return;
     }
     
     try {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Updating profile:', {
-          userId: user.id,
-          updateData: data,
-          timestamp: new Date().toISOString()
-        });
-      }
-      
       await updateProfile(supabase, user.id, data);
       setProfile(prev => ({ ...prev, ...data }));
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Profile updated successfully');
-      }
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
+      if (shouldLog) {
         console.error('Profile update failed:', error);
       }
       throw error;
