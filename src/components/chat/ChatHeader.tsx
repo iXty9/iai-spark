@@ -12,6 +12,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useDevMode } from '@/store/use-dev-mode';
 import { UserMenu } from '@/components/UserMenu';
 import { importChat } from '@/services/import/importService';
+import { toast } from "@/hooks/use-toast";
 
 interface ChatHeaderProps {
   onClearChat: () => void;
@@ -50,6 +51,30 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+  
+  const handleDevModeToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      // Show toast notification
+      toast({
+        title: `Dev Mode ${isDevMode ? 'Disabled' : 'Enabled'}`,
+        description: `Developer tools are now ${isDevMode ? 'disabled' : 'enabled'}`,
+        duration: 2000,
+      });
+      
+      // Toggle with slight delay to allow React to process changes
+      setTimeout(() => {
+        toggleDevMode();
+      }, 0);
+    } catch (err) {
+      console.error('Error toggling dev mode:', err);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to toggle developer mode",
+      });
     }
   };
   
@@ -97,7 +122,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               <Trash2 className="mr-2 h-4 w-4" />
               <span>Clear Chat</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={toggleDevMode}>
+            <DropdownMenuItem onClick={handleDevModeToggle}>
               <Code className="mr-2 h-4 w-4" />
               <span>Dev Mode {isDevMode ? '(On)' : '(Off)'}</span>
             </DropdownMenuItem>

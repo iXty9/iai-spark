@@ -1,9 +1,9 @@
-import React from 'react';
+
+import React, { useEffect, useState, useRef } from 'react';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { StateDebugPanel } from '@/components/debug/StateDebugPanel';
 import { ChatDebugOverlay } from './ChatDebugOverlay';
 import { Message, DebugInfo } from '@/types/chat';
-import { useEffect, useState, useRef } from 'react';
 import { useDevMode } from '@/store/use-dev-mode';
 import { logger } from '@/utils/logging';
 
@@ -32,10 +32,7 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
 }) => {
   const { isDevMode } = useDevMode();
   
-  if (!isDevMode && process.env.NODE_ENV !== 'development') {
-    return null;
-  }
-  
+  // Initialize state outside of conditional rendering
   const [debugInfo, setDebugInfo] = useState<DebugInfo>({
     viewportHeight: 0,
     inputVisible: true,
@@ -63,9 +60,8 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
   const inputContainerRef = useRef<HTMLDivElement | null>(null);
   const [lastWebhookCall, setLastWebhookCall] = useState<string | null>(null);
   
+  // Always run these effects regardless of isDevMode
   useEffect(() => {
-    if (!isDevMode && process.env.NODE_ENV !== 'development') return;
-    
     const handleWebhookEvent = (e: CustomEvent) => {
       if (e.detail && e.detail.webhookUrl) {
         const isAuthenticated = e.detail.webhookUrl.includes('9553f3d014f7');
@@ -77,11 +73,9 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
     return () => {
       window.removeEventListener('webhookCall' as any, handleWebhookEvent);
     };
-  }, [isDevMode]);
+  }, []);
 
   useEffect(() => {
-    if (!isDevMode && process.env.NODE_ENV !== 'development') return;
-    
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
                   !(window as any).MSStream;
     const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
@@ -91,11 +85,9 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
       isIOSSafari: isIOS && isSafari,
       viewportHeight: window.innerHeight
     }));
-  }, [isDevMode]);
+  }, []);
 
   useEffect(() => {
-    if (!isDevMode && process.env.NODE_ENV !== 'development') return;
-    
     if (messages.length > 0 && !hasInteracted) {
       logger.info('Transitioning from Welcome to Chat UI', {
         messageCount: messages.length,
@@ -178,7 +170,7 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
         } : prev.parentInfo
       }));
     }
-  }, [messages.length, hasInteracted, isLoading, setHasInteracted, setIsTransitioning, isDevMode]);
+  }, [messages.length, hasInteracted, isLoading, setHasInteracted, setIsTransitioning]);
 
   useEffect(() => {
     let forceResetTimeout: NodeJS.Timeout | null = null;
@@ -227,6 +219,11 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
   const setInputContainerRef = (ref: HTMLDivElement | null) => {
     inputContainerRef.current = ref;
   };
+
+  // Render null if dev mode is off and not in development
+  if (!isDevMode && process.env.NODE_ENV !== 'development') {
+    return null;
+  }
 
   return (
     <>

@@ -16,6 +16,11 @@ export const useDevMode = create<DevModeState>((set) => ({
       window.dispatchEvent(new CustomEvent('devModeChanged', { 
         detail: newState 
       }));
+      
+      // Add a delay to allow React to stabilize before applying changes
+      setTimeout(() => {
+        console.log('Dev Mode changed:', newState.isDevMode);
+      }, 0);
     }
     
     return newState;
