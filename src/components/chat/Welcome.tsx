@@ -2,14 +2,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Send, Circle, Info, Upload } from 'lucide-react';
+import { Send, Circle, Info } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { useDevMode } from '@/store/use-dev-mode';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 import { useTextareaResize } from '@/hooks/use-textarea-resize';
-import { importChat } from '@/services/import/importService';
 import { Message } from '@/types/chat';
 
 interface WelcomeProps {
@@ -17,7 +16,7 @@ interface WelcomeProps {
   onImportChat: (messages: Message[]) => void;
 }
 
-export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) => {
+export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   const [message, setMessage] = React.useState('');
   const isMobile = useIsMobile();
   const [avatarError, setAvatarError] = React.useState(false);
@@ -25,7 +24,6 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) =
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const hasSubmitted = useRef<boolean>(false);
   const { isDevMode } = useDevMode();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Use the text area resize hook
   useTextareaResize(textareaRef, message);
@@ -113,47 +111,6 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) =
     setAvatarError(true);
   };
   
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const messages = await importChat(file);
-      if (messages && messages.length > 0) {
-        console.log('Welcome screen: Importing chat with', messages.length, 'messages');
-        emitDebugEvent({
-          lastAction: `Welcome screen: Importing chat with ${messages.length} messages`,
-          isTransitioning: true,
-          hasInteracted: true
-        });
-        
-        onImportChat(messages);
-      }
-    } catch (error) {
-      console.error('Import failed:', error);
-    }
-
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-  
-  // Track state changes in submission
-  useEffect(() => {
-    if (isSubmitting) {
-      emitDebugEvent({
-        inputState: 'Disabled - Submitting',
-        isLoading: true,
-        isTransitioning: true
-      });
-    }
-  }, [isSubmitting]);
-
   return (
     <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto px-4">
       {isDevMode && (
@@ -203,16 +160,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) =
             spellCheck="true"
             rows={1}
           />
-          <div className="flex items-center justify-between mt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleImportClick}
-              className="rounded-full"
-            >
-              <Upload className="mr-2 h-4 w-4" /> Import Chat
-            </Button>
-            
+          <div className="flex items-center justify-end mt-2">
             <Button 
               type="submit" 
               disabled={!message.trim() || isSubmitting} 
@@ -222,15 +170,8 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) =
             </Button>
           </div>
         </form>
-        
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          accept=".json"
-          className="hidden"
-        />
       </div>
     </div>
   );
 };
+
