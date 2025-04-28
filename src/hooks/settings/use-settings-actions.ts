@@ -1,4 +1,3 @@
-
 import { emitDebugEvent } from '@/utils/debug-events';
 import { ThemeColors } from '@/types/theme';
 
@@ -40,12 +39,20 @@ export const useSettingsActions = ({
 
   const handleLightThemeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setLightTheme(prev => ({ ...prev, [name]: value }));
+    const updatedTheme: ThemeColors = {
+      ...lightTheme,
+      [name]: value
+    };
+    setLightTheme(updatedTheme);
   };
 
   const handleDarkThemeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setDarkTheme(prev => ({ ...prev, [name]: value }));
+    const updatedTheme: ThemeColors = {
+      ...darkTheme,
+      [name]: value
+    };
+    setDarkTheme(updatedTheme);
   };
 
   const handleBackgroundImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,11 +87,9 @@ export const useSettingsActions = ({
       if (user && updateProfile) {
         await updateProfile({ theme_settings: JSON.stringify(themeSettings) });
       } else {
-        // For non-authenticated users, just save to localStorage
         localStorage.setItem('theme_settings', JSON.stringify(themeSettings));
       }
       
-      // Update CSS variables for immediate visual feedback
       const root = window.document.documentElement;
       const currentTheme = theme === 'light' ? lightTheme : darkTheme;
       
