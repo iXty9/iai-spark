@@ -55,10 +55,10 @@ export function useTheme() {
             root.style.setProperty('--ai-bubble-color', currentTheme.aiBubbleColor || currentTheme.accentColor);
           }
           
-          // Update theme settings in profile - use a try/catch to handle errors
+          // Update theme settings in profile with limited logging
           updateProfile({ theme_settings: JSON.stringify(themeSettings) })
             .catch(err => {
-              // Log error but don't spam console
+              // Use emitDebugEvent instead of direct console logging
               emitDebugEvent({
                 lastError: `Error updating theme: ${err.message}`,
                 lastAction: 'Theme update failed'
@@ -66,7 +66,7 @@ export function useTheme() {
             });
         }
       } catch (e) {
-        // Handle parsing error but avoid console spam
+        // Use emitDebugEvent for errors
         emitDebugEvent({
           lastError: `Error processing theme settings: ${e instanceof Error ? e.message : String(e)}`,
           lastAction: 'Theme parse failed'

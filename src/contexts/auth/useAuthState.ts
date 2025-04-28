@@ -16,7 +16,9 @@ export const useAuthState = () => {
   const fetchProfile = async (userId: string) => {
     // Prevent concurrent fetch requests for the same profile
     if (isFetchingProfile.current || !userId) {
-      console.log('Profile fetch skipped:', !userId ? 'No userId provided' : 'Already fetching');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Profile fetch skipped:', !userId ? 'No userId provided' : 'Already fetching');
+      }
       return;
     }
     
@@ -24,8 +26,9 @@ export const useAuthState = () => {
       isFetchingProfile.current = true;
       fetchAttempts.current++;
       
-      console.log('Fetching profile attempt', fetchAttempts.current, 'for user:', userId);
-      console.time('profileFetch');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Fetching profile attempt', fetchAttempts.current, 'for user:', userId);
+      }
       
       const { data, error, status } = await supabase
         .from('profiles')
@@ -33,21 +36,23 @@ export const useAuthState = () => {
         .eq('id', userId)
         .maybeSingle();
 
-      console.timeEnd('profileFetch');
-
       if (error) {
-        console.error('Profile fetch error:', {
-          error,
-          status,
-          attempt: fetchAttempts.current,
-          userId
-        });
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Profile fetch error:', {
+            error,
+            status,
+            attempt: fetchAttempts.current,
+            userId
+          });
+        }
         
         setLastError(error);
 
         // Retry logic for specific errors
         if (fetchAttempts.current < maxRetries && status !== 404) {
-          console.log('Scheduling retry...');
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Scheduling retry...');
+          }
           setTimeout(() => {
             fetchProfile(userId);
           }, Math.pow(2, fetchAttempts.current) * 1000); // Exponential backoff
@@ -56,18 +61,22 @@ export const useAuthState = () => {
       }
 
       if (data) {
-        console.log('Profile fetched successfully:', {
-          userId,
-          hasData: !!data,
-          timestamp: new Date().toISOString()
-        });
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Profile fetched successfully:', {
+            userId,
+            hasData: !!data,
+            timestamp: new Date().toISOString()
+          });
+        }
         setProfile(data);
         setLastError(null);
-      } else {
+      } else if (process.env.NODE_ENV === 'development') {
         console.warn('No profile data found for user:', userId);
       }
     } catch (error) {
-      console.error('Unexpected error in fetchProfile:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Unexpected error in fetchProfile:', error);
+      }
       setLastError(error as Error);
     } finally {
       isFetchingProfile.current = false;
