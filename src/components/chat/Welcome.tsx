@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 import { useTextareaResize } from '@/hooks/use-textarea-resize';
 import { Message } from '@/types/chat';
+import { logger } from '@/utils/logging';
 
 interface WelcomeProps {
   onStartChat: (message: string) => void;
@@ -33,14 +34,17 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
       textareaRef.current.focus();
     }
     
-    emitDebugEvent({
-      screen: 'Welcome Screen',
-      lastAction: 'Welcome screen loaded',
-      isLoading: false,
-      hasInteracted: false,
-      isTransitioning: false
-    });
-  }, []);
+    // Debug only - separated from core functionality
+    if (process.env.NODE_ENV === 'development' || isDevMode) {
+      emitDebugEvent({
+        screen: 'Welcome Screen',
+        lastAction: 'Welcome screen loaded',
+        isLoading: false,
+        hasInteracted: false,
+        isTransitioning: false
+      });
+    }
+  }, [isDevMode]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,33 +64,41 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     }
   };
 
+  // Core business logic separated from debugging
   const submitMessage = () => {
     // Prevent multiple submissions
     if (isSubmitting || hasSubmitted.current) {
-      console.warn('Submission prevented: already submitting or submitted');
+      logger.warn('Welcome screen: Submission prevented - already submitting', null, { module: 'ui' });
       return;
     }
     
     if (!message.trim()) {
-      console.warn('Welcome screen: Empty message prevented');
-      emitDebugEvent({
-        lastAction: 'Submit prevented: Empty message',
-        isLoading: false
-      });
+      logger.warn('Welcome screen: Empty message prevented', null, { module: 'ui' });
+      
+      // Debug only - separated from core functionality
+      if (process.env.NODE_ENV === 'development' || isDevMode) {
+        emitDebugEvent({
+          lastAction: 'Submit prevented: Empty message',
+          isLoading: false
+        });
+      }
       return;
     }
     
-    console.log('Welcome screen: Starting chat with message:', {
+    logger.info('Welcome screen: Starting chat with message', {
       message: message.trim(),
       timestamp: new Date().toISOString()
-    });
+    }, { module: 'ui' });
     
-    emitDebugEvent({
-      lastAction: `Welcome screen: Submit clicked with message: "${message.trim()}" (Using real webhook)`,
-      isLoading: true,
-      inputState: 'Submitting',
-      isTransitioning: true
-    });
+    // Debug only - separated from core functionality
+    if (process.env.NODE_ENV === 'development' || isDevMode) {
+      emitDebugEvent({
+        lastAction: `Welcome screen: Submit clicked with message: "${message.trim()}" (Using real webhook)`,
+        isLoading: true,
+        inputState: 'Submitting',
+        isTransitioning: true
+      });
+    }
     
     setIsSubmitting(true);
     hasSubmitted.current = true;
@@ -96,18 +108,22 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     
     // We use setTimeout to ensure React state updates complete before transition
     setTimeout(() => {
-      emitDebugEvent({
-        lastAction: 'Starting chat from welcome screen (Using real webhook)',
-        isTransitioning: true,
-        hasInteracted: true
-      });
+      // Debug only - separated from core functionality
+      if (process.env.NODE_ENV === 'development' || isDevMode) {
+        emitDebugEvent({
+          lastAction: 'Starting chat from welcome screen (Using real webhook)',
+          isTransitioning: true,
+          hasInteracted: true
+        });
+      }
       
+      // Core business logic
       onStartChat(messageToSend);
     }, 0);
   };
 
   const handleImageError = () => {
-    console.log("Avatar image failed to load");
+    logger.debug("Avatar image failed to load", null, { module: 'ui' });
     setAvatarError(true);
   };
   
@@ -174,4 +190,3 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     </div>
   );
 };
-

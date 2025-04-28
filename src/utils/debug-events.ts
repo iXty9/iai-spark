@@ -1,4 +1,6 @@
 
+import { useDevMode } from '@/store/use-dev-mode';
+
 interface DebugEvent {
   screen?: string;
   messagesCount?: number;
@@ -19,6 +21,15 @@ const eventTracker = {
   
   // Minimum time between similar events (in ms)
   minInterval: 5000,
+  
+  // Check if DevMode is enabled globally
+  // We'll use this for conditional execution
+  isDevModeEnabled: false,
+
+  // For updating the dev mode state
+  updateDevModeState(isEnabled: boolean) {
+    this.isDevModeEnabled = isEnabled;
+  },
   
   // Get a fingerprint for an event to identify similar events
   getEventFingerprint(details: DebugEvent): string {
@@ -72,7 +83,19 @@ const eventTracker = {
 // Clean up old events every minute
 setInterval(() => eventTracker.cleanup(), 60000);
 
+// Listen for dev mode changes
+if (typeof window !== 'undefined') {
+  window.addEventListener('devModeChanged', ((e: CustomEvent) => {
+    eventTracker.updateDevModeState(e.detail.isDevMode);
+  }) as EventListener);
+}
+
 export const emitDebugEvent = (details: DebugEvent): void => {
+  // Only emit events if in development or DevMode is enabled
+  if (process.env.NODE_ENV !== 'development' && !eventTracker.isDevModeEnabled) {
+    return;
+  }
+  
   // Add timestamp to all events
   const eventWithTimestamp = {
     ...details,

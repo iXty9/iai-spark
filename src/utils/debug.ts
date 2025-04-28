@@ -1,6 +1,7 @@
 
 import { emitDebugEvent } from './debug-events';
 import { logger } from './logging';
+import { sendDebugWebhookMessage } from '@/services/webhook/webhookService';
 
 /**
  * Parse webhook response to get the actual content
@@ -63,6 +64,7 @@ export const parseWebhookResponse = (data: any): string => {
 
 /**
  * Get the webhook URL based on authentication status
+ * @deprecated Use webhookService.getWebhookUrl instead
  */
 export const getWebhookUrl = (isAuthenticated: boolean): string => {
   return isAuthenticated 
@@ -70,7 +72,9 @@ export const getWebhookUrl = (isAuthenticated: boolean): string => {
     : 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574';
 };
 
-// Simple function to log webhook activity to debug events without console spam
+/**
+ * Simple debug info logger - cleanly separated from business logic
+ */
 export const logWebhookActivity = (url: string, status: string, data?: any) => {
   const webhookType = url.includes('9553f3d014f7') ? 'AUTHENTICATED' : 'ANONYMOUS';
   const message = `${status} - ${webhookType} WEBHOOK`;
@@ -93,4 +97,17 @@ export const logWebhookActivity = (url: string, status: string, data?: any) => {
     url: url,
     status: status
   };
+};
+
+/**
+ * Send debug information to webhook - only when DevMode is enabled
+ * This is completely separate from the business logic
+ */
+export const sendDebugInfo = async (debugInfo: any) => {
+  try {
+    const result = await sendDebugWebhookMessage(debugInfo);
+    return { success: !result.error };
+  } catch (error) {
+    return { success: false, error };
+  }
 };

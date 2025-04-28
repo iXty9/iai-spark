@@ -9,6 +9,16 @@ import { useMessageRetry } from './use-message-retry';
 import { useSubmitState } from './use-submit-state';
 import { logger } from '@/utils/logging';
 
+// Separate debug functionality
+const emitDebugSubmitEvent = (action: string, error: string | null = null) => {
+  emitDebugEvent({
+    lastAction: action,
+    lastError: error,
+    isLoading: action.includes('starting') || action.includes('waiting'),
+    inputState: action.includes('starting') ? 'Sending' : (action.includes('waiting') ? 'Waiting for response' : 'Ready')
+  });
+};
+
 export const useChatSubmit = (
   message: string,
   setMessage: (msg: string) => void,
@@ -31,10 +41,8 @@ export const useChatSubmit = (
     if (isSubmitting) {
       logger.warn('Submit prevented: Already submitting a message', null, { module: 'chat' });
       
-      emitDebugEvent({
-        lastAction: 'Submit prevented: Already submitting another message',
-        isLoading: true
-      });
+      // Debug only
+      emitDebugSubmitEvent('Submit prevented: Already submitting another message');
       return;
     }
 
@@ -42,10 +50,8 @@ export const useChatSubmit = (
     if (!message.trim()) {
       logger.warn('Submit prevented: Empty message', null, { module: 'chat' });
       
-      emitDebugEvent({
-        lastAction: 'Submit prevented: Empty message',
-        isLoading: false
-      });
+      // Debug only
+      emitDebugSubmitEvent('Submit prevented: Empty message');
       return;
     }
     
@@ -55,19 +61,19 @@ export const useChatSubmit = (
       
       toast.error("Please wait while we load your profile...");
       setIsLoading(false);
-      emitDebugEvent({
-        lastAction: 'Message submission blocked: Auth still loading',
-        lastError: 'Auth loading in progress',
-        isLoading: false,
-        inputState: 'Ready'
-      });
+      
+      // Debug only
+      emitDebugSubmitEvent(
+        'Message submission blocked: Auth still loading', 
+        'Auth loading in progress'
+      );
       return;
     }
 
     // Set submission flag
     setSubmitting(true);
 
-    // Create user message
+    // Create user message - core business logic
     const userMessage: Message = {
       id: uuidv4(),
       content: message,
@@ -81,24 +87,25 @@ export const useChatSubmit = (
       isAuthenticated
     }, { module: 'chat' });
     
-    // Clear the input and add user message
+    // Clear the input and add user message - core business logic
     setMessage('');
     addMessage(userMessage);
     setIsLoading(true);
     incrementAttempt();
     
-    // Set a warning timeout for long responses
+    // Debug only
+    emitDebugSubmitEvent('Message submission starting');
+    
+    // Set a warning timeout for long responses - core business logic
     const firstWarningTimeout = setTimeout(() => {
       logger.info('Long response warning triggered', null, { module: 'chat' });
       
       toast.info("Ixty AI is still thinking. This might take a moment...");
       
-      emitDebugEvent({
-        lastAction: 'Long response warning triggered',
-        isLoading: true,
-        inputState: 'Waiting for response'
-      });
+      // Debug only
+      emitDebugSubmitEvent('Long response warning triggered');
       
+      // This event is used by components that need to know about long-running responses
       window.dispatchEvent(new CustomEvent('aiResponseStatus', { 
         detail: { 
           status: 'responding',
@@ -109,25 +116,22 @@ export const useChatSubmit = (
     }, 30000);
 
     try {
-      emitDebugEvent({
-        lastAction: `Sending to API`,
-        isLoading: true
-      });
+      // Debug only
+      emitDebugSubmitEvent('Sending to API');
       
+      // Core business logic
       const response = await sendMessage({
         message: userMessage.content,
         isAuthenticated: isAuthenticated,
         onError: (error) => {
           logger.error('Error in AI response', error, { module: 'chat' });
           
-          emitDebugEvent({
-            lastError: `Error in AI response: ${error.message}`,
-            isLoading: true
-          });
+          // Debug only
+          emitDebugSubmitEvent(null, `Error in AI response: ${error.message}`);
         }
       });
       
-      // Create AI response message
+      // Create AI response message - core business logic
       const aiMessage: Message = {
         id: uuidv4(),
         content: response.content,

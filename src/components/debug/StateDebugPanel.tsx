@@ -9,6 +9,7 @@ import { BrowserInfoPanel } from './BrowserInfoPanel';
 import { DomInfoPanel } from './DomInfoPanel';
 import { EventsActionsPanel } from './EventsActionsPanel';
 import { toast } from "@/hooks/use-toast";
+import { sendDebugInfo } from '@/utils/debug';
 
 interface DebugState {
   screen: string;
@@ -245,7 +246,7 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
     };
   }, []);
 
-  const sendDebugInfo = async () => {
+  const sendDebugInfoToWebhook = async () => {
     setIsSendingDebug(true);
     try {
       const debugInfo = {
@@ -256,15 +257,9 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
         url: window.location.href,
       };
       
-      const response = await fetch(DEBUG_WEBHOOK_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(debugInfo),
-      });
+      const result = await sendDebugInfo(debugInfo);
       
-      if (response.ok) {
+      if (result.success) {
         toast({
           title: "Debug Info Sent",
           description: "Successfully sent debug information to webhook",
@@ -275,7 +270,7 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
           message: "Debug info sent to webhook"
         }, ...prev].slice(0, MAX_LOG_ENTRIES));
       } else {
-        throw new Error(`Server responded with status: ${response.status}`);
+        throw new Error(`Failed to send debug info: ${result.error}`);
       }
     } catch (error) {
       console.error("Error sending debug info:", error);
@@ -329,7 +324,7 @@ export const StateDebugPanel: React.FC<StateDebugPanelProps> = ({
             variant="ghost" 
             size="icon" 
             className="h-6 w-6 text-gray-400 hover:text-white" 
-            onClick={sendDebugInfo}
+            onClick={sendDebugInfoToWebhook}
             disabled={isSendingDebug}
             title="Send debug info to webhook"
           >
