@@ -10,15 +10,15 @@ export const useIOSSafari = () => {
                      /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
   useEffect(() => {
-    // Check for messages periodically
+    // Check for messages less frequently
     const checkMessageState = () => {
       const messageElements = document.querySelectorAll('.chat-message');
       setHasMessages(messageElements.length > 0);
     };
 
-    // Check message state initially and periodically
+    // Check message state initially and less frequently
     checkMessageState();
-    const messageCheckInterval = setInterval(checkMessageState, 1000);
+    const messageCheckInterval = setInterval(checkMessageState, 3000); // Reduced from 1000ms to 3000ms
 
     // Handle visibility changes
     const handleVisibilityChange = () => {
@@ -36,13 +36,22 @@ export const useIOSSafari = () => {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // iOS-specific keyboard handling
+    // iOS-specific keyboard handling - with reduced check frequency
     if (isIOSSafari) {
       let lastHeight = window.innerHeight;
+      let lastCheckedAt = Date.now();
+      const MIN_CHECK_INTERVAL = 5000; // Minimum 5 seconds between checks
       
       const checkHeight = () => {
+        const now = Date.now();
+        // Skip frequent checks
+        if (now - lastCheckedAt < MIN_CHECK_INTERVAL) {
+          return;
+        }
+        
         if (window.innerHeight !== lastHeight) {
           lastHeight = window.innerHeight;
+          lastCheckedAt = now;
           
           setTimeout(() => {
             const inputContainer = document.getElementById('message-input-container');
@@ -65,8 +74,15 @@ export const useIOSSafari = () => {
       
       window.addEventListener('resize', checkHeight);
       
-      // Manage fallback input visibility
+      // Manage fallback input visibility with reduced frequency
       const checkInputVisibility = () => {
+        // Don't check too frequently
+        const now = Date.now();
+        if (now - lastCheckedAt < MIN_CHECK_INTERVAL) {
+          return;
+        }
+        lastCheckedAt = now;
+        
         if (!hasMessages) {
           setShowFallbackInput(false);
           return;
@@ -91,12 +107,11 @@ export const useIOSSafari = () => {
         }
       };
 
-      const visibilityInterval = setInterval(checkInputVisibility, 1000);
-      window.addEventListener('resize', checkInputVisibility);
-
+      // Reduced check frequency from 1000ms to 5000ms
+      const visibilityInterval = setInterval(checkInputVisibility, 5000);
+      
       return () => {
         window.removeEventListener('resize', checkHeight);
-        window.removeEventListener('resize', checkInputVisibility);
         clearInterval(visibilityInterval);
         clearInterval(messageCheckInterval);
         document.removeEventListener('visibilitychange', handleVisibilityChange);

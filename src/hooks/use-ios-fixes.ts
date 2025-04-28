@@ -7,31 +7,44 @@ export const useIOSFixes = (
   isIOSSafari: boolean
 ) => {
   useEffect(() => {
-    console.log("Checking iOS Safari compatibility");
+    // Only log in development and at most once per session
+    const hasLogged = sessionStorage.getItem('ios-safari-logged');
+    if (process.env.NODE_ENV === 'development' && !hasLogged && isIOSSafari) {
+      console.log("Checking iOS Safari compatibility");
+      sessionStorage.setItem('ios-safari-logged', 'true');
+    }
     
-    if (formRef.current) {
+    if (formRef.current && isIOSSafari) {
       const checkVisibility = () => {
         const formEl = formRef.current;
         if (formEl) {
           const rect = formEl.getBoundingClientRect();
           const computedStyle = window.getComputedStyle(formEl);
           
-          console.log("MessageInput form visibility:", {
-            rect: {
-              top: rect.top,
-              bottom: rect.bottom,
-              height: rect.height,
-              width: rect.width
-            },
-            isVisible: rect.height > 0 && rect.width > 0,
-            display: computedStyle.display,
-            visibility: computedStyle.visibility,
-            position: computedStyle.position,
-            zIndex: computedStyle.zIndex
-          });
+          // Only log once per session in development mode
+          if (process.env.NODE_ENV === 'development' && !sessionStorage.getItem('form-visibility-logged')) {
+            console.log("MessageInput form visibility:", {
+              rect: {
+                top: rect.top,
+                bottom: rect.bottom,
+                height: rect.height,
+                width: rect.width
+              },
+              isVisible: rect.height > 0 && rect.width > 0,
+              display: computedStyle.display,
+              visibility: computedStyle.visibility,
+              position: computedStyle.position,
+              zIndex: computedStyle.zIndex
+            });
+            sessionStorage.setItem('form-visibility-logged', 'true');
+          }
           
           if (isIOSSafari && (rect.height === 0 || computedStyle.display === 'none')) {
-            console.log("Attempting to fix invisible form on iOS Safari");
+            // Only log fix attempts in development
+            if (process.env.NODE_ENV === 'development' && !sessionStorage.getItem('ios-fix-attempt-logged')) {
+              console.log("Attempting to fix invisible form on iOS Safari");
+              sessionStorage.setItem('ios-fix-attempt-logged', 'true');
+            }
             
             formEl.style.display = 'flex';
             formEl.style.visibility = 'visible';
@@ -50,10 +63,15 @@ export const useIOSFixes = (
         }
       };
       
+      // Only check once initially instead of repeatedly
       checkVisibility();
-      const timer = setTimeout(checkVisibility, 1000);
       
-      return () => clearTimeout(timer);
+      // Reduced frequency - only check again after 3 seconds if needed
+      const timer = isIOSSafari ? setTimeout(checkVisibility, 3000) : null;
+      
+      return () => {
+        if (timer) clearTimeout(timer);
+      };
     }
-  }, [message, isIOSSafari]);
+  }, [message, isIOSSafari]); // Only re-run on message change or Safari detection change
 };
