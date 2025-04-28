@@ -12,14 +12,17 @@ export const importChat = (file: File): Promise<Message[]> => {
         
         // Validate that it's an array of messages with required fields
         if (!Array.isArray(jsonData)) {
+          toast.error('Invalid chat file format');
           throw new Error('Invalid chat file format');
         }
         
+        // Validate each message has required fields
         const validMessages = jsonData.every((msg: any) => 
-          msg.id && msg.content && msg.sender && msg.timestamp
+          msg.id && msg.content !== undefined && msg.sender && msg.timestamp
         );
         
         if (!validMessages) {
+          toast.error('Invalid message format in chat file');
           throw new Error('Invalid message format in chat file');
         }
 
@@ -29,8 +32,12 @@ export const importChat = (file: File): Promise<Message[]> => {
           timestamp: new Date(msg.timestamp)
         }));
 
+        // Show success toast
+        toast.success(`Successfully imported ${messages.length} messages`);
+        
         resolve(messages);
       } catch (error) {
+        console.error('Failed to import chat file:', error);
         toast.error('Failed to import chat file');
         reject(error);
       }

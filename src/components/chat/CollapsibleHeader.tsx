@@ -4,11 +4,12 @@ import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ChatHeader } from './ChatHeader';
 import { cn } from '@/lib/utils';
+import { Message } from '@/types/chat';
 
 interface CollapsibleHeaderProps {
   onClearChat: () => void;
   onExportChat: () => void;
-  onImportChat: (messages: any[]) => void;
+  onImportChat: (messages: Message[]) => void;
 }
 
 export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({ 

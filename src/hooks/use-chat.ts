@@ -59,6 +59,7 @@ export const useChat = () => {
     handleClearChat: clearMessages,
     handleExportChat,
     startChat,
-    authError
+    authError,
+    setMessages  // Export setMessages so it can be used by components
   };
 };

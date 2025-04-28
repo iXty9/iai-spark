@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { MessageList } from '../MessageList';
 import { MessageInput } from '../MessageInput';
@@ -8,6 +9,7 @@ import { ChatLayout } from './ChatLayout';
 import { ChatDebugState } from './ChatDebugState';
 import { useAuth } from '@/contexts/AuthContext';
 import { Message } from '@/types/chat';
+import { useIOSSafari } from '@/hooks/use-ios-safari';
 
 export const ChatContainer = () => {
   const {
@@ -22,6 +24,7 @@ export const ChatContainer = () => {
     setMessages
   } = useChat();
   
+  const { isIOSSafari } = useIOSSafari();
   const { user, isLoading: authLoading } = useAuth();
   const [hasInteracted, setHasInteracted] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -29,8 +32,10 @@ export const ChatContainer = () => {
   const inputContainerRef = useRef<HTMLDivElement>(null);
   
   const handleImportChat = (importedMessages: Message[]) => {
-    setMessages(importedMessages);
-    setHasInteracted(true);
+    if (importedMessages && importedMessages.length > 0) {
+      setMessages(importedMessages);
+      setHasInteracted(true);
+    }
   };
 
   return (
@@ -41,7 +46,7 @@ export const ChatContainer = () => {
     >
       <div className="flex-1 overflow-hidden relative">
         {messages.length === 0 ? (
-          <Welcome onStartChat={startChat} />
+          <Welcome onStartChat={startChat} onImportChat={handleImportChat} />
         ) : (
           <ScrollArea className="h-full py-4 px-2">
             <MessageList
