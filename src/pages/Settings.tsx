@@ -3,21 +3,17 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
+  CardContent
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
 import { BackgroundSettings } from '@/components/settings/BackgroundSettings';
 import { ThemeColors } from '@/types/theme';
+import { SettingsHeader } from '@/components/settings/SettingsHeader';
+import { SettingsFooter } from '@/components/settings/SettingsFooter';
+import { SettingsTabs } from '@/components/settings/SettingsTabs';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -32,14 +28,18 @@ export default function Settings() {
     backgroundColor: '#ffffff',
     primaryColor: '#ea384c',
     textColor: '#000000',
-    accentColor: '#9b87f5'
+    accentColor: '#9b87f5',
+    userBubbleColor: '#ea384c',
+    aiBubbleColor: '#9b87f5'
   });
   
   const [darkTheme, setDarkTheme] = useState<ThemeColors>({
     backgroundColor: '#121212',
     primaryColor: '#ea384c',
     textColor: '#ffffff',
-    accentColor: '#9b87f5'
+    accentColor: '#9b87f5',
+    userBubbleColor: '#ea384c',
+    aiBubbleColor: '#9b87f5'
   });
 
   useEffect(() => {
@@ -74,7 +74,7 @@ export default function Settings() {
     } catch (error) {
       console.error('Error loading saved theme settings:', error);
     }
-  }, [profile, user]);
+  }, [profile, user, setTheme]);
 
   const handleLightThemeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -134,14 +134,18 @@ export default function Settings() {
       backgroundColor: '#ffffff',
       primaryColor: '#ea384c',
       textColor: '#000000',
-      accentColor: '#9b87f5'
+      accentColor: '#9b87f5',
+      userBubbleColor: '#ea384c',
+      aiBubbleColor: '#9b87f5'
     });
     
     setDarkTheme({
       backgroundColor: '#121212',
       primaryColor: '#ea384c',
       textColor: '#ffffff',
-      accentColor: '#9b87f5'
+      accentColor: '#9b87f5',
+      userBubbleColor: '#ea384c',
+      aiBubbleColor: '#9b87f5'
     });
     
     setBackgroundImage(null);
@@ -173,29 +177,10 @@ export default function Settings() {
   return (
     <div className="container max-w-2xl py-10">
       <Card>
-        <CardHeader className="relative">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="absolute left-2 top-2" 
-            onClick={handleGoBack}
-            aria-label="Go back"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <CardTitle className="text-center">Settings</CardTitle>
-          <CardDescription className="text-center">
-            Customize your app experience
-          </CardDescription>
-        </CardHeader>
+        <SettingsHeader onGoBack={handleGoBack} />
         <CardContent>
-          <Tabs defaultValue="appearance">
-            <TabsList className="w-full">
-              <TabsTrigger value="appearance" className="flex-1">Appearance</TabsTrigger>
-              <TabsTrigger value="background" className="flex-1">Background</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="appearance" className="space-y-6 mt-4">
+          <SettingsTabs 
+            appearanceContent={
               <AppearanceSettings
                 theme={theme}
                 lightTheme={lightTheme}
@@ -204,35 +189,23 @@ export default function Settings() {
                 onLightThemeChange={handleLightThemeChange}
                 onDarkThemeChange={handleDarkThemeChange}
               />
-            </TabsContent>
-            
-            <TabsContent value="background" className="space-y-6 mt-4">
-              <div className="border rounded-lg p-4">
-                <h3 className="text-lg font-medium mb-3">Background Image</h3>
-                <BackgroundSettings
-                  backgroundImage={backgroundImage}
-                  backgroundOpacity={backgroundOpacity}
-                  onBackgroundImageUpload={handleBackgroundImageUpload}
-                  onOpacityChange={value => setBackgroundOpacity(value[0])}
-                  onRemoveBackground={() => setBackgroundImage(null)}
-                />
-              </div>
-            </TabsContent>
-          </Tabs>
+            }
+            backgroundContent={
+              <BackgroundSettings
+                backgroundImage={backgroundImage}
+                backgroundOpacity={backgroundOpacity}
+                onBackgroundImageUpload={handleBackgroundImageUpload}
+                onOpacityChange={value => setBackgroundOpacity(value[0])}
+                onRemoveBackground={() => setBackgroundImage(null)}
+              />
+            }
+          />
         </CardContent>
-        <CardFooter className="flex justify-between">
-          <Button variant="outline" onClick={handleResetSettings}>
-            Reset to Defaults
-          </Button>
-          <div className="space-x-2">
-            <Button variant="outline" onClick={handleGoBack}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveSettings}>
-              Save Changes
-            </Button>
-          </div>
-        </CardFooter>
+        <SettingsFooter 
+          onReset={handleResetSettings} 
+          onCancel={handleGoBack} 
+          onSave={handleSaveSettings}
+        />
       </Card>
     </div>
   );

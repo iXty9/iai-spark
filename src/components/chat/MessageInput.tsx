@@ -41,6 +41,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // If Shift+Enter is pressed, allow default behavior (line break)
+    if (e.key === 'Enter' && e.shiftKey) {
+      return; // Allow default behavior for Shift+Enter (creates a line break)
+    }
+    
+    // Only submit on plain Enter key (no Shift)
     if (e.key === 'Enter' && !e.shiftKey && message.trim() && !isLoading) {
       e.preventDefault();
       console.log("Enter key submission triggered");

@@ -8,6 +8,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { useDevMode } from '@/store/use-dev-mode';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Textarea } from '@/components/ui/textarea';
+import { useTextareaResize } from '@/hooks/use-textarea-resize';
 
 interface WelcomeProps {
   onStartChat: (message: string) => void;
@@ -17,14 +19,17 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   const [message, setMessage] = React.useState('');
   const isMobile = useIsMobile();
   const [avatarError, setAvatarError] = React.useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const hasSubmitted = useRef<boolean>(false);
   const { isDevMode } = useDevMode();
   
+  // Use the text area resize hook
+  useTextareaResize(textareaRef, message);
+  
   useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.focus();
+    if (textareaRef.current) {
+      textareaRef.current.focus();
     }
     
     emitDebugEvent({
@@ -42,6 +47,12 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // If Shift+Enter is pressed, allow default behavior (line break)
+    if (e.key === 'Enter' && e.shiftKey) {
+      return; // Allow default behavior for Shift+Enter (creates a line break)
+    }
+    
+    // Only submit on plain Enter key (no Shift)
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       submitMessage();
@@ -146,22 +157,23 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
           </div>
         </div>
         
-        <form onSubmit={handleSubmit} className="flex gap-2 w-full max-w-xl mx-auto">
-          <Input
-            ref={inputRef}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-2 w-full max-w-xl mx-auto">
+          <Textarea
+            ref={textareaRef}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={isMobile ? "Ask me anything..." : "What can I assist you with today?"}
-            className="flex-1 rounded-full shadow-sm"
+            className="flex-1 rounded-lg shadow-sm min-h-[60px] max-h-[150px] resize-none"
             disabled={isSubmitting}
             aria-label="Message input"
             spellCheck="true"
+            rows={1}
           />
           <Button 
             type="submit" 
             disabled={!message.trim() || isSubmitting} 
-            className="rounded-full bg-[#ea384c] hover:bg-[#dd3333]"
+            className="rounded-full bg-[#ea384c] hover:bg-[#dd3333] self-end mt-2"
           >
             {isMobile ? <Send className="h-4 w-4" /> : <>Send <Send className="ml-2 h-4 w-4" /></>}
           </Button>
