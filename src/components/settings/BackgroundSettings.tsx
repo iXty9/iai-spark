@@ -29,6 +29,7 @@ export function BackgroundSettings({
               src={backgroundImage}
               alt="Background preview"
               className="w-full h-full object-cover"
+              style={{ opacity: backgroundOpacity }} // Preview with the current opacity
             />
             <Button
               variant="destructive"

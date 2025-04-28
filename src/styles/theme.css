@@ -6,7 +6,7 @@
   --accent-color: #9b87f5;
   --user-bubble-color: #ea384c;
   --ai-bubble-color: #9b87f5;
-  --bg-opacity: 0.1;
+  --bg-opacity: 0.5; /* Changed from 0.1 to 0.5 (50%) as default */
 }
 
 .dark {
@@ -42,7 +42,7 @@ body.with-bg-image::before {
   background-position: center;
   background-repeat: no-repeat;
   background-attachment: fixed;
-  opacity: var(--bg-opacity, 0.1);
+  opacity: var(--bg-opacity, 0.5); /* Default to 50% if not set */
   transition: opacity 0.3s ease;
 }
 

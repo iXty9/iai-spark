@@ -40,22 +40,6 @@ export function useTheme() {
         if (shouldUpdate) {
           themeSettings.mode = theme;
           
-          // Get the current theme colors
-          const currentTheme = theme === 'light' 
-            ? themeSettings.lightTheme 
-            : themeSettings.darkTheme;
-          
-          // Only apply CSS variables if theme colors exist
-          if (currentTheme) {
-            // Update CSS variables with theme colors
-            root.style.setProperty('--background-color', currentTheme.backgroundColor);
-            root.style.setProperty('--primary-color', currentTheme.primaryColor);
-            root.style.setProperty('--text-color', currentTheme.textColor);
-            root.style.setProperty('--accent-color', currentTheme.accentColor);
-            root.style.setProperty('--user-bubble-color', currentTheme.userBubbleColor || currentTheme.primaryColor);
-            root.style.setProperty('--ai-bubble-color', currentTheme.aiBubbleColor || currentTheme.accentColor);
-          }
-          
           // Update theme settings in profile
           updateProfile({ theme_settings: JSON.stringify(themeSettings) })
             .catch(err => {
@@ -67,6 +51,30 @@ export function useTheme() {
               
               logger.error('Error updating theme settings', err, { module: 'theme' });
             });
+        }
+        
+        // Apply theme colors and background settings regardless of mode change
+        // Get the current theme colors
+        const currentTheme = theme === 'light' 
+          ? themeSettings.lightTheme 
+          : themeSettings.darkTheme;
+        
+        // Only apply CSS variables if theme colors exist
+        if (currentTheme) {
+          // Update CSS variables with theme colors
+          root.style.setProperty('--background-color', currentTheme.backgroundColor);
+          root.style.setProperty('--primary-color', currentTheme.primaryColor);
+          root.style.setProperty('--text-color', currentTheme.textColor);
+          root.style.setProperty('--accent-color', currentTheme.accentColor);
+          root.style.setProperty('--user-bubble-color', currentTheme.userBubbleColor || currentTheme.primaryColor);
+          root.style.setProperty('--ai-bubble-color', currentTheme.aiBubbleColor || currentTheme.accentColor);
+        }
+        
+        // Apply background image and opacity if they exist
+        if (themeSettings.backgroundImage) {
+          const opacity = themeSettings.backgroundOpacity || '0.5'; // Default to 50% if not set
+          root.style.setProperty('--bg-opacity', opacity);
+          document.body.classList.add('with-bg-image');
         }
       } catch (e) {
         // Use emitDebugEvent and logger for errors

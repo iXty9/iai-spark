@@ -17,21 +17,21 @@ const Index = () => {
       // Only apply background to the chat interface for logged in users
       if (user) {
         let backgroundImage = null;
-        let backgroundOpacity = "0.1";
+        let backgroundOpacity = "0.5"; // Default to 50% opacity
         
         // If user is logged in and has profile settings, use those
         if (profile && profile.theme_settings) {
           try {
             const themeSettings = JSON.parse(profile.theme_settings);
             backgroundImage = themeSettings.backgroundImage;
-            backgroundOpacity = themeSettings.backgroundOpacity || "0.1";
+            backgroundOpacity = themeSettings.backgroundOpacity || "0.5";
           } catch (e) {
             console.error('Error parsing theme settings from profile:', e);
           }
         } else {
           // Fallback to localStorage
           backgroundImage = localStorage.getItem('backgroundImage');
-          backgroundOpacity = localStorage.getItem('backgroundOpacity') || "0.1";
+          backgroundOpacity = localStorage.getItem('backgroundOpacity') || "0.5";
         }
         
         if (backgroundImage) {

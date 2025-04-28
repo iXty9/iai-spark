@@ -7,7 +7,7 @@ export const useSettingsState = () => {
   const { profile } = useAuth();
   
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
-  const [backgroundOpacity, setBackgroundOpacity] = useState(0.1);
+  const [backgroundOpacity, setBackgroundOpacity] = useState(0.5); // Changed default from 0.1 to 0.5 (50%)
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [lightTheme, setLightTheme] = useState<ThemeColors>({
