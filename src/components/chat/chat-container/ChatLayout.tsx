@@ -1,4 +1,7 @@
 
+import React from 'react';
+import { Message } from '@/types/chat';
+import { ChatHeader } from '../ChatHeader';
 import { ImportChatButton } from '../ImportChatButton';
 
 interface ChatLayoutProps {

@@ -1,5 +1,6 @@
-
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { Message } from '@/types/chat';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMessageState } from './chat/use-message-state';
 import { useChatSubmit } from './chat/use-chat-submit';
@@ -59,6 +60,7 @@ export const useChat = () => {
     handleClearChat: clearMessages,
     handleExportChat,
     startChat,
-    authError
+    authError,
+    setMessages
   };
 };

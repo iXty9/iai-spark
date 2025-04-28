@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -10,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 import { useTextareaResize } from '@/hooks/use-textarea-resize';
 import { ImportChatButton } from './ImportChatButton';
+import { Message } from '@/types/chat';
 
 interface WelcomeProps {
   onStartChat: (message: string) => void;

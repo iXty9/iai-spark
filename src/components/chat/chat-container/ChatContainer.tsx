@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { MessageList } from '../MessageList';
 import { MessageInput } from '../MessageInput';
@@ -15,6 +16,7 @@ export const ChatContainer = () => {
     message,
     isLoading,
     setMessage,
+    setMessages, // Make sure this is properly destructured from useChat hook
     handleSubmit,
     handleClearChat,
     handleExportChat,
