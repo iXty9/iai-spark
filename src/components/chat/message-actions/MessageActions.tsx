@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { TokenInfo } from '@/types/chat';
 import { ActionTooltip } from './ActionTooltip';
 import { TokenInfoDialog } from './TokenInfoDialog';
+import { stripMarkdown } from '@/utils/strip-markdown';
 
 interface MessageActionsProps {
   messageId: string;
@@ -26,7 +27,9 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
   const handleReadAloud = () => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(content);
+      const cleanedContent = stripMarkdown(content);
+      const utterance = new SpeechSynthesisUtterance(cleanedContent);
+      
       const voices = window.speechSynthesis.getVoices();
       if (voices.length > 0) {
         utterance.voice = voices.find(voice => voice.default) || voices[0];
