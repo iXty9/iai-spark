@@ -8,14 +8,18 @@ import { cn } from '@/lib/utils';
 interface CollapsibleHeaderProps {
   onClearChat: () => void;
   onExportChat: () => void;
+  onImportChat: (messages: any[]) => void;
 }
 
-export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({ onClearChat, onExportChat }) => {
+export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({ 
+  onClearChat, 
+  onExportChat,
+  onImportChat 
+}) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
     <div className="relative mt-4">
-      {/* Hamburger button - always visible at the top center */}
       <Button
         variant="ghost"
         size="icon"
@@ -28,14 +32,17 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({ onClearCha
         <Menu className="h-5 w-5" />
       </Button>
 
-      {/* Expandable header */}
       <div 
         className={cn(
           "transform transition-all duration-300 ease-in-out overflow-hidden",
           isExpanded ? "max-h-20 opacity-100" : "max-h-0 opacity-0"
         )}
       >
-        <ChatHeader onClearChat={onClearChat} onExportChat={onExportChat} />
+        <ChatHeader 
+          onClearChat={onClearChat} 
+          onExportChat={onExportChat}
+          onImportChat={onImportChat}
+        />
       </div>
     </div>
   );

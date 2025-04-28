@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Download, Trash2, Sun, Moon, Code } from 'lucide-react';
+import { Download, Trash2, Sun, Moon, Code, Upload } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,18 +11,46 @@ import {
 import { useTheme } from '@/hooks/use-theme';
 import { useDevMode } from '@/store/use-dev-mode';
 import { UserMenu } from '@/components/UserMenu';
+import { importChat } from '@/services/import/importService';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
   onExportChat: () => void;
+  onImportChat: (messages: any[]) => void;
 }
 
-export const ChatHeader: React.FC<ChatHeaderProps> = ({ onClearChat, onExportChat }) => {
+export const ChatHeader: React.FC<ChatHeaderProps> = ({ 
+  onClearChat, 
+  onExportChat,
+  onImportChat 
+}) => {
   const { theme, setTheme } = useTheme();
   const { isDevMode, toggleDevMode } = useDevMode();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const handleLogoClick = () => {
     window.open('https://ixty9.com', '_blank', 'noopener,noreferrer');
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const messages = await importChat(file);
+      onImportChat(messages);
+    } catch (error) {
+      console.error('Import failed:', error);
+    }
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
   
   return (
@@ -61,6 +89,10 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({ onClearChat, onExportCha
               <Download className="mr-2 h-4 w-4" />
               <span>Export Chat</span>
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleImportClick}>
+              <Upload className="mr-2 h-4 w-4" />
+              <span>Import Chat</span>
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={onClearChat}>
               <Trash2 className="mr-2 h-4 w-4" />
               <span>Clear Chat</span>
@@ -71,6 +103,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({ onClearChat, onExportCha
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".json"
+          className="hidden"
+        />
       </div>
     </header>
   );

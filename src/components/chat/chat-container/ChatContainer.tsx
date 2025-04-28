@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { MessageList } from '../MessageList';
 import { MessageInput } from '../MessageInput';
@@ -8,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatLayout } from './ChatLayout';
 import { ChatDebugState } from './ChatDebugState';
 import { useAuth } from '@/contexts/AuthContext';
+import { Message } from '@/types/chat';
 
 export const ChatContainer = () => {
   const {
@@ -19,6 +19,7 @@ export const ChatContainer = () => {
     handleClearChat,
     handleExportChat,
     startChat,
+    setMessages
   } = useChat();
   
   const { user, isLoading: authLoading } = useAuth();
@@ -26,14 +27,17 @@ export const ChatContainer = () => {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
-  const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
-                    !(window as any).MSStream &&
-                    /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  
+  const handleImportChat = (importedMessages: Message[]) => {
+    setMessages(importedMessages);
+    setHasInteracted(true);
+  };
 
   return (
     <ChatLayout
       onClearChat={handleClearChat}
       onExportChat={handleExportChat}
+      onImportChat={handleImportChat}
     >
       <div className="flex-1 overflow-hidden relative">
         {messages.length === 0 ? (
