@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import { Message as MessageType } from '@/types/chat';
 import { Message } from './Message';
@@ -63,11 +64,11 @@ export const MessageList: React.FC<MessageListProps> = ({
   return (
     <ScrollArea 
       ref={scrollAreaRef}
-      className="flex-1 p-4 overflow-y-auto w-full h-full"
+      className="flex-1 p-4 overflow-y-auto w-full h-full bg-transparent"
       type="always"
     >
       <div 
-        className="message-list space-y-4 pb-4" 
+        className="message-list space-y-4 pb-4 bg-transparent" 
         role="log" 
         aria-live="polite" 
         aria-label="Chat messages"

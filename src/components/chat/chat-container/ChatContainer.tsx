@@ -10,8 +10,13 @@ import { ChatDebugState } from './ChatDebugState';
 import { useAuth } from '@/contexts/AuthContext';
 import { Message } from '@/types/chat';
 import { useIOSSafari } from '@/hooks/use-ios-safari';
+import { cn } from '@/lib/utils';
 
-export const ChatContainer = () => {
+interface ChatContainerProps {
+  className?: string;
+}
+
+export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
   const {
     messages,
     message,
@@ -43,12 +48,13 @@ export const ChatContainer = () => {
       onClearChat={handleClearChat}
       onExportChat={handleExportChat}
       onImportChat={handleImportChat}
+      className={className}
     >
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 overflow-hidden relative bg-transparent">
         {messages.length === 0 ? (
           <Welcome onStartChat={startChat} onImportChat={handleImportChat} />
         ) : (
-          <ScrollArea className="h-full py-4 px-2">
+          <ScrollArea className="h-full py-4 px-2 bg-transparent">
             <MessageList
               messages={messages}
               isLoading={isLoading}
@@ -61,7 +67,9 @@ export const ChatContainer = () => {
       {messages.length > 0 && (
         <div 
           ref={inputContainerRef}
-          className={`p-4 border-t bg-background ${isIOSSafari ? 'ios-input-container' : ''}`}
+          className={cn(
+            `p-4 border-t bg-background/80 backdrop-blur-sm ${isIOSSafari ? 'ios-input-container' : ''}`,
+          )}
           id="message-input-container"
           style={{
             display: "block", 

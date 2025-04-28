@@ -25,6 +25,11 @@ body {
 }
 
 /* Background image with opacity control */
+body.with-bg-image {
+  position: relative;
+  background-color: var(--background-color);
+}
+
 body.with-bg-image::before {
   content: "";
   position: fixed;
@@ -38,10 +43,23 @@ body.with-bg-image::before {
   background-repeat: no-repeat;
   background-attachment: fixed;
   opacity: var(--bg-opacity, 0.1);
+  transition: opacity 0.3s ease;
 }
 
-/* Ensure the background image container is positioned correctly */
-body.with-bg-image {
-  position: relative;
-  background-color: var(--background-color);
+/* Make transparent background work better with chat */
+.chat-container {
+  background-color: transparent !important;
+}
+
+.message-list {
+  background-color: transparent !important;
+}
+
+/* Ensure enough contrast for text readability */
+.message-content {
+  text-shadow: 0 0 2px rgba(0,0,0,0.1);
+}
+
+.dark .message-content {
+  text-shadow: 0 0 2px rgba(0,0,0,0.3);
 }

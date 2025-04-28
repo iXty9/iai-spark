@@ -68,7 +68,7 @@ const Index = () => {
   }, [location.pathname, user, profile]);
   
   return (
-    <div className={`h-screen w-full bg-background ${isIOSSafari ? 'ios-safari-page' : ''}`}>
+    <div className={`h-screen w-full bg-transparent ${isIOSSafari ? 'ios-safari-page' : ''}`}>
       <div className={`h-full w-full ${isIOSSafari ? 'ios-viewport-fix' : ''}`}>
         <Chat />
       </div>

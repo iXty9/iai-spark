@@ -3,5 +3,5 @@ import React from 'react';
 import { ChatContainer } from './chat-container/ChatContainer';
 
 export const Chat = () => {
-  return <ChatContainer />;
+  return <ChatContainer className="bg-transparent" />;
 };

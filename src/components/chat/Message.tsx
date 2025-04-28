@@ -28,19 +28,18 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
 
   const displayName = getDisplayName();
 
-  // Enhanced bubble styling for better visibility in light & dark modes with a glassmorphism effect
-  const bubbleBase =
-    'rounded-2xl px-4 py-2 max-w-[80vw] md:max-w-[70%] min-w-[140px] shadow transition-all break-words'; // added min-width
+  // Enhanced bubble styling with glassmorphism for better visibility with custom backgrounds
+  const bubbleBase = 
+    'rounded-2xl px-4 py-2 max-w-[80vw] md:max-w-[70%] min-w-[140px] shadow-md transition-all break-words backdrop-blur-md'; 
 
+  // Use CSS variables for colors to respect user theme settings
   const bubbleUser =
-    'bg-gradient-to-br from-primary/20 to-primary/40 text-right text-white ml-auto border border-primary/30 backdrop-blur-lg ' +
-    'dark:from-[#6E59A5]/80 dark:to-[#9b87f5]/50 dark:text-white ' +
-    'light:bg-[#FFD6E1] light:text-[#390A27] light:border-[#f9bfcf]';
+    'bg-gradient-to-br from-[var(--user-bubble-color)]/20 to-[var(--user-bubble-color)]/40 text-right text-[var(--text-color)] ml-auto ' +
+    'border border-[var(--user-bubble-color)]/30 backdrop-blur-md';
 
   const bubbleAI =
-    'bg-muted/80 text-left text-foreground mr-auto border border-border/40 backdrop-blur-md ' +
-    'dark:bg-black/30 dark:text-white dark:border-[#6E59A5] ' +
-    'light:bg-white/80 light:text-black light:border-[#ccc]';
+    'bg-gradient-to-br from-[var(--ai-bubble-color)]/20 to-[var(--ai-bubble-color)]/40 text-left text-[var(--text-color)] mr-auto ' +
+    'border border-[var(--ai-bubble-color)]/30 backdrop-blur-md';
 
   return (
     <div
