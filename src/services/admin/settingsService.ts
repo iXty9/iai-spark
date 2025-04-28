@@ -36,9 +36,17 @@ export async function fetchAppSettings(): Promise<Record<string, string>> {
 
 export async function updateAppSetting(key: string, value: string): Promise<void> {
   try {
+    // Get the current user ID
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id || null;
+    
     const { error } = await supabase
       .from('app_settings')
-      .update({ value, updated_at: new Date().toISOString(), updated_by: supabase.auth.getUser().then(res => res.data.user?.id) })
+      .update({ 
+        value, 
+        updated_at: new Date().toISOString(), 
+        updated_by: userId 
+      })
       .eq('key', key);
 
     if (error) {
