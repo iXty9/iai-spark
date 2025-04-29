@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeColors } from '@/types/theme';
+import { logger } from '@/utils/logging';
 
 export const useSettingsState = () => {
   const { profile } = useAuth();
@@ -40,6 +41,7 @@ export const useSettingsState = () => {
     try {
       if (profile?.theme_settings) {
         try {
+          logger.info('Loading theme settings from profile', { module: 'settings' });
           const themeSettings = JSON.parse(profile.theme_settings);
           
           if (themeSettings.mode) {
@@ -69,6 +71,7 @@ export const useSettingsState = () => {
           }
           
           if (themeSettings.backgroundImage) {
+            logger.info('Found background image in theme settings', { module: 'settings' });
             setBackgroundImage(themeSettings.backgroundImage);
           }
           
@@ -76,15 +79,11 @@ export const useSettingsState = () => {
             setBackgroundOpacity(parseFloat(themeSettings.backgroundOpacity));
           }
         } catch (e) {
-          if (process.env.NODE_ENV === 'development') {
-            console.error('Error parsing theme settings from profile:', e);
-          }
+          logger.error('Error parsing theme settings from profile:', e, { module: 'settings' });
         }
       }
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Error loading saved theme settings:', error);
-      }
+      logger.error('Error loading saved theme settings:', error, { module: 'settings' });
     }
   }, [profile]);
 
