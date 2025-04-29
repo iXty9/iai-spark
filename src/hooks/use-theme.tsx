@@ -68,13 +68,21 @@ export function useTheme() {
           root.style.setProperty('--accent-color', currentTheme.accentColor);
           root.style.setProperty('--user-bubble-color', currentTheme.userBubbleColor || currentTheme.primaryColor);
           root.style.setProperty('--ai-bubble-color', currentTheme.aiBubbleColor || currentTheme.accentColor);
+          root.style.setProperty('--user-bubble-opacity', (currentTheme.userBubbleOpacity || 0.3).toString());
+          root.style.setProperty('--ai-bubble-opacity', (currentTheme.aiBubbleOpacity || 0.3).toString());
+          root.style.setProperty('--user-text-color', currentTheme.userTextColor || currentTheme.textColor);
+          root.style.setProperty('--ai-text-color', currentTheme.aiTextColor || currentTheme.textColor);
         }
         
         // Apply background image and opacity if they exist
         if (themeSettings.backgroundImage) {
+          document.body.style.backgroundImage = `url(${themeSettings.backgroundImage})`;
           const opacity = themeSettings.backgroundOpacity || '0.5'; // Default to 50% if not set
           root.style.setProperty('--bg-opacity', opacity);
           document.body.classList.add('with-bg-image');
+        } else {
+          document.body.style.removeProperty('background-image');
+          document.body.classList.remove('with-bg-image');
         }
       } catch (e) {
         // Use emitDebugEvent and logger for errors

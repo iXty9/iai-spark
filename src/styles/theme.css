@@ -6,7 +6,11 @@
   --accent-color: #9b87f5;
   --user-bubble-color: #ea384c;
   --ai-bubble-color: #9b87f5;
-  --bg-opacity: 0.5; /* Changed from 0.1 to 0.5 (50%) as default */
+  --user-bubble-opacity: 0.3;
+  --ai-bubble-opacity: 0.3;
+  --user-text-color: #000000;
+  --ai-text-color: #000000;
+  --bg-opacity: 0.5; /* 50% as default */
 }
 
 .dark {
@@ -16,6 +20,10 @@
   --accent-color: #9b87f5;
   --user-bubble-color: #ea384c;
   --ai-bubble-color: #9b87f5;
+  --user-bubble-opacity: 0.3;
+  --ai-bubble-opacity: 0.3;
+  --user-text-color: #ffffff;
+  --ai-text-color: #ffffff;
 }
 
 body {
@@ -62,4 +70,17 @@ body.with-bg-image::before {
 
 .dark .message-content {
   text-shadow: 0 0 2px rgba(0,0,0,0.3);
+}
+
+/* User and AI message bubbles */
+.user-message-bubble {
+  background-color: var(--user-bubble-color);
+  color: var(--user-text-color);
+  opacity: var(--user-bubble-opacity);
+}
+
+.ai-message-bubble {
+  background-color: var(--ai-bubble-color);
+  color: var(--ai-text-color);
+  opacity: var(--ai-bubble-opacity);
 }

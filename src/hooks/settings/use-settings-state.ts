@@ -7,7 +7,7 @@ export const useSettingsState = () => {
   const { profile } = useAuth();
   
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
-  const [backgroundOpacity, setBackgroundOpacity] = useState(0.5); // Changed default from 0.1 to 0.5 (50%)
+  const [backgroundOpacity, setBackgroundOpacity] = useState(0.5); // 50% as default
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [lightTheme, setLightTheme] = useState<ThemeColors>({
@@ -16,7 +16,11 @@ export const useSettingsState = () => {
     textColor: '#000000',
     accentColor: '#9b87f5',
     userBubbleColor: '#ea384c',
-    aiBubbleColor: '#9b87f5'
+    aiBubbleColor: '#9b87f5',
+    userBubbleOpacity: 0.3,
+    aiBubbleOpacity: 0.3,
+    userTextColor: '#000000',
+    aiTextColor: '#000000'
   });
   
   const [darkTheme, setDarkTheme] = useState<ThemeColors>({
@@ -25,7 +29,11 @@ export const useSettingsState = () => {
     textColor: '#ffffff',
     accentColor: '#9b87f5',
     userBubbleColor: '#ea384c',
-    aiBubbleColor: '#9b87f5'
+    aiBubbleColor: '#9b87f5',
+    userBubbleOpacity: 0.3,
+    aiBubbleOpacity: 0.3,
+    userTextColor: '#ffffff',
+    aiTextColor: '#ffffff'
   });
 
   useEffect(() => {
@@ -39,11 +47,25 @@ export const useSettingsState = () => {
           }
           
           if (themeSettings.lightTheme) {
-            setLightTheme(themeSettings.lightTheme);
+            setLightTheme({
+              ...lightTheme,
+              ...themeSettings.lightTheme,
+              userBubbleOpacity: themeSettings.lightTheme.userBubbleOpacity ?? 0.3,
+              aiBubbleOpacity: themeSettings.lightTheme.aiBubbleOpacity ?? 0.3,
+              userTextColor: themeSettings.lightTheme.userTextColor ?? themeSettings.lightTheme.textColor,
+              aiTextColor: themeSettings.lightTheme.aiTextColor ?? themeSettings.lightTheme.textColor
+            });
           }
           
           if (themeSettings.darkTheme) {
-            setDarkTheme(themeSettings.darkTheme);
+            setDarkTheme({
+              ...darkTheme,
+              ...themeSettings.darkTheme,
+              userBubbleOpacity: themeSettings.darkTheme.userBubbleOpacity ?? 0.3,
+              aiBubbleOpacity: themeSettings.darkTheme.aiBubbleOpacity ?? 0.3,
+              userTextColor: themeSettings.darkTheme.userTextColor ?? themeSettings.darkTheme.textColor,
+              aiTextColor: themeSettings.darkTheme.aiTextColor ?? themeSettings.darkTheme.textColor
+            });
           }
           
           if (themeSettings.backgroundImage) {

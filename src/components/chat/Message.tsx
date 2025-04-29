@@ -28,18 +28,18 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
 
   const displayName = getDisplayName();
 
-  // Enhanced bubble styling with glassmorphism for better visibility with custom backgrounds
+  // Enhanced bubble styling with no border
   const bubbleBase = 
     'rounded-2xl px-4 py-2 max-w-[80vw] md:max-w-[70%] min-w-[140px] shadow-md transition-all break-words backdrop-blur-md'; 
 
   // Use CSS variables for colors to respect user theme settings
   const bubbleUser =
-    'bg-gradient-to-br from-[var(--user-bubble-color)]/20 to-[var(--user-bubble-color)]/40 text-right text-[var(--text-color)] ml-auto ' +
-    'border border-[var(--user-bubble-color)]/30 backdrop-blur-md';
+    'bg-[var(--user-bubble-color)] text-right text-[var(--user-text-color)] ml-auto ' +
+    'backdrop-blur-md';
 
   const bubbleAI =
-    'bg-gradient-to-br from-[var(--ai-bubble-color)]/20 to-[var(--ai-bubble-color)]/40 text-left text-[var(--text-color)] mr-auto ' +
-    'border border-[var(--ai-bubble-color)]/30 backdrop-blur-md';
+    'bg-[var(--ai-bubble-color)] text-left text-[var(--ai-text-color)] mr-auto ' +
+    'backdrop-blur-md';
 
   return (
     <div
@@ -63,8 +63,12 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
           className={cn(
             bubbleBase,
             isUser ? bubbleUser : bubbleAI,
+            isUser ? 'user-message-bubble' : 'ai-message-bubble',
             'mb-1'
           )}
+          style={{
+            opacity: isUser ? 'var(--user-bubble-opacity)' : 'var(--ai-bubble-opacity)'
+          }}
         >
           <MessageContent message={message} isUser={isUser} />
         </div>

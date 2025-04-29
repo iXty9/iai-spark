@@ -6,6 +6,10 @@ export interface ThemeColors {
   accentColor: string;
   userBubbleColor: string;
   aiBubbleColor: string;
+  userBubbleOpacity: number;
+  aiBubbleOpacity: number;
+  userTextColor: string;
+  aiTextColor: string;
 }
 
 export interface ThemeSettings {

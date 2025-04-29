@@ -6,11 +6,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
-import { BackgroundSettings } from '@/components/settings/BackgroundSettings';
 import { ThemeColors } from '@/types/theme';
 import { SettingsHeader } from '@/components/settings/SettingsHeader';
 import { SettingsFooter } from '@/components/settings/SettingsFooter';
-import { SettingsTabs } from '@/components/settings/SettingsTabs';
 import { useSettingsState } from '@/hooks/settings/use-settings-state';
 import { useSettingsActions } from '@/hooks/settings/use-settings-actions';
 
@@ -47,15 +45,38 @@ export default function Settings() {
     darkTheme,
     backgroundImage,
     backgroundOpacity,
+    isSubmitting,
     setLightTheme,
     setDarkTheme,
     setBackgroundImage,
     setBackgroundOpacity,
-    isSubmitting,
     setIsSubmitting,
     setTheme,
     updateProfile
   });
+
+  const handleThemeColorChange = (themeType: 'light' | 'dark', value: React.ChangeEvent<HTMLInputElement> | { name: string; value: any }) => {
+    if ('target' in value) {
+      // Handle standard input change event
+      if (themeType === 'light') {
+        handleLightThemeChange(value);
+      } else {
+        handleDarkThemeChange(value);
+      }
+    } else {
+      // Handle custom slider change event
+      const { name, value: newValue } = value;
+      const updatedTheme = themeType === 'light' ? 
+        { ...lightTheme, [name]: newValue } : 
+        { ...darkTheme, [name]: newValue };
+      
+      if (themeType === 'light') {
+        setLightTheme(updatedTheme);
+      } else {
+        setDarkTheme(updatedTheme);
+      }
+    }
+  };
 
   const handleGoBack = () => {
     navigate(-1);
@@ -65,27 +86,21 @@ export default function Settings() {
     <div className="container max-w-2xl py-10">
       <Card>
         <SettingsHeader onGoBack={handleGoBack} />
-        <SettingsTabs 
-          appearanceContent={
-            <AppearanceSettings
-              theme={theme}
-              lightTheme={lightTheme}
-              darkTheme={darkTheme}
-              onThemeChange={value => setTheme(value)}
-              onLightThemeChange={handleLightThemeChange}
-              onDarkThemeChange={handleDarkThemeChange}
-            />
-          }
-          backgroundContent={
-            <BackgroundSettings
-              backgroundImage={backgroundImage}
-              backgroundOpacity={backgroundOpacity}
-              onBackgroundImageUpload={handleBackgroundImageUpload}
-              onOpacityChange={value => setBackgroundOpacity(value[0])}
-              onRemoveBackground={() => setBackgroundImage(null)}
-            />
-          }
-        />
+        <div className="p-6">
+          <AppearanceSettings
+            theme={theme}
+            lightTheme={lightTheme}
+            darkTheme={darkTheme}
+            backgroundImage={backgroundImage}
+            backgroundOpacity={backgroundOpacity}
+            onThemeChange={value => setTheme(value)}
+            onLightThemeChange={(e) => handleThemeColorChange('light', e)}
+            onDarkThemeChange={(e) => handleThemeColorChange('dark', e)}
+            onBackgroundImageUpload={handleBackgroundImageUpload}
+            onBackgroundOpacityChange={value => setBackgroundOpacity(value[0])}
+            onRemoveBackground={() => setBackgroundImage(null)}
+          />
+        </div>
         <SettingsFooter 
           onReset={handleResetSettings} 
           onCancel={handleGoBack} 

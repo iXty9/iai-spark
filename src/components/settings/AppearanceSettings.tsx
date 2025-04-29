@@ -2,29 +2,41 @@
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Palette, Sun, Moon } from 'lucide-react';
+import { Palette, Sun, Moon, Image } from 'lucide-react';
 import { ThemeColors } from '@/types/theme';
 import { ThemeControls } from './ThemeControls';
+import { BackgroundSettings } from './BackgroundSettings';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface AppearanceSettingsProps {
   theme: 'light' | 'dark';
   lightTheme: ThemeColors;
   darkTheme: ThemeColors;
+  backgroundImage: string | null;
+  backgroundOpacity: number;
   onThemeChange: (value: 'light' | 'dark') => void;
-  onLightThemeChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onDarkThemeChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onLightThemeChange: (e: React.ChangeEvent<HTMLInputElement> | { name: string; value: any }) => void;
+  onDarkThemeChange: (e: React.ChangeEvent<HTMLInputElement> | { name: string; value: any }) => void;
+  onBackgroundImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onBackgroundOpacityChange: (value: number[]) => void;
+  onRemoveBackground: () => void;
 }
 
 export function AppearanceSettings({
   theme,
   lightTheme,
   darkTheme,
+  backgroundImage,
+  backgroundOpacity,
   onThemeChange,
   onLightThemeChange,
   onDarkThemeChange,
+  onBackgroundImageUpload,
+  onBackgroundOpacityChange,
+  onRemoveBackground
 }: AppearanceSettingsProps) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Palette className="h-5 w-5" />
@@ -52,16 +64,41 @@ export function AppearanceSettings({
         </RadioGroup>
       </div>
 
-      <div className="border rounded-lg p-4">
-        <h3 className="text-lg font-medium mb-3">
-          {theme === 'dark' ? 'Dark Theme Colors' : 'Light Theme Colors'}
-        </h3>
-        <ThemeControls
-          theme={theme}
-          colors={theme === 'light' ? lightTheme : darkTheme}
-          onColorChange={theme === 'light' ? onLightThemeChange : onDarkThemeChange}
-        />
-      </div>
+      <Tabs defaultValue="colors">
+        <TabsList className="w-full">
+          <TabsTrigger value="colors" className="flex-1">Colors</TabsTrigger>
+          <TabsTrigger value="background" className="flex-1">Background</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="colors" className="space-y-4 mt-4">
+          <div className="border rounded-lg p-4">
+            <h3 className="text-lg font-medium mb-3">
+              {theme === 'dark' ? 'Dark Theme Colors' : 'Light Theme Colors'}
+            </h3>
+            <ThemeControls
+              theme={theme}
+              colors={theme === 'light' ? lightTheme : darkTheme}
+              onColorChange={theme === 'light' ? onLightThemeChange : onDarkThemeChange}
+            />
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="background" className="space-y-4 mt-4">
+          <div className="border rounded-lg p-4">
+            <div className="flex items-center space-x-2 mb-4">
+              <Image className="h-5 w-5" />
+              <h3 className="text-lg font-medium">Background Image</h3>
+            </div>
+            <BackgroundSettings
+              backgroundImage={backgroundImage}
+              backgroundOpacity={backgroundOpacity}
+              onBackgroundImageUpload={onBackgroundImageUpload}
+              onOpacityChange={onBackgroundOpacityChange}
+              onRemoveBackground={onRemoveBackground}
+            />
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

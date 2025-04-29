@@ -1,3 +1,4 @@
+
 import { emitDebugEvent } from '@/utils/debug-events';
 import { ThemeColors } from '@/types/theme';
 
@@ -44,6 +45,11 @@ export const useSettingsActions = ({
       [name]: value
     };
     setLightTheme(updatedTheme);
+    
+    // Apply changes immediately in preview if we're in light mode
+    if (theme === 'light') {
+      applyThemeChanges(updatedTheme);
+    }
   };
 
   const handleDarkThemeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,6 +59,26 @@ export const useSettingsActions = ({
       [name]: value
     };
     setDarkTheme(updatedTheme);
+    
+    // Apply changes immediately in preview if we're in dark mode
+    if (theme === 'dark') {
+      applyThemeChanges(updatedTheme);
+    }
+  };
+
+  const applyThemeChanges = (themeColors: ThemeColors) => {
+    const root = window.document.documentElement;
+    
+    root.style.setProperty('--background-color', themeColors.backgroundColor);
+    root.style.setProperty('--primary-color', themeColors.primaryColor);
+    root.style.setProperty('--text-color', themeColors.textColor);
+    root.style.setProperty('--accent-color', themeColors.accentColor);
+    root.style.setProperty('--user-bubble-color', themeColors.userBubbleColor);
+    root.style.setProperty('--ai-bubble-color', themeColors.aiBubbleColor);
+    root.style.setProperty('--user-bubble-opacity', themeColors.userBubbleOpacity.toString());
+    root.style.setProperty('--ai-bubble-opacity', themeColors.aiBubbleOpacity.toString());
+    root.style.setProperty('--user-text-color', themeColors.userTextColor);
+    root.style.setProperty('--ai-text-color', themeColors.aiTextColor);
   };
 
   const handleBackgroundImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -63,7 +89,12 @@ export const useSettingsActions = ({
     
     reader.onload = (event) => {
       if (event.target?.result) {
-        setBackgroundImage(event.target.result.toString());
+        const imageDataUrl = event.target.result.toString();
+        setBackgroundImage(imageDataUrl);
+        
+        // Apply background preview immediately
+        document.body.style.setProperty('background-image', `url(${imageDataUrl})`);
+        document.body.classList.add('with-bg-image');
       }
     };
     
@@ -90,15 +121,19 @@ export const useSettingsActions = ({
         localStorage.setItem('theme_settings', JSON.stringify(themeSettings));
       }
       
-      const root = window.document.documentElement;
+      // Apply current theme settings
       const currentTheme = theme === 'light' ? lightTheme : darkTheme;
+      applyThemeChanges(currentTheme);
       
-      root.style.setProperty('--background-color', currentTheme.backgroundColor);
-      root.style.setProperty('--primary-color', currentTheme.primaryColor);
-      root.style.setProperty('--text-color', currentTheme.textColor);
-      root.style.setProperty('--accent-color', currentTheme.accentColor);
-      root.style.setProperty('--user-bubble-color', currentTheme.userBubbleColor || currentTheme.primaryColor);
-      root.style.setProperty('--ai-bubble-color', currentTheme.aiBubbleColor || currentTheme.accentColor);
+      // Apply background image and opacity
+      if (backgroundImage) {
+        document.body.style.setProperty('background-image', `url(${backgroundImage})`);
+        document.documentElement.style.setProperty('--bg-opacity', backgroundOpacity.toString());
+        document.body.classList.add('with-bg-image');
+      } else {
+        document.body.style.removeProperty('background-image');
+        document.body.classList.remove('with-bg-image');
+      }
       
       toast({
         title: "Settings saved",
@@ -132,7 +167,11 @@ export const useSettingsActions = ({
       textColor: '#000000',
       accentColor: '#9b87f5',
       userBubbleColor: '#ea384c',
-      aiBubbleColor: '#9b87f5'
+      aiBubbleColor: '#9b87f5',
+      userBubbleOpacity: 0.3,
+      aiBubbleOpacity: 0.3,
+      userTextColor: '#000000',
+      aiTextColor: '#000000'
     };
     
     const defaultDarkTheme = {
@@ -141,13 +180,25 @@ export const useSettingsActions = ({
       textColor: '#ffffff',
       accentColor: '#9b87f5',
       userBubbleColor: '#ea384c',
-      aiBubbleColor: '#9b87f5'
+      aiBubbleColor: '#9b87f5',
+      userBubbleOpacity: 0.3,
+      aiBubbleOpacity: 0.3,
+      userTextColor: '#ffffff',
+      aiTextColor: '#ffffff'
     };
     
     setLightTheme(defaultLightTheme);
     setDarkTheme(defaultDarkTheme);
     setBackgroundImage(null);
-    setBackgroundOpacity(0.1);
+    setBackgroundOpacity(0.5);
+    
+    // Apply the reset theme immediately
+    const currentTheme = theme === 'light' ? defaultLightTheme : defaultDarkTheme;
+    applyThemeChanges(currentTheme);
+    
+    // Reset background
+    document.body.style.removeProperty('background-image');
+    document.body.classList.remove('with-bg-image');
     
     if (user && updateProfile) {
       updateProfile({ theme_settings: null })
