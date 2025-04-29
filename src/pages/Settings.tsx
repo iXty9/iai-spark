@@ -82,17 +82,9 @@ export default function Settings() {
     navigate(-1);
   };
 
-  // Apply background to Settings page too
-  useEffect(() => {
-    // This ensures the background image and opacity is applied to the Settings page too
-    if (backgroundImage) {
-      document.body.classList.add('with-bg-image');
-    }
-  }, []);
-
   return (
     <div className="container max-w-2xl py-10">
-      <Card className="bg-background/80 backdrop-blur-sm">
+      <Card>
         <SettingsHeader onGoBack={handleGoBack} />
         <div className="p-6">
           <AppearanceSettings
@@ -113,7 +105,6 @@ export default function Settings() {
           onReset={handleResetSettings} 
           onCancel={handleGoBack} 
           onSave={handleSaveSettings}
-          isSubmitting={isSubmitting}
         />
       </Card>
     </div>

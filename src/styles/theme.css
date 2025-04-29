@@ -77,25 +77,10 @@ body.with-bg-image::before {
   background-color: var(--user-bubble-color);
   color: var(--user-text-color);
   opacity: var(--user-bubble-opacity);
-  border: none !important;
-  backdrop-filter: blur(8px);
 }
 
 .ai-message-bubble {
   background-color: var(--ai-bubble-color);
   color: var(--ai-text-color);
   opacity: var(--ai-bubble-opacity);
-  border: none !important;
-  backdrop-filter: blur(8px);
-}
-
-/* Make settings page transparent to show background */
-.card {
-  background-color: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(10px);
-}
-
-.dark .card {
-  background-color: rgba(18, 18, 18, 0.85);
-  backdrop-filter: blur(10px);
 }

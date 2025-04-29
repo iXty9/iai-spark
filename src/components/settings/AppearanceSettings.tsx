@@ -6,7 +6,7 @@ import { Palette, Sun, Moon, Image } from 'lucide-react';
 import { ThemeColors } from '@/types/theme';
 import { ThemeControls } from './ThemeControls';
 import { BackgroundSettings } from './BackgroundSettings';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface AppearanceSettingsProps {
   theme: 'light' | 'dark';
@@ -64,48 +64,41 @@ export function AppearanceSettings({
         </RadioGroup>
       </div>
 
-      <Accordion type="single" collapsible defaultValue="background" className="w-full">
-        <AccordionItem value="background">
-          <AccordionTrigger className="flex items-center">
-            <div className="flex items-center">
-              <Image className="h-5 w-5 mr-2" />
-              <span>Background Image</span>
+      <Tabs defaultValue="colors">
+        <TabsList className="w-full">
+          <TabsTrigger value="colors" className="flex-1">Colors</TabsTrigger>
+          <TabsTrigger value="background" className="flex-1">Background</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="colors" className="space-y-4 mt-4">
+          <div className="border rounded-lg p-4">
+            <h3 className="text-lg font-medium mb-3">
+              {theme === 'dark' ? 'Dark Theme Colors' : 'Light Theme Colors'}
+            </h3>
+            <ThemeControls
+              theme={theme}
+              colors={theme === 'light' ? lightTheme : darkTheme}
+              onColorChange={theme === 'light' ? onLightThemeChange : onDarkThemeChange}
+            />
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="background" className="space-y-4 mt-4">
+          <div className="border rounded-lg p-4">
+            <div className="flex items-center space-x-2 mb-4">
+              <Image className="h-5 w-5" />
+              <h3 className="text-lg font-medium">Background Image</h3>
             </div>
-          </AccordionTrigger>
-          <AccordionContent>
-            <div className="pt-4">
-              <BackgroundSettings
-                backgroundImage={backgroundImage}
-                backgroundOpacity={backgroundOpacity}
-                onBackgroundImageUpload={onBackgroundImageUpload}
-                onOpacityChange={onBackgroundOpacityChange}
-                onRemoveBackground={onRemoveBackground}
-              />
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-
-        <AccordionItem value="colors">
-          <AccordionTrigger className="flex items-center">
-            <div className="flex items-center">
-              <Palette className="h-5 w-5 mr-2" />
-              <span>Theme Colors</span>
-            </div>
-          </AccordionTrigger>
-          <AccordionContent>
-            <div className="pt-4">
-              <h3 className="text-lg font-medium mb-3">
-                {theme === 'dark' ? 'Dark Theme Colors' : 'Light Theme Colors'}
-              </h3>
-              <ThemeControls
-                theme={theme}
-                colors={theme === 'light' ? lightTheme : darkTheme}
-                onColorChange={theme === 'light' ? onLightThemeChange : onDarkThemeChange}
-              />
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+            <BackgroundSettings
+              backgroundImage={backgroundImage}
+              backgroundOpacity={backgroundOpacity}
+              onBackgroundImageUpload={onBackgroundImageUpload}
+              onOpacityChange={onBackgroundOpacityChange}
+              onRemoveBackground={onRemoveBackground}
+            />
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -1,7 +1,6 @@
 
 import { emitDebugEvent } from '@/utils/debug-events';
 import { ThemeColors } from '@/types/theme';
-import { logger } from '@/utils/logging';
 
 interface UseSettingsActionsProps {
   user: any;
@@ -94,22 +93,12 @@ export const useSettingsActions = ({
         setBackgroundImage(imageDataUrl);
         
         // Apply background preview immediately
-        applyBackgroundPreview(imageDataUrl, backgroundOpacity);
+        document.body.style.setProperty('background-image', `url(${imageDataUrl})`);
+        document.body.classList.add('with-bg-image');
       }
     };
     
     reader.readAsDataURL(file);
-  };
-
-  const applyBackgroundPreview = (image: string | null, opacity: number) => {
-    if (image) {
-      document.body.style.backgroundImage = `url(${image})`;
-      document.documentElement.style.setProperty('--bg-opacity', opacity.toString());
-      document.body.classList.add('with-bg-image');
-    } else {
-      document.body.style.backgroundImage = 'none';
-      document.body.classList.remove('with-bg-image');
-    }
   };
 
   const handleSaveSettings = async () => {
@@ -126,36 +115,35 @@ export const useSettingsActions = ({
         backgroundOpacity: backgroundOpacity.toString()
       };
       
-      // Apply the background image with the new opacity immediately
-      applyBackgroundPreview(backgroundImage, backgroundOpacity);
+      if (user && updateProfile) {
+        await updateProfile({ theme_settings: JSON.stringify(themeSettings) });
+      } else {
+        localStorage.setItem('theme_settings', JSON.stringify(themeSettings));
+      }
       
       // Apply current theme settings
       const currentTheme = theme === 'light' ? lightTheme : darkTheme;
       applyThemeChanges(currentTheme);
-
-      if (user && updateProfile) {
-        // Make sure we stringify the theme settings
-        const result = await updateProfile({ theme_settings: JSON.stringify(themeSettings) });
-        
-        // Log the result object for debugging
-        logger.info('Settings save result:', result, { module: 'settings' });
-
-        toast({
-          title: "Settings saved",
-          description: "Your theme settings have been saved successfully",
-        });
+      
+      // Apply background image and opacity
+      if (backgroundImage) {
+        document.body.style.setProperty('background-image', `url(${backgroundImage})`);
+        document.documentElement.style.setProperty('--bg-opacity', backgroundOpacity.toString());
+        document.body.classList.add('with-bg-image');
       } else {
-        // Fallback to localStorage
-        localStorage.setItem('theme_settings', JSON.stringify(themeSettings));
-        
-        toast({
-          title: "Settings saved",
-          description: "Your theme settings have been saved to local storage",
-        });
+        document.body.style.removeProperty('background-image');
+        document.body.classList.remove('with-bg-image');
       }
+      
+      toast({
+        title: "Settings saved",
+        description: "Your theme settings have been saved successfully",
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('Error saving theme settings:', error, { module: 'settings' });
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error saving theme settings:', errorMessage);
+      }
       
       emitDebugEvent({
         lastError: `Failed to save settings: ${errorMessage}`,
@@ -209,7 +197,7 @@ export const useSettingsActions = ({
     applyThemeChanges(currentTheme);
     
     // Reset background
-    document.body.style.backgroundImage = 'none';
+    document.body.style.removeProperty('background-image');
     document.body.classList.remove('with-bg-image');
     
     if (user && updateProfile) {
@@ -221,7 +209,9 @@ export const useSettingsActions = ({
           });
         })
         .catch((error: Error) => {
-          logger.error('Error resetting theme settings in profile:', error, { module: 'settings' });
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Error resetting theme settings in profile:', error);
+          }
           toast({
             variant: "destructive",
             title: "Error",
