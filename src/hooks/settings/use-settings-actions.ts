@@ -135,17 +135,16 @@ export const useSettingsActions = ({
 
       if (user && updateProfile) {
         // Make sure we stringify the theme settings
-        const result = await updateProfile({ theme_settings: JSON.stringify(themeSettings) });
+        await updateProfile({ theme_settings: JSON.stringify(themeSettings) });
         
-        // Log the result object for debugging
-        logger.info('Settings save result:', result, { module: 'settings' });
+        logger.info('Settings saved successfully', { module: 'settings' });
 
         toast({
           title: "Settings saved",
           description: "Your theme settings have been saved successfully",
         });
       } else {
-        // Fallback to localStorage
+        // Fallback to localStorage if no updateProfile function is available
         localStorage.setItem('theme_settings', JSON.stringify(themeSettings));
         
         toast({
@@ -173,6 +172,7 @@ export const useSettingsActions = ({
   };
 
   const handleResetSettings = () => {
+    // Default theme settings
     const defaultLightTheme = {
       backgroundColor: '#ffffff',
       primaryColor: '#ea384c',
@@ -212,29 +212,10 @@ export const useSettingsActions = ({
     document.body.style.backgroundImage = 'none';
     document.body.classList.remove('with-bg-image');
     
-    if (user && updateProfile) {
-      updateProfile({ theme_settings: null })
-        .then(() => {
-          toast({
-            title: "Settings reset",
-            description: "Your theme settings have been reset to defaults",
-          });
-        })
-        .catch((error: Error) => {
-          logger.error('Error resetting theme settings in profile:', error, { module: 'settings' });
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Failed to reset settings. Please try again.",
-          });
-        });
-    } else {
-      localStorage.removeItem('theme_settings');
-      toast({
-        title: "Settings reset",
-        description: "Your theme settings have been reset to defaults",
-      });
-    }
+    toast({
+      title: "Settings reset",
+      description: "Your theme settings have been reset to defaults",
+    });
   };
 
   return {

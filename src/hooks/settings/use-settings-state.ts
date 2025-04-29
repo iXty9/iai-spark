@@ -38,52 +38,51 @@ export const useSettingsState = () => {
   });
 
   useEffect(() => {
-    try {
-      if (profile?.theme_settings) {
-        try {
-          logger.info('Loading theme settings from profile', { module: 'settings' });
-          const themeSettings = JSON.parse(profile.theme_settings);
-          
-          if (themeSettings.mode) {
-            // Theme mode is handled by useTheme hook
-          }
-          
-          if (themeSettings.lightTheme) {
-            setLightTheme({
-              ...lightTheme,
-              ...themeSettings.lightTheme,
-              userBubbleOpacity: themeSettings.lightTheme.userBubbleOpacity ?? 0.3,
-              aiBubbleOpacity: themeSettings.lightTheme.aiBubbleOpacity ?? 0.3,
-              userTextColor: themeSettings.lightTheme.userTextColor ?? themeSettings.lightTheme.textColor,
-              aiTextColor: themeSettings.lightTheme.aiTextColor ?? themeSettings.lightTheme.textColor
-            });
-          }
-          
-          if (themeSettings.darkTheme) {
-            setDarkTheme({
-              ...darkTheme,
-              ...themeSettings.darkTheme,
-              userBubbleOpacity: themeSettings.darkTheme.userBubbleOpacity ?? 0.3,
-              aiBubbleOpacity: themeSettings.darkTheme.aiBubbleOpacity ?? 0.3,
-              userTextColor: themeSettings.darkTheme.userTextColor ?? themeSettings.darkTheme.textColor,
-              aiTextColor: themeSettings.darkTheme.aiTextColor ?? themeSettings.darkTheme.textColor
-            });
-          }
-          
-          if (themeSettings.backgroundImage) {
-            logger.info('Found background image in theme settings', { module: 'settings' });
-            setBackgroundImage(themeSettings.backgroundImage);
-          }
-          
-          if (themeSettings.backgroundOpacity !== undefined) {
-            setBackgroundOpacity(parseFloat(themeSettings.backgroundOpacity));
-          }
-        } catch (e) {
-          logger.error('Error parsing theme settings from profile:', e, { module: 'settings' });
+    if (profile?.theme_settings) {
+      try {
+        logger.info('Loading theme settings from profile', { module: 'settings' });
+        const themeSettings = JSON.parse(profile.theme_settings);
+        
+        // Load background image and opacity
+        if (themeSettings.backgroundImage) {
+          logger.info('Found background image in theme settings', { module: 'settings' });
+          setBackgroundImage(themeSettings.backgroundImage);
         }
+        
+        if (themeSettings.backgroundOpacity !== undefined) {
+          const opacity = parseFloat(themeSettings.backgroundOpacity);
+          if (!isNaN(opacity)) {
+            setBackgroundOpacity(opacity);
+          }
+        }
+        
+        // Load theme colors
+        if (themeSettings.lightTheme) {
+          setLightTheme({
+            ...lightTheme,
+            ...themeSettings.lightTheme,
+            userBubbleOpacity: themeSettings.lightTheme.userBubbleOpacity ?? 0.3,
+            aiBubbleOpacity: themeSettings.lightTheme.aiBubbleOpacity ?? 0.3,
+            userTextColor: themeSettings.lightTheme.userTextColor ?? themeSettings.lightTheme.textColor,
+            aiTextColor: themeSettings.lightTheme.aiTextColor ?? themeSettings.lightTheme.textColor
+          });
+        }
+        
+        if (themeSettings.darkTheme) {
+          setDarkTheme({
+            ...darkTheme,
+            ...themeSettings.darkTheme,
+            userBubbleOpacity: themeSettings.darkTheme.userBubbleOpacity ?? 0.3,
+            aiBubbleOpacity: themeSettings.darkTheme.aiBubbleOpacity ?? 0.3,
+            userTextColor: themeSettings.darkTheme.userTextColor ?? themeSettings.darkTheme.textColor,
+            aiTextColor: themeSettings.darkTheme.aiTextColor ?? themeSettings.darkTheme.textColor
+          });
+        }
+      } catch (e) {
+        logger.error('Error parsing theme settings from profile:', e, { module: 'settings' });
       }
-    } catch (error) {
-      logger.error('Error loading saved theme settings:', error, { module: 'settings' });
+    } else {
+      logger.info('No theme settings found in profile', { module: 'settings' });
     }
   }, [profile]);
 

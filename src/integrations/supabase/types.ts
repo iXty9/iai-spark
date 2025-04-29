@@ -38,6 +38,7 @@ export type Database = {
           avatar_url: string | null
           id: string
           phone_number: string | null
+          theme_settings: string | null
           updated_at: string | null
           username: string | null
           webhook_url: string | null
@@ -46,6 +47,7 @@ export type Database = {
           avatar_url?: string | null
           id: string
           phone_number?: string | null
+          theme_settings?: string | null
           updated_at?: string | null
           username?: string | null
           webhook_url?: string | null
@@ -54,6 +56,7 @@ export type Database = {
           avatar_url?: string | null
           id?: string
           phone_number?: string | null
+          theme_settings?: string | null
           updated_at?: string | null
           username?: string | null
           webhook_url?: string | null

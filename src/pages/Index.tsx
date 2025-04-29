@@ -5,65 +5,65 @@ import { useIOSSafari } from '@/hooks/use-ios-safari';
 import { IOSFallbackInput } from '@/components/chat/IOSFallbackInput';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { logger } from '@/utils/logging';
 
 const Index = () => {
   const { isIOSSafari, showFallbackInput } = useIOSSafari();
   const location = useLocation();
   const { user, profile } = useAuth();
   
-  // Apply background image and theme settings from localStorage or profile
+  // Apply background image and theme settings from profile
   useEffect(() => {
-    try {
-      // Only apply background to the chat interface for logged in users
-      if (user) {
-        let backgroundImage = null;
-        let backgroundOpacity = "0.5"; // Default to 50% opacity
-        
+    if (user && profile) {
+      try {
         // If user is logged in and has profile settings, use those
-        if (profile && profile.theme_settings) {
+        if (profile.theme_settings) {
           try {
             const themeSettings = JSON.parse(profile.theme_settings);
-            backgroundImage = themeSettings.backgroundImage;
-            backgroundOpacity = themeSettings.backgroundOpacity || "0.5";
+            
+            // Apply background image if it exists
+            if (themeSettings.backgroundImage) {
+              logger.info('Applying background image from profile', { module: 'index' });
+              document.body.style.backgroundImage = `url(${themeSettings.backgroundImage})`;
+              document.documentElement.style.setProperty('--bg-opacity', themeSettings.backgroundOpacity || "0.5");
+              document.body.classList.add('with-bg-image');
+            } else {
+              document.body.style.backgroundImage = 'none';
+              document.body.classList.remove('with-bg-image');
+            }
+            
+            // Apply theme colors based on current theme
+            const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+            const themeColors = currentTheme === 'light' ? themeSettings.lightTheme : themeSettings.darkTheme;
+            
+            if (themeColors) {
+              const root = document.documentElement;
+              root.style.setProperty('--background-color', themeColors.backgroundColor);
+              root.style.setProperty('--primary-color', themeColors.primaryColor);
+              root.style.setProperty('--text-color', themeColors.textColor);
+              root.style.setProperty('--accent-color', themeColors.accentColor);
+              root.style.setProperty('--user-bubble-color', themeColors.userBubbleColor || themeColors.primaryColor);
+              root.style.setProperty('--ai-bubble-color', themeColors.aiBubbleColor || themeColors.accentColor);
+              root.style.setProperty('--user-bubble-opacity', (themeColors.userBubbleOpacity || 0.3).toString());
+              root.style.setProperty('--ai-bubble-opacity', (themeColors.aiBubbleOpacity || 0.3).toString());
+              root.style.setProperty('--user-text-color', themeColors.userTextColor || themeColors.textColor);
+              root.style.setProperty('--ai-text-color', themeColors.aiTextColor || themeColors.textColor);
+            }
           } catch (e) {
-            console.error('Error parsing theme settings from profile:', e);
+            logger.error('Error parsing theme settings from profile:', e, { module: 'index' });
           }
         } else {
-          // Fallback to localStorage
-          backgroundImage = localStorage.getItem('backgroundImage');
-          backgroundOpacity = localStorage.getItem('backgroundOpacity') || "0.5";
-        }
-        
-        if (backgroundImage) {
-          document.body.style.backgroundImage = `url(${backgroundImage})`;
-          document.documentElement.style.setProperty('--bg-opacity', backgroundOpacity);
-          document.body.classList.add('with-bg-image');
-        } else {
+          // No theme settings in profile
           document.body.style.backgroundImage = 'none';
           document.body.classList.remove('with-bg-image');
         }
-      } else {
-        // Remove background for non-logged in users
-        document.body.style.backgroundImage = 'none';
-        document.body.classList.remove('with-bg-image');
+      } catch (error) {
+        logger.error('Error applying saved theme settings:', error, { module: 'index' });
       }
-      
-      // Apply theme colors from localStorage
-      const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-      const themeKey = `${currentTheme}Theme`;
-      const savedTheme = localStorage.getItem(themeKey);
-      
-      if (savedTheme) {
-        const theme = JSON.parse(savedTheme);
-        const root = document.documentElement;
-        
-        root.style.setProperty('--background-color', theme.backgroundColor);
-        root.style.setProperty('--primary-color', theme.primaryColor);
-        root.style.setProperty('--text-color', theme.textColor);
-        root.style.setProperty('--accent-color', theme.accentColor);
-      }
-    } catch (error) {
-      console.error('Error applying saved theme settings:', error);
+    } else {
+      // User not logged in, remove background
+      document.body.style.backgroundImage = 'none';
+      document.body.classList.remove('with-bg-image');
     }
   }, [location.pathname, user, profile]);
   

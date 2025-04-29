@@ -43,7 +43,6 @@ export function useTheme() {
           // Update theme settings in profile
           updateProfile({ theme_settings: JSON.stringify(themeSettings) })
             .catch(err => {
-              // Use emitDebugEvent and logger for errors
               emitDebugEvent({
                 lastError: `Error updating theme`,
                 lastAction: 'Theme update failed'
