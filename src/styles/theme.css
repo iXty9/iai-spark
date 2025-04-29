@@ -78,7 +78,7 @@ body.with-bg-image::before {
   color: var(--user-text-color);
   opacity: var(--user-bubble-opacity);
   border: none !important;
-  backdrop-blur-md;
+  backdrop-filter: blur(8px);
 }
 
 .ai-message-bubble {
@@ -86,7 +86,7 @@ body.with-bg-image::before {
   color: var(--ai-text-color);
   opacity: var(--ai-bubble-opacity);
   border: none !important;
-  backdrop-blur-md;
+  backdrop-filter: blur(8px);
 }
 
 /* Make settings page transparent to show background */
