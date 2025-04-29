@@ -3,7 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { Upload } from 'lucide-react';
+import { Upload, X } from 'lucide-react';
 
 interface BackgroundSettingsProps {
   backgroundImage: string | null;
@@ -37,6 +37,7 @@ export function BackgroundSettings({
               className="absolute top-2 right-2"
               onClick={onRemoveBackground}
             >
+              <X className="h-4 w-4 mr-1" />
               Remove
             </Button>
           </div>
@@ -50,7 +51,7 @@ export function BackgroundSettings({
       <Button variant="outline" asChild className="w-full">
         <label className="cursor-pointer">
           <Upload className="mr-2 h-4 w-4" />
-          Upload Background Image
+          {backgroundImage ? 'Change Background Image' : 'Upload Background Image'}
           <input
             type="file"
             accept="image/*"
