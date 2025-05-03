@@ -17,12 +17,11 @@ export function useMessageGestures(actions: GestureActions = {}) {
   // Configure gesture binding
   const bind = useGesture(
     {
-      onDrag: ({ direction: [x], distance, dragging, cancel, event }) => {
+      onDrag: ({ direction: [dirX], distance, dragging, cancel, event }) => {
         // Only handle horizontal swipes
         if (!isMobile || !elementRef.current) return;
         
         event?.preventDefault();
-        const [dirX] = direction;
         const swipeDirection = dirX < 0 ? 'left' : 'right';
         const swipeThreshold = 80; // Minimum distance to trigger swipe action
         
@@ -61,16 +60,7 @@ export function useMessageGestures(actions: GestureActions = {}) {
           cancel();
         }
       },
-      onLongPress: ({ event }) => {
-        event?.preventDefault();
-        if (actions.onLongPress) {
-          // Trigger haptic feedback if available
-          if (navigator.vibrate) {
-            navigator.vibrate(50);
-          }
-          actions.onLongPress();
-        }
-      },
+      // Handle long press with the onDrag handler's longPress option instead of a separate handler
     },
     {
       // Configure long press timing
@@ -84,5 +74,20 @@ export function useMessageGestures(actions: GestureActions = {}) {
     }
   );
 
-  return { bind, ref: elementRef };
+  // Create a separate handler for long press that can be registered as a regular event
+  const handleLongPress = () => {
+    if (actions.onLongPress) {
+      // Trigger haptic feedback if available
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+      actions.onLongPress();
+    }
+  };
+
+  return { 
+    bind, 
+    ref: elementRef,
+    onLongPress: handleLongPress  // Expose long press handler separately
+  };
 }

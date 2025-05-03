@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Message as MessageType } from '@/types/chat';
@@ -22,7 +21,7 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
   const [isReacted, setIsReacted] = useState<'like' | 'dislike' | null>(null);
   
   // Setup gesture handlers
-  const { bind, ref } = useMessageGestures({
+  const { bind, ref, onLongPress } = useMessageGestures({
     onSwipeLeft: () => {
       // Swipe left to copy message
       navigator.clipboard.writeText(message.content);
@@ -112,6 +111,7 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
             isUser ? 'items-end' : 'items-start',
             'transition-transform duration-200'
           )}
+          onContextMenu={onLongPress}
         >
           <div className={cn('flex items-center text-xs mb-1', isUser ? 'justify-end' : 'justify-start')}>
             <span className="font-medium">{displayName}</span>
@@ -125,7 +125,8 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
               'mb-1',
               isReacted === 'like' && 'ring-2 ring-green-400/50',
               isReacted === 'dislike' && 'ring-2 ring-red-400/50',
-              'transition-all duration-200'
+              'transition-all duration-200',
+              'relative' // Add relative positioning for reaction indicator
             )}
             style={{
               opacity: isUser ? 'var(--user-bubble-opacity)' : 'var(--ai-bubble-opacity)'

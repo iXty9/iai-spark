@@ -9,6 +9,7 @@ import { logger } from '@/utils/logging';
 import { useGesture } from 'react-use-gesture';
 import { haptics } from '@/utils/haptic-feedback';
 import { RefreshCw } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface MessageListProps {
   messages: MessageType[];
