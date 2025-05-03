@@ -77,9 +77,12 @@ export const useIOSFixes = (
     const handleFocusIn = (e: FocusEvent) => {
       if (e.target instanceof HTMLElement && 
           (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+        // Properly type-cast the target to HTMLElement before using scrollIntoView
         // Scroll to the input after a delay to account for keyboard appearance
         setTimeout(() => {
-          e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (e.target instanceof HTMLElement) {
+            e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
         }, 300);
       }
     };
