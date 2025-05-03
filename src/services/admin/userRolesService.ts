@@ -8,18 +8,45 @@ export interface UserWithRole {
   id: string;
   email: string;
   created_at: string;
+  last_sign_in_at?: string;
+  email_confirmed_at?: string;
   role: UserRole;
   username?: string;
 }
 
-export async function fetchUsers(): Promise<UserWithRole[]> {
+export interface UsersFetchOptions {
+  page?: number;
+  pageSize?: number;
+  roleFilter?: UserRole;
+}
+
+export interface UsersSearchOptions extends UsersFetchOptions {
+  searchQuery: string;
+}
+
+export interface UsersFetchResult {
+  users: UserWithRole[];
+  totalCount: number;
+}
+
+export async function fetchUsers(options: UsersFetchOptions = {}): Promise<UsersFetchResult> {
+  const { page = 1, pageSize = 10, roleFilter } = options;
+  const startIndex = (page - 1) * pageSize;
+  
   try {
-    // First get all users
-    const { data: users, error: usersError } = await supabase.auth.admin.listUsers();
+    // First get users with pagination
+    const { data: usersData, error: usersError, count } = await supabase.auth.admin.listUsers({
+      page: page - 1, // Supabase uses 0-indexed pages
+      perPage: pageSize,
+    });
 
     if (usersError) {
       logger.error('Error fetching users:', usersError, { module: 'roles' });
       throw usersError;
+    }
+
+    if (!usersData || !count) {
+      return { users: [], totalCount: 0 };
     }
 
     // Then get all roles
@@ -57,16 +84,121 @@ export async function fetchUsers(): Promise<UserWithRole[]> {
     });
 
     // Map users with their roles
-    return users.users.map(user => ({
+    let mappedUsers = usersData.users.map(user => ({
       id: user.id,
       email: user.email || '',
       created_at: user.created_at,
+      last_sign_in_at: user.last_sign_in_at,
+      email_confirmed_at: user.email_confirmed_at,
       role: roleMap[user.id] || 'user',
       username: usernameMap[user.id]
     }));
+
+    // Apply role filter if specified
+    if (roleFilter) {
+      mappedUsers = mappedUsers.filter(user => user.role === roleFilter);
+    }
+
+    return { 
+      users: mappedUsers,
+      totalCount: count
+    };
   } catch (error) {
     logger.error('Error in fetchUsers:', error, { module: 'roles' });
-    return [];
+    return { users: [], totalCount: 0 };
+  }
+}
+
+export async function searchUsers(options: UsersSearchOptions): Promise<UsersFetchResult> {
+  const { searchQuery, page = 1, pageSize = 10, roleFilter } = options;
+  
+  try {
+    // Fetch all users first since Supabase doesn't provide direct search capabilities
+    const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers({
+      perPage: 1000, // Get a large batch to search through
+    });
+
+    if (usersError) {
+      logger.error('Error fetching users for search:', usersError, { module: 'roles' });
+      throw usersError;
+    }
+
+    if (!usersData) {
+      return { users: [], totalCount: 0 };
+    }
+
+    // Then get all roles
+    const { data: roles, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('user_id, role');
+
+    if (rolesError) {
+      logger.error('Error fetching roles:', rolesError, { module: 'roles' });
+      throw rolesError;
+    }
+
+    // And all profiles for usernames
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, username');
+
+    if (profilesError) {
+      logger.error('Error fetching profiles:', profilesError, { module: 'roles' });
+    }
+
+    // Create a map of user_id to role
+    const roleMap: Record<string, UserRole> = {};
+    roles?.forEach((role: any) => {
+      roleMap[role.user_id] = role.role as UserRole;
+    });
+
+    // Create a map of user_id to username
+    const usernameMap: Record<string, string> = {};
+    profiles?.forEach((profile: any) => {
+      if (profile.username) {
+        usernameMap[profile.id] = profile.username;
+      }
+    });
+
+    // Map users with their roles
+    let mappedUsers = usersData.users.map(user => ({
+      id: user.id,
+      email: user.email || '',
+      created_at: user.created_at,
+      last_sign_in_at: user.last_sign_in_at,
+      email_confirmed_at: user.email_confirmed_at,
+      role: roleMap[user.id] || 'user',
+      username: usernameMap[user.id]
+    }));
+
+    // Apply search query filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      mappedUsers = mappedUsers.filter(user => 
+        user.email.toLowerCase().includes(query) || 
+        (user.username && user.username.toLowerCase().includes(query))
+      );
+    }
+
+    // Apply role filter if specified
+    if (roleFilter) {
+      mappedUsers = mappedUsers.filter(user => user.role === roleFilter);
+    }
+
+    // Calculate total count for pagination
+    const totalCount = mappedUsers.length;
+
+    // Apply pagination
+    const startIndex = (page - 1) * pageSize;
+    const paginatedUsers = mappedUsers.slice(startIndex, startIndex + pageSize);
+
+    return { 
+      users: paginatedUsers,
+      totalCount
+    };
+  } catch (error) {
+    logger.error('Error in searchUsers:', error, { module: 'roles' });
+    return { users: [], totalCount: 0 };
   }
 }
 

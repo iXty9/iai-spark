@@ -18,6 +18,7 @@ export default function Admin() {
   const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<string>('webhook');
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -57,6 +58,10 @@ export default function Admin() {
   const handleGoBack = () => {
     navigate('/');
   };
+  
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+  };
 
   if (isLoading) {
     return (
@@ -94,6 +99,8 @@ export default function Admin() {
             webhookContent={<WebhookSettings />}
             appSettingsContent={<AppSettings />}
             userManagementContent={<UserManagement />}
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
           />
         </div>
       </Card>
