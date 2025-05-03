@@ -72,7 +72,7 @@ export function AppSettings() {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="bg-background/80 backdrop-blur-sm">
         <CardHeader>
           <CardTitle>Application Settings</CardTitle>
         </CardHeader>

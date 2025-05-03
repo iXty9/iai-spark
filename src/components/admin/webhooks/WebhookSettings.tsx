@@ -44,7 +44,7 @@ export function WebhookSettings() {
   }
 
   return (
-    <Card>
+    <Card className="bg-background/80 backdrop-blur-sm">
       <WebhookSettingsForm initialSettings={settings} />
     </Card>
   );

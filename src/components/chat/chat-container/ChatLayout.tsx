@@ -9,6 +9,7 @@ interface ChatLayoutProps {
   onClearChat: () => void;
   onExportChat: () => void;
   onImportChat: (messages: Message[]) => void;
+  messages?: Message[];
   className?: string;
 }
 
@@ -17,6 +18,7 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
   onClearChat, 
   onExportChat,
   onImportChat,
+  messages = [],
   className
 }) => {
   return (
@@ -25,8 +27,10 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
         onClearChat={onClearChat}
         onExportChat={onExportChat}
         onImportChat={onImportChat}
+        messages={messages}
       />
       {children}
     </div>
   );
 };
+

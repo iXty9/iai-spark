@@ -111,7 +111,7 @@ export default function Admin() {
   if (isLoading) {
     return (
       <div className="container max-w-4xl py-10">
-        <Card>
+        <Card className="bg-background/80 backdrop-blur-sm">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <Skeleton className="h-10 w-20" />
@@ -145,7 +145,7 @@ export default function Admin() {
   if (!isAdmin) {
     return (
       <div className="container flex items-center justify-center h-screen">
-        <Card className="p-6 text-center">
+        <Card className="p-6 text-center bg-background/80 backdrop-blur-sm">
           <h2 className="text-xl font-bold mb-4">Access Denied</h2>
           <p className="mb-4">You don't have permission to access this page.</p>
           <Button onClick={() => navigate('/')}>Return to Home</Button>
@@ -156,7 +156,7 @@ export default function Admin() {
 
   return (
     <div className="container max-w-4xl py-10">
-      <Card>
+      <Card className="bg-background/80 backdrop-blur-sm">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <Button 

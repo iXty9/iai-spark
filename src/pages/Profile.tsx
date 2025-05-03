@@ -187,7 +187,7 @@ export default function Profile() {
 
   return (
     <div className="container max-w-2xl py-10">
-      <Card>
+      <Card className="bg-background/80 backdrop-blur-sm">
         <CardHeader className="relative">
           <Button 
             variant="ghost" 

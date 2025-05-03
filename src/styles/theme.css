@@ -11,6 +11,8 @@
   --user-text-color: #000000;
   --ai-text-color: #000000;
   --bg-opacity: 0.5; /* 50% as default */
+  --glass-opacity: 0.8; /* For glass UI elements */
+  --glass-blur: 8px; /* For glass UI elements */
 }
 
 .dark {
@@ -89,6 +91,15 @@ body.with-bg-image::before {
   backdrop-filter: blur(8px);
 }
 
+/* Glass UI effect for cards and panels */
+.bg-background\/80 {
+  background-color: rgba(var(--background-color), var(--glass-opacity)) !important;
+}
+
+.backdrop-blur-sm {
+  backdrop-filter: blur(var(--glass-blur)) !important;
+}
+
 /* Make settings page transparent to show background */
 .card {
   background-color: rgba(255, 255, 255, 0.85);
@@ -118,3 +129,4 @@ body.with-bg-image::before {
     linear-gradient(45deg, transparent 75%, #333 75%),
     linear-gradient(-45deg, transparent 75%, #333 75%);
 }
+

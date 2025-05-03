@@ -10,14 +10,17 @@ interface CollapsibleHeaderProps {
   onClearChat: () => void;
   onExportChat: () => void;
   onImportChat: (messages: Message[]) => void;
+  messages?: Message[];
 }
 
 export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({ 
   onClearChat, 
   onExportChat,
-  onImportChat 
+  onImportChat,
+  messages = []
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const hasMessages = messages && messages.length > 0;
 
   return (
     <div className="relative mt-4">
@@ -43,8 +46,10 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
           onClearChat={onClearChat} 
           onExportChat={onExportChat}
           onImportChat={onImportChat}
+          hasMessages={hasMessages}
         />
       </div>
     </div>
   );
 };
+

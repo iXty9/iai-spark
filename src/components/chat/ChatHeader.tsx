@@ -18,12 +18,14 @@ interface ChatHeaderProps {
   onClearChat: () => void;
   onExportChat: () => void;
   onImportChat: (messages: any[]) => void;
+  hasMessages?: boolean;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({ 
   onClearChat, 
   onExportChat,
-  onImportChat 
+  onImportChat,
+  hasMessages = false
 }) => {
   const { theme, setTheme } = useTheme();
   const { isDevMode, toggleDevMode } = useDevMode();
@@ -110,10 +112,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="border-none shadow-md">
-            <DropdownMenuItem onClick={onExportChat}>
-              <Download className="mr-2 h-4 w-4" />
-              <span>Export Chat</span>
-            </DropdownMenuItem>
+            {hasMessages && (
+              <DropdownMenuItem onClick={onExportChat}>
+                <Download className="mr-2 h-4 w-4" />
+                <span>Export Chat</span>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={handleImportClick}>
               <Upload className="mr-2 h-4 w-4" />
               <span>Import Chat</span>
@@ -140,3 +144,4 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     </header>
   );
 };
+

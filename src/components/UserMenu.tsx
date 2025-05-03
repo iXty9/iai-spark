@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -12,23 +12,15 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { useNavigate } from 'react-router-dom';
-import { User, LogOut, Settings, Upload, UserRound, Shield } from 'lucide-react';
+import { User, LogOut, Settings, UserRound, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
-import { validateFileSecurely } from '@/utils/security';
-
-// Supported image types and size limit
-const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export const UserMenu = () => {
-  const { user, profile, signOut, updateProfile } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [uploading, setUploading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user) {
@@ -74,75 +66,6 @@ export const UserMenu = () => {
     }
   };
 
-  const uploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      if (!event.target.files || event.target.files.length === 0) {
-        return;
-      }
-      
-      const file = event.target.files[0];
-      
-      // Validate file securely
-      const error = validateFileSecurely(file, {
-        maxSize: MAX_FILE_SIZE,
-        allowedTypes: ACCEPTED_IMAGE_TYPES
-      });
-      
-      if (error) {
-        toast({
-          variant: "destructive",
-          title: "Invalid file",
-          description: error,
-        });
-        // Reset file input
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        return;
-      }
-      
-      setUploading(true);
-      
-      // Generate a secure random filename
-      const fileExt = file.name.split('.').pop();
-      const secureFilename = crypto.randomUUID();
-      const filePath = `${user!.id}/${secureFilename}.${fileExt}`;
-      
-      // Upload the file to Supabase storage
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file);
-        
-      if (uploadError) {
-        throw uploadError;
-      }
-      
-      // Get the public URL
-      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-      
-      // Update the user's profile with the new avatar URL
-      await updateProfile({ avatar_url: data.publicUrl });
-      
-      toast({
-        title: "Avatar updated",
-        description: "Your profile picture has been updated successfully",
-      });
-    } catch (error: any) {
-      console.error('Error uploading avatar:', error);
-      toast({
-        variant: "destructive",
-        title: "Upload failed",
-        description: error.message || "There was an error uploading your avatar",
-      });
-    } finally {
-      setUploading(false);
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
   const getInitials = () => {
     if (profile?.username) {
       return profile.username.charAt(0).toUpperCase();
@@ -182,20 +105,6 @@ export const UserMenu = () => {
               <User className="mr-2 h-4 w-4" />
               <span>Profile</span>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <label className="flex items-center cursor-pointer">
-                <Upload className="mr-2 h-4 w-4" />
-                <span>{uploading ? 'Uploading...' : 'Upload Avatar'}</span>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/jpg,image/webp"
-                  onChange={uploadAvatar}
-                  disabled={uploading}
-                  className="hidden"
-                />
-              </label>
-            </DropdownMenuItem>
             {user && (
               <DropdownMenuItem onClick={handleSettingsClick}>
                 <Settings className="mr-2 h-4 w-4" />
@@ -226,3 +135,4 @@ export const UserMenu = () => {
     </DropdownMenu>
   );
 };
+
