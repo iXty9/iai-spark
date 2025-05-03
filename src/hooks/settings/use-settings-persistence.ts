@@ -17,6 +17,7 @@ export interface UseSettingsPersistenceProps {
   setDarkTheme: (theme: ThemeColors) => void;
   setBackgroundImage: (image: string | null) => void;
   setBackgroundOpacity: (opacity: number) => void;
+  setHasChanges: (hasChanges: boolean) => void;
   updateProfile?: (data: any) => Promise<any>;
 }
 
@@ -31,6 +32,7 @@ export const useSettingsPersistence = ({
   setDarkTheme,
   setBackgroundImage,
   setBackgroundOpacity,
+  setHasChanges,
   updateProfile
 }: UseSettingsPersistenceProps) => {
   const { toast } = useToast();
@@ -43,27 +45,30 @@ export const useSettingsPersistence = ({
 
   // Validate theme settings before saving
   const validateThemeSettings = (): boolean => {
-    const themeToValidate = theme === 'light' ? lightTheme : darkTheme;
+    // Validate both themes regardless of current mode
+    const themesToValidate = [lightTheme, darkTheme];
     
-    const colorProps = [
-      'backgroundColor', 
-      'primaryColor', 
-      'textColor', 
-      'accentColor', 
-      'userBubbleColor', 
-      'aiBubbleColor',
-      'userTextColor',
-      'aiTextColor'
-    ];
-    
-    for (const prop of colorProps) {
-      if (!isValidColor(themeToValidate[prop as keyof ThemeColors] as string)) {
-        toast({
-          variant: "destructive",
-          title: "Invalid color format",
-          description: `The ${prop} must be a valid hex color (e.g. #FFFFFF)`,
-        });
-        return false;
+    for (const themeToValidate of themesToValidate) {
+      const colorProps = [
+        'backgroundColor', 
+        'primaryColor', 
+        'textColor', 
+        'accentColor', 
+        'userBubbleColor', 
+        'aiBubbleColor',
+        'userTextColor',
+        'aiTextColor'
+      ];
+      
+      for (const prop of colorProps) {
+        if (!isValidColor(themeToValidate[prop as keyof ThemeColors] as string)) {
+          toast({
+            variant: "destructive",
+            title: "Invalid color format",
+            description: `The ${prop} must be a valid hex color (e.g. #FFFFFF)`,
+          });
+          return false;
+        }
       }
     }
     
@@ -104,6 +109,9 @@ export const useSettingsPersistence = ({
           title: "Settings saved",
           description: "Your theme settings have been saved successfully",
         });
+        
+        // Reset changes flag after successful save
+        setHasChanges(false);
       } else {
         // Fallback to localStorage if no updateProfile function is available
         localStorage.setItem('theme_settings', JSON.stringify(themeSettings));
@@ -112,6 +120,9 @@ export const useSettingsPersistence = ({
           title: "Settings saved",
           description: "Your theme settings have been saved to local storage",
         });
+        
+        // Reset changes flag after successful save
+        setHasChanges(false);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -176,6 +187,9 @@ export const useSettingsPersistence = ({
       title: "Settings reset",
       description: "Your theme settings have been reset to defaults",
     });
+    
+    // Mark as having changes that need to be saved
+    setHasChanges(true);
   };
 
   return {

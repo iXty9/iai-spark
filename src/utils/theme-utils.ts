@@ -7,6 +7,7 @@ import { ThemeColors } from "@/types/theme";
 export const applyThemeChanges = (themeColors: ThemeColors) => {
   const root = window.document.documentElement;
   
+  // Apply all theme colors as CSS variables
   root.style.setProperty('--background-color', themeColors.backgroundColor);
   root.style.setProperty('--primary-color', themeColors.primaryColor);
   root.style.setProperty('--text-color', themeColors.textColor);
@@ -17,6 +18,9 @@ export const applyThemeChanges = (themeColors: ThemeColors) => {
   root.style.setProperty('--ai-bubble-opacity', themeColors.aiBubbleOpacity.toString());
   root.style.setProperty('--user-text-color', themeColors.userTextColor);
   root.style.setProperty('--ai-text-color', themeColors.aiTextColor);
+  
+  // Also update the body background color for immediate feedback
+  document.body.style.backgroundColor = themeColors.backgroundColor;
 };
 
 /**

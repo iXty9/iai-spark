@@ -13,11 +13,13 @@ interface UseSettingsActionsProps {
   backgroundImage: string | null;
   backgroundOpacity: number;
   isSubmitting: boolean;
+  hasChanges: boolean;
   setLightTheme: (theme: ThemeColors) => void;
   setDarkTheme: (theme: ThemeColors) => void;
   setBackgroundImage: (image: string | null) => void;
   setBackgroundOpacity: (opacity: number) => void;
   setIsSubmitting: (isSubmitting: boolean) => void;
+  setHasChanges: (hasChanges: boolean) => void;
   setTheme: (theme: 'light' | 'dark') => void;
   updateProfile?: (data: any) => Promise<any>;
 }
@@ -31,11 +33,13 @@ export const useSettingsActions = ({
   backgroundImage,
   backgroundOpacity,
   isSubmitting,
+  hasChanges,
   setLightTheme,
   setDarkTheme,
   setBackgroundImage,
   setBackgroundOpacity,
   setIsSubmitting,
+  setHasChanges,
   setTheme,
   updateProfile
 }: UseSettingsActionsProps) => {
@@ -56,7 +60,8 @@ export const useSettingsActions = ({
   const { 
     handleBackgroundImageUpload,
     handleRemoveBackground,
-    handleOpacityChange
+    handleOpacityChange,
+    isLoading: isBackgroundLoading
   } = useBackgroundActions({
     backgroundImage,
     backgroundOpacity,
@@ -79,8 +84,15 @@ export const useSettingsActions = ({
     setDarkTheme,
     setBackgroundImage,
     setBackgroundOpacity,
+    setHasChanges,
     updateProfile
   });
+  
+  // Handle theme change (light/dark toggle)
+  const handleThemeChange = (newTheme: 'light' | 'dark') => {
+    setTheme(newTheme);
+    setHasChanges(true);
+  };
 
   return {
     handleLightThemeChange,
@@ -89,6 +101,8 @@ export const useSettingsActions = ({
     handleRemoveBackground,
     handleOpacityChange,
     handleSaveSettings,
-    handleResetSettings
+    handleResetSettings,
+    handleThemeChange,
+    isBackgroundLoading
   };
 };

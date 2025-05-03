@@ -9,11 +9,12 @@ interface SettingsFooterProps {
   onCancel: () => void;
   onSave: () => void;
   isSubmitting?: boolean;
+  hasChanges?: boolean;
 }
 
-export function SettingsFooter({ onReset, onCancel, onSave, isSubmitting = false }: SettingsFooterProps) {
+export function SettingsFooter({ onReset, onCancel, onSave, isSubmitting = false, hasChanges = false }: SettingsFooterProps) {
   return (
-    <CardFooter className="flex justify-between">
+    <CardFooter className="flex justify-between border-t pt-4">
       <Button variant="outline" onClick={onReset} disabled={isSubmitting}>
         Reset to Defaults
       </Button>
@@ -21,9 +22,13 @@ export function SettingsFooter({ onReset, onCancel, onSave, isSubmitting = false
         <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
           Cancel
         </Button>
-        <Button onClick={onSave} disabled={isSubmitting}>
+        <Button 
+          onClick={onSave} 
+          disabled={isSubmitting || !hasChanges}
+          className={!hasChanges ? 'opacity-50' : ''}
+        >
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Save Changes
+          {isSubmitting ? 'Saving...' : 'Save Changes'}
         </Button>
       </div>
     </CardFooter>

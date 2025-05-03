@@ -3,16 +3,20 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeColors } from '@/types/theme';
 import { logger } from '@/utils/logging';
+import { useTheme } from '@/hooks/use-theme';
 
 export const useSettingsState = () => {
   const { profile } = useAuth();
+  const { theme } = useTheme();
   
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const [backgroundOpacity, setBackgroundOpacity] = useState(0.5); // 50% as default
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasChanges, setHasChanges] = useState(false);
   
-  const [lightTheme, setLightTheme] = useState<ThemeColors>({
+  // Default light theme colors
+  const defaultLightTheme: ThemeColors = {
     backgroundColor: '#ffffff',
     primaryColor: '#ea384c',
     textColor: '#000000',
@@ -23,9 +27,10 @@ export const useSettingsState = () => {
     aiBubbleOpacity: 0.3,
     userTextColor: '#000000',
     aiTextColor: '#000000'
-  });
+  };
   
-  const [darkTheme, setDarkTheme] = useState<ThemeColors>({
+  // Default dark theme colors
+  const defaultDarkTheme: ThemeColors = {
     backgroundColor: '#121212',
     primaryColor: '#ea384c',
     textColor: '#ffffff',
@@ -36,7 +41,31 @@ export const useSettingsState = () => {
     aiBubbleOpacity: 0.3,
     userTextColor: '#ffffff',
     aiTextColor: '#ffffff'
-  });
+  };
+  
+  const [lightTheme, setLightTheme] = useState<ThemeColors>(defaultLightTheme);
+  const [darkTheme, setDarkTheme] = useState<ThemeColors>(defaultDarkTheme);
+
+  // Wrapper functions to track changes
+  const updateLightTheme = (newTheme: ThemeColors) => {
+    setLightTheme(newTheme);
+    setHasChanges(true);
+  };
+  
+  const updateDarkTheme = (newTheme: ThemeColors) => {
+    setDarkTheme(newTheme);
+    setHasChanges(true);
+  };
+  
+  const updateBackgroundImage = (image: string | null) => {
+    setBackgroundImage(image);
+    setHasChanges(true);
+  };
+  
+  const updateBackgroundOpacity = (opacity: number) => {
+    setBackgroundOpacity(opacity);
+    setHasChanges(true);
+  };
 
   useEffect(() => {
     if (profile?.theme_settings) {
@@ -58,10 +87,10 @@ export const useSettingsState = () => {
           }
         }
         
-        // Load theme colors
+        // Load light theme colors
         if (themeSettings.lightTheme) {
           setLightTheme({
-            ...lightTheme,
+            ...defaultLightTheme,
             ...themeSettings.lightTheme,
             userBubbleOpacity: parseFloat(themeSettings.lightTheme.userBubbleOpacity) || 0.3,
             aiBubbleOpacity: parseFloat(themeSettings.lightTheme.aiBubbleOpacity) || 0.3,
@@ -70,9 +99,10 @@ export const useSettingsState = () => {
           });
         }
         
+        // Load dark theme colors
         if (themeSettings.darkTheme) {
           setDarkTheme({
-            ...darkTheme,
+            ...defaultDarkTheme,
             ...themeSettings.darkTheme,
             userBubbleOpacity: parseFloat(themeSettings.darkTheme.userBubbleOpacity) || 0.3,
             aiBubbleOpacity: parseFloat(themeSettings.darkTheme.aiBubbleOpacity) || 0.3,
@@ -80,6 +110,7 @@ export const useSettingsState = () => {
             aiTextColor: themeSettings.darkTheme.aiTextColor || themeSettings.darkTheme.textColor
           });
         }
+        setHasChanges(false);
         setIsLoading(false);
       } catch (e) {
         logger.error('Error parsing theme settings from profile:', e, { module: 'settings' });
@@ -98,10 +129,12 @@ export const useSettingsState = () => {
     backgroundOpacity,
     isSubmitting,
     isLoading,
-    setLightTheme,
-    setDarkTheme, 
-    setBackgroundImage,
-    setBackgroundOpacity,
-    setIsSubmitting
+    hasChanges,
+    setLightTheme: updateLightTheme,
+    setDarkTheme: updateDarkTheme, 
+    setBackgroundImage: updateBackgroundImage,
+    setBackgroundOpacity: updateBackgroundOpacity,
+    setIsSubmitting,
+    setHasChanges
   };
 };

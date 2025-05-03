@@ -22,11 +22,17 @@ export function useTheme() {
     }
   );
 
-  useEffect(() => {
+  // Apply the theme mode without updating the profile
+  const applyThemeMode = (newTheme: Theme) => {
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
-    root.classList.add(theme);
-    localStorage.setItem('theme', theme);
+    root.classList.add(newTheme);
+    localStorage.setItem('theme', newTheme);
+  };
+
+  useEffect(() => {
+    // Apply the theme mode (light/dark class)
+    applyThemeMode(theme);
     
     if (user && profile) {
       try {

@@ -16,12 +16,46 @@ export function ThemeControls({ theme, colors, onColorChange }: ThemeControlsPro
     onColorChange({ name, value: value[0] });
   };
 
+  const getPreviewStyle = (color: string) => {
+    return {
+      backgroundColor: color,
+      border: theme === 'light' ? '1px solid #ccc' : '1px solid #333'
+    };
+  };
+
   return (
-    <div className="space-y-4">
+    <div className={`space-y-6 ${theme === 'light' ? 'text-black' : 'text-white'}`}>
+      <div className="p-3 rounded-md border mb-4" style={{ backgroundColor: colors.backgroundColor }}>
+        <h3 className="font-medium mb-2" style={{ color: colors.textColor }}>Theme Preview</h3>
+        <div className="flex space-x-2 mb-2">
+          <div 
+            className="p-2 rounded-lg flex-1 text-center"
+            style={{ 
+              backgroundColor: colors.userBubbleColor,
+              opacity: colors.userBubbleOpacity,
+              color: colors.userTextColor
+            }}
+          >
+            User Message
+          </div>
+          <div 
+            className="p-2 rounded-lg flex-1 text-center"
+            style={{ 
+              backgroundColor: colors.aiBubbleColor,
+              opacity: colors.aiBubbleOpacity,
+              color: colors.aiTextColor
+            }}
+          >
+            AI Message
+          </div>
+        </div>
+      </div>
+      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="backgroundColor">Background Color</Label>
           <div className="flex items-center space-x-2">
+            <div className="w-6 h-6 rounded-md" style={getPreviewStyle(colors.backgroundColor)}></div>
             <Input
               id="backgroundColor"
               name="backgroundColor"
@@ -42,6 +76,7 @@ export function ThemeControls({ theme, colors, onColorChange }: ThemeControlsPro
         <div className="space-y-2">
           <Label htmlFor="textColor">Default Text Color</Label>
           <div className="flex items-center space-x-2">
+            <div className="w-6 h-6 rounded-md" style={getPreviewStyle(colors.textColor)}></div>
             <Input
               id="textColor"
               name="textColor"
@@ -67,6 +102,7 @@ export function ThemeControls({ theme, colors, onColorChange }: ThemeControlsPro
           <div className="space-y-2">
             <Label htmlFor="userBubbleColor">User Message Color</Label>
             <div className="flex items-center space-x-2">
+              <div className="w-6 h-6 rounded-md" style={getPreviewStyle(colors.userBubbleColor)}></div>
               <Input
                 id="userBubbleColor"
                 name="userBubbleColor"
@@ -104,6 +140,7 @@ export function ThemeControls({ theme, colors, onColorChange }: ThemeControlsPro
           <div className="space-y-2">
             <Label htmlFor="userTextColor">User Text Color</Label>
             <div className="flex items-center space-x-2">
+              <div className="w-6 h-6 rounded-md" style={getPreviewStyle(colors.userTextColor)}></div>
               <Input
                 id="userTextColor"
                 name="userTextColor"
@@ -130,6 +167,7 @@ export function ThemeControls({ theme, colors, onColorChange }: ThemeControlsPro
           <div className="space-y-2">
             <Label htmlFor="aiBubbleColor">AI Message Color</Label>
             <div className="flex items-center space-x-2">
+              <div className="w-6 h-6 rounded-md" style={getPreviewStyle(colors.aiBubbleColor)}></div>
               <Input
                 id="aiBubbleColor"
                 name="aiBubbleColor"
@@ -167,6 +205,7 @@ export function ThemeControls({ theme, colors, onColorChange }: ThemeControlsPro
           <div className="space-y-2">
             <Label htmlFor="aiTextColor">AI Text Color</Label>
             <div className="flex items-center space-x-2">
+              <div className="w-6 h-6 rounded-md" style={getPreviewStyle(colors.aiTextColor)}></div>
               <Input
                 id="aiTextColor"
                 name="aiTextColor"

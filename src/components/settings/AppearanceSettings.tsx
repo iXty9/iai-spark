@@ -7,6 +7,7 @@ import { ThemeColors } from '@/types/theme';
 import { ThemeControls } from './ThemeControls';
 import { BackgroundSettings } from './BackgroundSettings';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface AppearanceSettingsProps {
   theme: 'light' | 'dark';
@@ -20,6 +21,7 @@ interface AppearanceSettingsProps {
   onBackgroundImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onBackgroundOpacityChange: (value: number[]) => void;
   onRemoveBackground: () => void;
+  isBackgroundLoading?: boolean;
 }
 
 export function AppearanceSettings({
@@ -33,14 +35,15 @@ export function AppearanceSettings({
   onDarkThemeChange,
   onBackgroundImageUpload,
   onBackgroundOpacityChange,
-  onRemoveBackground
+  onRemoveBackground,
+  isBackgroundLoading = false
 }: AppearanceSettingsProps) {
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between pb-4 border-b">
         <div className="flex items-center space-x-2">
           <Palette className="h-5 w-5" />
-          <Label>Theme Mode</Label>
+          <Label className="text-lg font-medium">Theme Mode</Label>
         </div>
         <RadioGroup 
           value={theme}
@@ -80,6 +83,7 @@ export function AppearanceSettings({
                 onBackgroundImageUpload={onBackgroundImageUpload}
                 onOpacityChange={onBackgroundOpacityChange}
                 onRemoveBackground={onRemoveBackground}
+                isLoading={isBackgroundLoading}
               />
             </div>
           </AccordionContent>
@@ -94,14 +98,36 @@ export function AppearanceSettings({
           </AccordionTrigger>
           <AccordionContent>
             <div className="pt-4">
-              <h3 className="text-lg font-medium mb-3">
-                {theme === 'dark' ? 'Dark Theme Colors' : 'Light Theme Colors'}
-              </h3>
-              <ThemeControls
-                theme={theme}
-                colors={theme === 'light' ? lightTheme : darkTheme}
-                onColorChange={theme === 'light' ? onLightThemeChange : onDarkThemeChange}
-              />
+              <Tabs defaultValue={theme} onValueChange={(value) => onThemeChange(value as 'light' | 'dark')}>
+                <TabsList className="mb-4 w-full">
+                  <TabsTrigger value="light" className="flex-1">
+                    <Sun className="h-4 w-4 mr-2" />
+                    Light Theme
+                  </TabsTrigger>
+                  <TabsTrigger value="dark" className="flex-1">
+                    <Moon className="h-4 w-4 mr-2" />
+                    Dark Theme
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="light" className="space-y-4">
+                  <div className="p-2 border rounded-md bg-white dark:bg-gray-950">
+                    <ThemeControls
+                      theme="light"
+                      colors={lightTheme}
+                      onColorChange={onLightThemeChange}
+                    />
+                  </div>
+                </TabsContent>
+                <TabsContent value="dark" className="space-y-4">
+                  <div className="p-2 border rounded-md bg-gray-900 dark:bg-black">
+                    <ThemeControls
+                      theme="dark"
+                      colors={darkTheme}
+                      onColorChange={onDarkThemeChange}
+                    />
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
           </AccordionContent>
         </AccordionItem>

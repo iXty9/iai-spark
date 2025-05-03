@@ -14,12 +14,14 @@ import { useSettingsActions } from '@/hooks/settings/use-settings-actions';
 import { logger } from '@/utils/logging';
 import { applyBackgroundImage } from '@/utils/theme-utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 export default function Settings() {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const { user, updateProfile } = useAuth();
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   
   const { 
     lightTheme, 
@@ -28,11 +30,13 @@ export default function Settings() {
     backgroundOpacity,
     isSubmitting,
     isLoading,
+    hasChanges,
     setLightTheme,
     setDarkTheme,
     setBackgroundImage,
     setBackgroundOpacity,
-    setIsSubmitting
+    setIsSubmitting,
+    setHasChanges
   } = useSettingsState();
   
   const {
@@ -42,7 +46,9 @@ export default function Settings() {
     handleRemoveBackground,
     handleOpacityChange,
     handleSaveSettings,
-    handleResetSettings
+    handleResetSettings,
+    handleThemeChange,
+    isBackgroundLoading
   } = useSettingsActions({
     user,
     theme,
@@ -52,11 +58,13 @@ export default function Settings() {
     backgroundImage,
     backgroundOpacity,
     isSubmitting,
+    hasChanges,
     setLightTheme,
     setDarkTheme,
     setBackgroundImage,
     setBackgroundOpacity,
     setIsSubmitting,
+    setHasChanges,
     setTheme,
     updateProfile
   });
@@ -96,6 +104,15 @@ export default function Settings() {
   };
 
   const handleGoBack = () => {
+    if (hasChanges) {
+      setShowDiscardDialog(true);
+    } else {
+      navigate(-1);
+    }
+  };
+
+  const handleDiscard = () => {
+    setShowDiscardDialog(false);
     navigate(-1);
   };
 
@@ -118,12 +135,13 @@ export default function Settings() {
               darkTheme={darkTheme}
               backgroundImage={backgroundImage}
               backgroundOpacity={backgroundOpacity}
-              onThemeChange={value => setTheme(value)}
+              onThemeChange={handleThemeChange}
               onLightThemeChange={(e) => handleThemeColorChange('light', e)}
               onDarkThemeChange={(e) => handleThemeColorChange('dark', e)}
               onBackgroundImageUpload={handleBackgroundImageUpload}
               onBackgroundOpacityChange={handleOpacityChange}
               onRemoveBackground={handleRemoveBackground}
+              isBackgroundLoading={isBackgroundLoading}
             />
           )}
         </div>
@@ -132,8 +150,24 @@ export default function Settings() {
           onCancel={handleGoBack} 
           onSave={handleSaveSettings}
           isSubmitting={isSubmitting}
+          hasChanges={hasChanges}
         />
       </Card>
+      
+      <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Are you sure you want to discard them?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDiscard}>Discard</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
