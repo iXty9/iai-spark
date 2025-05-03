@@ -11,6 +11,7 @@ import { WebhookSettings } from '@/components/admin/WebhookSettings';
 import { AppSettings } from '@/components/admin/AppSettings';
 import { UserManagement } from '@/components/admin/UserManagement';
 import { ArrowLeft } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -18,41 +19,71 @@ export default function Admin() {
   const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRedirecting, setIsRedirecting] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('app-settings');
-
+  
   useEffect(() => {
+    let isMounted = true;
+    
     const checkAdmin = async () => {
       if (!user) {
-        navigate('/auth');
+        // Only redirect if component is still mounted
+        if (isMounted) {
+          setIsRedirecting(true);
+          toast({
+            variant: "destructive",
+            title: "Authentication Required",
+            description: "Please sign in to access the admin panel.",
+          });
+          navigate('/auth');
+        }
         return;
       }
 
       try {
         const adminStatus = await checkIsAdmin();
-        setIsAdmin(adminStatus);
         
-        if (!adminStatus) {
-          toast({
-            variant: "destructive",
-            title: "Access Denied",
-            description: "You don't have admin privileges to access this page.",
-          });
-          navigate('/');
+        // Only update state if component is still mounted
+        if (isMounted) {
+          setIsAdmin(adminStatus);
+          
+          if (!adminStatus) {
+            setIsRedirecting(true);
+            toast({
+              variant: "destructive",
+              title: "Access Denied",
+              description: "You don't have admin privileges to access this page.",
+            });
+            navigate('/');
+          }
         }
       } catch (error) {
         console.error('Error checking admin status:', error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to verify admin privileges.",
-        });
-        navigate('/');
+        
+        // Only show toast and redirect if component is still mounted
+        if (isMounted) {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to verify admin privileges.",
+          });
+          setIsRedirecting(true);
+          navigate('/');
+        }
       } finally {
-        setIsLoading(false);
+        // Only update loading state if component is still mounted
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     checkAdmin();
+    
+    // Cleanup function to handle unmounting
+    return () => {
+      isMounted = false;
+    };
   }, [user, navigate, toast]);
 
   const handleGoBack = () => {
@@ -63,18 +94,51 @@ export default function Admin() {
     setActiveTab(tab);
   };
 
+  // Show loading state
   if (isLoading) {
+    return (
+      <div className="container max-w-4xl py-10">
+        <Card>
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <Skeleton className="h-10 w-20" />
+              <Skeleton className="h-8 w-40" />
+              <div className="w-[72px]"></div>
+            </div>
+            <Skeleton className="h-10 w-full mb-6" />
+            <div className="space-y-4">
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // If we're in the process of redirecting, show minimal UI
+  if (isRedirecting) {
     return (
       <div className="container flex items-center justify-center h-screen">
         <div className="text-center">
-          <p>Checking admin privileges...</p>
+          <p>Redirecting...</p>
         </div>
       </div>
     );
   }
 
+  // If user is not admin and we're not already redirecting, show access denied
   if (!isAdmin) {
-    return null; // Will redirect in useEffect
+    return (
+      <div className="container flex items-center justify-center h-screen">
+        <Card className="p-6 text-center">
+          <h2 className="text-xl font-bold mb-4">Access Denied</h2>
+          <p className="mb-4">You don't have permission to access this page.</p>
+          <Button onClick={() => navigate('/')}>Return to Home</Button>
+        </Card>
+      </div>
+    );
   }
 
   return (

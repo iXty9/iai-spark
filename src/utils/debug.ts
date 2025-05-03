@@ -63,16 +63,6 @@ export const parseWebhookResponse = (data: any): string => {
 };
 
 /**
- * Get the webhook URL based on authentication status
- * @deprecated Use webhookService.getWebhookUrl instead
- */
-export const getWebhookUrl = (isAuthenticated: boolean): string => {
-  return isAuthenticated 
-    ? 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7'
-    : 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574';
-};
-
-/**
  * Simple debug info logger - cleanly separated from business logic
  */
 export const logWebhookActivity = (url: string, status: string, data?: any) => {

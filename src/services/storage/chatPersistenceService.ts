@@ -6,6 +6,20 @@ const STORAGE_KEY = 'ixty_chat_history';
 const MAX_MESSAGES = 100; // Prevent too large storage
 
 /**
+ * Validates that a message object has the required fields
+ */
+const isValidMessage = (message: any): boolean => {
+  return (
+    message &&
+    typeof message === 'object' &&
+    'id' in message &&
+    'sender' in message &&
+    'content' in message &&
+    'timestamp' in message
+  );
+};
+
+/**
  * Saves the current chat history to localStorage
  */
 export const saveChatHistory = (messages: Message[]): void => {
@@ -29,16 +43,38 @@ export const loadChatHistory = (): Message[] => {
       return [];
     }
 
-    const parsedHistory = JSON.parse(savedHistory) as Message[];
+    let parsedHistory: any[];
+    try {
+      parsedHistory = JSON.parse(savedHistory);
+      if (!Array.isArray(parsedHistory)) {
+        logger.error('Chat history is not an array', null, { module: 'storage' });
+        return [];
+      }
+    } catch (error) {
+      logger.error('Failed to parse chat history', error, { module: 'storage' });
+      return [];
+    }
     
-    // Convert string dates back to Date objects
-    const messagesWithFixedDates = parsedHistory.map(message => ({
-      ...message,
-      timestamp: new Date(message.timestamp)
-    }));
+    // Validate and convert each message
+    const validMessages: Message[] = [];
+    for (const item of parsedHistory) {
+      try {
+        if (isValidMessage(item)) {
+          // Convert string dates back to Date objects
+          validMessages.push({
+            ...item,
+            timestamp: new Date(item.timestamp)
+          });
+        } else {
+          logger.warn('Invalid message in chat history', { item }, { module: 'storage' });
+        }
+      } catch (error) {
+        logger.error('Error processing message from history', error, { module: 'storage' });
+      }
+    }
     
-    logger.debug('Chat history loaded from localStorage', { messageCount: messagesWithFixedDates.length }, { module: 'storage' });
-    return messagesWithFixedDates;
+    logger.debug('Chat history loaded from localStorage', { messageCount: validMessages.length }, { module: 'storage' });
+    return validMessages;
   } catch (error) {
     logger.error('Failed to load chat history', error, { module: 'storage' });
     return [];
