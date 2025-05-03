@@ -2,11 +2,9 @@
 import { Message } from '@/types/chat';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { parseWebhookResponse } from '@/utils/debug';
-import { SendMessageParams } from './types/messageTypes';
-import { sendWebhookMessage } from './webhook/webhookService';
+import { SendMessageParams } from '../types/messageTypes';
+import { sendWebhookMessage } from '../webhook/webhookService';
 import { logger } from '@/utils/logging';
-import { useDevMode } from '@/store/use-dev-mode';
-export { exportChat } from './export/exportService';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -114,32 +112,8 @@ export const sendMessage = async ({
     assistantMessage.content = accumulatedContent.trim() || responseText;
     assistantMessage.pending = false;
     
-    // Debug information - Stored only when needed
-    if (process.env.NODE_ENV === 'development' || (typeof window !== 'undefined' && (window as any).__DEV_MODE_ENABLED__)) {
-      // Store the raw response for debugging
-      assistantMessage.rawResponse = data;
-      
-      // Add metadata for debugging purposes
-      assistantMessage.metadata = {
-        responseFormat: typeof data,
-        responseStructure: Array.isArray(data) ? 'array' : (typeof data === 'object' ? 'object' : 'other'),
-        webhookType: isAuthenticated ? 'authenticated' : 'anonymous'
-      };
-    }
-    
-    // Handle token info - core business logic
-    if (Array.isArray(data) && data[0]?.usage) {
-      assistantMessage.tokenInfo = data[0].usage;
-    } else if (data?.usage) {
-      assistantMessage.tokenInfo = data.usage;
-    }
-    
-    // Handle thread info - core business logic
-    if (Array.isArray(data) && data[0]?.threadId) {
-      assistantMessage.threadId = data[0].threadId;
-    } else if (data?.threadId) {
-      assistantMessage.threadId = data.threadId;
-    }
+    // Process metadata and debug information
+    processResponseMetadata(assistantMessage, data);
     
     // Debug only
     emitDebugEvent({
@@ -187,37 +161,69 @@ export const sendMessage = async ({
       onError(new Error('Unknown error occurred'));
     }
     
-    // Return an error message - core business logic
-    const errorMessage: Message = {
-      id: `error_${Date.now()}`,
-      sender: 'ai' as 'ai', // Explicitly type this as 'ai' to match the Message type
-      content: "I'm sorry, but I encountered an error processing your message. Please try again.",
-      timestamp: new Date(),
-      metadata: { 
-        error: true,
-        errorMessage: error instanceof Error ? error.message : 'Unknown error'
-      }
-    };
-    
-    // Add cancel function to the error message response
-    const errorResponse: Message & { cancel?: () => void } = {
-      ...errorMessage,
-      cancel: () => {
-        canceled = true;
-        if (controller) {
-          controller.abort();
-          controller = null;
-        }
-      }
-    };
-    
-    return errorResponse;
+    return createErrorResponse(error, canceled, controller);
   }
 };
 
-// Add a global reference for dev mode state for components that can't use hooks
-if (typeof window !== 'undefined') {
-  window.addEventListener('devModeChanged', ((e: CustomEvent) => {
-    (window as any).__DEV_MODE_ENABLED__ = e.detail.isDevMode;
-  }) as EventListener);
+// Helper function to process response metadata
+function processResponseMetadata(message: Message, data: any): void {
+  // Debug information - Stored only when needed
+  if (process.env.NODE_ENV === 'development' || (typeof window !== 'undefined' && (window as any).__DEV_MODE_ENABLED__)) {
+    // Store the raw response for debugging
+    message.rawResponse = data;
+    
+    // Add metadata for debugging purposes
+    message.metadata = {
+      responseFormat: typeof data,
+      responseStructure: Array.isArray(data) ? 'array' : (typeof data === 'object' ? 'object' : 'other'),
+      webhookType: message.metadata?.webhookType || 'unknown'
+    };
+  }
+  
+  // Handle token info - core business logic
+  if (Array.isArray(data) && data[0]?.usage) {
+    message.tokenInfo = data[0].usage;
+  } else if (data?.usage) {
+    message.tokenInfo = data.usage;
+  }
+  
+  // Handle thread info - core business logic
+  if (Array.isArray(data) && data[0]?.threadId) {
+    message.threadId = data[0].threadId;
+  } else if (data?.threadId) {
+    message.threadId = data.threadId;
+  }
+}
+
+// Helper function to create error response
+function createErrorResponse(
+  error: unknown, 
+  canceled: boolean, 
+  controller: AbortController | null
+): Message & { cancel?: () => void } {
+  // Return an error message - core business logic
+  const errorMessage: Message = {
+    id: `error_${Date.now()}`,
+    sender: 'ai' as 'ai', // Explicitly type this as 'ai' to match the Message type
+    content: "I'm sorry, but I encountered an error processing your message. Please try again.",
+    timestamp: new Date(),
+    metadata: { 
+      error: true,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error'
+    }
+  };
+  
+  // Add cancel function to the error message response
+  const errorResponse: Message & { cancel?: () => void } = {
+    ...errorMessage,
+    cancel: () => {
+      canceled = true;
+      if (controller) {
+        controller.abort();
+        controller = null;
+      }
+    }
+  };
+  
+  return errorResponse;
 }
