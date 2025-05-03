@@ -22,6 +22,15 @@ export default function Admin() {
   const [isRedirecting, setIsRedirecting] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('app-settings');
   
+  // Check for tab parameter in URL
+  useEffect(() => {
+    const queryParams = new URLSearchParams(window.location.search);
+    const tabParam = queryParams.get('tab');
+    if (tabParam === 'users' || tabParam === 'webhooks' || tabParam === 'app-settings') {
+      setActiveTab(tabParam);
+    }
+  }, []);
+  
   useEffect(() => {
     let isMounted = true;
     
@@ -92,6 +101,10 @@ export default function Admin() {
   
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
+    // Update URL parameter without full navigation
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', tab);
+    window.history.pushState({}, '', url);
   };
 
   // Show loading state

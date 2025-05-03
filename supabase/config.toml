@@ -1,1 +1,43 @@
+
 project_id = "ymtdtzkskjdqlzhjuesk"
+
+[api]
+enabled = true
+port = 8080
+schemas = ["public", "storage", "graphql_public"]
+
+[db]
+port = 5432
+shadow_port = 5433
+major_version = 15
+
+[studio]
+enabled = true
+port = 8082
+api_url = "http://localhost"
+
+[inbucket]
+enabled = true
+port = 8084
+
+[storage]
+enabled = true
+port = 8085
+
+[auth]
+enabled = true
+port = 8086
+
+[realtime]
+enabled = true
+port = 8087
+
+[edge_runtime]
+enabled = true
+
+[analytics]
+enabled = false
+port = 8089
+
+[experimental]
+multi_project = false

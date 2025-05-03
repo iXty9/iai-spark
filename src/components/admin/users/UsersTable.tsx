@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { format } from 'date-fns';
+import { Loader } from 'lucide-react';
 
 interface UsersTableProps {
   users: UserWithRole[];
@@ -20,10 +21,13 @@ interface UsersTableProps {
 }
 
 export function UsersTable({ users, onPromoteUser, onDemoteUser, isLoading = false }: UsersTableProps) {
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'N/A';
+    
     try {
       return format(new Date(dateString), 'MMM dd, yyyy');
     } catch (error) {
+      console.error('Invalid date:', dateString, error);
       return 'Invalid date';
     }
   };
@@ -43,16 +47,22 @@ export function UsersTable({ users, onPromoteUser, onDemoteUser, isLoading = fal
           </TableRow>
         </TableHeader>
         <TableBody>
-          {isLoading && users.length === 0 ? (
+          {isLoading ? (
             <TableRow>
               <TableCell colSpan={6} className="text-center h-24">
-                Loading users...
+                <div className="flex items-center justify-center">
+                  <Loader className="h-5 w-5 animate-spin mr-2" />
+                  <span>Loading users...</span>
+                </div>
               </TableCell>
             </TableRow>
           ) : users.length === 0 ? (
             <TableRow>
               <TableCell colSpan={6} className="text-center h-24">
-                No users found
+                <div className="flex flex-col items-center justify-center">
+                  <p className="mb-2 text-muted-foreground">No users found</p>
+                  <p className="text-sm text-muted-foreground">Try adjusting your search or filters</p>
+                </div>
               </TableCell>
             </TableRow>
           ) : (

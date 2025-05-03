@@ -13,14 +13,17 @@ import { PromoteDialog, DemoteDialog } from './users/RoleDialogs';
 import { Input } from '@/components/ui/input';
 import { Pagination } from '@/components/ui/pagination';
 import { Button } from '@/components/ui/button';
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, AlertTriangle, Loader } from 'lucide-react';
 import { PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function UserManagement() {
   const { toast } = useToast();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
   const [showPromoteDialog, setShowPromoteDialog] = useState(false);
   const [showDemoteDialog, setShowDemoteDialog] = useState(false);
@@ -41,21 +44,25 @@ export function UserManagement() {
 
   const loadUsers = async () => {
     setIsLoading(true);
+    setIsError(false);
     try {
+      console.log(`Loading users: page=${currentPage}, size=${pageSize}, role=${roleFilter}`);
       const { users: usersData, totalCount } = await fetchUsers({
         page: currentPage,
         pageSize,
         roleFilter: roleFilter !== 'all' ? roleFilter as UserRole : undefined
       });
       
+      console.log(`Loaded ${usersData.length} users out of ${totalCount} total`);
       setUsers(usersData);
-      setTotalPages(Math.ceil(totalCount / pageSize));
+      setTotalPages(Math.ceil(totalCount / pageSize) || 1);
     } catch (error) {
       console.error('Error loading users:', error);
+      setIsError(true);
       toast({
         variant: "destructive",
         title: "Failed to load users",
-        description: "There was an error loading user data.",
+        description: "There was an error loading user data. Please try again later.",
       });
     } finally {
       setIsLoading(false);
@@ -64,7 +71,9 @@ export function UserManagement() {
 
   const handleSearch = async () => {
     setIsLoading(true);
+    setIsError(false);
     try {
+      console.log(`Searching users: query=${searchQuery}, page=1, size=${pageSize}, role=${roleFilter}`);
       const { users: searchResults, totalCount } = await searchUsers({
         searchQuery,
         page: 1, // Reset to first page on search
@@ -72,15 +81,17 @@ export function UserManagement() {
         roleFilter: roleFilter !== 'all' ? roleFilter as UserRole : undefined
       });
       
+      console.log(`Search found ${searchResults.length} users out of ${totalCount} total`);
       setUsers(searchResults);
-      setTotalPages(Math.ceil(totalCount / pageSize));
+      setTotalPages(Math.ceil(totalCount / pageSize) || 1);
       setCurrentPage(1); // Reset to first page
     } catch (error) {
       console.error('Error searching users:', error);
+      setIsError(true);
       toast({
         variant: "destructive",
         title: "Search failed",
-        description: "There was an error searching for users.",
+        description: "There was an error searching for users. Please try again later.",
       });
     } finally {
       setIsLoading(false);
@@ -102,6 +113,7 @@ export function UserManagement() {
     
     setIsUpdatingRole(true);
     try {
+      console.log(`Updating user ${selectedUser.email} to role ${role}`);
       await updateUserRole(selectedUser.id, role);
       
       // Update local state
@@ -120,7 +132,7 @@ export function UserManagement() {
       toast({
         variant: "destructive",
         title: "Failed to update user role",
-        description: "There was an error updating the user role.",
+        description: "There was an error updating the user role. Please try again.",
       });
     } finally {
       setIsUpdatingRole(false);
@@ -135,6 +147,10 @@ export function UserManagement() {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
+  };
+
+  const handleRetry = () => {
+    loadUsers();
   };
 
   const renderPagination = () => {
@@ -212,13 +228,45 @@ export function UserManagement() {
     );
   };
 
+  // Show initial loading state
   if (isLoading && users.length === 0) {
     return (
-      <div className="flex items-center justify-center p-6">
-        <div className="text-center">
-          <p>Loading users...</p>
+      <div className="space-y-4">
+        <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+          <div className="flex items-center space-x-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:max-w-xs">
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <Skeleton className="h-10 w-16" />
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Skeleton className="h-10 w-[180px]" />
+            <Skeleton className="h-10 w-[110px]" />
+          </div>
+        </div>
+        
+        <div className="rounded-md border">
+          <div className="p-6 flex flex-col items-center justify-center">
+            <Loader className="h-6 w-6 animate-spin mb-2" />
+            <p>Loading users...</p>
+          </div>
         </div>
       </div>
+    );
+  }
+
+  // Show error state
+  if (isError) {
+    return (
+      <Card className="p-6">
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
+          <h3 className="text-xl font-semibold mb-2">Failed to load users</h3>
+          <p className="mb-6 text-muted-foreground">There was a problem loading the user data.</p>
+          <Button onClick={handleRetry}>Retry</Button>
+        </div>
+      </Card>
     );
   }
 
