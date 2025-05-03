@@ -32,6 +32,26 @@ export const useChatSubmit = (
     handleSubmit: () => handleSubmit()
   });
 
+  // Track the current request so it can be aborted
+  let currentRequest: { cancel?: () => void } | null = null;
+
+  // Handle aborting the current request
+  const handleAbortRequest = useCallback(() => {
+    if (currentRequest && typeof currentRequest.cancel === 'function') {
+      currentRequest.cancel();
+      setIsLoading(false);
+      setSubmitting(false);
+      
+      logger.info('Request aborted by user', null, { module: 'chat' });
+      emitDebugSubmitEvent('Request aborted by user');
+      
+      // Dispatch event for UI components to update
+      window.dispatchEvent(new CustomEvent('aiResponseAborted', { 
+        detail: { abortedAt: new Date().toISOString() } 
+      }));
+    }
+  }, [setIsLoading, setSubmitting]);
+
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     if (e) {
       e.preventDefault();
@@ -96,6 +116,15 @@ export const useChatSubmit = (
     // Debug only
     emitDebugSubmitEvent('Message submission starting');
     
+    // Track the request start time for the timer
+    const requestStartTime = Date.now();
+    window.dispatchEvent(new CustomEvent('aiRequestStart', { 
+      detail: { 
+        startTime: requestStartTime,
+        messageId: userMessage.id
+      } 
+    }));
+    
     // Set a warning timeout for long responses - core business logic
     const firstWarningTimeout = setTimeout(() => {
       logger.info('Long response warning triggered', null, { module: 'chat' });
@@ -120,7 +149,7 @@ export const useChatSubmit = (
       emitDebugSubmitEvent('Sending to API');
       
       // Core business logic
-      const response = await sendMessage({
+      currentRequest = await sendMessage({
         message: userMessage.content,
         isAuthenticated: isAuthenticated,
         onError: (error) => {
@@ -134,7 +163,7 @@ export const useChatSubmit = (
       // Create AI response message - core business logic
       const aiMessage: Message = {
         id: uuidv4(),
-        content: response.content,
+        content: currentRequest.content,
         sender: 'ai',
         timestamp: new Date()
       };
@@ -142,17 +171,34 @@ export const useChatSubmit = (
       logger.info('AI response received', {
         messageId: aiMessage.id,
         responseTime: aiMessage.timestamp.getTime() - userMessage.timestamp.getTime(),
-        contentLength: response.content.length
+        contentLength: currentRequest.content.length
       }, { module: 'chat' });
+      
+      // Notify that request is complete
+      window.dispatchEvent(new CustomEvent('aiRequestEnd', { 
+        detail: { 
+          duration: Date.now() - requestStartTime,
+          messageId: userMessage.id
+        } 
+      }));
       
       addMessage(aiMessage);
       clearRetry();
+      currentRequest = null;
       
     } catch (error) {
       logger.error('Error getting AI response', {
         error,
         messageId: userMessage.id
       }, { module: 'chat' });
+      
+      // Notify that request ended with error
+      window.dispatchEvent(new CustomEvent('aiRequestError', { 
+        detail: { 
+          error: error instanceof Error ? error.message : 'Unknown error',
+          messageId: userMessage.id
+        } 
+      }));
       
       const shouldRetry = handleRetry(error instanceof Error ? error : new Error('Unknown error'));
       
@@ -173,6 +219,7 @@ export const useChatSubmit = (
       clearTimeout(firstWarningTimeout);
       setIsLoading(false);
       setSubmitting(false);
+      currentRequest = null;
       
       logger.info('Message submission flow completed', {
         messageId: userMessage.id
@@ -180,5 +227,5 @@ export const useChatSubmit = (
     }
   }, [message, isAuthenticated, isAuthLoading, addMessage, setMessage, setIsLoading, handleRetry, clearRetry, incrementAttempt, isSubmitting, setSubmitting]);
 
-  return { handleSubmit };
+  return { handleSubmit, handleAbortRequest };
 };

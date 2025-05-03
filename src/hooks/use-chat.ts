@@ -6,6 +6,7 @@ import { useChatSubmit } from './chat/use-chat-submit';
 import { useChatState } from './chat/use-chat-state';
 import { useChatInit } from './chat/use-chat-init';
 import { useChatActions } from './chat/use-chat-actions';
+import { useChatAbort } from './chat/use-chat-abort';
 
 export const useChat = () => {
   const { user, isLoading: authLoading } = useAuth();
@@ -31,7 +32,7 @@ export const useChat = () => {
     handleAuthLoaded
   } = useChatState();
 
-  const { handleSubmit } = useChatSubmit(
+  const { handleSubmit, handleAbortRequest } = useChatSubmit(
     message,
     setMessage,
     addMessage,
@@ -49,6 +50,11 @@ export const useChat = () => {
   });
 
   const { handleExportChat } = useChatActions(messages);
+  
+  const { 
+    getCurrentRequestInfo, 
+    hasActiveRequest 
+  } = useChatAbort();
 
   return {
     messages,
@@ -60,6 +66,9 @@ export const useChat = () => {
     handleExportChat,
     startChat,
     authError,
-    setMessages  // Export setMessages so it can be used by components
+    setMessages,  // Export setMessages so it can be used by components
+    handleAbortRequest,
+    getCurrentRequestInfo,
+    hasActiveRequest
   };
 };

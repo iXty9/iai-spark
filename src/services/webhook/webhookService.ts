@@ -93,12 +93,13 @@ const refreshWebhookCache = async (): Promise<void> => {
     webhookUrlCache = {
       'authenticated_webhook_url': settings['authenticated_webhook_url'] || DEFAULT_AUTHENTICATED_WEBHOOK,
       'anonymous_webhook_url': settings['anonymous_webhook_url'] || DEFAULT_ANONYMOUS_WEBHOOK,
-      'debug_webhook_url': settings['debug_webhook_url'] || DEFAULT_DEBUG_WEBHOOK
+      'debug_webhook_url': settings['debug_webhook_url'] || DEFAULT_DEBUG_WEBHOOK,
+      'webhook_timeout': settings['webhook_timeout'] || '300000' // Default 5 minutes (300,000ms)
     };
     
     // Log any invalid URLs for admin awareness
     Object.entries(webhookUrlCache).forEach(([key, url]) => {
-      if (!isValidWebhookUrl(url)) {
+      if (key !== 'webhook_timeout' && !isValidWebhookUrl(url)) {
         logger.warn(`Invalid webhook URL detected for ${key}`, { url }, { module: 'webhook' });
       }
     });
@@ -198,6 +199,9 @@ export const sendWebhookMessage = async (
   
   const webhookUrl = await getWebhookUrl(isAuthenticated);
   
+  // Get configurable timeout (default 5 minutes)
+  const timeoutMs = parseInt(webhookUrlCache['webhook_timeout'] || '300000');
+  
   // Validate URL again right before using it
   if (!isValidWebhookUrl(webhookUrl)) {
     const error = new Error('Invalid webhook URL');
@@ -224,7 +228,18 @@ export const sendWebhookMessage = async (
   try {
     // Add request timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    
+    const requestStartTime = Date.now();
+    
+    // Dispatch event to track request start for timer component
+    window.dispatchEvent(new CustomEvent('webhookRequestStart', {
+      detail: {
+        requestId: `request-${Date.now()}`,
+        startTime: requestStartTime,
+        timeout: timeoutMs
+      }
+    }));
     
     const response = await fetch(webhookUrl, {
       method: 'POST',
@@ -240,6 +255,15 @@ export const sendWebhookMessage = async (
     });
     
     clearTimeout(timeoutId);
+    
+    // Dispatch event to track request end
+    window.dispatchEvent(new CustomEvent('webhookRequestEnd', {
+      detail: {
+        requestId: `request-${requestStartTime}`,
+        duration: Date.now() - requestStartTime,
+        status: response.status
+      }
+    }));
     
     if (!response.ok) {
       logWebhookActivity(webhookUrl, 'ERROR', { status: response.status });
@@ -257,10 +281,18 @@ export const sendWebhookMessage = async (
     
     return data;
   } catch (error) {
+    // Dispatch event to track request error
+    window.dispatchEvent(new CustomEvent('webhookRequestError', {
+      detail: {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        isTimeout: error instanceof DOMException && error.name === 'AbortError'
+      }
+    }));
+    
     if (error instanceof DOMException && error.name === 'AbortError') {
       logger.error('Webhook request timed out', { url: webhookUrl }, { module: 'webhook' });
       logWebhookActivity(webhookUrl, 'ERROR', { message: 'Request timed out' });
-      throw new Error('Webhook request timed out');
+      throw new Error('Webhook request timed out after ' + (parseInt(webhookUrlCache['webhook_timeout'] || '300000') / 1000) + ' seconds');
     }
     
     logger.error('Webhook request failed', error, { module: 'webhook' });

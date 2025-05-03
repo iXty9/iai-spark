@@ -17,8 +17,9 @@ export const sendMessage = async ({
   onMessageComplete,
   onError,
   isAuthenticated = false
-}: SendMessageParams): Promise<Message> => {
+}: SendMessageParams): Promise<Message & { cancel?: () => void }> => {
   let canceled = false;
+  let controller: AbortController | null = new AbortController();
   
   try {
     logger.info('Processing message', { isAuthenticated }, { module: 'chat' });
@@ -95,7 +96,7 @@ export const sendMessage = async ({
       // Simple streaming implementation
       const chunks = responseText.split(' ');
       for (const word of chunks) {
-        if (canceled) {
+        if (canceled || (controller && controller.signal.aborted)) {
           throw new Error('Message streaming was canceled');
         }
         
@@ -151,7 +152,25 @@ export const sendMessage = async ({
       onMessageComplete(assistantMessage);
     }
     
-    return assistantMessage;
+    // Add cancel method to response
+    const responseWithCancel = {
+      ...assistantMessage,
+      cancel: () => {
+        canceled = true;
+        if (controller) {
+          controller.abort();
+          controller = null;
+        }
+        
+        // Debug only
+        emitDebugEvent({
+          lastAction: 'API: Message streaming was canceled by user',
+          isLoading: false
+        });
+      }
+    };
+    
+    return responseWithCancel;
     
   } catch (error) {
     logger.error('Error in sendMessage', error, { module: 'chat' });
@@ -169,7 +188,7 @@ export const sendMessage = async ({
     }
     
     // Return an error message - core business logic
-    return {
+    const errorResponse = {
       id: `error_${Date.now()}`,
       sender: 'ai',
       content: "I'm sorry, but I encountered an error processing your message. Please try again.",
@@ -177,22 +196,19 @@ export const sendMessage = async ({
       metadata: { 
         error: true,
         errorMessage: error instanceof Error ? error.message : 'Unknown error'
+      },
+      // Add cancel method for consistency
+      cancel: () => {
+        canceled = true;
+        if (controller) {
+          controller.abort();
+          controller = null;
+        }
       }
     };
+    
+    return errorResponse;
   }
-  
-  // Cleanup function to allow for cancellation - core business logic
-  return {
-    cancel: () => {
-      canceled = true;
-      
-      // Debug only  
-      emitDebugEvent({
-        lastAction: 'API: Message sending was canceled by user',
-        isLoading: false
-      });
-    }
-  } as any;
 };
 
 // Add a global reference for dev mode state for components that can't use hooks
