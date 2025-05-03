@@ -107,6 +107,44 @@ input, textarea, button {
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+/* Message interaction animations */
+.user-message-bubble,
+.ai-message-bubble {
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  will-change: transform, opacity;
+}
+
+/* Swipe animation */
+.swipe-left {
+  animation: swipeLeft 0.5s ease forwards;
+}
+
+.swipe-right {
+  animation: swipeRight 0.5s ease forwards;
+}
+
+@keyframes swipeLeft {
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(-100px); opacity: 0.5; }
+}
+
+@keyframes swipeRight {
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(100px); opacity: 0.5; }
+}
+
+/* Pulse animation for interactive elements */
+.pulse-on-touch:active {
+  animation: pulse-animation 0.3s ease-out;
+}
+
+@keyframes pulse-animation {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+
 /* Keep any other necessary styles */
 .logo {
   height: 6em;
@@ -135,3 +173,4 @@ input, textarea, button {
     animation: logo-spin infinite 20s linear;
   }
 }
+
