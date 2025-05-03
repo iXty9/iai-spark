@@ -3,6 +3,7 @@ import { Message } from '@/types/chat';
 import { logger } from '@/utils/logging';
 
 const STORAGE_KEY = 'ixty_chat_history';
+const SCROLL_POSITION_KEY = 'ixty_chat_scroll_position';
 const MAX_MESSAGES = 100; // Prevent too large storage
 
 /**
@@ -87,8 +88,52 @@ export const loadChatHistory = (): Message[] => {
 export const clearChatHistory = (): void => {
   try {
     localStorage.removeItem(STORAGE_KEY);
+    clearScrollPosition();
     logger.debug('Chat history cleared from localStorage', null, { module: 'storage' });
   } catch (error) {
     logger.error('Failed to clear chat history', error, { module: 'storage' });
+  }
+};
+
+/**
+ * Saves the current scroll position to localStorage
+ */
+export const saveScrollPosition = (position: number): void => {
+  try {
+    localStorage.setItem(SCROLL_POSITION_KEY, position.toString());
+    logger.debug('Scroll position saved', { position }, { module: 'storage' });
+  } catch (error) {
+    logger.error('Failed to save scroll position', error, { module: 'storage' });
+  }
+};
+
+/**
+ * Loads saved scroll position from localStorage
+ */
+export const loadScrollPosition = (): number | null => {
+  try {
+    const savedPosition = localStorage.getItem(SCROLL_POSITION_KEY);
+    if (!savedPosition) {
+      return null;
+    }
+    
+    const position = parseInt(savedPosition, 10);
+    logger.debug('Scroll position loaded', { position }, { module: 'storage' });
+    return position;
+  } catch (error) {
+    logger.error('Failed to load scroll position', error, { module: 'storage' });
+    return null;
+  }
+};
+
+/**
+ * Clears the saved scroll position from localStorage
+ */
+export const clearScrollPosition = (): void => {
+  try {
+    localStorage.removeItem(SCROLL_POSITION_KEY);
+    logger.debug('Scroll position cleared', null, { module: 'storage' });
+  } catch (error) {
+    logger.error('Failed to clear scroll position', error, { module: 'storage' });
   }
 };

@@ -38,7 +38,7 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
 
       <div 
         className={cn(
-          "transform transition-all duration-300 ease-in-out overflow-hidden",
+          "transform transition-all duration-300 ease-in-out overflow-hidden bg-background/80 backdrop-blur-sm rounded-lg shadow-sm",
           isExpanded ? "max-h-20 opacity-100" : "max-h-0 opacity-0"
         )}
       >
@@ -52,4 +52,3 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
     </div>
   );
 };
-

@@ -4,6 +4,8 @@ import { Message as MessageType } from '@/types/chat';
 import { Message } from './Message';
 import { TypingIndicator } from './TypingIndicator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { saveScrollPosition, loadScrollPosition } from '@/services/storage/chatPersistenceService';
+import { logger } from '@/utils/logging';
 
 interface MessageListProps {
   messages: MessageType[];
@@ -19,24 +21,28 @@ export const MessageList: React.FC<MessageListProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [userHasScrolled, setUserHasScrolled] = useState(false);
-  
-  useEffect(() => {
-    const scrollToBottom = () => {
-      if (!userHasScrolled && messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-      }
-    };
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const prevMessagesLengthRef = useRef(messages.length);
 
-    if (messages.length > 0) {
-      scrollToBottom();
+  // Load saved scroll position on initial mount
+  useEffect(() => {
+    const scrollableElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+    if (scrollableElement && messages.length > 0 && isInitialLoad) {
+      const savedScrollPosition = loadScrollPosition();
+      
+      if (savedScrollPosition !== null) {
+        logger.debug('Restoring scroll position', { position: savedScrollPosition }, { module: 'chat' });
+        // Use a small timeout to ensure DOM is ready
+        setTimeout(() => {
+          scrollableElement.scrollTop = savedScrollPosition;
+          setUserHasScrolled(true);
+        }, 100);
+      }
+      setIsInitialLoad(false);
     }
-    
-    if (isLoading) {
-      setUserHasScrolled(false);
-      scrollToBottom();
-    }
-  }, [messages, isLoading, userHasScrolled]);
+  }, [messages, isInitialLoad]);
   
+  // Save scroll position when user scrolls
   useEffect(() => {
     const scrollArea = scrollAreaRef.current;
     
@@ -44,6 +50,9 @@ export const MessageList: React.FC<MessageListProps> = ({
       if (scrollArea) {
         const { scrollTop, scrollHeight, clientHeight } = e.target as HTMLElement;
         const isScrolledToBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 10;
+        
+        // Save the current scroll position to localStorage
+        saveScrollPosition(scrollTop);
         
         setUserHasScrolled(!isScrolledToBottom);
       }
@@ -60,6 +69,31 @@ export const MessageList: React.FC<MessageListProps> = ({
       }
     }
   }, []);
+
+  // Handle scrolling based on new messages or loading state
+  useEffect(() => {
+    const scrollToBottom = () => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
+    };
+
+    // Scroll to bottom when new messages arrive (but not on initial load with saved position)
+    const hasNewMessages = messages.length > prevMessagesLengthRef.current;
+    
+    if (hasNewMessages && !isInitialLoad) {
+      scrollToBottom();
+      setUserHasScrolled(false);
+    }
+    
+    // Always scroll when loading starts
+    if (isLoading) {
+      setUserHasScrolled(false);
+      scrollToBottom();
+    }
+    
+    prevMessagesLengthRef.current = messages.length;
+  }, [messages, isLoading, userHasScrolled, isInitialLoad]);
 
   return (
     <ScrollArea 
