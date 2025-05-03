@@ -160,13 +160,21 @@ export const useChatSubmit = (
         }
       });
       
-      // Create AI response message using the response content if it exists
+      // Create AI response message using the response from chatService
       const aiMessage: Message = {
         id: uuidv4(),
-        content: currentRequest && typeof currentRequest === 'object' ? currentRequest.content || '' : '',
+        content: '', // Default empty content
         sender: 'ai',
         timestamp: new Date()
       };
+      
+      // If currentRequest exists and has a response, use that content
+      if (currentRequest && typeof currentRequest === 'object') {
+        // If it's a Message with content, use that content
+        if ('content' in currentRequest && typeof currentRequest.content === 'string') {
+          aiMessage.content = currentRequest.content;
+        }
+      }
       
       logger.info('AI response received', {
         messageId: aiMessage.id,

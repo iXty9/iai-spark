@@ -188,16 +188,20 @@ export const sendMessage = async ({
     }
     
     // Return an error message - core business logic
-    const errorResponse: Message & { cancel?: () => void } = {
+    const errorMessage: Message = {
       id: `error_${Date.now()}`,
-      sender: 'ai', // Specify 'ai' explicitly to match the Message type
+      sender: 'ai' as 'ai', // Explicitly type this as 'ai' to match the Message type
       content: "I'm sorry, but I encountered an error processing your message. Please try again.",
       timestamp: new Date(),
       metadata: { 
         error: true,
         errorMessage: error instanceof Error ? error.message : 'Unknown error'
-      },
-      // Add cancel method for consistency
+      }
+    };
+    
+    // Add cancel function to the error message response
+    const errorResponse: Message & { cancel?: () => void } = {
+      ...errorMessage,
       cancel: () => {
         canceled = true;
         if (controller) {
