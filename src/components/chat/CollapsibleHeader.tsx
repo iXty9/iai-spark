@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ChatHeader } from './ChatHeader';
 import { cn } from '@/lib/utils';
 import { Message } from '@/types/chat';
+import { useDynamicPadding } from '@/hooks/use-dynamic-padding';
 
 interface CollapsibleHeaderProps {
   onClearChat: () => void;
@@ -21,6 +22,7 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const hasMessages = messages && messages.length > 0;
+  const dynamicPadding = useDynamicPadding();
 
   return (
     <div className="relative mt-4">
@@ -41,12 +43,17 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
           "transform transition-all duration-300 ease-in-out overflow-hidden bg-background/80 backdrop-blur-sm rounded-lg shadow-sm",
           isExpanded ? "max-h-20 opacity-100" : "max-h-0 opacity-0"
         )}
+        style={{
+          paddingLeft: isExpanded ? `${dynamicPadding.left}rem` : 0,
+          paddingRight: isExpanded ? `${dynamicPadding.right}rem` : 0
+        }}
       >
         <ChatHeader 
           onClearChat={onClearChat} 
           onExportChat={onExportChat}
           onImportChat={onImportChat}
           hasMessages={hasMessages}
+          dynamicPadding={dynamicPadding}
         />
       </div>
     </div>

@@ -19,13 +19,18 @@ interface ChatHeaderProps {
   onExportChat: () => void;
   onImportChat: (messages: any[]) => void;
   hasMessages?: boolean;
+  dynamicPadding?: {
+    left: number;
+    right: number;
+  };
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({ 
   onClearChat, 
   onExportChat,
   onImportChat,
-  hasMessages = false
+  hasMessages = false,
+  dynamicPadding = { left: 4, right: 4 }
 }) => {
   const { theme, setTheme } = useTheme();
   const { isDevMode, toggleDevMode } = useDevMode();
@@ -82,7 +87,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   
   return (
     <header className="p-4 border-b border-border flex items-center justify-between">
-      <div className="flex items-center cursor-pointer" onClick={handleLogoClick}>
+      <div 
+        className="flex items-center cursor-pointer" 
+        onClick={handleLogoClick}
+        style={{ 
+          marginLeft: `calc(${dynamicPadding.left / 4}rem - 1rem)` 
+        }}
+      >
         <img 
           src="https://ixty9.com/wp-content/uploads/2023/10/cropped-faviconV4.png" 
           alt="Ixty AI" 
@@ -93,7 +104,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         </div>
       </div>
       
-      <div className="flex items-center gap-2">
+      <div 
+        className="flex items-center gap-2"
+        style={{ 
+          marginRight: `calc(${dynamicPadding.right / 4}rem - 1rem)` 
+        }}
+      >
         <Button 
           variant="ghost" 
           size="icon"
@@ -144,4 +160,3 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     </header>
   );
 };
-
