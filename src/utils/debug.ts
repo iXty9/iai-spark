@@ -1,7 +1,7 @@
 
 import { emitDebugEvent } from './debug-events';
 import { logger } from './logging';
-import { sendDebugWebhookMessage } from '@/services/webhook/webhookService';
+import { sendDebugWebhookMessage } from '@/services/webhook';
 
 /**
  * Parse webhook response to get the actual content
