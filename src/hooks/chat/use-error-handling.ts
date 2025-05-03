@@ -35,7 +35,7 @@ export const useErrorHandling = ({ addMessage }: UseErrorHandlingProps) => {
     addMessage(errorMessage);
     
     // Debug only
-    emitDebugSubmitEvent(null, `Error in AI response: ${error.message}`);
+    emitDebugSubmitEvent('Error in AI response', `Error in AI response: ${error.message}`);
   };
   
   return { handleSubmissionError };
