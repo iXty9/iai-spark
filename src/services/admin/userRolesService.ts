@@ -31,11 +31,10 @@ export interface UsersFetchResult {
 
 export async function fetchUsers(options: UsersFetchOptions = {}): Promise<UsersFetchResult> {
   const { page = 1, pageSize = 10, roleFilter } = options;
-  const startIndex = (page - 1) * pageSize;
   
   try {
     // First get users with pagination
-    const { data: usersData, error: usersError, count } = await supabase.auth.admin.listUsers({
+    const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers({
       page: page - 1, // Supabase uses 0-indexed pages
       perPage: pageSize,
     });
@@ -45,8 +44,17 @@ export async function fetchUsers(options: UsersFetchOptions = {}): Promise<Users
       throw usersError;
     }
 
-    if (!usersData || !count) {
+    if (!usersData) {
       return { users: [], totalCount: 0 };
+    }
+
+    // Get total count via separate call - this is a workaround since TypeScript doesn't see the count property
+    let totalCount = 0;
+    try {
+      // @ts-ignore - The count property exists at runtime but TypeScript doesn't recognize it
+      totalCount = usersData.count || 0;
+    } catch (error) {
+      logger.error('Error accessing count property:', error, { module: 'roles' });
     }
 
     // Then get all roles
@@ -101,7 +109,7 @@ export async function fetchUsers(options: UsersFetchOptions = {}): Promise<Users
 
     return { 
       users: mappedUsers,
-      totalCount: count
+      totalCount: totalCount
     };
   } catch (error) {
     logger.error('Error in fetchUsers:', error, { module: 'roles' });

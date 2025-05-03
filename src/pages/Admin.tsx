@@ -18,7 +18,7 @@ export default function Admin() {
   const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<string>('webhook');
+  const [activeTab, setActiveTab] = useState<string>('app-settings');
 
   useEffect(() => {
     const checkAdmin = async () => {

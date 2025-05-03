@@ -6,11 +6,19 @@ interface AdminTabsProps {
   webhookContent: ReactNode;
   appSettingsContent: ReactNode;
   userManagementContent: ReactNode;
+  activeTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
-export function AdminTabs({ webhookContent, appSettingsContent, userManagementContent }: AdminTabsProps) {
+export function AdminTabs({ webhookContent, appSettingsContent, userManagementContent, activeTab = "app-settings", onTabChange }: AdminTabsProps) {
+  const handleValueChange = (value: string) => {
+    if (onTabChange) {
+      onTabChange(value);
+    }
+  };
+
   return (
-    <Tabs defaultValue="app-settings">
+    <Tabs value={activeTab} onValueChange={handleValueChange}>
       <TabsList className="w-full">
         <TabsTrigger value="app-settings" className="flex-1">App Settings</TabsTrigger>
         <TabsTrigger value="webhooks" className="flex-1">Webhooks</TabsTrigger>
