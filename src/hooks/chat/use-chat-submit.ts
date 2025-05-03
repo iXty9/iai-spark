@@ -148,7 +148,7 @@ export const useChatSubmit = (
       // Debug only
       emitDebugSubmitEvent('Sending to API');
       
-      // Core business logic
+      // Core business logic - send the message and store the response
       currentRequest = await sendMessage({
         message: userMessage.content,
         isAuthenticated: isAuthenticated,
@@ -160,10 +160,10 @@ export const useChatSubmit = (
         }
       });
       
-      // Create AI response message - core business logic
+      // Create AI response message using the response content if it exists
       const aiMessage: Message = {
         id: uuidv4(),
-        content: currentRequest.content,
+        content: currentRequest && typeof currentRequest === 'object' ? currentRequest.content || '' : '',
         sender: 'ai',
         timestamp: new Date()
       };
@@ -171,7 +171,7 @@ export const useChatSubmit = (
       logger.info('AI response received', {
         messageId: aiMessage.id,
         responseTime: aiMessage.timestamp.getTime() - userMessage.timestamp.getTime(),
-        contentLength: currentRequest.content.length
+        contentLength: aiMessage.content.length
       }, { module: 'chat' });
       
       // Notify that request is complete

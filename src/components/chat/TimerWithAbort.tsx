@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Stop } from 'lucide-react';
+import { XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/sonner';
 
@@ -74,7 +74,7 @@ export const TimerWithAbort: React.FC<TimerWithAbortProps> = ({
           aria-label="Cancel request"
           title="Cancel request"
         >
-          <Stop className="h-3 w-3" />
+          <XCircle className="h-3 w-3" />
         </Button>
       )}
     </div>

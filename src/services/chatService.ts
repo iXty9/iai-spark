@@ -188,9 +188,9 @@ export const sendMessage = async ({
     }
     
     // Return an error message - core business logic
-    const errorResponse = {
+    const errorResponse: Message & { cancel?: () => void } = {
       id: `error_${Date.now()}`,
-      sender: 'ai',
+      sender: 'ai', // Specify 'ai' explicitly to match the Message type
       content: "I'm sorry, but I encountered an error processing your message. Please try again.",
       timestamp: new Date(),
       metadata: { 
