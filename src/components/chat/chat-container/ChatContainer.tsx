@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { MessageList } from '../MessageList';
 import { MessageInput } from '../MessageInput';
@@ -76,6 +75,8 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
         ) : (
           <MessageList
             messages={messages}
+            loadingState={isLoading || isRefreshing ? 'pending' : 'idle'}
+            onFetchHistory={async () => {/* Load history logic could go here */}}
             isLoading={isLoading || isRefreshing}
             scrollRef={scrollRef}
             onRefresh={handleRefresh}
