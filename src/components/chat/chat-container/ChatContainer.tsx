@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { MessageList } from '../MessageList';
 import { MessageInput } from '../MessageInput';
@@ -10,8 +11,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Message } from '@/types/chat';
 import { useIOSSafari } from '@/hooks/use-ios-safari';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
-import { haptics } from '@/utils/haptic-feedback';
 
 interface ChatContainerProps {
   className?: string;
@@ -34,7 +33,6 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
   const { user, isLoading: authLoading } = useAuth();
   const [hasInteracted, setHasInteracted] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
   
@@ -43,22 +41,6 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
       setMessages(importedMessages);
       setHasInteracted(true);
     }
-  };
-
-  const handleRefresh = () => {
-    if (isRefreshing || isLoading) return;
-    
-    setIsRefreshing(true);
-    haptics.medium();
-    toast.info('Refreshing conversation...');
-    
-    // Simulate refresh delay
-    setTimeout(() => {
-      // In a real app, you might reload the chat or get new messages here
-      setIsRefreshing(false);
-      haptics.success();
-      toast.success('Conversation refreshed');
-    }, 1500);
   };
 
   return (
@@ -73,14 +55,13 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
         {messages.length === 0 ? (
           <Welcome onStartChat={startChat} onImportChat={handleImportChat} />
         ) : (
-          <MessageList
-            messages={messages}
-            loadingState={isLoading || isRefreshing ? 'pending' : 'idle'}
-            onFetchHistory={async () => {/* Load history logic could go here */}}
-            isLoading={isLoading || isRefreshing}
-            scrollRef={scrollRef}
-            onRefresh={handleRefresh}
-          />
+          <ScrollArea className="h-full py-4 px-2 bg-transparent messages-container">
+            <MessageList
+              messages={messages}
+              isLoading={isLoading}
+              scrollRef={scrollRef}
+            />
+          </ScrollArea>
         )}
       </div>
       

@@ -1,76 +1,141 @@
 
-import React, { useRef, useEffect, useCallback } from 'react';
-import { Message } from '@/components/chat/Message';
-import { useChatScroll } from '@/hooks/use-chat-scroll';
-import { ChatLoading } from './ChatLoading';
-import { cn } from '@/lib/utils';
+import React, { useRef, useEffect, useState } from 'react';
 import { Message as MessageType } from '@/types/chat';
+import { Message } from './Message';
+import { TypingIndicator } from './TypingIndicator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { saveScrollPosition, loadScrollPosition } from '@/services/storage/chatPersistenceService';
+import { logger } from '@/utils/logging';
 
 interface MessageListProps {
   messages: MessageType[];
-  loadingState?: 'idle' | 'pending' | 'success' | 'error';
-  onFetchHistory?: () => Promise<void>;
-  isLoading?: boolean;
+  isLoading: boolean;
   scrollRef?: React.RefObject<HTMLDivElement>;
-  onRefresh?: () => void;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({ 
   messages, 
-  loadingState = 'idle',
-  onFetchHistory = async () => {},
-  isLoading = false,
-  scrollRef,
-  onRefresh
+  isLoading,
+  scrollRef
 }) => {
-  const chatRef = useRef<HTMLDivElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const actualChatRef = scrollRef || chatRef;
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [userHasScrolled, setUserHasScrolled] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const prevMessagesLengthRef = useRef(messages.length);
+  const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
+                     /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
-  const { loadMore, hasInitialMessages } = useChatScroll({
-    chatRef: actualChatRef,
-    bottomRef,
-    loadMore: onFetchHistory,
-    shouldLoadMore: loadingState === 'idle',
-  });
-
+  // Load saved scroll position on initial mount
   useEffect(() => {
-    if (loadingState === 'success' && !hasInitialMessages) {
-      loadMore();
+    const scrollableElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+    if (scrollableElement && messages.length > 0 && isInitialLoad) {
+      const savedScrollPosition = loadScrollPosition();
+      
+      if (savedScrollPosition !== null) {
+        logger.debug('Restoring scroll position', { position: savedScrollPosition }, { module: 'chat' });
+        // Use a small timeout to ensure DOM is ready
+        setTimeout(() => {
+          scrollableElement.scrollTop = savedScrollPosition;
+          setUserHasScrolled(true);
+        }, 100);
+      }
+      setIsInitialLoad(false);
     }
-  }, [loadingState, hasInitialMessages, loadMore]);
+  }, [messages, isInitialLoad]);
+  
+  // Save scroll position when user scrolls
+  useEffect(() => {
+    const scrollArea = scrollAreaRef.current;
+    
+    const handleScroll = (e: Event) => {
+      if (scrollArea) {
+        const { scrollTop, scrollHeight, clientHeight } = e.target as HTMLElement;
+        const isScrolledToBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 20;
+        
+        // Save the current scroll position to localStorage
+        if (!isIOSSafari || (isIOSSafari && !isLoading)) {
+          saveScrollPosition(scrollTop);
+        }
+        
+        setUserHasScrolled(!isScrolledToBottom);
+      }
+    };
+    
+    if (scrollArea) {
+      const scrollableElement = scrollArea.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollableElement) {
+        scrollableElement.addEventListener('scroll', handleScroll);
+        
+        // Special handling for iOS momentum scrolling
+        if (isIOSSafari) {
+          scrollableElement.addEventListener('touchend', () => {
+            setTimeout(() => {
+              const { scrollTop } = scrollableElement as HTMLElement;
+              saveScrollPosition(scrollTop);
+            }, 300); // Delay to account for momentum
+          });
+        }
+        
+        return () => {
+          scrollableElement.removeEventListener('scroll', handleScroll);
+          if (isIOSSafari) {
+            scrollableElement.removeEventListener('touchend', () => {});
+          }
+        };
+      }
+    }
+  }, [isIOSSafari, isLoading]);
 
-  const renderMessages = useCallback(() => {
-    return messages.map((message) => (
-      <Message key={message.id} message={message} />
-    ));
-  }, [messages]);
+  // Handle scrolling based on new messages or loading state
+  useEffect(() => {
+    const scrollToBottom = () => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ 
+          behavior: isIOSSafari ? 'auto' : 'smooth',
+          block: 'end' 
+        });
+      }
+    };
 
-  // Animation for loading indicator
-  const refreshAnimation = () => {
-    // Use Array.from instead of spread operator on number
-    const frames = Array.from({length: 60}).map(
-      (_, i) => `transform: translateY(${Math.sin(i / 5) * 10}px) rotate(${i * 6}deg);`
-    );
-    return frames.join(' ');
-  };
+    // Scroll to bottom when new messages arrive (but not on initial load with saved position)
+    const hasNewMessages = messages.length > prevMessagesLengthRef.current;
+    
+    if (hasNewMessages && !isInitialLoad) {
+      scrollToBottom();
+      setUserHasScrolled(false);
+    }
+    
+    // Always scroll when loading starts
+    if (isLoading) {
+      setUserHasScrolled(false);
+      scrollToBottom();
+    }
+    
+    prevMessagesLengthRef.current = messages.length;
+  }, [messages, isLoading, userHasScrolled, isInitialLoad, isIOSSafari]);
 
   return (
-    <div className="relative w-full h-full overflow-y-auto" ref={actualChatRef}>
-      <div className="absolute top-0 w-full h-24 flex justify-center items-center">
-        {(loadingState === 'pending' || isLoading) && !messages.length && (
-          <ChatLoading animation={refreshAnimation()} />
-        )}
-        {(loadingState === 'pending' || isLoading) && messages.length > 0 && (
-          <div className="text-sm text-muted-foreground">
-            Loading previous messages...
-          </div>
-        )}
+    <ScrollArea 
+      ref={scrollAreaRef}
+      className="flex-1 p-4 overflow-y-auto w-full h-full bg-transparent"
+      type="always"
+    >
+      <div 
+        className="message-list space-y-4 pb-4 bg-transparent" 
+        role="log" 
+        aria-live="polite" 
+        aria-label="Chat messages"
+      >
+        {messages.map((message) => (
+          <Message key={message.id} message={message} />
+        ))}
+        
+        <TypingIndicator isVisible={isLoading} />
+        
+        <div ref={messagesEndRef} aria-hidden="true" />
+        {scrollRef && <div ref={scrollRef} aria-hidden="true" />}
       </div>
-      <div className={cn("flex flex-col-reverse p-4")}>
-        {renderMessages()}
-        <div ref={bottomRef} className="h-1 w-full" />
-      </div>
-    </div>
+    </ScrollArea>
   );
 };
