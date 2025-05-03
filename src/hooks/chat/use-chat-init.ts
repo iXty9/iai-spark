@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Message } from '@/types/chat';
 import { toast } from '@/components/ui/sonner';
 import { emitDebugEvent } from '@/utils/debug-events';
-import { sendMessage } from '@/services/chatService';
+import { sendMessage } from '@/services/chat';
 
 interface UseChatInitProps {
   user: any;

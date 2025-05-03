@@ -1,7 +1,7 @@
 
 import { useCallback } from 'react';
 import { Message } from '@/types/chat';
-import { exportChat } from '@/services/chatService';
+import { exportChat } from '@/services/chat';
 import { toast } from '@/components/ui/sonner';
 import { emitDebugEvent } from '@/utils/debug-events';
 
