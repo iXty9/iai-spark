@@ -23,6 +23,7 @@ interface ChatHeaderProps {
     left: number;
     right: number;
   };
+  isMobile?: boolean;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({ 
@@ -30,7 +31,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onExportChat,
   onImportChat,
   hasMessages = false,
-  dynamicPadding = { left: 4, right: 4 }
+  dynamicPadding = { left: 4, right: 4 },
+  isMobile = false
 }) => {
   const { theme, setTheme } = useTheme();
   const { isDevMode, toggleDevMode } = useDevMode();
@@ -86,12 +88,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   };
   
   return (
-    <header className="p-4 border-b border-border flex items-center justify-between">
+    <header className={`p-4 ${isMobile ? 'rounded-b-lg' : ''} flex items-center justify-between`}>
       <div 
         className="flex items-center cursor-pointer" 
         onClick={handleLogoClick}
         style={{ 
-          marginLeft: `calc(${dynamicPadding.left / 4}rem - 1rem)` 
+          marginLeft: isMobile ? '0' : `calc(${dynamicPadding.left / 4}rem - 1rem)` 
         }}
       >
         <img 
@@ -107,45 +109,67 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       <div 
         className="flex items-center gap-2"
         style={{ 
-          marginRight: `calc(${dynamicPadding.right / 4}rem - 1rem)` 
+          marginRight: isMobile ? '0' : `calc(${dynamicPadding.right / 4}rem - 1rem)` 
         }}
       >
-        <Button 
-          variant="ghost" 
-          size="icon"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-        >
-          {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-        </Button>
+        {!isMobile && (
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </Button>
+        )}
         
         <UserMenu />
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size={isMobile ? "xs" : "sm"}>
               Actions
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="border-none shadow-md">
-            {hasMessages && (
+          <DropdownMenuContent align="end" className="border-none shadow-md rounded-xl">
+            {!isMobile && hasMessages && (
               <DropdownMenuItem onClick={onExportChat}>
                 <Download className="mr-2 h-4 w-4" />
                 <span>Export Chat</span>
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={handleImportClick}>
+            {isMobile && hasMessages && (
+              <DropdownMenuItem onClick={onExportChat} className="flex items-center">
+                <Download className="mr-2 h-4 w-4" />
+                <span>Export</span>
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={handleImportClick} className={isMobile ? "flex items-center" : ""}>
               <Upload className="mr-2 h-4 w-4" />
-              <span>Import Chat</span>
+              <span>{isMobile ? "Import" : "Import Chat"}</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onClearChat}>
+            <DropdownMenuItem onClick={onClearChat} className={isMobile ? "flex items-center" : ""}>
               <Trash2 className="mr-2 h-4 w-4" />
-              <span>Clear Chat</span>
+              <span>{isMobile ? "Clear" : "Clear Chat"}</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleDevModeToggle}>
-              <Code className="mr-2 h-4 w-4" />
-              <span>Dev Mode {isDevMode ? '(On)' : '(Off)'}</span>
-            </DropdownMenuItem>
+            {!isMobile && (
+              <DropdownMenuItem onClick={handleDevModeToggle}>
+                <Code className="mr-2 h-4 w-4" />
+                <span>Dev Mode {isDevMode ? '(On)' : '(Off)'}</span>
+              </DropdownMenuItem>
+            )}
+            {isMobile && (
+              <>
+                <DropdownMenuItem onClick={handleDevModeToggle} className="flex items-center">
+                  <Code className="mr-2 h-4 w-4" />
+                  <span>Dev {isDevMode ? '(On)' : '(Off)'}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="flex items-center">
+                  {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
+                  <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
 

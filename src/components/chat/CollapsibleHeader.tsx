@@ -6,6 +6,7 @@ import { ChatHeader } from './ChatHeader';
 import { cn } from '@/lib/utils';
 import { Message } from '@/types/chat';
 import { useDynamicPadding } from '@/hooks/use-dynamic-padding';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface CollapsibleHeaderProps {
   onClearChat: () => void;
@@ -23,6 +24,7 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const hasMessages = messages && messages.length > 0;
   const dynamicPadding = useDynamicPadding();
+  const isMobile = useIsMobile();
 
   return (
     <div className="relative mt-4">
@@ -44,8 +46,9 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
           isExpanded ? "max-h-20 opacity-100" : "max-h-0 opacity-0"
         )}
         style={{
-          paddingLeft: isExpanded ? `${dynamicPadding.left}rem` : 0,
-          paddingRight: isExpanded ? `${dynamicPadding.right}rem` : 0
+          // Apply minimal or no padding on mobile
+          paddingLeft: isExpanded ? (isMobile ? '0.5rem' : `${dynamicPadding.left}rem`) : 0,
+          paddingRight: isExpanded ? (isMobile ? '0.5rem' : `${dynamicPadding.right}rem`) : 0
         }}
       >
         <ChatHeader 
@@ -54,6 +57,7 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
           onImportChat={onImportChat}
           hasMessages={hasMessages}
           dynamicPadding={dynamicPadding}
+          isMobile={isMobile}
         />
       </div>
     </div>
