@@ -61,10 +61,10 @@ export const useSettingsState = () => {
           setLightTheme({
             ...lightTheme,
             ...themeSettings.lightTheme,
-            userBubbleOpacity: themeSettings.lightTheme.userBubbleOpacity ?? 0.3,
-            aiBubbleOpacity: themeSettings.lightTheme.aiBubbleOpacity ?? 0.3,
-            userTextColor: themeSettings.lightTheme.userTextColor ?? themeSettings.lightTheme.textColor,
-            aiTextColor: themeSettings.lightTheme.aiTextColor ?? themeSettings.lightTheme.textColor
+            userBubbleOpacity: parseFloat(themeSettings.lightTheme.userBubbleOpacity) || 0.3,
+            aiBubbleOpacity: parseFloat(themeSettings.lightTheme.aiBubbleOpacity) || 0.3,
+            userTextColor: themeSettings.lightTheme.userTextColor || themeSettings.lightTheme.textColor,
+            aiTextColor: themeSettings.lightTheme.aiTextColor || themeSettings.lightTheme.textColor
           });
         }
         
@@ -72,10 +72,10 @@ export const useSettingsState = () => {
           setDarkTheme({
             ...darkTheme,
             ...themeSettings.darkTheme,
-            userBubbleOpacity: themeSettings.darkTheme.userBubbleOpacity ?? 0.3,
-            aiBubbleOpacity: themeSettings.darkTheme.aiBubbleOpacity ?? 0.3,
-            userTextColor: themeSettings.darkTheme.userTextColor ?? themeSettings.darkTheme.textColor,
-            aiTextColor: themeSettings.darkTheme.aiTextColor ?? themeSettings.darkTheme.textColor
+            userBubbleOpacity: parseFloat(themeSettings.darkTheme.userBubbleOpacity) || 0.3,
+            aiBubbleOpacity: parseFloat(themeSettings.darkTheme.aiBubbleOpacity) || 0.3,
+            userTextColor: themeSettings.darkTheme.userTextColor || themeSettings.darkTheme.textColor,
+            aiTextColor: themeSettings.darkTheme.aiTextColor || themeSettings.darkTheme.textColor
           });
         }
       } catch (e) {

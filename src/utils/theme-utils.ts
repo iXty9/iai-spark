@@ -23,11 +23,17 @@ export const applyThemeChanges = (themeColors: ThemeColors) => {
  * Applies background image and opacity to the document body
  */
 export const applyBackgroundImage = (image: string | null, opacity: number) => {
+  const root = document.documentElement;
+  
+  // Set the opacity CSS variable first
+  root.style.setProperty('--bg-opacity', opacity.toString());
+  
   if (image) {
+    // Apply background image to body
     document.body.style.backgroundImage = `url(${image})`;
-    document.documentElement.style.setProperty('--bg-opacity', opacity.toString());
     document.body.classList.add('with-bg-image');
   } else {
+    // Remove background image
     document.body.style.backgroundImage = 'none';
     document.body.classList.remove('with-bg-image');
   }
@@ -51,4 +57,3 @@ export const createThemeSettingsObject = (
     backgroundOpacity: backgroundOpacity.toString()
   };
 };
-

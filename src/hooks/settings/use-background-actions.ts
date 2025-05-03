@@ -36,8 +36,18 @@ export const useBackgroundActions = ({
     
     reader.readAsDataURL(file);
   };
+  
+  const handleRemoveBackground = () => {
+    // Remove background image from state
+    setBackgroundImage(null);
+    
+    // Apply removal immediately for preview
+    applyBackgroundImage(null, backgroundOpacity);
+    logger.info('Background image removed', { module: 'settings' });
+  };
 
   return {
-    handleBackgroundImageUpload
+    handleBackgroundImageUpload,
+    handleRemoveBackground
   };
 };

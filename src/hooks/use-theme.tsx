@@ -42,7 +42,7 @@ export function useTheme() {
           themeSettings.mode = theme;
           
           // Update theme settings in profile
-          updateProfile({ theme_settings: JSON.stringify(themeSettings) })
+          updateProfile?.({ theme_settings: JSON.stringify(themeSettings) })
             .catch(err => {
               emitDebugEvent({
                 lastError: `Error updating theme`,
@@ -83,7 +83,7 @@ export function useTheme() {
         
         // Create new theme settings with minimal information
         const themeSettings = { mode: theme };
-        updateProfile({ theme_settings: JSON.stringify(themeSettings) })
+        updateProfile?.({ theme_settings: JSON.stringify(themeSettings) })
           .catch(err => {
             logger.error('Error creating theme settings', err, { module: 'theme' });
           });

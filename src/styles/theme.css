@@ -36,6 +36,10 @@ body {
 body.with-bg-image {
   position: relative;
   background-color: var(--background-color);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 body.with-bg-image::before {
@@ -46,12 +50,8 @@ body.with-bg-image::before {
   width: 100%;
   height: 100%;
   z-index: -1;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
+  background-color: var(--background-color);
   opacity: var(--bg-opacity, 0.5); /* Default to 50% if not set */
-  transition: opacity 0.3s ease;
 }
 
 /* Make transparent background work better with chat */

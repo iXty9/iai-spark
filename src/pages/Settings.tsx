@@ -12,6 +12,7 @@ import { SettingsFooter } from '@/components/settings/SettingsFooter';
 import { useSettingsState } from '@/hooks/settings/use-settings-state';
 import { useSettingsActions } from '@/hooks/settings/use-settings-actions';
 import { logger } from '@/utils/logging';
+import { applyBackgroundImage } from '@/utils/theme-utils';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -36,6 +37,7 @@ export default function Settings() {
     handleLightThemeChange,
     handleDarkThemeChange,
     handleBackgroundImageUpload,
+    handleRemoveBackground,
     handleSaveSettings,
     handleResetSettings
   } = useSettingsActions({
@@ -61,14 +63,10 @@ export default function Settings() {
     // Apply current background image if it exists
     if (backgroundImage) {
       logger.info('Applying background image to settings page', { module: 'settings' });
-      document.body.style.backgroundImage = `url(${backgroundImage})`;
-      document.documentElement.style.setProperty('--bg-opacity', backgroundOpacity.toString());
-      document.body.classList.add('with-bg-image');
+      applyBackgroundImage(backgroundImage, backgroundOpacity);
+    } else {
+      applyBackgroundImage(null, backgroundOpacity);
     }
-
-    return () => {
-      // Don't clean up on unmount, as we want the background to persist
-    };
   }, [backgroundImage, backgroundOpacity]);
 
   const handleThemeColorChange = (themeType: 'light' | 'dark', value: React.ChangeEvent<HTMLInputElement> | { name: string; value: any }) => {
@@ -114,7 +112,7 @@ export default function Settings() {
             onDarkThemeChange={(e) => handleThemeColorChange('dark', e)}
             onBackgroundImageUpload={handleBackgroundImageUpload}
             onBackgroundOpacityChange={value => setBackgroundOpacity(value[0])}
-            onRemoveBackground={() => setBackgroundImage(null)}
+            onRemoveBackground={handleRemoveBackground}
           />
         </div>
         <SettingsFooter 
