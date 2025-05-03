@@ -40,18 +40,42 @@ export async function updateAppSetting(key: string, value: string): Promise<void
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData?.user?.id || null;
     
-    const { error } = await supabase
+    // Check if the setting already exists
+    const { data: existingSettings } = await supabase
       .from('app_settings')
-      .update({ 
-        value, 
-        updated_at: new Date().toISOString(), 
-        updated_by: userId 
-      })
+      .select('id')
       .eq('key', key);
+      
+    if (existingSettings && existingSettings.length > 0) {
+      // Update existing setting
+      const { error } = await supabase
+        .from('app_settings')
+        .update({ 
+          value, 
+          updated_at: new Date().toISOString(), 
+          updated_by: userId 
+        })
+        .eq('key', key);
 
-    if (error) {
-      logger.error(`Error updating app setting ${key}:`, error, { module: 'settings' });
-      throw error;
+      if (error) {
+        logger.error(`Error updating app setting ${key}:`, error, { module: 'settings' });
+        throw error;
+      }
+    } else {
+      // Insert new setting
+      const { error } = await supabase
+        .from('app_settings')
+        .insert({ 
+          key,
+          value, 
+          updated_at: new Date().toISOString(), 
+          updated_by: userId 
+        });
+
+      if (error) {
+        logger.error(`Error creating app setting ${key}:`, error, { module: 'settings' });
+        throw error;
+      }
     }
   } catch (error) {
     logger.error(`Unexpected error updating app setting ${key}:`, error, { module: 'settings' });

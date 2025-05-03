@@ -1,15 +1,42 @@
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Message } from '@/types/chat';
 import { toast } from '@/components/ui/sonner';
 import { emitDebugEvent } from '@/utils/debug-events';
+import { saveChatHistory, loadChatHistory, clearChatHistory } from '@/services/storage/chatPersistenceService';
 
 export const useMessageState = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const initializing = useRef(false);
+  const hasInitialized = useRef(false);
+  
+  // Load saved messages on initial render only
+  useEffect(() => {
+    if (!hasInitialized.current) {
+      const savedMessages = loadChatHistory();
+      if (savedMessages.length > 0) {
+        setMessages(savedMessages);
+        console.log(`Loaded ${savedMessages.length} messages from localStorage`);
+        
+        emitDebugEvent({
+          lastAction: 'Restored chat history from localStorage',
+          messagesCount: savedMessages.length,
+          screen: 'Chat Screen'
+        });
+      }
+      hasInitialized.current = true;
+    }
+  }, []);
+  
+  // Save messages whenever they change
+  useEffect(() => {
+    if (hasInitialized.current && messages.length > 0) {
+      saveChatHistory(messages);
+    }
+  }, [messages]);
   
   // Use useCallback for all functions to prevent unnecessary re-renders
   const addMessage = useCallback((newMessage: Message) => {
@@ -76,6 +103,10 @@ export const useMessageState = () => {
     
     setMessages([]);
     initializing.current = false;
+    
+    // Also clear from localStorage
+    clearChatHistory();
+    
     toast.success('Chat history cleared');
   }, [messages.length]);
 

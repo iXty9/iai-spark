@@ -11,14 +11,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { useTextareaResize } from '@/hooks/use-textarea-resize';
 import { Message } from '@/types/chat';
 import { logger } from '@/utils/logging';
+import { fetchAppSettings } from '@/services/admin/settingsService';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface WelcomeProps {
   onStartChat: (message: string) => void;
   onImportChat: (messages: Message[]) => void;
 }
 
-export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
+export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) => {
   const [message, setMessage] = React.useState('');
+  const [tagline, setTagline] = React.useState<string | null>(null);
+  const [isLoadingSettings, setIsLoadingSettings] = React.useState(true);
+  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
   const isMobile = useIsMobile();
   const [avatarError, setAvatarError] = React.useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -30,6 +35,29 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   useTextareaResize(textareaRef, message);
   
   useEffect(() => {
+    // Load app settings
+    const loadSettings = async () => {
+      try {
+        const settings = await fetchAppSettings();
+        setTagline(settings.app_name || "The Everywhere Intelligent Assistant");
+        setAvatarUrl(settings.avatar_url || "https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png");
+        
+        // Set the document title if available
+        if (settings.site_title && typeof document !== 'undefined') {
+          document.title = settings.site_title;
+        }
+      } catch (error) {
+        console.error('Error loading app settings:', error);
+        // Use defaults if settings can't be loaded
+        setTagline("The Everywhere Intelligent Assistant");
+        setAvatarUrl("https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png");
+      } finally {
+        setIsLoadingSettings(false);
+      }
+    };
+    
+    loadSettings();
+    
     if (textareaRef.current) {
       textareaRef.current.focus();
     }
@@ -140,9 +168,11 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
       <div className="w-full text-center space-y-6">
         <div className="flex items-center justify-center gap-3">
           <Avatar className="w-16 h-16 relative">
-            {!avatarError ? (
+            {isLoadingSettings ? (
+              <Skeleton className="w-16 h-16 rounded-full" />
+            ) : !avatarError && avatarUrl ? (
               <AvatarImage 
-                src="https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png"
+                src={avatarUrl}
                 alt="Ixty AI Logo" 
                 onError={handleImageError}
               />
@@ -157,9 +187,13 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
           
           <div className="space-y-2 text-left">
             <h1 className="text-2xl font-bold text-[#ea384c]">Ixty AI</h1>
-            <p className="text-muted-foreground">
-              "The Everywhere Intelligent Assistant"
-            </p>
+            {isLoadingSettings ? (
+              <Skeleton className="h-5 w-48" />
+            ) : (
+              <p className="text-muted-foreground">
+                "{tagline}"
+              </p>
+            )}
           </div>
         </div>
         

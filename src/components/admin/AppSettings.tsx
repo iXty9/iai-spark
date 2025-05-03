@@ -7,25 +7,37 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { fetchAppSettings, updateAppSetting } from '@/services/admin/settingsService';
 import { supabase } from '@/integrations/supabase/client';
+import { SettingsFooter } from '@/components/settings/SettingsFooter';
 
 export function AppSettings() {
   const { toast } = useToast();
   const [settings, setSettings] = useState({
-    app_name: '',
-    avatar_url: ''
+    tagline: '',
+    avatar_url: '',
+    site_title: ''
+  });
+  const [originalSettings, setOriginalSettings] = useState({
+    tagline: '',
+    avatar_url: '',
+    site_title: ''
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
     const loadSettings = async () => {
       try {
         const appSettings = await fetchAppSettings();
-        setSettings({
-          app_name: appSettings['app_name'] || '',
-          avatar_url: appSettings['avatar_url'] || ''
-        });
+        const newSettings = {
+          tagline: appSettings['app_name'] || '',
+          avatar_url: appSettings['avatar_url'] || '',
+          site_title: appSettings['site_title'] || 'Ixty AI - The Everywhere Intelligent Assistant'
+        };
+        
+        setSettings(newSettings);
+        setOriginalSettings(newSettings);
       } catch (error) {
         console.error('Error loading app settings:', error);
         toast({
@@ -41,6 +53,16 @@ export function AppSettings() {
     loadSettings();
   }, [toast]);
 
+  useEffect(() => {
+    // Check if any settings have changed
+    const hasChanged = 
+      settings.tagline !== originalSettings.tagline || 
+      settings.avatar_url !== originalSettings.avatar_url ||
+      settings.site_title !== originalSettings.site_title;
+    
+    setHasChanges(hasChanged);
+  }, [settings, originalSettings]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setSettings(prev => ({
@@ -52,8 +74,23 @@ export function AppSettings() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await updateAppSetting('app_name', settings.app_name);
+      // Save app_name (tagline)
+      await updateAppSetting('app_name', settings.tagline);
+      
+      // Save avatar_url
       await updateAppSetting('avatar_url', settings.avatar_url);
+      
+      // Save site_title
+      await updateAppSetting('site_title', settings.site_title);
+      
+      // Update document title if we're in the browser
+      if (typeof document !== 'undefined' && settings.site_title) {
+        document.title = settings.site_title;
+      }
+      
+      // Update original settings to match current settings
+      setOriginalSettings({...settings});
+      setHasChanges(false);
       
       toast({
         title: "App settings saved",
@@ -69,6 +106,11 @@ export function AppSettings() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleReset = () => {
+    setSettings({...originalSettings});
+    setHasChanges(false);
   };
 
   const uploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -132,15 +174,27 @@ export function AppSettings() {
       <CardContent className="pt-6">
         <div className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="app_name">App Name</Label>
+            <Label htmlFor="site_title">Site Title</Label>
             <Input
-              id="app_name"
-              name="app_name"
-              value={settings.app_name}
+              id="site_title"
+              name="site_title"
+              value={settings.site_title}
               onChange={handleChange}
-              placeholder="Enter application name"
+              placeholder="Enter site title"
             />
-            <p className="text-sm text-muted-foreground">This will be shown as the welcome tagline.</p>
+            <p className="text-sm text-muted-foreground">This will be shown in the browser's title bar.</p>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="tagline">Tagline</Label>
+            <Input
+              id="tagline"
+              name="tagline"
+              value={settings.tagline}
+              onChange={handleChange}
+              placeholder="Enter tagline text"
+            />
+            <p className="text-sm text-muted-foreground">This will be shown as the welcome tagline on the home screen.</p>
           </div>
           
           <div className="space-y-2">
@@ -183,16 +237,15 @@ export function AppSettings() {
               />
             </div>
           )}
-          
-          <Button 
-            onClick={handleSave} 
-            disabled={isSaving} 
-            className="w-full"
-          >
-            {isSaving ? 'Saving...' : 'Save App Settings'}
-          </Button>
         </div>
       </CardContent>
+      <SettingsFooter
+        onReset={handleReset}
+        onCancel={() => {}}
+        onSave={handleSave}
+        isSubmitting={isSaving}
+        hasChanges={hasChanges}
+      />
     </Card>
   );
 }
