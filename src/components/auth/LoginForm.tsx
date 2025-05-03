@@ -7,86 +7,126 @@ import { Label } from '@/components/ui/label';
 import { CardContent, CardFooter } from '@/components/ui/card';
 import { Mail, Lock, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Form, FormField, FormItem, FormMessage, FormControl } from '@/components/ui/form';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import DOMPurify from 'dompurify';
+
+const loginSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(1, 'Password is required'),
+});
+
+type LoginFormData = z.infer<typeof loginSchema>;
 
 export const LoginForm = () => {
   const navigate = useNavigate();
   const { signIn } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [loginData, setLoginData] = useState({
-    email: '',
-    password: '',
+  const [serverError, setServerError] = useState<string | null>(null);
+  
+  const form = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    }
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setLoginData({ ...loginData, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
+    setServerError(null);
+    
     try {
-      await signIn(loginData.email, loginData.password);
+      // Sanitize the email to prevent XSS
+      const sanitizedEmail = DOMPurify.sanitize(data.email);
+      
+      await signIn(sanitizedEmail, data.password);
       navigate('/');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
+      setServerError(error.message || 'Invalid email or password');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              id="email" 
-              name="email" 
-              type="email" 
-              placeholder="your@email.com" 
-              required 
-              value={loginData.email}
-              onChange={handleChange}
-              className="pl-10"
-            />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              id="password" 
-              name="password" 
-              type="password" 
-              required 
-              value={loginData.password}
-              onChange={handleChange}
-              className="pl-10"
-            />
-          </div>
-        </div>
-      </CardContent>
-      <CardFooter className="flex flex-col space-y-3">
-        <Button 
-          type="submit" 
-          className="w-full bg-[#ea384c] hover:bg-[#dd3333]"
-          disabled={isLoading}
-        >
-          {isLoading ? 'Signing in...' : 'Sign In'}
-        </Button>
-        <Button 
-          type="button" 
-          variant="outline" 
-          className="w-full"
-          onClick={() => navigate('/')}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Go Back
-        </Button>
-      </CardFooter>
-    </form>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)}>
+        <CardContent className="space-y-4">
+          {serverError && (
+            <Alert variant="destructive">
+              <AlertDescription>{serverError}</AlertDescription>
+            </Alert>
+          )}
+          
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <FormControl>
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      placeholder="your@email.com"
+                      className="pl-10"
+                      {...field}
+                    />
+                  </FormControl>
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <FormControl>
+                    <Input 
+                      id="password" 
+                      type="password"
+                      className="pl-10"
+                      {...field}
+                    />
+                  </FormControl>
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </CardContent>
+        <CardFooter className="flex flex-col space-y-3">
+          <Button 
+            type="submit" 
+            className="w-full bg-[#ea384c] hover:bg-[#dd3333]"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Signing in...' : 'Sign In'}
+          </Button>
+          <Button 
+            type="button" 
+            variant="outline" 
+            className="w-full"
+            onClick={() => navigate('/')}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Go Back
+          </Button>
+        </CardFooter>
+      </form>
+    </Form>
   );
 };

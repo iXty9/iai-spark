@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, UserRound, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+
+// Supported image types
+const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export default function Profile() {
   const { user, profile, updateProfile } = useAuth();
@@ -20,6 +25,8 @@ export default function Profile() {
     username: profile?.username || '',
     phone_number: profile?.phone_number || '',
   });
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!user) {
@@ -27,12 +34,52 @@ export default function Profile() {
     }
   }, [user, navigate]);
 
+  useEffect(() => {
+    // Update form when profile changes
+    if (profile) {
+      setFormData({
+        username: profile.username || '',
+        phone_number: profile.phone_number || '',
+      });
+    }
+  }, [profile]);
+
+  const validateForm = () => {
+    const newErrors: {[key: string]: string} = {};
+    
+    // Validate username
+    if (!formData.username.trim()) {
+      newErrors.username = 'Username is required';
+    } else if (formData.username.length < 3) {
+      newErrors.username = 'Username must be at least 3 characters';
+    } else if (!/^[a-zA-Z0-9_.-]+$/.test(formData.username)) {
+      newErrors.username = 'Username can only contain letters, numbers, underscores, dots, and hyphens';
+    }
+    
+    // Validate phone number (optional)
+    if (formData.phone_number && !/^\+?[0-9\s()-]{7,20}$/.test(formData.phone_number)) {
+      newErrors.phone_number = 'Please enter a valid phone number';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    // Clear error when field is edited
+    if (errors[e.target.name]) {
+      setErrors({ ...errors, [e.target.name]: undefined });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
     try {
       await updateProfile(formData);
       toast({
@@ -48,6 +95,18 @@ export default function Profile() {
     }
   };
 
+  const validateFile = (file: File): string | null => {
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      return "File must be a valid image type (JPEG, PNG, or WebP)";
+    }
+    
+    if (file.size > MAX_FILE_SIZE) {
+      return "File size must be less than 5MB";
+    }
+    
+    return null;
+  };
+
   const uploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       if (!event.target.files || event.target.files.length === 0) {
@@ -55,11 +114,30 @@ export default function Profile() {
       }
       
       const file = event.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${user!.id}/${Math.random()}.${fileExt}`;
+      
+      // Validate file
+      const error = validateFile(file);
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Invalid file",
+          description: error,
+        });
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        return;
+      }
       
       setUploading(true);
       
+      // Generate a secure random filename with file extension
+      const fileExt = file.name.split('.').pop();
+      const randomString = crypto.randomUUID();
+      const filePath = `${user!.id}/${randomString}.${fileExt}`;
+      
+      // Upload the file to Supabase storage
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, file);
@@ -68,8 +146,10 @@ export default function Profile() {
         throw uploadError;
       }
       
+      // Get the public URL
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
       
+      // Update the user's profile with the new avatar URL
       await updateProfile({ avatar_url: data.publicUrl });
       
       toast({
@@ -84,6 +164,10 @@ export default function Profile() {
       });
     } finally {
       setUploading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -133,14 +217,18 @@ export default function Profile() {
                   <Upload className="mr-2 h-4 w-4" />
                   {uploading ? 'Uploading...' : 'Upload Avatar'}
                   <input
+                    ref={fileInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/png,image/jpeg,image/jpg,image/webp"
                     onChange={uploadAvatar}
                     disabled={uploading}
                     className="hidden"
                   />
                 </label>
               </Button>
+              <div className="text-xs text-muted-foreground">
+                Supported formats: JPG, PNG, WebP. Max size: 5MB.
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -162,6 +250,11 @@ export default function Profile() {
                   value={formData.username}
                   onChange={handleChange}
                 />
+                {errors.username && (
+                  <Alert variant="destructive" className="mt-1 py-2">
+                    <AlertDescription>{errors.username}</AlertDescription>
+                  </Alert>
+                )}
               </div>
 
               <div>
@@ -173,6 +266,11 @@ export default function Profile() {
                   value={formData.phone_number}
                   onChange={handleChange}
                 />
+                {errors.phone_number && (
+                  <Alert variant="destructive" className="mt-1 py-2">
+                    <AlertDescription>{errors.phone_number}</AlertDescription>
+                  </Alert>
+                )}
               </div>
             </div>
           </form>

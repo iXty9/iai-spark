@@ -9,28 +9,73 @@ let webhookUrlCache: Record<string, string> = {};
 let lastCacheUpdate = 0;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+// Safe default fallback URLs (at least they're specific to this app)
+const DEFAULT_AUTHENTICATED_WEBHOOK = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7';
+const DEFAULT_ANONYMOUS_WEBHOOK = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574';
+const DEFAULT_DEBUG_WEBHOOK = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d8534';
+
+// URL validation function
+const isValidWebhookUrl = (url: string): boolean => {
+  try {
+    const webhookUrl = new URL(url);
+    // Only allow https URLs from trusted domains
+    return (
+      webhookUrl.protocol === 'https:' && 
+      (
+        webhookUrl.hostname === 'n8n.ixty.ai' || 
+        webhookUrl.hostname === 'api.ixty.ai' || 
+        webhookUrl.hostname.endsWith('.ixty.ai')
+      )
+    );
+  } catch (error) {
+    return false;
+  }
+};
+
 export const getWebhookUrl = async (isAuthenticated: boolean): Promise<string> => {
   try {
     await refreshWebhookCache();
-    return isAuthenticated 
+    const url = isAuthenticated 
       ? webhookUrlCache['authenticated_webhook_url'] 
       : webhookUrlCache['anonymous_webhook_url'];
+      
+    // Validate URL before returning
+    if (url && isValidWebhookUrl(url)) {
+      return url;
+    } else {
+      // If URL is invalid, log the issue and use default
+      logger.warn('Invalid webhook URL detected, using fallback', 
+        { url, isAuthenticated }, 
+        { module: 'webhook' }
+      );
+      return isAuthenticated ? DEFAULT_AUTHENTICATED_WEBHOOK : DEFAULT_ANONYMOUS_WEBHOOK;
+    }
   } catch (error) {
     logger.error('Failed to get webhook URL, using fallback', error, { module: 'webhook' });
     // Fallback to the original hardcoded URLs if we can't get from the database
-    return isAuthenticated 
-      ? 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7'
-      : 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574';
+    return isAuthenticated ? DEFAULT_AUTHENTICATED_WEBHOOK : DEFAULT_ANONYMOUS_WEBHOOK;
   }
 };
 
 export const getDebugWebhookUrl = async (): Promise<string> => {
   try {
     await refreshWebhookCache();
-    return webhookUrlCache['debug_webhook_url'];
+    const url = webhookUrlCache['debug_webhook_url'];
+    
+    // Validate URL before returning
+    if (url && isValidWebhookUrl(url)) {
+      return url;
+    } else {
+      // If URL is invalid, log the issue and use default
+      logger.warn('Invalid debug webhook URL detected, using fallback', 
+        { url }, 
+        { module: 'webhook' }
+      );
+      return DEFAULT_DEBUG_WEBHOOK;
+    }
   } catch (error) {
     logger.error('Failed to get debug webhook URL, using fallback', error, { module: 'webhook' });
-    return 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d8534';
+    return DEFAULT_DEBUG_WEBHOOK;
   }
 };
 
@@ -44,12 +89,19 @@ const refreshWebhookCache = async (): Promise<void> => {
   try {
     const settings = await fetchAppSettings();
     
-    // Update cache with new values
+    // Update cache with new values, ensuring they're valid URLs
     webhookUrlCache = {
-      'authenticated_webhook_url': settings['authenticated_webhook_url'] || '',
-      'anonymous_webhook_url': settings['anonymous_webhook_url'] || '',
-      'debug_webhook_url': settings['debug_webhook_url'] || ''
+      'authenticated_webhook_url': settings['authenticated_webhook_url'] || DEFAULT_AUTHENTICATED_WEBHOOK,
+      'anonymous_webhook_url': settings['anonymous_webhook_url'] || DEFAULT_ANONYMOUS_WEBHOOK,
+      'debug_webhook_url': settings['debug_webhook_url'] || DEFAULT_DEBUG_WEBHOOK
     };
+    
+    // Log any invalid URLs for admin awareness
+    Object.entries(webhookUrlCache).forEach(([key, url]) => {
+      if (!isValidWebhookUrl(url)) {
+        logger.warn(`Invalid webhook URL detected for ${key}`, { url }, { module: 'webhook' });
+      }
+    });
     
     lastCacheUpdate = now;
   } catch (error) {
@@ -60,8 +112,16 @@ const refreshWebhookCache = async (): Promise<void> => {
 
 // Helper for logging webhook activity to prevent code duplication
 const logWebhookActivity = (url: string, status: string, data?: any) => {
-  const webhookType = url.includes('9553f3d014f7') ? 'AUTHENTICATED' : 
-                     (url.includes('9553f3d8534') ? 'DEBUG' : 'ANONYMOUS');
+  // Determine webhook type securely without relying on URL patterns
+  let webhookType = 'UNKNOWN';
+  
+  if (url === webhookUrlCache['authenticated_webhook_url']) {
+    webhookType = 'AUTHENTICATED';
+  } else if (url === webhookUrlCache['debug_webhook_url']) {
+    webhookType = 'DEBUG';
+  } else if (url === webhookUrlCache['anonymous_webhook_url']) {
+    webhookType = 'ANONYMOUS';
+  }
   
   const message = `${status} - ${webhookType} WEBHOOK`;
   
@@ -97,11 +157,53 @@ const logWebhookActivity = (url: string, status: string, data?: any) => {
   };
 };
 
+// Rate limiting implementation
+const rateLimiter = {
+  calls: new Map<string, { count: number, resetTime: number }>(),
+  limit: 10, // Max calls per minute
+  timeWindow: 60 * 1000, // 1 minute
+  
+  checkLimit(key: string): boolean {
+    const now = Date.now();
+    const record = this.calls.get(key);
+    
+    // If no record exists or the time window has passed, create/reset the record
+    if (!record || now > record.resetTime) {
+      this.calls.set(key, { count: 1, resetTime: now + this.timeWindow });
+      return true;
+    }
+    
+    // Check if limit is reached
+    if (record.count >= this.limit) {
+      return false;
+    }
+    
+    // Update call count
+    record.count++;
+    return true;
+  }
+};
+
 export const sendWebhookMessage = async (
   message: string,
   isAuthenticated: boolean
 ): Promise<any> => {
+  // Apply rate limiting based on authentication status
+  const rateLimitKey = isAuthenticated ? 'authenticated' : 'anonymous';
+  if (!rateLimiter.checkLimit(rateLimitKey)) {
+    const error = new Error('Rate limit exceeded for webhook calls');
+    logger.warn('Webhook rate limit exceeded', { isAuthenticated }, { module: 'webhook' });
+    throw error;
+  }
+  
   const webhookUrl = await getWebhookUrl(isAuthenticated);
+  
+  // Validate URL again right before using it
+  if (!isValidWebhookUrl(webhookUrl)) {
+    const error = new Error('Invalid webhook URL');
+    logger.error('Attempted to use invalid webhook URL', { url: webhookUrl }, { module: 'webhook' });
+    throw error;
+  }
   
   // Log only in development
   if (process.env.NODE_ENV === 'development') {
@@ -120,6 +222,10 @@ export const sendWebhookMessage = async (
   logWebhookActivity(webhookUrl, 'REQUEST_SENT');
   
   try {
+    // Add request timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
@@ -130,7 +236,10 @@ export const sendWebhookMessage = async (
         timestamp: new Date().toISOString(),
         isAuthenticated: isAuthenticated
       }),
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       logWebhookActivity(webhookUrl, 'ERROR', { status: response.status });
@@ -148,6 +257,12 @@ export const sendWebhookMessage = async (
     
     return data;
   } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      logger.error('Webhook request timed out', { url: webhookUrl }, { module: 'webhook' });
+      logWebhookActivity(webhookUrl, 'ERROR', { message: 'Request timed out' });
+      throw new Error('Webhook request timed out');
+    }
+    
     logger.error('Webhook request failed', error, { module: 'webhook' });
     logWebhookActivity(webhookUrl, 'ERROR', error);
     throw error;
@@ -158,7 +273,17 @@ export const sendWebhookMessage = async (
 export const sendDebugWebhookMessage = async (debugInfo: any): Promise<any> => {
   const webhookUrl = await getDebugWebhookUrl();
   
+  // Validate URL before using
+  if (!isValidWebhookUrl(webhookUrl)) {
+    logger.error('Invalid debug webhook URL', { url: webhookUrl }, { module: 'debug' });
+    return { error: true, message: 'Invalid debug webhook URL' };
+  }
+  
   try {
+    // Add request timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
@@ -168,7 +293,10 @@ export const sendDebugWebhookMessage = async (debugInfo: any): Promise<any> => {
         ...debugInfo,
         timestamp: new Date().toISOString(),
       }),
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       logger.error('Debug webhook failed', { status: response.status }, { module: 'debug' });
@@ -177,6 +305,11 @@ export const sendDebugWebhookMessage = async (debugInfo: any): Promise<any> => {
     
     return await response.json();
   } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      logger.error('Debug webhook request timed out', { url: webhookUrl }, { module: 'debug' });
+      return { error: true, message: 'Request timed out' };
+    }
+    
     logger.error('Debug webhook request failed', error, { module: 'debug' });
     return { error: true, message: error instanceof Error ? error.message : 'Unknown error' };
   }

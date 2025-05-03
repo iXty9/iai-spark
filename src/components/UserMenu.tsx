@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,11 @@ import { User, LogOut, Settings, Upload, UserRound, Shield } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
+import { validateFileSecurely } from '@/utils/security';
+
+// Supported image types and size limit
+const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export const UserMenu = () => {
   const { user, profile, signOut, updateProfile } = useAuth();
@@ -23,6 +28,7 @@ export const UserMenu = () => {
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user) {
@@ -75,10 +81,32 @@ export const UserMenu = () => {
       }
       
       const file = event.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${user!.id}/${Math.random()}.${fileExt}`;
+      
+      // Validate file securely
+      const error = validateFileSecurely(file, {
+        maxSize: MAX_FILE_SIZE,
+        allowedTypes: ACCEPTED_IMAGE_TYPES
+      });
+      
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Invalid file",
+          description: error,
+        });
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        return;
+      }
       
       setUploading(true);
+      
+      // Generate a secure random filename
+      const fileExt = file.name.split('.').pop();
+      const secureFilename = crypto.randomUUID();
+      const filePath = `${user!.id}/${secureFilename}.${fileExt}`;
       
       // Upload the file to Supabase storage
       const { error: uploadError } = await supabase.storage
@@ -108,6 +136,10 @@ export const UserMenu = () => {
       });
     } finally {
       setUploading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -155,8 +187,9 @@ export const UserMenu = () => {
                 <Upload className="mr-2 h-4 w-4" />
                 <span>{uploading ? 'Uploading...' : 'Upload Avatar'}</span>
                 <input
+                  ref={fileInputRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
                   onChange={uploadAvatar}
                   disabled={uploading}
                   className="hidden"
