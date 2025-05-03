@@ -66,7 +66,7 @@ export const useChat = () => {
     handleExportChat,
     startChat,
     authError,
-    setMessages,  // Export setMessages so it can be used by components
+    setMessages,
     handleAbortRequest,
     getCurrentRequestInfo,
     hasActiveRequest
