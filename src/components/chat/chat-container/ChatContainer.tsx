@@ -48,13 +48,14 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
       onClearChat={handleClearChat}
       onExportChat={handleExportChat}
       onImportChat={handleImportChat}
+      messages={messages}
       className={className}
     >
       <div className="flex-1 overflow-hidden relative bg-transparent">
         {messages.length === 0 ? (
           <Welcome onStartChat={startChat} onImportChat={handleImportChat} />
         ) : (
-          <ScrollArea className="h-full py-4 px-2 bg-transparent">
+          <ScrollArea className="h-full py-4 px-2 bg-transparent messages-container">
             <MessageList
               messages={messages}
               isLoading={isLoading}
@@ -76,7 +77,8 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
             position: "relative",
             visibility: "visible",
             minHeight: '80px',
-            zIndex: 100
+            zIndex: 100,
+            paddingBottom: `calc(0.75rem + var(--safe-area-inset-bottom, 0px))`
           }}
         >
           <MessageInput

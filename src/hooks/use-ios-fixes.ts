@@ -38,12 +38,20 @@ export const useIOSFixes = (
         formEl.style.zIndex = '1000';
         formEl.style.width = '100%';
         formEl.style.minHeight = '50px';
+        formEl.style.paddingBottom = 'env(safe-area-inset-bottom, 0px)';
         
         const parent = formEl.parentElement;
         if (parent) {
           parent.style.display = 'block';
           parent.style.visibility = 'visible';
           parent.style.position = 'relative';
+        }
+        
+        // Find and ensure the textarea has proper font size
+        const textarea = formEl.querySelector('textarea');
+        if (textarea) {
+          textarea.style.fontSize = '16px';
+          textarea.style.touchAction = 'manipulation';
         }
         
         if (process.env.NODE_ENV === 'development' || isDevMode) {
@@ -59,18 +67,31 @@ export const useIOSFixes = (
     applyIOSFixes();
     
     // Listen to events that might affect form visibility
-    const events = ['orientationchange', 'resize'];
+    const events = ['orientationchange', 'resize', 'scroll', 'focus'];
     
     const handleEvent = () => {
       setTimeout(applyIOSFixes, 300);
     };
     
+    // Add specific handler for keyboard appearance
+    const handleFocusIn = (e: FocusEvent) => {
+      if (e.target instanceof HTMLElement && 
+          (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+        // Scroll to the input after a delay to account for keyboard appearance
+        setTimeout(() => {
+          e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+      }
+    };
+    
     // Add event listeners
-    events.forEach(event => window.addEventListener(event, handleEvent, { once: true }));
+    events.forEach(event => window.addEventListener(event, handleEvent));
+    document.addEventListener('focusin', handleFocusIn);
     
     // Clean up
     return () => {
       events.forEach(event => window.removeEventListener(event, handleEvent));
+      document.removeEventListener('focusin', handleFocusIn);
     };
   }, [isIOSSafari, isDevMode]); // Only re-run when Safari detection or DevMode changes
 };

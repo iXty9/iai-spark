@@ -82,6 +82,7 @@ export const useIOSSafari = () => {
       mutations.forEach((mutation) => {
         if (mutation.addedNodes.length > 0) {
           checkMessageState();
+          checkInputVisibility();
         }
       });
     });
@@ -95,6 +96,9 @@ export const useIOSSafari = () => {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('orientationchange', handleOrientationChange);
     window.addEventListener('resize', handleResize);
+    
+    // Immediately check visibility after load
+    setTimeout(checkInputVisibility, 1000);
     
     // Cleanup
     return () => {

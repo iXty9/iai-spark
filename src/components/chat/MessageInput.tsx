@@ -21,6 +21,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const isMobile = useIsMobile();
   const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
                      /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
@@ -45,7 +46,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     }
     
     // Only submit on plain Enter key (no Shift)
-    if (e.key === 'Enter' && !e.shiftKey && message.trim() && !isLoading) {
+    if (e.key === 'Enter' && !e.shiftKey && !isMobile && message.trim() && !isLoading) {
       e.preventDefault();
       onSubmit();
       if (textareaRef.current) {
@@ -64,6 +65,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       onSubmit={handleSubmit} 
       id="message-input-container"
       className="border-0 shadow-none"
+      style={{ paddingBottom: `var(--safe-area-inset-bottom, 0px)` }}
     >
       <div className="flex items-end gap-2 w-full">
         <div className="relative flex-1">

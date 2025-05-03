@@ -19,7 +19,8 @@ const ScrollArea = React.forwardRef<
       style={{
         // These styles improve touch scrolling on mobile
         WebkitOverflowScrolling: 'touch',
-        overscrollBehavior: 'contain'
+        overscrollBehavior: 'contain',
+        touchAction: 'pan-y'
       }}
     >
       {children}
@@ -50,7 +51,7 @@ const ScrollBar = React.forwardRef<
     <ScrollAreaPrimitive.ScrollAreaThumb 
       className={cn(
         "relative flex-1 rounded-full bg-border",
-        // Make scrollbar more visible
+        // Make scrollbar more visible on mobile
         "hover:bg-muted-foreground/50 transition-colors"
       )} 
     />

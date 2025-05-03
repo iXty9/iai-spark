@@ -23,6 +23,8 @@ export const MessageList: React.FC<MessageListProps> = ({
   const [userHasScrolled, setUserHasScrolled] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const prevMessagesLengthRef = useRef(messages.length);
+  const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
+                     /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
   // Load saved scroll position on initial mount
   useEffect(() => {
@@ -49,10 +51,12 @@ export const MessageList: React.FC<MessageListProps> = ({
     const handleScroll = (e: Event) => {
       if (scrollArea) {
         const { scrollTop, scrollHeight, clientHeight } = e.target as HTMLElement;
-        const isScrolledToBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 10;
+        const isScrolledToBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 20;
         
         // Save the current scroll position to localStorage
-        saveScrollPosition(scrollTop);
+        if (!isIOSSafari || (isIOSSafari && !isLoading)) {
+          saveScrollPosition(scrollTop);
+        }
         
         setUserHasScrolled(!isScrolledToBottom);
       }
@@ -63,18 +67,34 @@ export const MessageList: React.FC<MessageListProps> = ({
       if (scrollableElement) {
         scrollableElement.addEventListener('scroll', handleScroll);
         
+        // Special handling for iOS momentum scrolling
+        if (isIOSSafari) {
+          scrollableElement.addEventListener('touchend', () => {
+            setTimeout(() => {
+              const { scrollTop } = scrollableElement as HTMLElement;
+              saveScrollPosition(scrollTop);
+            }, 300); // Delay to account for momentum
+          });
+        }
+        
         return () => {
           scrollableElement.removeEventListener('scroll', handleScroll);
+          if (isIOSSafari) {
+            scrollableElement.removeEventListener('touchend', () => {});
+          }
         };
       }
     }
-  }, []);
+  }, [isIOSSafari, isLoading]);
 
   // Handle scrolling based on new messages or loading state
   useEffect(() => {
     const scrollToBottom = () => {
       if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        messagesEndRef.current.scrollIntoView({ 
+          behavior: isIOSSafari ? 'auto' : 'smooth',
+          block: 'end' 
+        });
       }
     };
 
@@ -93,7 +113,7 @@ export const MessageList: React.FC<MessageListProps> = ({
     }
     
     prevMessagesLengthRef.current = messages.length;
-  }, [messages, isLoading, userHasScrolled, isInitialLoad]);
+  }, [messages, isLoading, userHasScrolled, isInitialLoad, isIOSSafari]);
 
   return (
     <ScrollArea 
