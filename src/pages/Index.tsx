@@ -6,6 +6,7 @@ import { IOSFallbackInput } from '@/components/chat/IOSFallbackInput';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { logger } from '@/utils/logging';
+import { applyThemeChanges, applyBackgroundImage } from '@/utils/theme-utils';
 
 const Index = () => {
   const { isIOSSafari, showFallbackInput } = useIOSSafari();
@@ -24,12 +25,10 @@ const Index = () => {
             // Apply background image if it exists
             if (themeSettings.backgroundImage) {
               logger.info('Applying background image from profile', { module: 'index' });
-              document.body.style.backgroundImage = `url(${themeSettings.backgroundImage})`;
-              document.documentElement.style.setProperty('--bg-opacity', themeSettings.backgroundOpacity || "0.5");
-              document.body.classList.add('with-bg-image');
+              const opacity = parseFloat(themeSettings.backgroundOpacity || '0.5');
+              applyBackgroundImage(themeSettings.backgroundImage, opacity);
             } else {
-              document.body.style.backgroundImage = 'none';
-              document.body.classList.remove('with-bg-image');
+              applyBackgroundImage(null, 0.5);
             }
             
             // Apply theme colors based on current theme
@@ -37,33 +36,21 @@ const Index = () => {
             const themeColors = currentTheme === 'light' ? themeSettings.lightTheme : themeSettings.darkTheme;
             
             if (themeColors) {
-              const root = document.documentElement;
-              root.style.setProperty('--background-color', themeColors.backgroundColor);
-              root.style.setProperty('--primary-color', themeColors.primaryColor);
-              root.style.setProperty('--text-color', themeColors.textColor);
-              root.style.setProperty('--accent-color', themeColors.accentColor);
-              root.style.setProperty('--user-bubble-color', themeColors.userBubbleColor || themeColors.primaryColor);
-              root.style.setProperty('--ai-bubble-color', themeColors.aiBubbleColor || themeColors.accentColor);
-              root.style.setProperty('--user-bubble-opacity', (themeColors.userBubbleOpacity || 0.3).toString());
-              root.style.setProperty('--ai-bubble-opacity', (themeColors.aiBubbleOpacity || 0.3).toString());
-              root.style.setProperty('--user-text-color', themeColors.userTextColor || themeColors.textColor);
-              root.style.setProperty('--ai-text-color', themeColors.aiTextColor || themeColors.textColor);
+              applyThemeChanges(themeColors);
             }
           } catch (e) {
             logger.error('Error parsing theme settings from profile:', e, { module: 'index' });
           }
         } else {
           // No theme settings in profile
-          document.body.style.backgroundImage = 'none';
-          document.body.classList.remove('with-bg-image');
+          applyBackgroundImage(null, 0.5);
         }
       } catch (error) {
         logger.error('Error applying saved theme settings:', error, { module: 'index' });
       }
     } else {
       // User not logged in, remove background
-      document.body.style.backgroundImage = 'none';
-      document.body.classList.remove('with-bg-image');
+      applyBackgroundImage(null, 0.5);
     }
   }, [location.pathname, user, profile]);
   
