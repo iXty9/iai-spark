@@ -59,12 +59,9 @@ export function useMessageGestures(actions: GestureActions = {}) {
           swipeState.current = { swiping: false, direction: null };
           cancel();
         }
-      },
-      // Handle long press with the onDrag handler's longPress option instead of a separate handler
+      }
     },
     {
-      // Configure long press timing
-      longPressDelay: 500,
       // Configure drag detection
       drag: {
         threshold: 5,
@@ -74,20 +71,8 @@ export function useMessageGestures(actions: GestureActions = {}) {
     }
   );
 
-  // Create a separate handler for long press that can be registered as a regular event
-  const handleLongPress = () => {
-    if (actions.onLongPress) {
-      // Trigger haptic feedback if available
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
-      actions.onLongPress();
-    }
-  };
-
   return { 
     bind, 
-    ref: elementRef,
-    onLongPress: handleLongPress  // Expose long press handler separately
+    ref: elementRef
   };
 }
