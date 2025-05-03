@@ -8,7 +8,7 @@ import { applyThemeChanges, applyBackgroundImage } from '@/utils/theme-utils';
 type Theme = 'dark' | 'light';
 
 export function useTheme() {
-  const { user, profile, updateProfile } = useAuth();
+  const { user, profile } = useAuth();
   const [theme, setTheme] = useState<Theme>(
     () => {
       const savedTheme = localStorage.getItem('theme') as Theme;
@@ -33,44 +33,27 @@ export function useTheme() {
         // Get existing theme settings or create new ones
         let themeSettings = profile.theme_settings 
           ? JSON.parse(profile.theme_settings) 
-          : { mode: theme };
+          : null;
         
-        // Only update if there's a change to avoid unnecessary API calls
-        const shouldUpdate = themeSettings.mode !== theme;
-        
-        if (shouldUpdate) {
-          themeSettings.mode = theme;
+        if (themeSettings) {
+          // Apply theme colors based on current mode without updating the profile
+          const currentTheme = theme === 'light' 
+            ? themeSettings.lightTheme 
+            : themeSettings.darkTheme;
           
-          // Update theme settings in profile
-          updateProfile?.({ theme_settings: JSON.stringify(themeSettings) })
-            .catch(err => {
-              emitDebugEvent({
-                lastError: `Error updating theme`,
-                lastAction: 'Theme update failed'
-              });
-              
-              logger.error('Error updating theme settings', err, { module: 'theme' });
-            });
-        }
-        
-        // Apply theme colors and background settings regardless of mode change
-        // Get the current theme colors
-        const currentTheme = theme === 'light' 
-          ? themeSettings.lightTheme 
-          : themeSettings.darkTheme;
-        
-        // Only apply CSS variables if theme colors exist
-        if (currentTheme) {
-          // Update CSS variables with theme colors
-          applyThemeChanges(currentTheme);
-        }
-        
-        // Apply background image and opacity if they exist
-        if (themeSettings.backgroundImage) {
-          const opacity = parseFloat(themeSettings.backgroundOpacity || '0.5');
-          applyBackgroundImage(themeSettings.backgroundImage, opacity);
-        } else {
-          applyBackgroundImage(null, 0.5);
+          // Only apply CSS variables if theme colors exist
+          if (currentTheme) {
+            // Update CSS variables with theme colors
+            applyThemeChanges(currentTheme);
+          }
+          
+          // Apply background image and opacity if they exist
+          if (themeSettings.backgroundImage) {
+            const opacity = parseFloat(themeSettings.backgroundOpacity || '0.5');
+            applyBackgroundImage(themeSettings.backgroundImage, opacity);
+          } else {
+            applyBackgroundImage(null, 0.5);
+          }
         }
       } catch (e) {
         // Use emitDebugEvent and logger for errors
@@ -80,16 +63,9 @@ export function useTheme() {
         });
         
         logger.error('Error processing theme settings', e, { module: 'theme' });
-        
-        // Create new theme settings with minimal information
-        const themeSettings = { mode: theme };
-        updateProfile?.({ theme_settings: JSON.stringify(themeSettings) })
-          .catch(err => {
-            logger.error('Error creating theme settings', err, { module: 'theme' });
-          });
       }
     }
-  }, [theme, user, profile, updateProfile]);
+  }, [theme, user, profile]);
 
   return { theme, setTheme };
 }

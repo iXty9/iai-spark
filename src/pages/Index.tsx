@@ -15,44 +15,35 @@ const Index = () => {
   
   // Apply background image and theme settings from profile
   useEffect(() => {
-    if (user && profile) {
+    if (profile?.theme_settings) {
       try {
         // If user is logged in and has profile settings, use those
-        if (profile.theme_settings) {
-          try {
-            const themeSettings = JSON.parse(profile.theme_settings);
-            
-            // Apply background image if it exists
-            if (themeSettings.backgroundImage) {
-              logger.info('Applying background image from profile', { module: 'index' });
-              const opacity = parseFloat(themeSettings.backgroundOpacity || '0.5');
-              applyBackgroundImage(themeSettings.backgroundImage, opacity);
-            } else {
-              applyBackgroundImage(null, 0.5);
-            }
-            
-            // Apply theme colors based on current theme
-            const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-            const themeColors = currentTheme === 'light' ? themeSettings.lightTheme : themeSettings.darkTheme;
-            
-            if (themeColors) {
-              applyThemeChanges(themeColors);
-            }
-          } catch (e) {
-            logger.error('Error parsing theme settings from profile:', e, { module: 'index' });
-          }
+        const themeSettings = JSON.parse(profile.theme_settings);
+        
+        // Apply background image if it exists
+        if (themeSettings.backgroundImage) {
+          logger.info('Applying background image from profile', { module: 'index' });
+          const opacity = parseFloat(themeSettings.backgroundOpacity || '0.5');
+          applyBackgroundImage(themeSettings.backgroundImage, opacity);
         } else {
-          // No theme settings in profile
           applyBackgroundImage(null, 0.5);
         }
-      } catch (error) {
-        logger.error('Error applying saved theme settings:', error, { module: 'index' });
+        
+        // Apply theme colors based on current theme
+        const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+        const themeColors = currentTheme === 'light' ? themeSettings.lightTheme : themeSettings.darkTheme;
+        
+        if (themeColors) {
+          applyThemeChanges(themeColors);
+        }
+      } catch (e) {
+        logger.error('Error parsing theme settings from profile:', e, { module: 'index' });
       }
     } else {
-      // User not logged in, remove background
+      // No theme settings in profile
       applyBackgroundImage(null, 0.5);
     }
-  }, [location.pathname, user, profile]);
+  }, [profile]);
   
   return (
     <div className={`h-screen w-full bg-transparent ${isIOSSafari ? 'ios-safari-page' : ''}`}>

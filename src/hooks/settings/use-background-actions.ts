@@ -46,8 +46,18 @@ export const useBackgroundActions = ({
     logger.info('Background image removed', { module: 'settings' });
   };
 
+  const handleOpacityChange = (value: number[]) => {
+    const newOpacity = value[0];
+    setBackgroundOpacity(newOpacity);
+    
+    // Apply opacity change immediately for preview
+    applyBackgroundImage(backgroundImage, newOpacity);
+    logger.info('Background opacity changed', { module: 'settings', opacity: newOpacity });
+  };
+
   return {
     handleBackgroundImageUpload,
-    handleRemoveBackground
+    handleRemoveBackground,
+    handleOpacityChange
   };
 };

@@ -36,8 +36,45 @@ export const useSettingsPersistence = ({
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Validate color format
+  const isValidColor = (color: string): boolean => {
+    return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color);
+  };
+
+  // Validate theme settings before saving
+  const validateThemeSettings = (): boolean => {
+    const themeToValidate = theme === 'light' ? lightTheme : darkTheme;
+    
+    const colorProps = [
+      'backgroundColor', 
+      'primaryColor', 
+      'textColor', 
+      'accentColor', 
+      'userBubbleColor', 
+      'aiBubbleColor',
+      'userTextColor',
+      'aiTextColor'
+    ];
+    
+    for (const prop of colorProps) {
+      if (!isValidColor(themeToValidate[prop as keyof ThemeColors] as string)) {
+        toast({
+          variant: "destructive",
+          title: "Invalid color format",
+          description: `The ${prop} must be a valid hex color (e.g. #FFFFFF)`,
+        });
+        return false;
+      }
+    }
+    
+    return true;
+  };
+
   const handleSaveSettings = async () => {
     if (isSubmitting) return;
+    
+    // Validate settings before saving
+    if (!validateThemeSettings()) return;
     
     setIsSubmitting(true);
     

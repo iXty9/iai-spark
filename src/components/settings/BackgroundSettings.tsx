@@ -24,7 +24,7 @@ export function BackgroundSettings({
     <div className="space-y-4">
       <div className="flex justify-center">
         {backgroundImage ? (
-          <div className="relative w-full h-48 rounded-lg overflow-hidden">
+          <div className="relative w-full h-48 rounded-lg overflow-hidden bg-checkerboard">
             <img
               src={backgroundImage}
               alt="Background preview"

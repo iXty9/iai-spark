@@ -55,7 +55,8 @@ export const useSettingsActions = ({
   // Background actions
   const { 
     handleBackgroundImageUpload,
-    handleRemoveBackground
+    handleRemoveBackground,
+    handleOpacityChange
   } = useBackgroundActions({
     backgroundImage,
     backgroundOpacity,
@@ -86,6 +87,7 @@ export const useSettingsActions = ({
     handleDarkThemeChange,
     handleBackgroundImageUpload,
     handleRemoveBackground,
+    handleOpacityChange,
     handleSaveSettings,
     handleResetSettings
   };

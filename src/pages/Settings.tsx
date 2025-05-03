@@ -13,6 +13,7 @@ import { useSettingsState } from '@/hooks/settings/use-settings-state';
 import { useSettingsActions } from '@/hooks/settings/use-settings-actions';
 import { logger } from '@/utils/logging';
 import { applyBackgroundImage } from '@/utils/theme-utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ export default function Settings() {
     backgroundImage, 
     backgroundOpacity,
     isSubmitting,
+    isLoading,
     setLightTheme,
     setDarkTheme,
     setBackgroundImage,
@@ -38,6 +40,7 @@ export default function Settings() {
     handleDarkThemeChange,
     handleBackgroundImageUpload,
     handleRemoveBackground,
+    handleOpacityChange,
     handleSaveSettings,
     handleResetSettings
   } = useSettingsActions({
@@ -101,19 +104,28 @@ export default function Settings() {
       <Card className="bg-background/80 backdrop-blur-sm">
         <SettingsHeader onGoBack={handleGoBack} />
         <div className="p-6">
-          <AppearanceSettings
-            theme={theme}
-            lightTheme={lightTheme}
-            darkTheme={darkTheme}
-            backgroundImage={backgroundImage}
-            backgroundOpacity={backgroundOpacity}
-            onThemeChange={value => setTheme(value)}
-            onLightThemeChange={(e) => handleThemeColorChange('light', e)}
-            onDarkThemeChange={(e) => handleThemeColorChange('dark', e)}
-            onBackgroundImageUpload={handleBackgroundImageUpload}
-            onBackgroundOpacityChange={value => setBackgroundOpacity(value[0])}
-            onRemoveBackground={handleRemoveBackground}
-          />
+          {isLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-40 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-40 w-full" />
+            </div>
+          ) : (
+            <AppearanceSettings
+              theme={theme}
+              lightTheme={lightTheme}
+              darkTheme={darkTheme}
+              backgroundImage={backgroundImage}
+              backgroundOpacity={backgroundOpacity}
+              onThemeChange={value => setTheme(value)}
+              onLightThemeChange={(e) => handleThemeColorChange('light', e)}
+              onDarkThemeChange={(e) => handleThemeColorChange('dark', e)}
+              onBackgroundImageUpload={handleBackgroundImageUpload}
+              onBackgroundOpacityChange={handleOpacityChange}
+              onRemoveBackground={handleRemoveBackground}
+            />
+          )}
         </div>
         <SettingsFooter 
           onReset={handleResetSettings} 

@@ -43,7 +43,7 @@ export function AppearanceSettings({
           <Label>Theme Mode</Label>
         </div>
         <RadioGroup 
-          defaultValue={theme} 
+          value={theme}
           className="flex items-center space-x-4"
           onValueChange={value => onThemeChange(value as 'light' | 'dark')}
         >

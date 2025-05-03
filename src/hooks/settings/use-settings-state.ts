@@ -10,6 +10,7 @@ export const useSettingsState = () => {
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const [backgroundOpacity, setBackgroundOpacity] = useState(0.5); // 50% as default
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   const [lightTheme, setLightTheme] = useState<ThemeColors>({
     backgroundColor: '#ffffff',
@@ -40,6 +41,7 @@ export const useSettingsState = () => {
   useEffect(() => {
     if (profile?.theme_settings) {
       try {
+        setIsLoading(true);
         logger.info('Loading theme settings from profile', { module: 'settings' });
         const themeSettings = JSON.parse(profile.theme_settings);
         
@@ -78,11 +80,14 @@ export const useSettingsState = () => {
             aiTextColor: themeSettings.darkTheme.aiTextColor || themeSettings.darkTheme.textColor
           });
         }
+        setIsLoading(false);
       } catch (e) {
         logger.error('Error parsing theme settings from profile:', e, { module: 'settings' });
+        setIsLoading(false);
       }
     } else {
       logger.info('No theme settings found in profile', { module: 'settings' });
+      setIsLoading(false);
     }
   }, [profile]);
 
@@ -92,6 +97,7 @@ export const useSettingsState = () => {
     backgroundImage,
     backgroundOpacity,
     isSubmitting,
+    isLoading,
     setLightTheme,
     setDarkTheme, 
     setBackgroundImage,
