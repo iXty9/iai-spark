@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
 import { AdminTabs } from '@/components/admin/AdminTabs';
-import { WebhookSettings } from '@/components/admin/WebhookSettings';
+import { WebhookSettings } from '@/components/admin/webhooks/WebhookSettings';
 import { AppSettings } from '@/components/admin/AppSettings';
 import { UserManagement } from '@/components/admin/UserManagement';
 import { ArrowLeft } from 'lucide-react';
