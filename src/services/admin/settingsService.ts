@@ -14,9 +14,9 @@ type AppSetting = {
 // Enhanced cache management
 let settingsCache: Record<string, string> | null = null;
 let lastFetchTime = 0;
-const CACHE_DURATION = 15000; // 15 seconds cache for production (reduced from 30s for more responsive updates)
+const CACHE_DURATION = 10000; // 10 seconds cache for production (reduced from 15s for more responsive updates)
 // Use shorter cache during development for easier testing
-const DEV_CACHE_DURATION = 3000; // 3 seconds in development (reduced from 5s)
+const DEV_CACHE_DURATION = 2000; // 2 seconds in development (reduced from 3s)
 
 // Public method to clear the cache, useful when settings change
 export function clearSettingsCache() {
@@ -32,13 +32,19 @@ export async function fetchAppSettings(): Promise<Record<string, string>> {
       ? DEV_CACHE_DURATION 
       : CACHE_DURATION;
     
+    // For anonymous users (no localStorage theme), bypass cache more aggressively
+    // to ensure they get the latest default theme faster
+    const hasLocalTheme = localStorage.getItem('theme') !== null;
+    const useCacheDuration = hasLocalTheme ? cacheDuration : cacheDuration / 2;
+    
     // Return cached settings if valid
-    if (settingsCache && (now - lastFetchTime < cacheDuration)) {
+    if (settingsCache && (now - lastFetchTime < useCacheDuration)) {
       logger.info('Using cached app settings', { 
         module: 'settings', 
         cache: true,
         cacheAge: now - lastFetchTime,
-        settingsCount: Object.keys(settingsCache).length
+        settingsCount: Object.keys(settingsCache).length,
+        hasLocalTheme
       });
       return settingsCache;
     }

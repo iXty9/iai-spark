@@ -26,6 +26,7 @@ export function useTheme() {
   const [isThemeLoaded, setIsThemeLoaded] = useState(false);
   const [defaultThemeSettings, setDefaultThemeSettings] = useState<ThemeSettings | null>(null);
   const [isDefaultThemeLoading, setIsDefaultThemeLoading] = useState(true);
+  const [reloadCount, setReloadCount] = useState(0); // Track reload attempts
 
   // Apply the theme mode without updating the profile
   const applyThemeMode = useCallback((newTheme: Theme) => {
@@ -40,16 +41,26 @@ export function useTheme() {
     
     // If we have default theme settings, re-apply the colors for the new mode
     if (defaultThemeSettings) {
-      const currentTheme = newTheme === 'light' 
-        ? defaultThemeSettings.lightTheme 
-        : defaultThemeSettings.darkTheme;
-      
-      if (currentTheme) {
-        logger.info(`Re-applying ${newTheme} theme colors after theme mode change`, { 
-          module: 'theme',
-          mode: newTheme
-        });
-        applyThemeChanges(currentTheme);
+      try {
+        const currentTheme = newTheme === 'light' 
+          ? defaultThemeSettings.lightTheme 
+          : defaultThemeSettings.darkTheme;
+        
+        if (currentTheme) {
+          logger.info(`Re-applying ${newTheme} theme colors after theme mode change`, { 
+            module: 'theme',
+            mode: newTheme
+          });
+          applyThemeChanges(currentTheme);
+          
+          // Also reapply background if it exists
+          if (defaultThemeSettings.backgroundImage) {
+            const opacity = parseFloat(defaultThemeSettings.backgroundOpacity || '0.5');
+            applyBackgroundImage(defaultThemeSettings.backgroundImage, opacity);
+          }
+        }
+      } catch (err) {
+        logger.error('Error re-applying theme colors after mode change:', err, { module: 'theme' });
       }
     }
   }, [defaultThemeSettings]);
@@ -67,6 +78,9 @@ export function useTheme() {
         module: 'theme',
         isAnonymous: !user
       });
+      
+      // Force clear cache to ensure we get fresh data
+      clearSettingsCache();
       
       const appSettings = await fetchAppSettings();
       if (appSettings.default_theme_settings) {
@@ -141,21 +155,26 @@ export function useTheme() {
 
   // Refresh theme (useful when theme is changed elsewhere)
   const refreshTheme = useCallback(async () => {
-    logger.info('Manually refreshing theme settings', { module: 'theme' });
-    clearSettingsCache(); // Clear settings cache to get fresh data
-    const freshSettings = await fetchDefaultThemeSettings(); // Re-fetch default theme settings
+    logger.info('Manually refreshing theme settings', { module: 'theme', reloadCount });
+    
+    // Clear settings cache to get fresh data
+    clearSettingsCache();
+    setReloadCount(count => count + 1);
+    
+    // Re-fetch default theme settings
+    const freshSettings = await fetchDefaultThemeSettings();
     
     // Apply the freshly fetched settings immediately
     if (freshSettings) {
       applyThemeSettings(freshSettings, 'refresh operation');
+    } else {
+      // If no settings found, ensure theme mode is at least applied
+      applyThemeMode(theme);
     }
-    
-    // Re-apply theme mode to ensure it's correctly set
-    applyThemeMode(theme);
     
     // Mark theme as loaded to trigger any dependent UI updates
     setIsThemeLoaded(true);
-  }, [fetchDefaultThemeSettings, applyThemeSettings, applyThemeMode, theme]);
+  }, [fetchDefaultThemeSettings, applyThemeSettings, applyThemeMode, theme, reloadCount]);
 
   // Initialize default theme settings on mount
   useEffect(() => {
@@ -232,6 +251,14 @@ export function useTheme() {
             }
           } else {
             logger.info('Default theme still loading, waiting...', { module: 'theme' });
+            
+            // For anonymous users, we'll retry once more with a short delay
+            if (!user && reloadCount < 2) {
+              setTimeout(() => {
+                setReloadCount(count => count + 1);
+                refreshTheme();
+              }, 500);
+            }
           }
         }
         
@@ -267,7 +294,9 @@ export function useTheme() {
     isDefaultThemeLoading,
     applyThemeSettings,
     fetchDefaultThemeSettings,
-    applyThemeMode
+    applyThemeMode,
+    reloadCount,
+    refreshTheme
   ]);
 
   return { theme, setTheme, isThemeLoaded, refreshTheme };

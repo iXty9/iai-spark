@@ -5,6 +5,7 @@ import { useIOSSafari } from '@/hooks/use-ios-safari';
 import { IOSFallbackInput } from '@/components/chat/IOSFallbackInput';
 import { useTheme } from '@/hooks/use-theme';
 import { logger } from '@/utils/logging';
+import { clearSettingsCache } from '@/services/admin/settingsService';
 
 const Index = () => {
   const { isIOSSafari, showFallbackInput } = useIOSSafari();
@@ -34,13 +35,28 @@ const Index = () => {
   
   // Ensure theme is loaded, and refresh it if needed
   useEffect(() => {
+    // Force clear settings cache on index page mount for fresh theme
+    clearSettingsCache();
+    
     // Force refresh theme on initial load to ensure proper application
     if (!isThemeLoaded) {
       logger.info('Forcing theme refresh on Index component mount', { module: 'index' });
-      refreshTheme();
+      setTimeout(() => {
+        refreshTheme();
+      }, 100); // Small delay to ensure DOM is ready
     } else {
       logger.info('Theme already loaded in Index component', { module: 'index' });
     }
+    
+    // Second refresh after a delay to catch any race conditions
+    const secondRefreshTimer = setTimeout(() => {
+      logger.info('Performing secondary theme refresh for stability', { module: 'index' });
+      refreshTheme();
+    }, 800);
+    
+    return () => {
+      clearTimeout(secondRefreshTimer);
+    };
   }, [isThemeLoaded, refreshTheme]);
   
   return (

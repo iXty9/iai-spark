@@ -27,9 +27,6 @@ export const applyThemeChanges = (themeColors: ThemeColors) => {
     themeColors.aiTextColor
   );
   root.style.setProperty('--link-color', linkColor);
-  
-  // Also update the body background color for immediate feedback
-  document.body.style.backgroundColor = themeColors.backgroundColor;
 };
 
 /**
