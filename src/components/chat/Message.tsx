@@ -60,7 +60,7 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
       {/* Message content with adjusted spacing for user messages */}
       <div className={cn(
         'flex flex-col', 
-        isUser ? 'items-end mr-6' : 'items-start' // Increased right margin for user messages
+        isUser ? 'items-end mr-8' : 'items-start' // Increased right margin for user messages
       )}>
         {/* Username and avatar row with improved alignment */}
         <div className={cn(
@@ -68,9 +68,9 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
           isUser ? 'justify-end' : 'justify-start'
         )}>
           <span className="font-medium">{displayName}</span>
-          {/* User avatar appears right after the username */}
+          {/* User avatar appears right after the username with increased margin */}
           {isUser && (
-            <div className="flex-shrink-0 w-4 h-4 ml-1 mr-1">
+            <div className="flex-shrink-0 w-4 h-4 ml-3 mr-1">
               <MessageAvatar isUser={isUser} onAiIconError={() => setAiIconError(true)} />
             </div>
           )}
