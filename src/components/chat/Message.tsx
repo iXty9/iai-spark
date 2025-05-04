@@ -45,7 +45,7 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
     <div
       className={cn(
         'message py-2 w-full flex',
-        isUser ? 'justify-end' : 'justify-start',
+        isUser ? 'justify-end pr-8' : 'justify-start', // Added right padding for user messages
         message.pending && 'opacity-70'
       )}
       aria-label={`${isUser ? 'Your' : 'Ixty AI'} message`}
@@ -56,7 +56,7 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
           <MessageAvatar isUser={isUser} onAiIconError={() => setAiIconError(true)} />
         </div>
       )}
-      <div className={cn('flex flex-col', isUser ? 'items-end' : 'items-start')}>
+      <div className={cn('flex flex-col', isUser ? 'items-end mr-2' : 'items-start')}>
         <div className={cn('flex items-center text-xs mb-1', isUser ? 'justify-end' : 'justify-start')}>
           <span className="font-medium">{displayName}</span>
           {/* User avatar appears right after the username */}
@@ -90,7 +90,6 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
           )}
         </div>
       </div>
-      {/* Remove user avatar from here as it's now next to username */}
     </div>
   );
 };

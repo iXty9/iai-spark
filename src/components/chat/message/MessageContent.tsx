@@ -34,7 +34,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ message, isUser 
   // Use enhanced styling for both user and AI bubbles
   if (isUser || !isDevMode) {
     if (isUser) {
-      // User message: normal text (horizontal, no per-letter line breaks)
+      // User message: text always left aligned
       return (
         <div className="whitespace-pre-wrap text-base font-medium break-words text-left">
           {message.content}
