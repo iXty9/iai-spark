@@ -29,9 +29,9 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
 
   const displayName = getDisplayName();
 
-  // Enhanced bubble styling with no border
+  // Enhanced bubble styling with no border and no shadow
   const bubbleBase = 
-    'rounded-2xl px-4 py-2 max-w-[80vw] md:max-w-[70%] min-w-[140px] shadow-md transition-all break-words backdrop-blur-md'; 
+    'rounded-2xl px-4 py-2 max-w-[80vw] md:max-w-[70%] min-w-[140px] transition-all break-words backdrop-blur-md'; 
 
   // Use CSS variables for colors to respect user theme settings
   const bubbleUser =
