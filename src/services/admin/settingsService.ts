@@ -14,9 +14,9 @@ type AppSetting = {
 // Enhanced cache management
 let settingsCache: Record<string, string> | null = null;
 let lastFetchTime = 0;
-const CACHE_DURATION = 30000; // 30 seconds cache for production (reduced from 60s)
+const CACHE_DURATION = 15000; // 15 seconds cache for production (reduced from 30s for more responsive updates)
 // Use shorter cache during development for easier testing
-const DEV_CACHE_DURATION = 5000; // 5 seconds in development (reduced from 10s)
+const DEV_CACHE_DURATION = 3000; // 3 seconds in development (reduced from 5s)
 
 // Public method to clear the cache, useful when settings change
 export function clearSettingsCache() {
@@ -162,7 +162,8 @@ export async function setDefaultTheme(themeSettings: ThemeSettings): Promise<voi
     
     logger.info('Setting default theme for all users', { 
       module: 'settings',
-      hasBackground: !!themeSettings.backgroundImage
+      hasBackground: !!themeSettings.backgroundImage,
+      mode: themeSettings.mode
     });
     
     // Save as default theme in app_settings

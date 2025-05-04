@@ -8,7 +8,7 @@ import { logger } from '@/utils/logging';
 
 const Index = () => {
   const { isIOSSafari, showFallbackInput } = useIOSSafari();
-  const { isThemeLoaded } = useTheme();
+  const { isThemeLoaded, refreshTheme } = useTheme();
   
   // Apply iOS viewport fixes
   useEffect(() => {
@@ -32,12 +32,16 @@ const Index = () => {
     }
   }, [isIOSSafari]);
   
-  // Log when theme is loaded to help with debugging
+  // Ensure theme is loaded, and refresh it if needed
   useEffect(() => {
-    if (isThemeLoaded) {
-      logger.info('Theme loaded in Index component', { module: 'index' });
+    // Force refresh theme on initial load to ensure proper application
+    if (!isThemeLoaded) {
+      logger.info('Forcing theme refresh on Index component mount', { module: 'index' });
+      refreshTheme();
+    } else {
+      logger.info('Theme already loaded in Index component', { module: 'index' });
     }
-  }, [isThemeLoaded]);
+  }, [isThemeLoaded, refreshTheme]);
   
   return (
     <div 

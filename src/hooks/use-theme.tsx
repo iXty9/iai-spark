@@ -30,9 +30,13 @@ export function useTheme() {
   // Apply the theme mode without updating the profile
   const applyThemeMode = useCallback((newTheme: Theme) => {
     const root = window.document.documentElement;
+    
+    // Ensure CSS classes are properly updated
     root.classList.remove('light', 'dark');
     root.classList.add(newTheme);
     localStorage.setItem('theme', newTheme);
+    
+    logger.info(`Applied theme mode: ${newTheme}`, { module: 'theme' });
     
     // If we have default theme settings, re-apply the colors for the new mode
     if (defaultThemeSettings) {
@@ -98,6 +102,12 @@ export function useTheme() {
     }
 
     try {
+      // Set theme mode first if specified
+      if (themeSettings.mode && themeSettings.mode !== theme) {
+        logger.info(`Setting theme mode to ${themeSettings.mode} from ${source}`, { module: 'theme' });
+        setTheme(themeSettings.mode);
+      }
+      
       // Apply theme colors based on current mode
       const currentTheme = theme === 'light' 
         ? themeSettings.lightTheme 
@@ -139,10 +149,18 @@ export function useTheme() {
     if (freshSettings) {
       applyThemeSettings(freshSettings, 'refresh operation');
     }
-  }, [fetchDefaultThemeSettings, applyThemeSettings]);
+    
+    // Re-apply theme mode to ensure it's correctly set
+    applyThemeMode(theme);
+    
+    // Mark theme as loaded to trigger any dependent UI updates
+    setIsThemeLoaded(true);
+  }, [fetchDefaultThemeSettings, applyThemeSettings, applyThemeMode, theme]);
 
   // Initialize default theme settings on mount
   useEffect(() => {
+    // Initialize theme on mount
+    logger.info('Initializing theme settings', { module: 'theme' });
     fetchDefaultThemeSettings();
   }, [fetchDefaultThemeSettings]);
 
@@ -183,12 +201,15 @@ export function useTheme() {
               isAnonymous: !user
             });
             
+            // Force apply the default theme settings
             themeApplied = applyThemeSettings(defaultThemeSettings, 'default settings');
             
             if (themeApplied) {
               logger.info('Successfully applied default theme', { module: 'theme' });
               setIsThemeLoaded(true);
               return;
+            } else {
+              logger.warn('Failed to apply default theme settings', { module: 'theme' });
             }
           } else if (!isDefaultThemeLoading) {
             // Check if default theme settings are still loading
@@ -214,9 +235,11 @@ export function useTheme() {
           }
         }
         
-        // Step 3: If still no theme applied, use fallback CSS variables from theme.css
+        // Step 3: If still no theme applied, ensure theme mode is set and use fallback CSS variables from theme.css
         if (!themeApplied) {
           logger.info('Using CSS fallback theme', { module: 'theme' });
+          // Apply theme mode to ensure dark/light is set correctly
+          applyThemeMode(theme);
           // System defaults are in theme.css, just apply blank background
           applyBackgroundImage(null, 0.5);
         }
@@ -243,7 +266,8 @@ export function useTheme() {
     defaultThemeSettings,
     isDefaultThemeLoading,
     applyThemeSettings,
-    fetchDefaultThemeSettings
+    fetchDefaultThemeSettings,
+    applyThemeMode
   ]);
 
   return { theme, setTheme, isThemeLoaded, refreshTheme };

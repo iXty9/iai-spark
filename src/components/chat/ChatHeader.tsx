@@ -13,6 +13,7 @@ import { useDevMode } from '@/store/use-dev-mode';
 import { UserMenu } from '@/components/UserMenu';
 import { importChat } from '@/services/import/importService';
 import { toast } from "@/hooks/use-toast";
+import { logger } from '@/utils/logging';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
