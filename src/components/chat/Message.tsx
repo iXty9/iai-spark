@@ -19,14 +19,15 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
   // Get display name for the user messages - prioritizing username
   const getDisplayName = (): string => {
     if (!isUser) return 'Ixty AI';
-    if (!user) return 'User';
+    if (!user) return 'You';
     
     // Prioritize username over first/last name
     if (profile?.username) return profile.username;
     if (profile?.first_name && profile?.last_name) {
       return `${profile.first_name} ${profile.last_name}`;
     }
-    return 'User';
+    if (profile?.first_name) return profile.first_name;
+    return 'You';
   };
 
   const displayName = getDisplayName();

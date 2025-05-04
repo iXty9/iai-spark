@@ -36,23 +36,25 @@ body {
   min-height: 100vh;
 }
 
-/* Background image with opacity control - updated for mobile compatibility */
+/* Background image with opacity control - improved for all devices */
 body.with-bg-image {
   position: relative;
   background-color: var(--background-color);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  /* Removed fixed attachment which causes issues on iOS */
+  /* Important: Don't use fixed attachment by default as it causes issues on mobile */
+  background-attachment: scroll;
 }
 
-/* Special handling for larger screens - use fixed attachment */
+/* Desktop-specific background attachment */
 @media (min-width: 768px) {
   body.with-bg-image {
     background-attachment: fixed;
   }
 }
 
+/* Background overlay for color blending */
 body.with-bg-image::before {
   content: "";
   position: fixed;
@@ -74,15 +76,6 @@ body.with-bg-image::before {
   background-color: transparent !important;
 }
 
-/* Remove text shadow for better readability */
-.message-content {
-  /* Removed text-shadow property */
-}
-
-.dark .message-content {
-  /* Removed text-shadow property */
-}
-
 /* User and AI message bubbles - Enhanced with better glass effect but no shadow */
 .user-message-bubble {
   background-color: var(--user-bubble-color);
@@ -91,7 +84,6 @@ body.with-bg-image::before {
   border: none !important;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  /* Removed box-shadow property */
   transition: transform 0.2s ease;
   text-align: left; /* Ensure text is left aligned */
 }
@@ -103,7 +95,6 @@ body.with-bg-image::before {
   border: none !important;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  /* Removed box-shadow property */
   transition: transform 0.2s ease;
 }
 
@@ -122,7 +113,6 @@ body.with-bg-image::before {
 .user-message-bubble:hover, 
 .ai-message-bubble:hover {
   transform: translateY(-1px);
-  /* Removed box-shadow property */
 }
 
 /* Enhanced Glass UI effect for cards and panels */
@@ -211,21 +201,13 @@ body.with-bg-image::before {
     transform: none;
     box-shadow: inherit;
   }
-  
-  /* Fix for iOS background image issues */
-  body.with-bg-image {
-    -webkit-background-size: cover;
-    -moz-background-size: cover;
-    -o-background-size: cover;
-    background-size: cover;
-  }
 }
 
 /* iOS specific fixes for background */
 @supports (-webkit-touch-callout: none) {
   body.with-bg-image {
     /* Prevent background from scrolling on iOS */
-    background-attachment: scroll;
+    background-attachment: scroll !important;
   }
   
   /* Additional iOS specific background containment */
@@ -233,5 +215,20 @@ body.with-bg-image::before {
     height: 100%;
     overflow: auto;
     -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Fix for iOS fixed position overlays */
+  body.with-bg-image::before {
+    position: absolute; /* Use absolute instead of fixed on iOS */
+    min-height: 100vh; /* Ensure full coverage */
+    height: 100%; /* Stretch to fill */
+  }
+}
+
+/* Fix for landscape orientation on iOS */
+@media screen and (orientation: landscape) and (-webkit-min-device-pixel-ratio: 2) {
+  body.with-bg-image {
+    background-size: cover;
+    min-height: 100vh;
   }
 }
