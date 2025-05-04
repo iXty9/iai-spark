@@ -50,19 +50,19 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
       )}
       aria-label={`${isUser ? 'Your' : 'Ixty AI'} message`}
     >
-      {/* AI avatar appears before the message content */}
+      {/* AI avatar appears before the message content with consistent spacing */}
       {!isUser && (
-        <div className="flex-shrink-0 w-6 h-6 self-start mt-1 mr-2">
+        <div className="flex-shrink-0 w-6 h-6 self-start mt-1 mr-3">
           <MessageAvatar isUser={isUser} onAiIconError={() => setAiIconError(true)} />
         </div>
       )}
       
-      {/* Message content with adjusted spacing for user messages */}
+      {/* Message content with symmetrical spacing for user and AI messages */}
       <div className={cn(
         'flex flex-col', 
-        isUser ? 'items-end mr-2' : 'items-start' // Reduced right margin for user messages
+        isUser ? 'items-end' : 'items-start'
       )}>
-        {/* Username text only (no inline avatar) */}
+        {/* Username text only (no inline avatar) with symmetrical spacing */}
         <div className={cn(
           'text-xs mb-1 font-medium', 
           isUser ? 'text-right' : 'text-left'
@@ -101,9 +101,9 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
         </div>
       </div>
 
-      {/* User avatar appears after the message content */}
+      {/* User avatar appears after the message content with consistent spacing */}
       {isUser && (
-        <div className="flex-shrink-0 w-6 h-6 self-start mt-1 ml-2">
+        <div className="flex-shrink-0 w-6 h-6 self-start mt-1 ml-3">
           <MessageAvatar isUser={isUser} onAiIconError={() => setAiIconError(true)} />
         </div>
       )}
