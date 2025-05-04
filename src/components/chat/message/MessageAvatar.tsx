@@ -37,7 +37,9 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({ isUser, onAiIconEr
     if (!isUser) return 'AI';
     if (!user) return 'User';
     
-    if (profile?.full_name) return profile.full_name;
+    if (profile?.first_name && profile?.last_name) {
+      return `${profile.first_name} ${profile.last_name}`;
+    }
     if (profile?.username) return profile.username;
     return 'User';
   };

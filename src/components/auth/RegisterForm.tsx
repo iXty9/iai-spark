@@ -1,147 +1,110 @@
-
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { CardContent, CardFooter } from '@/components/ui/card';
-import { UserRound, Mail, Key, ArrowLeft, Phone, User } from 'lucide-react';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Form, FormField, FormItem, FormMessage, FormControl } from '@/components/ui/form';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import DOMPurify from 'dompurify';
+import { useToast } from '@/hooks/use-toast';
+import { PhoneInput } from '@/components/ui/phone-input';
 
-// Define validation schema with Zod
-const registerSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-    .regex(/[0-9]/, 'Password must contain at least one number')
-    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
+const formSchema = z.object({
+  email: z.string().email({ message: "Please enter a valid email address" }),
   username: z
     .string()
-    .min(3, 'Username must be at least 3 characters')
-    .max(50, 'Username cannot exceed 50 characters')
-    .regex(/^[a-zA-Z0-9_.-]+$/, 'Username can only contain letters, numbers, underscores, dots, and hyphens'),
-  phone_number: z
+    .min(3, { message: "Username must be at least 3 characters" })
+    .max(50, { message: "Username cannot exceed 50 characters" })
+    .regex(/^[a-zA-Z0-9_.-]+$/, { message: "Username can only contain letters, numbers, underscores, dots, and hyphens" }),
+  password: z
     .string()
-    .regex(/^\+?[0-9\s()-]{7,20}$/, 'Please enter a valid phone number')
-    .optional()
-    .or(z.literal('')),
-  full_name: z
-    .string()
-    .min(2, 'Full name must be at least 2 characters')
-    .max(100, 'Full name cannot exceed 100 characters')
+    .min(8, { message: "Password must be at least 8 characters" })
+    .regex(/[A-Z]/, { message: "Password must contain at least one uppercase letter" })
+    .regex(/[a-z]/, { message: "Password must contain at least one lowercase letter" })
+    .regex(/[0-9]/, { message: "Password must contain at least one number" }),
+  confirmPassword: z.string(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  phoneNumber: z.string().optional(),
+  phoneCountryCode: z.string().default("+1"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
 });
 
-type RegisterFormData = z.infer<typeof registerSchema>;
+type FormValues = z.infer<typeof formSchema>;
 
-export const RegisterForm = () => {
-  const navigate = useNavigate();
+export function RegisterForm() {
   const { signUp } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
-  
-  const form = useForm<RegisterFormData>({
-    resolver: zodResolver(registerSchema),
+  const [error, setError] = useState('');
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
       email: '',
-      password: '',
       username: '',
-      phone_number: '',
-      full_name: ''
-    }
+      password: '',
+      confirmPassword: '',
+      firstName: '',
+      lastName: '',
+      phoneNumber: '',
+      phoneCountryCode: '+1',
+    },
   });
 
-  const handleSubmit = async (data: RegisterFormData) => {
+  const handleSubmit = async (values: FormValues) => {
     setIsLoading(true);
-    setServerError(null);
+    setError('');
     
     try {
-      // Sanitize all user inputs to prevent XSS
-      const sanitizedData = {
-        email: DOMPurify.sanitize(data.email),
-        password: data.password, // No need to sanitize as we're not displaying it
-        username: DOMPurify.sanitize(data.username),
-        phone_number: data.phone_number ? DOMPurify.sanitize(data.phone_number) : undefined,
-        full_name: DOMPurify.sanitize(data.full_name)
-      };
-      
-      // Pass sanitized values to signUp function
       await signUp(
-        sanitizedData.email, 
-        sanitizedData.password, 
-        sanitizedData.username,
-        {
-          phone_number: sanitizedData.phone_number,
-          full_name: sanitizedData.full_name
+        values.email, 
+        values.password, 
+        values.username, 
+        { 
+          first_name: values.firstName,
+          last_name: values.lastName,
+          phone_number: values.phoneNumber 
         }
       );
-      // Don't navigate - user needs to confirm email first
+      
+      toast({
+        title: "Account created",
+        description: "Please check your email to confirm your account",
+      });
+      
+      navigate('/');
     } catch (error: any) {
-      console.error('Register error:', error);
-      setServerError(error.message || 'An error occurred during registration');
+      setError(error.message);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)}>
-        <CardContent className="space-y-4">
-          {serverError && (
-            <Alert variant="destructive">
-              <AlertDescription>{serverError}</AlertDescription>
-            </Alert>
-          )}
-          
+    <div className="space-y-6">
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <FormField
             control={form.control}
             name="email"
             render={({ field }) => (
-              <FormItem className="space-y-2">
-                <Label htmlFor="register-email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <FormControl>
-                    <Input 
-                      id="register-email" 
-                      type="email"
-                      placeholder="your@email.com" 
-                      className="pl-10"
-                      {...field}
-                    />
-                  </FormControl>
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="full_name"
-            render={({ field }) => (
-              <FormItem className="space-y-2">
-                <Label htmlFor="full_name">Full Name</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <FormControl>
-                    <Input 
-                      id="full_name" 
-                      placeholder="Your full name"
-                      className="pl-10"
-                      {...field}
-                    />
-                  </FormControl>
-                </div>
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input placeholder="email@example.com" {...field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -151,42 +114,60 @@ export const RegisterForm = () => {
             control={form.control}
             name="username"
             render={({ field }) => (
-              <FormItem className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <div className="relative">
-                  <UserRound className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <FormControl>
-                    <Input 
-                      id="username" 
-                      placeholder="Choose a username"
-                      className="pl-10"
-                      {...field}
-                    />
-                  </FormControl>
-                </div>
+              <FormItem>
+                <FormLabel>Username</FormLabel>
+                <FormControl>
+                  <Input placeholder="username" {...field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
           
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="firstName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>First Name (Optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="First name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="lastName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Last Name (Optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Last name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          
           <FormField
             control={form.control}
-            name="phone_number"
+            name="phoneNumber"
             render={({ field }) => (
-              <FormItem className="space-y-2">
-                <Label htmlFor="phone_number">Phone Number</Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <FormControl>
-                    <Input 
-                      id="phone_number" 
-                      type="tel"
-                      placeholder="+1234567890"
-                      className="pl-10"
-                      {...field}
-                    />
-                  </FormControl>
-                </div>
+              <FormItem>
+                <FormLabel>Phone Number (Optional)</FormLabel>
+                <FormControl>
+                  <PhoneInput
+                    value={field.value || ''}
+                    onChange={field.onChange}
+                    countryCode={form.watch('phoneCountryCode')}
+                    onCountryCodeChange={(code) => form.setValue('phoneCountryCode', code)}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -196,43 +177,35 @@ export const RegisterForm = () => {
             control={form.control}
             name="password"
             render={({ field }) => (
-              <FormItem className="space-y-2">
-                <Label htmlFor="register-password">Password</Label>
-                <div className="relative">
-                  <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <FormControl>
-                    <Input 
-                      id="register-password" 
-                      type="password"
-                      className="pl-10"
-                      {...field}
-                    />
-                  </FormControl>
-                </div>
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <Input type="password" placeholder="••••••••" {...field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-        </CardContent>
-        <CardFooter className="flex flex-col space-y-3">
-          <Button 
-            type="submit" 
-            className="w-full bg-[#ea384c] hover:bg-[#dd3333]" 
-            disabled={isLoading}
-          >
-            {isLoading ? 'Creating Account...' : 'Create Account'}
+          
+          <FormField
+            control={form.control}
+            name="confirmPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Confirm Password</FormLabel>
+                <FormControl>
+                  <Input type="password" placeholder="••••••••" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? "Creating account..." : "Create account"}
           </Button>
-          <Button 
-            type="button" 
-            variant="outline" 
-            className="w-full"
-            onClick={() => navigate('/')}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Go Back
-          </Button>
-        </CardFooter>
-      </form>
-    </Form>
+        </form>
+      </Form>
+    </div>
   );
-};
+}

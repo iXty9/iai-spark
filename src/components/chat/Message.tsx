@@ -1,10 +1,9 @@
-
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Message as MessageType } from '@/types/chat';
 import { MessageActions } from './MessageActions';
 import { MessageAvatar } from './message/MessageAvatar';
-import { MessageContent } from './message/MessageContent';
+import MessageContent from './message/MessageContent';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface MessageProps {
@@ -21,7 +20,9 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
     if (!isUser) return 'Ixty AI';
     if (!user) return 'User';
     
-    if (profile?.full_name) return profile.full_name;
+    if (profile?.first_name && profile?.last_name) {
+      return `${profile.first_name} ${profile.last_name}`;
+    }
     if (profile?.username) return profile.username;
     return 'User';
   };

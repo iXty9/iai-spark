@@ -4,13 +4,16 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { markdownComponents } from '@/utils/markdown-config';
 import { cn } from '@/lib/utils';
+import { Message as MessageType } from '@/types/chat';
 
 type MessageContentProps = {
-  content: string;
+  message: MessageType;
   isUser: boolean;
 };
 
-export default function MessageContent({ content, isUser }: MessageContentProps) {
+export function MessageContent({ message, isUser }: MessageContentProps) {
+  const content = message.content;
+  
   return (
     <div
       className={cn(
@@ -35,3 +38,6 @@ export default function MessageContent({ content, isUser }: MessageContentProps)
     </div>
   );
 }
+
+// Default export to ensure compatibility with any import style
+export default MessageContent;
