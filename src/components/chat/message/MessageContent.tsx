@@ -15,14 +15,7 @@ export function MessageContent({ message, isUser }: MessageContentProps) {
   const content = message.content;
   
   return (
-    <div
-      className={cn(
-        'py-2 px-3 rounded-lg break-words text-base',
-        isUser
-          ? 'bg-primary/30 text-user-message'
-          : 'bg-accent/30 text-ai-message'
-      )}
-    >
+    <div className="py-2 px-3 rounded-lg break-words text-base">
       {isUser ? (
         <div className="text-base">{content}</div>
       ) : (
