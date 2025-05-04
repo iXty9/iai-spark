@@ -45,29 +45,15 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({ isUser, onAiIconEr
   const displayName = getDisplayName();
   const initials = displayName === 'AI' ? 'AI' : displayName.charAt(0).toUpperCase();
 
-  if (isUser) {
-    return (
-      <Avatar className="w-6 h-6" title={displayName}>
-        <AvatarImage
-          src={profile?.avatar_url || "https://ixty9.com/wp-content/uploads/2025/04/profile-circle-icon-256x256-1.png"}
-          alt={`${displayName}'s Avatar`}
-        />
-        <AvatarFallback className="bg-primary/10 text-primary text-xs">
-          {initials}
-        </AvatarFallback>
-      </Avatar>
-    );
-  }
-
+  // Both user and AI avatars use the same size
   return (
-    <Avatar className="w-6 h-6" title="Ixty AI">
-      <AvatarImage 
-        src={aiAvatarUrl}
-        alt="Ixty AI Avatar"
-        onError={onAiIconError}
+    <Avatar className="w-6 h-6" title={displayName}>
+      <AvatarImage
+        src={isUser ? (profile?.avatar_url || "https://ixty9.com/wp-content/uploads/2025/04/profile-circle-icon-256x256-1.png") : aiAvatarUrl}
+        alt={`${displayName}'s Avatar`}
       />
-      <AvatarFallback className="bg-[#ea384c] text-white flex items-center justify-center rounded-full text-xs">
-        AI
+      <AvatarFallback className={isUser ? "bg-primary/10 text-primary text-xs" : "bg-[#ea384c] text-white text-xs"}>
+        {initials}
       </AvatarFallback>
     </Avatar>
   );
