@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
+import { ThemeSettings } from '@/types/theme';
 
 type AppSetting = {
   id: string;
@@ -79,6 +80,21 @@ export async function updateAppSetting(key: string, value: string): Promise<void
     }
   } catch (error) {
     logger.error(`Unexpected error updating app setting ${key}:`, error, { module: 'settings' });
+    throw error;
+  }
+}
+
+export async function setDefaultTheme(themeSettings: ThemeSettings): Promise<void> {
+  try {
+    // Convert theme settings object to JSON string
+    const themeSettingsJSON = JSON.stringify(themeSettings);
+    
+    // Save as default theme in app_settings
+    await updateAppSetting('default_theme_settings', themeSettingsJSON);
+    
+    logger.info('Default theme settings updated successfully', { module: 'settings' });
+  } catch (error) {
+    logger.error('Error setting default theme:', error, { module: 'settings' });
     throw error;
   }
 }

@@ -11,22 +11,59 @@ import { useToast } from '@/hooks/use-toast';
 import { Upload, UserRound, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { PhoneInput } from '@/components/ui/phone-input';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 
 // Supported image types
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+// Form validation schema
+const profileFormSchema = z.object({
+  username: z
+    .string()
+    .min(3, "Username must be at least 3 characters")
+    .max(50, "Username cannot exceed 50 characters")
+    .regex(/^[a-zA-Z0-9_.-]+$/, "Username can only contain letters, numbers, underscores, dots, and hyphens"),
+  first_name: z
+    .string()
+    .max(50, "First name cannot exceed 50 characters")
+    .optional(),
+  last_name: z
+    .string()
+    .max(50, "Last name cannot exceed 50 characters")
+    .optional(),
+  phone_country_code: z.string(),
+  phone_number: z
+    .string()
+    .regex(/^(\d{3}-\d{3}-\d{4})?$/, "Please enter a valid phone number (XXX-XXX-XXXX)")
+    .optional(),
+});
+
+type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 export default function Profile() {
   const { user, profile, updateProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
-  const [formData, setFormData] = useState({
-    username: profile?.username || '',
-    phone_number: profile?.phone_number || '',
-  });
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [phoneCountryCode, setPhoneCountryCode] = useState("+1"); // Default to US
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Initialize form with profile data
+  const form = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileFormSchema),
+    defaultValues: {
+      username: profile?.username || '',
+      first_name: profile?.first_name || '',
+      last_name: profile?.last_name || '',
+      phone_country_code: "+1",
+      phone_number: profile?.phone_number || '',
+    },
+  });
 
   useEffect(() => {
     if (!user) {
@@ -37,51 +74,28 @@ export default function Profile() {
   useEffect(() => {
     // Update form when profile changes
     if (profile) {
-      setFormData({
+      form.reset({
         username: profile.username || '',
+        first_name: profile?.first_name || '',
+        last_name: profile?.last_name || '',
+        phone_country_code: phoneCountryCode,
         phone_number: profile.phone_number || '',
       });
     }
-  }, [profile]);
+  }, [profile, form, phoneCountryCode]);
 
-  const validateForm = () => {
-    const newErrors: {[key: string]: string} = {};
-    
-    // Validate username
-    if (!formData.username.trim()) {
-      newErrors.username = 'Username is required';
-    } else if (formData.username.length < 3) {
-      newErrors.username = 'Username must be at least 3 characters';
-    } else if (!/^[a-zA-Z0-9_.-]+$/.test(formData.username)) {
-      newErrors.username = 'Username can only contain letters, numbers, underscores, dots, and hyphens';
-    }
-    
-    // Validate phone number (optional)
-    if (formData.phone_number && !/^\+?[0-9\s()-]{7,20}$/.test(formData.phone_number)) {
-      newErrors.phone_number = 'Please enter a valid phone number';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    // Clear error when field is edited
-    if (errors[e.target.name]) {
-      setErrors({ ...errors, [e.target.name]: undefined });
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
+  const onSubmit = async (data: ProfileFormValues) => {
     try {
-      await updateProfile(formData);
+      // Combine phone data
+      const updatedProfile = {
+        username: data.username,
+        first_name: data.first_name,
+        last_name: data.last_name,
+        phone_number: data.phone_number,
+        phone_country_code: data.phone_country_code,
+      };
+      
+      await updateProfile(updatedProfile);
       toast({
         title: "Profile updated",
         description: "Your profile has been updated successfully.",
@@ -176,12 +190,21 @@ export default function Profile() {
   };
 
   const getInitials = () => {
+    // Try to get initials from first and last name first
+    if (profile?.first_name && profile?.last_name) {
+      return `${profile.first_name.charAt(0)}${profile.last_name.charAt(0)}`.toUpperCase();
+    }
+    
+    // Fall back to username
     if (profile?.username) {
       return profile.username.charAt(0).toUpperCase();
     }
+    
+    // Fall back to email
     if (user?.email) {
       return user.email.charAt(0).toUpperCase();
     }
+    
     return 'U';
   };
 
@@ -201,88 +224,123 @@ export default function Profile() {
           <CardTitle className="text-center">Profile Settings</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="flex flex-col items-center space-y-4">
-              <Avatar className="h-24 w-24">
-                {profile?.avatar_url ? (
-                  <AvatarImage src={profile.avatar_url} alt={profile?.username || "User"} />
-                ) : (
-                  <AvatarFallback className="text-lg">
-                    {getInitials()}
-                  </AvatarFallback>
-                )}
-              </Avatar>
-              <Button variant="outline" asChild>
-                <label className="cursor-pointer">
-                  <Upload className="mr-2 h-4 w-4" />
-                  {uploading ? 'Uploading...' : 'Upload Avatar'}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg,image/webp"
-                    onChange={uploadAvatar}
-                    disabled={uploading}
-                    className="hidden"
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <div className="flex flex-col items-center space-y-4">
+                <Avatar className="h-24 w-24">
+                  {profile?.avatar_url ? (
+                    <AvatarImage src={profile.avatar_url} alt={profile?.username || "User"} />
+                  ) : (
+                    <AvatarFallback className="text-lg">
+                      {getInitials()}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+                <Button variant="outline" asChild>
+                  <label className="cursor-pointer">
+                    <Upload className="mr-2 h-4 w-4" />
+                    {uploading ? 'Uploading...' : 'Upload Avatar'}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/webp"
+                      onChange={uploadAvatar}
+                      disabled={uploading}
+                      className="hidden"
+                    />
+                  </label>
+                </Button>
+                <div className="text-xs text-muted-foreground">
+                  Supported formats: JPG, PNG, WebP. Max size: 5MB.
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input 
+                    id="email" 
+                    value={user?.email || ''} 
+                    disabled 
+                    className="bg-muted"
                   />
-                </label>
-              </Button>
-              <div className="text-xs text-muted-foreground">
-                Supported formats: JPG, PNG, WebP. Max size: 5MB.
-              </div>
-            </div>
+                </div>
 
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input 
-                  id="email" 
-                  value={user?.email || ''} 
-                  disabled 
-                  className="bg-muted"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="username">Username</Label>
-                <Input 
-                  id="username"
+                <FormField
+                  control={form.control}
                   name="username"
-                  value={formData.username}
-                  onChange={handleChange}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Username</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {errors.username && (
-                  <Alert variant="destructive" className="mt-1 py-2">
-                    <AlertDescription>{errors.username}</AlertDescription>
-                  </Alert>
-                )}
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="first_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>First Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="last_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="phone_number"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone Number</FormLabel>
+                      <FormControl>
+                        <PhoneInput
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                          countryCode={form.watch('phone_country_code')}
+                          onCountryCodeChange={(code) => form.setValue('phone_country_code', code)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
-              <div>
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input 
-                  id="phone"
-                  name="phone_number"
-                  type="tel"
-                  value={formData.phone_number}
-                  onChange={handleChange}
-                />
-                {errors.phone_number && (
-                  <Alert variant="destructive" className="mt-1 py-2">
-                    <AlertDescription>{errors.phone_number}</AlertDescription>
-                  </Alert>
-                )}
+              <div className="flex justify-between mt-6">
+                <Button variant="outline" onClick={handleGoBack} type="button">
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  Save Changes
+                </Button>
               </div>
-            </div>
-          </form>
+            </form>
+          </Form>
         </CardContent>
-        <CardFooter className="flex justify-between">
-          <Button variant="outline" onClick={handleGoBack}>
-            Cancel
-          </Button>
-          <Button type="submit" onClick={handleSubmit}>
-            Save Changes
-          </Button>
-        </CardFooter>
       </Card>
     </div>
   );

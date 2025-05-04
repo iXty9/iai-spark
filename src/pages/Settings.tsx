@@ -15,6 +15,8 @@ import { logger } from '@/utils/logging';
 import { applyBackgroundImage } from '@/utils/theme-utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { setDefaultTheme } from '@/services/admin/settingsService';
+import { createThemeSettingsObject } from '@/utils/theme-utils';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -22,6 +24,7 @@ export default function Settings() {
   const { toast } = useToast();
   const { user, updateProfile } = useAuth();
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+  const [showSetDefaultDialog, setShowSetDefaultDialog] = useState(false);
   
   const { 
     lightTheme, 
@@ -116,6 +119,39 @@ export default function Settings() {
     navigate(-1);
   };
 
+  const handleSetDefaultTheme = async () => {
+    try {
+      setShowSetDefaultDialog(false);
+      setIsSubmitting(true);
+      
+      // Create the theme settings object from current state
+      const themeSettings = createThemeSettingsObject(
+        theme, 
+        lightTheme, 
+        darkTheme, 
+        backgroundImage, 
+        backgroundOpacity
+      );
+      
+      // Save as default theme
+      await setDefaultTheme(themeSettings);
+      
+      toast({
+        title: "Default theme set",
+        description: "This theme will now be used as the default for all users",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to set default theme. Please try again.",
+      });
+      logger.error('Error setting default theme:', error, { module: 'settings' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="container max-w-2xl py-10">
       <Card className="bg-background/80 backdrop-blur-sm">
@@ -149,11 +185,13 @@ export default function Settings() {
           onReset={handleResetSettings} 
           onCancel={handleGoBack} 
           onSave={handleSaveSettings}
+          onSetDefault={() => setShowSetDefaultDialog(true)}
           isSubmitting={isSubmitting}
           hasChanges={hasChanges}
         />
       </Card>
       
+      {/* Discard changes dialog */}
       <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -165,6 +203,22 @@ export default function Settings() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDiscard}>Discard</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Set Default Theme dialog */}
+      <AlertDialog open={showSetDefaultDialog} onOpenChange={setShowSetDefaultDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Set as Default Theme</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will set the current theme as the default for all users. Are you sure?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSetDefaultTheme}>Set as Default</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

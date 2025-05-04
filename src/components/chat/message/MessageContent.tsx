@@ -41,10 +41,10 @@ export const MessageContent: React.FC<MessageContentProps> = ({ message, isUser 
         </div>
       );
     }
-    // AI message: markdown rendering with proper color application
+    // AI message: markdown rendering with proper color application and matching text size
     return (
       <div 
-        className="markdown-content prose prose-sm max-w-none dark:prose-invert prose-headings:my-2 prose-p:my-1 prose-hr:my-2"
+        className="markdown-content prose prose-sm max-w-none dark:prose-invert prose-headings:my-2 prose-p:my-1 prose-hr:my-2 text-base font-medium"
         style={{ color: 'inherit' }} // Use inherit to pick up the color from the parent element
       >
         <ReactMarkdown
@@ -85,7 +85,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ message, isUser 
 
   return (
     <div>
-      <div className="markdown-content prose prose-sm max-w-none dark:prose-invert prose-headings:my-2 prose-p:my-1 prose-hr:my-2">
+      <div className="markdown-content prose prose-sm max-w-none dark:prose-invert prose-headings:my-2 prose-p:my-1 prose-hr:my-2 text-base font-medium">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={customMarkdownComponents}
