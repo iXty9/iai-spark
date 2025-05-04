@@ -5,7 +5,8 @@ import { emitDebugEvent } from '@/utils/debug-events';
 import { logger } from '@/utils/logging';
 import { ThemeColors } from '@/types/theme';
 import { applyThemeChanges, applyBackgroundImage, createThemeSettingsObject } from '@/utils/theme-utils';
-import { fetchAppSettings } from '@/services/admin/settingsService';
+import { fetchAppSettings, setDefaultTheme } from '@/services/admin/settingsService';
+import { useTheme } from '@/hooks/use-theme';
 
 export interface UseSettingsPersistenceProps {
   user: any;
@@ -37,6 +38,7 @@ export const useSettingsPersistence = ({
   updateProfile
 }: UseSettingsPersistenceProps) => {
   const { toast } = useToast();
+  const { refreshTheme } = useTheme();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [defaultThemeSettings, setDefaultThemeSettings] = useState<any>(null);
   const [isLoadingDefaults, setIsLoadingDefaults] = useState(false);
@@ -134,7 +136,10 @@ export const useSettingsPersistence = ({
         // Make sure we stringify the theme settings
         await updateProfile({ theme_settings: JSON.stringify(themeSettings) });
         
-        logger.info('Settings saved successfully', { module: 'settings' });
+        logger.info('Settings saved successfully to user profile', { 
+          module: 'settings',
+          userId: user.id.substring(0, 8)
+        });
 
         toast({
           title: "Settings saved",
@@ -146,6 +151,7 @@ export const useSettingsPersistence = ({
       } else {
         // Fallback to localStorage if no updateProfile function is available
         localStorage.setItem('theme_settings', JSON.stringify(themeSettings));
+        logger.info('Settings saved to local storage (no user profile)', { module: 'settings' });
         
         toast({
           title: "Settings saved",
@@ -155,6 +161,10 @@ export const useSettingsPersistence = ({
         // Reset changes flag after successful save
         setHasChanges(false);
       }
+      
+      // Refresh theme in the global context to ensure changes are picked up
+      refreshTheme();
+      
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Error saving theme settings:', error, { module: 'settings' });
@@ -254,6 +264,9 @@ export const useSettingsPersistence = ({
           resetToHardcodedDefaults();
         }
       }
+      
+      // Refresh the global theme context
+      refreshTheme();
       
       // Mark as having changes that need to be saved
       setHasChanges(true);

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
@@ -20,7 +19,7 @@ import { createThemeSettingsObject } from '@/utils/theme-utils';
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, refreshTheme } = useTheme();
   const { toast } = useToast();
   const { user, updateProfile } = useAuth();
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
@@ -136,9 +135,20 @@ export default function Settings() {
       // Save as default theme
       await setDefaultTheme(themeSettings);
       
+      // Refresh the theme globally to ensure the new defaults take effect immediately
+      refreshTheme();
+      
       toast({
         title: "Default theme set",
         description: "This theme will now be used as the default for all users",
+      });
+      
+      // Log detailed info about the theme being set as default
+      logger.info('Set as default theme', { 
+        module: 'settings', 
+        hasBackgroundImage: !!backgroundImage,
+        mode: theme,
+        userId: user?.id?.substring(0, 8) || 'unknown' 
       });
     } catch (error) {
       toast({

@@ -3,13 +3,11 @@ import React, { useEffect } from 'react';
 import { Chat } from '@/components/chat/Chat';
 import { useIOSSafari } from '@/hooks/use-ios-safari';
 import { IOSFallbackInput } from '@/components/chat/IOSFallbackInput';
-import { useLocation } from 'react-router-dom';
 import { useTheme } from '@/hooks/use-theme';
 import { logger } from '@/utils/logging';
 
 const Index = () => {
   const { isIOSSafari, showFallbackInput } = useIOSSafari();
-  const location = useLocation();
   const { isThemeLoaded } = useTheme();
   
   // Apply iOS viewport fixes

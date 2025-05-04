@@ -11,21 +11,34 @@ type AppSetting = {
   updated_by: string | null;
 };
 
-// Simple in-memory cache
+// Enhanced cache management
 let settingsCache: Record<string, string> | null = null;
 let lastFetchTime = 0;
-const CACHE_DURATION = 60000; // 1 minute cache
+const CACHE_DURATION = 60000; // 1 minute cache for production
+// Use shorter cache during development for easier testing
+const DEV_CACHE_DURATION = 10000; // 10 seconds in development
+
+// Public method to clear the cache, useful when settings change
+export function clearSettingsCache() {
+  logger.info('Settings cache manually cleared', { module: 'settings' });
+  settingsCache = null;
+  lastFetchTime = 0;
+}
 
 export async function fetchAppSettings(): Promise<Record<string, string>> {
   try {
     const now = Date.now();
+    const cacheDuration = process.env.NODE_ENV === 'development' 
+      ? DEV_CACHE_DURATION 
+      : CACHE_DURATION;
     
     // Return cached settings if valid
-    if (settingsCache && (now - lastFetchTime < CACHE_DURATION)) {
+    if (settingsCache && (now - lastFetchTime < cacheDuration)) {
       logger.info('Using cached app settings', { 
         module: 'settings', 
         cache: true,
-        cacheAge: now - lastFetchTime
+        cacheAge: now - lastFetchTime,
+        settingsCount: Object.keys(settingsCache).length
       });
       return settingsCache;
     }
@@ -38,6 +51,13 @@ export async function fetchAppSettings(): Promise<Record<string, string>> {
 
     if (error) {
       logger.error('Error fetching app settings:', error, { module: 'settings' });
+      
+      // If we have a cache, return it as fallback even if expired
+      if (settingsCache) {
+        logger.warn('Using expired cache as fallback after fetch error', { module: 'settings' });
+        return settingsCache;
+      }
+      
       throw error;
     }
 
@@ -75,7 +95,9 @@ export async function fetchAppSettings(): Promise<Record<string, string>> {
     return settings;
   } catch (error) {
     logger.error('Unexpected error in fetchAppSettings:', error, { module: 'settings' });
-    throw error;
+    
+    // Last resort: return empty settings object to prevent crashes
+    return {};
   }
 }
 
@@ -124,7 +146,7 @@ export async function updateAppSetting(key: string, value: string): Promise<void
     }
     
     // Clear the cache so next fetch gets fresh data
-    settingsCache = null;
+    clearSettingsCache();
     
   } catch (error) {
     logger.error(`Unexpected error updating app setting ${key}:`, error, { module: 'settings' });
@@ -141,7 +163,7 @@ export async function setDefaultTheme(themeSettings: ThemeSettings): Promise<voi
     await updateAppSetting('default_theme_settings', themeSettingsJSON);
     
     // Clear the cache
-    settingsCache = null;
+    clearSettingsCache();
     
     logger.info('Default theme settings updated successfully', { 
       module: 'settings',

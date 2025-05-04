@@ -21,12 +21,24 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
     if (!isUser) return 'Ixty AI';
     if (!user) return 'You';
     
-    // Prioritize username over first/last name
-    if (profile?.username) return profile.username;
-    if (profile?.first_name && profile?.last_name) {
-      return `${profile.first_name} ${profile.last_name}`;
+    // Prioritize username over first/last name, with proper fallbacks
+    if (profile?.username?.trim()) return profile.username;
+    
+    if (profile?.first_name || profile?.last_name) {
+      const fullName = [profile?.first_name, profile?.last_name]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+      
+      if (fullName) return fullName;
     }
-    if (profile?.first_name) return profile.first_name;
+    
+    // Last resort: use part of email or default to "You"
+    if (user.email) {
+      const emailParts = user.email.split('@');
+      return emailParts[0] || 'You';
+    }
+    
     return 'You';
   };
 
