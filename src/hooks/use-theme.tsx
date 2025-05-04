@@ -28,12 +28,32 @@ export function useTheme() {
   const [isDefaultThemeLoading, setIsDefaultThemeLoading] = useState(true);
 
   // Apply the theme mode without updating the profile
-  const applyThemeMode = (newTheme: Theme) => {
+  const applyThemeMode = useCallback((newTheme: Theme) => {
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(newTheme);
     localStorage.setItem('theme', newTheme);
-  };
+    
+    // If we have default theme settings, re-apply the colors for the new mode
+    if (defaultThemeSettings) {
+      const currentTheme = newTheme === 'light' 
+        ? defaultThemeSettings.lightTheme 
+        : defaultThemeSettings.darkTheme;
+      
+      if (currentTheme) {
+        logger.info(`Re-applying ${newTheme} theme colors after theme mode change`, { 
+          module: 'theme',
+          mode: newTheme
+        });
+        applyThemeChanges(currentTheme);
+      }
+    }
+  }, [defaultThemeSettings]);
+  
+  // Update theme mode when it changes
+  useEffect(() => {
+    applyThemeMode(theme);
+  }, [theme, applyThemeMode]);
   
   // Fetch default theme settings separately to be available for all users
   const fetchDefaultThemeSettings = useCallback(async () => {
@@ -110,19 +130,23 @@ export function useTheme() {
   }, [theme]);
 
   // Refresh theme (useful when theme is changed elsewhere)
-  const refreshTheme = useCallback(() => {
+  const refreshTheme = useCallback(async () => {
+    logger.info('Manually refreshing theme settings', { module: 'theme' });
     clearSettingsCache(); // Clear settings cache to get fresh data
-    fetchDefaultThemeSettings(); // Re-fetch default theme settings
-  }, [fetchDefaultThemeSettings]);
-
-  useEffect(() => {
-    // Apply the theme mode (light/dark class)
-    applyThemeMode(theme);
+    const freshSettings = await fetchDefaultThemeSettings(); // Re-fetch default theme settings
     
-    // Fetch default theme settings first (will be available for all users)
+    // Apply the freshly fetched settings immediately
+    if (freshSettings) {
+      applyThemeSettings(freshSettings, 'refresh operation');
+    }
+  }, [fetchDefaultThemeSettings, applyThemeSettings]);
+
+  // Initialize default theme settings on mount
+  useEffect(() => {
     fetchDefaultThemeSettings();
   }, [fetchDefaultThemeSettings]);
 
+  // Apply themes based on user status and available settings
   useEffect(() => {    
     const applyTheme = async () => {
       try {
@@ -150,23 +174,8 @@ export function useTheme() {
           }
         }
         
-        // Step 2: Apply default theme settings if no user theme was applied or user is not logged in
+        // Step 2: Apply default theme settings for anonymous users or if no user theme was applied
         if (!themeApplied) {
-          // If default theme is still loading, wait a moment and check again
-          if (isDefaultThemeLoading) {
-            logger.info('Default theme still loading, waiting...', { module: 'theme' });
-            
-            // If default theme is taking too long, continue with basic theme
-            setTimeout(() => {
-              if (!isThemeLoaded) {
-                logger.info('Applying basic theme after timeout', { module: 'theme' });
-                setIsThemeLoaded(true);
-              }
-            }, 2000);
-            
-            return;
-          }
-          
           if (defaultThemeSettings) {
             logger.info('Applying admin-set default theme', { 
               module: 'theme',
@@ -181,9 +190,27 @@ export function useTheme() {
               setIsThemeLoaded(true);
               return;
             }
+          } else if (!isDefaultThemeLoading) {
+            // Check if default theme settings are still loading
+            logger.info('No default theme settings loaded yet, fetching again', { module: 'theme' });
+            
+            // Try fetching one more time to be sure
+            const freshSettings = await fetchDefaultThemeSettings();
+            
+            if (freshSettings) {
+              themeApplied = applyThemeSettings(freshSettings, 'freshly fetched default settings');
+              
+              if (themeApplied) {
+                logger.info('Successfully applied freshly fetched default theme', { module: 'theme' });
+                setIsThemeLoaded(true);
+                return;
+              }
+            } else {
+              // No default theme exists in database yet
+              logger.info('No default theme available in database after retry', { module: 'theme' });
+            }
           } else {
-            // No default theme exists in database yet
-            logger.info('No default theme available in database', { module: 'theme' });
+            logger.info('Default theme still loading, waiting...', { module: 'theme' });
           }
         }
         
@@ -207,18 +234,16 @@ export function useTheme() {
       }
     };
     
-    // Don't reapply if already loaded and theme hasn't changed
-    if (!isThemeLoaded || defaultThemeSettings) {
-      applyTheme();
-    }
+    // Apply theme settings whenever they change or when theme mode changes
+    applyTheme();
   }, [
     theme, 
     user, 
     profile, 
-    isThemeLoaded, 
     defaultThemeSettings,
     isDefaultThemeLoading,
-    applyThemeSettings
+    applyThemeSettings,
+    fetchDefaultThemeSettings
   ]);
 
   return { theme, setTheme, isThemeLoaded, refreshTheme };

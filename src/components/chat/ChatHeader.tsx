@@ -63,6 +63,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     }
   };
   
+  const handleThemeToggle = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    logger.info(`Theme toggled to ${newTheme} mode`, { module: 'ui' });
+  };
+  
   const handleDevModeToggle = (e: React.MouseEvent) => {
     e.preventDefault();
     try {
@@ -116,7 +122,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           <Button 
             variant="ghost" 
             size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            onClick={handleThemeToggle}
             aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
@@ -164,7 +170,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   <Code className="mr-2 h-4 w-4" />
                   <span>Dev {isDevMode ? '(On)' : '(Off)'}</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="flex items-center">
+                <DropdownMenuItem onClick={handleThemeToggle} className="flex items-center">
                   {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
                   <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
                 </DropdownMenuItem>

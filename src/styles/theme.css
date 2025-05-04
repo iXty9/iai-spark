@@ -33,6 +33,7 @@
 body {
   background-color: var(--background-color);
   color: var(--text-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Background image handling */
@@ -41,6 +42,7 @@ body.with-bg-image {
   background-position: center center;
   background-repeat: no-repeat;
   background-attachment: fixed;
+  transition: background-image 0.3s ease;
 }
 
 /* Improved background image handling for mobile devices */
@@ -62,6 +64,7 @@ body:after {
   opacity: var(--bg-opacity);
   z-index: -1;
   pointer-events: none;
+  transition: background-color 0.3s ease, opacity 0.3s ease;
 }
 
 /* Link colors */

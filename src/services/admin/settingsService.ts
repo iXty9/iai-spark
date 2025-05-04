@@ -14,9 +14,9 @@ type AppSetting = {
 // Enhanced cache management
 let settingsCache: Record<string, string> | null = null;
 let lastFetchTime = 0;
-const CACHE_DURATION = 60000; // 1 minute cache for production
+const CACHE_DURATION = 30000; // 30 seconds cache for production (reduced from 60s)
 // Use shorter cache during development for easier testing
-const DEV_CACHE_DURATION = 10000; // 10 seconds in development
+const DEV_CACHE_DURATION = 5000; // 5 seconds in development (reduced from 10s)
 
 // Public method to clear the cache, useful when settings change
 export function clearSettingsCache() {
@@ -145,8 +145,9 @@ export async function updateAppSetting(key: string, value: string): Promise<void
       }
     }
     
-    // Clear the cache so next fetch gets fresh data
+    // Force clear the cache immediately after an update
     clearSettingsCache();
+    logger.info(`App setting ${key} updated and cache cleared`, { module: 'settings' });
     
   } catch (error) {
     logger.error(`Unexpected error updating app setting ${key}:`, error, { module: 'settings' });
@@ -159,11 +160,15 @@ export async function setDefaultTheme(themeSettings: ThemeSettings): Promise<voi
     // Convert theme settings object to JSON string
     const themeSettingsJSON = JSON.stringify(themeSettings);
     
+    logger.info('Setting default theme for all users', { 
+      module: 'settings',
+      hasBackground: !!themeSettings.backgroundImage
+    });
+    
     // Save as default theme in app_settings
     await updateAppSetting('default_theme_settings', themeSettingsJSON);
     
-    // Clear the cache
-    clearSettingsCache();
+    // The updateAppSetting function already clears the cache
     
     logger.info('Default theme settings updated successfully', { 
       module: 'settings',
