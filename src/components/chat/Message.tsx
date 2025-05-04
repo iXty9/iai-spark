@@ -34,7 +34,7 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
 
   // Use CSS variables for colors to respect user theme settings
   const bubbleUser =
-    'bg-[var(--user-bubble-color)] text-right text-[var(--user-text-color)] ml-auto ' +
+    'bg-[var(--user-bubble-color)] text-left text-[var(--user-text-color)] ml-auto ' +
     'backdrop-blur-md';
 
   const bubbleAI =
@@ -50,14 +50,21 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
       )}
       aria-label={`${isUser ? 'Your' : 'Ixty AI'} message`}
     >
+      {/* AI avatar appears before the message content */}
       {!isUser && (
-        <div className="flex-shrink-0 w-6 h-6 self-end mr-1">
+        <div className="flex-shrink-0 w-6 h-6 self-start mt-1 mr-1">
           <MessageAvatar isUser={isUser} onAiIconError={() => setAiIconError(true)} />
         </div>
       )}
       <div className={cn('flex flex-col', isUser ? 'items-end' : 'items-start')}>
         <div className={cn('flex items-center text-xs mb-1', isUser ? 'justify-end' : 'justify-start')}>
           <span className="font-medium">{displayName}</span>
+          {/* User avatar appears right after the username */}
+          {isUser && (
+            <div className="flex-shrink-0 w-4 h-4 ml-1">
+              <MessageAvatar isUser={isUser} onAiIconError={() => setAiIconError(true)} />
+            </div>
+          )}
         </div>
         <div
           className={cn(
@@ -83,11 +90,7 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
           )}
         </div>
       </div>
-      {isUser && (
-        <div className="flex-shrink-0 w-6 h-6 self-end ml-1">
-          <MessageAvatar isUser={isUser} onAiIconError={() => setAiIconError(true)} />
-        </div>
-      )}
+      {/* Remove user avatar from here as it's now next to username */}
     </div>
   );
 };

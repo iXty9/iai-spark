@@ -15,22 +15,41 @@ interface MessageContentProps {
 export const MessageContent: React.FC<MessageContentProps> = ({ message, isUser }) => {
   const { isDevMode } = useDevMode();
 
+  // Update markdown components to include custom link styling
+  const customMarkdownComponents = {
+    ...markdownComponents,
+    a: ({ node, ...props }) => (
+      <a 
+        {...props} 
+        className="underline hover:opacity-80 transition-opacity" 
+        style={{ 
+          color: 'var(--link-color, var(--primary-color))' 
+        }}
+        target="_blank"
+        rel="noopener noreferrer"
+      />
+    )
+  };
+
   // Use enhanced styling for both user and AI bubbles
   if (isUser || !isDevMode) {
     if (isUser) {
       // User message: normal text (horizontal, no per-letter line breaks)
       return (
-        <div className="whitespace-pre-wrap text-base font-medium break-words">
+        <div className="whitespace-pre-wrap text-base font-medium break-words text-left">
           {message.content}
         </div>
       );
     }
     // AI message: markdown rendering as before, but with good spacing.
     return (
-      <div className="markdown-content prose prose-sm max-w-none dark:prose-invert prose-headings:my-2 prose-p:my-1 prose-hr:my-2">
+      <div 
+        className="markdown-content prose prose-sm max-w-none dark:prose-invert prose-headings:my-2 prose-p:my-1 prose-hr:my-2"
+        style={{ color: 'var(--ai-text-color)' }} // Force the AI text color here
+      >
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
-          components={markdownComponents}
+          components={customMarkdownComponents}
         >
           {message.content}
         </ReactMarkdown>
@@ -69,7 +88,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ message, isUser 
       <div className="markdown-content prose prose-sm max-w-none dark:prose-invert prose-headings:my-2 prose-p:my-1 prose-hr:my-2">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
-          components={markdownComponents}
+          components={customMarkdownComponents}
         >
           {message.content}
         </ReactMarkdown>
