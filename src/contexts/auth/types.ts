@@ -6,7 +6,9 @@ export type ProfileType = {
   username?: string;
   avatar_url?: string;
   phone_number?: string;
-  full_name?: string;
+  phone_country_code?: string;
+  first_name?: string;
+  last_name?: string;
   theme_settings?: string; // JSON string containing theme settings
 };
 
@@ -16,7 +18,7 @@ export type AuthContextType = {
   profile: ProfileType | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, username: string, options?: { phone_number?: string, full_name?: string }) => Promise<void>;
+  signUp: (email: string, password: string, username: string, options?: { phone_number?: string, first_name?: string, last_name?: string }) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<ProfileType>) => Promise<void>;
 };

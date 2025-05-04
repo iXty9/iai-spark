@@ -20,7 +20,7 @@ export function PhoneInput({
   disabled,
   ...props
 }: PhoneInputProps) {
-  // Format phone number as user types (US format: XXX-XXX-XXXX)
+  // Format phone number as user types (US format by default: XXX-XXX-XXXX)
   const formatPhoneNumber = (input: string): string => {
     // Strip all non-numeric characters
     const numbers = input.replace(/\D/g, '');
