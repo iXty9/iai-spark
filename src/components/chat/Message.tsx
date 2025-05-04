@@ -45,7 +45,7 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
     <div
       className={cn(
         'message py-2 w-full flex',
-        isUser ? 'justify-end pr-8' : 'justify-start', // Added right padding for user messages
+        isUser ? 'justify-end' : 'justify-start',
         message.pending && 'opacity-70'
       )}
       aria-label={`${isUser ? 'Your' : 'Ixty AI'} message`}
@@ -56,16 +56,27 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
           <MessageAvatar isUser={isUser} onAiIconError={() => setAiIconError(true)} />
         </div>
       )}
-      <div className={cn('flex flex-col', isUser ? 'items-end mr-2' : 'items-start')}>
-        <div className={cn('flex items-center text-xs mb-1', isUser ? 'justify-end' : 'justify-start')}>
+      
+      {/* Message content with adjusted spacing for user messages */}
+      <div className={cn(
+        'flex flex-col', 
+        isUser ? 'items-end mr-6' : 'items-start' // Increased right margin for user messages
+      )}>
+        {/* Username and avatar row with improved alignment */}
+        <div className={cn(
+          'flex items-center text-xs mb-1', 
+          isUser ? 'justify-end' : 'justify-start'
+        )}>
           <span className="font-medium">{displayName}</span>
           {/* User avatar appears right after the username */}
           {isUser && (
-            <div className="flex-shrink-0 w-4 h-4 ml-1">
+            <div className="flex-shrink-0 w-4 h-4 ml-1 mr-1">
               <MessageAvatar isUser={isUser} onAiIconError={() => setAiIconError(true)} />
             </div>
           )}
         </div>
+        
+        {/* Message bubble */}
         <div
           className={cn(
             bubbleBase,
@@ -79,7 +90,12 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
         >
           <MessageContent message={message} isUser={isUser} />
         </div>
-        <div className={cn('flex items-center text-xs opacity-60', isUser ? 'justify-end' : 'justify-start')}>
+        
+        {/* Timestamp and actions row */}
+        <div className={cn(
+          'flex items-center text-xs opacity-60', 
+          isUser ? 'justify-end' : 'justify-start'
+        )}>
           <span>
             {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>

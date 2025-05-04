@@ -41,11 +41,11 @@ export const MessageContent: React.FC<MessageContentProps> = ({ message, isUser 
         </div>
       );
     }
-    // AI message: markdown rendering as before, but with good spacing.
+    // AI message: markdown rendering with proper color application
     return (
       <div 
         className="markdown-content prose prose-sm max-w-none dark:prose-invert prose-headings:my-2 prose-p:my-1 prose-hr:my-2"
-        style={{ color: 'var(--ai-text-color)' }} // Force the AI text color here
+        style={{ color: 'inherit' }} // Use inherit to pick up the color from the parent element
       >
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
