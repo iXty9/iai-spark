@@ -37,7 +37,10 @@ export function useTheme() {
     
     const applyUserTheme = async () => {
       try {
+        let themeApplied = false;
+        
         if (user && profile) {
+          logger.info('Applying theme from user profile', { module: 'theme' });
           // Get existing theme settings or create new ones
           let themeSettings = profile.theme_settings 
             ? JSON.parse(profile.theme_settings) 
@@ -53,6 +56,7 @@ export function useTheme() {
             if (currentTheme) {
               // Update CSS variables with theme colors
               applyThemeChanges(currentTheme);
+              themeApplied = true;
             }
             
             // Apply background image and opacity if they exist
@@ -63,11 +67,17 @@ export function useTheme() {
               applyBackgroundImage(null, 0.5);
             }
           }
-        } else {
-          // For anonymous users, fetch and apply default theme settings
-          const appSettings = await fetchAppSettings();
-          if (appSettings.default_theme_settings) {
-            try {
+        }
+        
+        // If no user theme was applied, fetch and apply default theme settings
+        if (!themeApplied) {
+          logger.info('Applying default theme settings for anonymous or new user', { module: 'theme' });
+          
+          try {
+            // Fetch app settings to get default theme
+            const appSettings = await fetchAppSettings();
+            
+            if (appSettings && appSettings.default_theme_settings) {
               const defaultThemeSettings = JSON.parse(appSettings.default_theme_settings);
               
               // Apply theme colors based on current mode
@@ -76,17 +86,25 @@ export function useTheme() {
                 : defaultThemeSettings.darkTheme;
               
               if (currentTheme) {
+                logger.info('Applying default theme colors', { module: 'theme' });
                 applyThemeChanges(currentTheme);
               }
               
               // Apply background image if it exists
               if (defaultThemeSettings.backgroundImage) {
+                logger.info('Applying default background image', { module: 'theme' });
                 const opacity = parseFloat(defaultThemeSettings.backgroundOpacity || '0.5');
                 applyBackgroundImage(defaultThemeSettings.backgroundImage, opacity);
+              } else {
+                applyBackgroundImage(null, 0.5);
               }
-            } catch (e) {
-              logger.error('Error parsing default theme settings', e, { module: 'theme' });
+            } else {
+              logger.info('No default theme settings found, using hardcoded defaults', { module: 'theme' });
+              // Fall back to hardcoded defaults if no default theme settings exist
+              applyBackgroundImage(null, 0.5);
             }
+          } catch (e) {
+            logger.error('Error fetching or applying default theme settings', e, { module: 'theme' });
           }
         }
       } catch (e) {

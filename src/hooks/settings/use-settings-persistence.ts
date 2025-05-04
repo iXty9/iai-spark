@@ -39,18 +39,29 @@ export const useSettingsPersistence = ({
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [defaultThemeSettings, setDefaultThemeSettings] = useState<any>(null);
+  const [isLoadingDefaults, setIsLoadingDefaults] = useState(false);
 
   // Fetch default theme settings on component mount
   useEffect(() => {
     const getDefaultThemeSettings = async () => {
       try {
+        setIsLoadingDefaults(true);
+        logger.info('Fetching default theme settings', { module: 'settings' });
         const appSettings = await fetchAppSettings();
         if (appSettings.default_theme_settings) {
           const parsedSettings = JSON.parse(appSettings.default_theme_settings);
+          logger.info('Default theme settings loaded successfully', { 
+            module: 'settings',
+            hasBackground: !!parsedSettings.backgroundImage
+          });
           setDefaultThemeSettings(parsedSettings);
+        } else {
+          logger.info('No default theme settings found in app_settings', { module: 'settings' });
         }
       } catch (error) {
         logger.error('Failed to fetch default theme settings', error, { module: 'settings' });
+      } finally {
+        setIsLoadingDefaults(false);
       }
     };
     
@@ -168,6 +179,11 @@ export const useSettingsPersistence = ({
     try {
       // Try to use admin-set default theme first
       if (defaultThemeSettings) {
+        logger.info('Resetting to admin-set default theme', { 
+          module: 'settings', 
+          hasBackground: !!defaultThemeSettings.backgroundImage 
+        });
+        
         // Use admin-set default theme
         setLightTheme(defaultThemeSettings.lightTheme);
         setDarkTheme(defaultThemeSettings.darkTheme);
@@ -190,6 +206,8 @@ export const useSettingsPersistence = ({
         });
       } else {
         // Fall back to hard-coded defaults if no admin defaults exist
+        logger.info('No admin defaults found, resetting to factory defaults', { module: 'settings' });
+        
         const defaultLightTheme = {
           backgroundColor: '#ffffff',
           primaryColor: '#ea384c',
@@ -252,6 +270,7 @@ export const useSettingsPersistence = ({
     isSubmitting,
     setIsSubmitting,
     handleSaveSettings,
-    handleResetSettings
+    handleResetSettings,
+    isLoadingDefaults
   };
 };
