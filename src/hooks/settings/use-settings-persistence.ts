@@ -1,10 +1,11 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { logger } from '@/utils/logging';
 import { ThemeColors } from '@/types/theme';
 import { applyThemeChanges, applyBackgroundImage, createThemeSettingsObject } from '@/utils/theme-utils';
+import { fetchAppSettings } from '@/services/admin/settingsService';
 
 export interface UseSettingsPersistenceProps {
   user: any;
@@ -37,6 +38,24 @@ export const useSettingsPersistence = ({
 }: UseSettingsPersistenceProps) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [defaultThemeSettings, setDefaultThemeSettings] = useState<any>(null);
+
+  // Fetch default theme settings on component mount
+  useEffect(() => {
+    const getDefaultThemeSettings = async () => {
+      try {
+        const appSettings = await fetchAppSettings();
+        if (appSettings.default_theme_settings) {
+          const parsedSettings = JSON.parse(appSettings.default_theme_settings);
+          setDefaultThemeSettings(parsedSettings);
+        }
+      } catch (error) {
+        logger.error('Failed to fetch default theme settings', error, { module: 'settings' });
+      }
+    };
+    
+    getDefaultThemeSettings();
+  }, []);
 
   // Validate color format
   const isValidColor = (color: string): boolean => {
@@ -143,53 +162,90 @@ export const useSettingsPersistence = ({
     }
   };
 
-  const handleResetSettings = () => {
-    // Default theme settings
-    const defaultLightTheme = {
-      backgroundColor: '#ffffff',
-      primaryColor: '#ea384c',
-      textColor: '#000000',
-      accentColor: '#9b87f5',
-      userBubbleColor: '#ea384c',
-      aiBubbleColor: '#9b87f5',
-      userBubbleOpacity: 0.3,
-      aiBubbleOpacity: 0.3,
-      userTextColor: '#000000',
-      aiTextColor: '#000000'
-    };
+  const handleResetSettings = async () => {
+    setIsSubmitting(true);
     
-    const defaultDarkTheme = {
-      backgroundColor: '#121212',
-      primaryColor: '#ea384c',
-      textColor: '#ffffff',
-      accentColor: '#9b87f5',
-      userBubbleColor: '#ea384c',
-      aiBubbleColor: '#9b87f5',
-      userBubbleOpacity: 0.3,
-      aiBubbleOpacity: 0.3,
-      userTextColor: '#ffffff',
-      aiTextColor: '#ffffff'
-    };
-    
-    setLightTheme(defaultLightTheme);
-    setDarkTheme(defaultDarkTheme);
-    setBackgroundImage(null);
-    setBackgroundOpacity(0.5);
-    
-    // Apply the reset theme immediately
-    const currentTheme = theme === 'light' ? defaultLightTheme : defaultDarkTheme;
-    applyThemeChanges(currentTheme);
-    
-    // Reset background
-    applyBackgroundImage(null, 0.5);
-    
-    toast({
-      title: "Settings reset",
-      description: "Your theme settings have been reset to defaults",
-    });
-    
-    // Mark as having changes that need to be saved
-    setHasChanges(true);
+    try {
+      // Try to use admin-set default theme first
+      if (defaultThemeSettings) {
+        // Use admin-set default theme
+        setLightTheme(defaultThemeSettings.lightTheme);
+        setDarkTheme(defaultThemeSettings.darkTheme);
+        setBackgroundImage(defaultThemeSettings.backgroundImage);
+        setBackgroundOpacity(parseFloat(defaultThemeSettings.backgroundOpacity || '0.5'));
+        
+        // Apply the default theme immediately
+        const currentTheme = theme === 'light' ? defaultThemeSettings.lightTheme : defaultThemeSettings.darkTheme;
+        applyThemeChanges(currentTheme);
+        
+        // Apply background from default theme
+        applyBackgroundImage(
+          defaultThemeSettings.backgroundImage, 
+          parseFloat(defaultThemeSettings.backgroundOpacity || '0.5')
+        );
+        
+        toast({
+          title: "Settings reset",
+          description: "Your theme settings have been reset to system defaults",
+        });
+      } else {
+        // Fall back to hard-coded defaults if no admin defaults exist
+        const defaultLightTheme = {
+          backgroundColor: '#ffffff',
+          primaryColor: '#ea384c',
+          textColor: '#000000',
+          accentColor: '#9b87f5',
+          userBubbleColor: '#ea384c',
+          aiBubbleColor: '#9b87f5',
+          userBubbleOpacity: 0.3,
+          aiBubbleOpacity: 0.3,
+          userTextColor: '#000000',
+          aiTextColor: '#000000'
+        };
+        
+        const defaultDarkTheme = {
+          backgroundColor: '#121212',
+          primaryColor: '#ea384c',
+          textColor: '#ffffff',
+          accentColor: '#9b87f5',
+          userBubbleColor: '#ea384c',
+          aiBubbleColor: '#9b87f5',
+          userBubbleOpacity: 0.3,
+          aiBubbleOpacity: 0.3,
+          userTextColor: '#ffffff',
+          aiTextColor: '#ffffff'
+        };
+        
+        setLightTheme(defaultLightTheme);
+        setDarkTheme(defaultDarkTheme);
+        setBackgroundImage(null);
+        setBackgroundOpacity(0.5);
+        
+        // Apply the reset theme immediately
+        const currentTheme = theme === 'light' ? defaultLightTheme : defaultDarkTheme;
+        applyThemeChanges(currentTheme);
+        
+        // Reset background
+        applyBackgroundImage(null, 0.5);
+        
+        toast({
+          title: "Settings reset",
+          description: "Your theme settings have been reset to factory defaults",
+        });
+      }
+      
+      // Mark as having changes that need to be saved
+      setHasChanges(true);
+    } catch (error) {
+      logger.error('Error resetting theme settings:', error, { module: 'settings' });
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to reset settings. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return {

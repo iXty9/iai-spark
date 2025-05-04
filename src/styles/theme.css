@@ -1,3 +1,4 @@
+
 :root {
   --background-color: #ffffff;
   --primary-color: #ea384c;
@@ -35,14 +36,21 @@ body {
   min-height: 100vh;
 }
 
-/* Background image with opacity control */
+/* Background image with opacity control - updated for mobile compatibility */
 body.with-bg-image {
   position: relative;
   background-color: var(--background-color);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  background-attachment: fixed;
+  /* Removed fixed attachment which causes issues on iOS */
+}
+
+/* Special handling for larger screens - use fixed attachment */
+@media (min-width: 768px) {
+  body.with-bg-image {
+    background-attachment: fixed;
+  }
 }
 
 body.with-bg-image::before {
@@ -202,5 +210,28 @@ body.with-bg-image::before {
   .bg-background\/80:hover {
     transform: none;
     box-shadow: inherit;
+  }
+  
+  /* Fix for iOS background image issues */
+  body.with-bg-image {
+    -webkit-background-size: cover;
+    -moz-background-size: cover;
+    -o-background-size: cover;
+    background-size: cover;
+  }
+}
+
+/* iOS specific fixes for background */
+@supports (-webkit-touch-callout: none) {
+  body.with-bg-image {
+    /* Prevent background from scrolling on iOS */
+    background-attachment: scroll;
+  }
+  
+  /* Additional iOS specific background containment */
+  html, body {
+    height: 100%;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Message as MessageType } from '@/types/chat';
@@ -15,15 +16,16 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
   const isUser = message.sender === 'user';
   const [aiIconError, setAiIconError] = React.useState(false);
   
-  // Get display name for the user messages
+  // Get display name for the user messages - prioritizing username
   const getDisplayName = (): string => {
     if (!isUser) return 'Ixty AI';
     if (!user) return 'User';
     
+    // Prioritize username over first/last name
+    if (profile?.username) return profile.username;
     if (profile?.first_name && profile?.last_name) {
       return `${profile.first_name} ${profile.last_name}`;
     }
-    if (profile?.username) return profile.username;
     return 'User';
   };
 
