@@ -11,18 +11,23 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Message } from '@/types/chat';
 import { useIOSSafari } from '@/hooks/use-ios-safari';
 import { cn } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Menu } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface ChatContainerProps {
   className?: string;
   onReloadTheme?: () => void;
   isThemeLoading?: boolean;
+  isSidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
 }
 
 export const ChatContainer: React.FC<ChatContainerProps> = ({ 
   className, 
   onReloadTheme,
-  isThemeLoading = false
+  isThemeLoading = false,
+  isSidebarOpen = false,
+  onToggleSidebar
 }) => {
   const {
     messages,
@@ -71,7 +76,22 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
       onReloadTheme={onReloadTheme}
       messages={messages}
       className={className}
+      isSidebarOpen={isSidebarOpen}
+      onToggleSidebar={onToggleSidebar}
     >
+      {/* Hamburger Menu Button */}
+      <div className="absolute top-4 left-4 z-50">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggleSidebar}
+          className="md:hidden"
+        >
+          <Menu className="h-6 w-6" />
+          <span className="sr-only">Toggle Menu</span>
+        </Button>
+      </div>
+      
       <div className="flex-1 overflow-hidden relative bg-transparent">
         {messages.length === 0 ? (
           <Welcome onStartChat={startChat} onImportChat={handleImportChat} />

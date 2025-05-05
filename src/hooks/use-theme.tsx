@@ -143,6 +143,11 @@ export function useTheme() {
                   : themeSettings.darkTheme;
                 
                 if (currentTheme) {
+                  logger.info('Applying user theme', { 
+                    module: 'theme', 
+                    theme: theme,
+                    hasBackground: !!themeSettings.backgroundImage
+                  });
                   applyThemeChanges(currentTheme);
                   themeApplied = true;
                 }
@@ -176,6 +181,11 @@ export function useTheme() {
                     : defaultThemeSettings.darkTheme;
                   
                   if (currentTheme) {
+                    logger.info('Applying default app theme', { 
+                      module: 'theme', 
+                      theme: theme,
+                      hasBackground: !!defaultThemeSettings.backgroundImage
+                    });
                     applyThemeChanges(currentTheme);
                     themeApplied = true;
                   }
@@ -251,7 +261,24 @@ export function useTheme() {
     
     // Reapply theme mode to trigger the main effect
     applyThemeMode(theme);
-  }, [theme, applyThemeMode]);
+    
+    // Force additional logging
+    logger.info('Theme reload triggered', { 
+      module: 'theme',
+      theme: theme,
+      user: user ? 'logged-in' : 'anonymous'
+    });
+    
+    // Force reset the background image
+    applyBackgroundImage(null, 0.5);
+    
+    // Additional feedback for debugging
+    emitDebugEvent({
+      lastAction: 'Manual theme reload triggered',
+      themeMode: theme,
+      isAuthenticated: !!user
+    });
+  }, [theme, applyThemeMode, user]);
 
   return { 
     theme, 

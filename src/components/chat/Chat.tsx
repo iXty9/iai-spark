@@ -5,7 +5,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { toast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
+import { Menu, RefreshCw } from 'lucide-react';
 
 interface ChatProps {
   isThemeLoading?: boolean;
@@ -18,6 +18,7 @@ export const Chat: React.FC<ChatProps> = ({ isThemeLoading = false }) => {
     loadError 
   } = useTheme();
   const [isManuallyReloading, setIsManuallyReloading] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Handle manual theme reload
   const handleReloadTheme = () => {
@@ -50,6 +51,11 @@ export const Chat: React.FC<ChatProps> = ({ isThemeLoading = false }) => {
       
       setIsManuallyReloading(false);
     }
+  };
+  
+  // Toggle sidebar
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
   };
   
   // Determine if we should show loading state - simplified logic
@@ -93,6 +99,8 @@ export const Chat: React.FC<ChatProps> = ({ isThemeLoading = false }) => {
       className="bg-transparent" 
       onReloadTheme={handleReloadTheme}
       isThemeLoading={showThemeLoading}
+      isSidebarOpen={isSidebarOpen}
+      onToggleSidebar={toggleSidebar}
     />
   );
 };

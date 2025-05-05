@@ -7,8 +7,7 @@ import { useLocation } from 'react-router-dom';
 import { useTheme } from '@/hooks/use-theme';
 import { logger } from '@/utils/logging';
 
-// Create a global check to prevent multiple theme loads in same session
-// This helps break infinite loops
+// Initialize global state if not already present
 if (!window.APP_STATE) {
   window.APP_STATE = {
     themeLoadAttempts: 0,
