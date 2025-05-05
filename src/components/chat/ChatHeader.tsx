@@ -1,4 +1,3 @@
-
 import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, Trash2, Sun, Moon, Code, Upload, RefreshCw } from 'lucide-react';
@@ -15,6 +14,7 @@ import { importChat } from '@/services/import/importService';
 import { toast } from "@/hooks/use-toast";
 import { forceReloadSettings } from '@/services/admin/settingsService';
 import { applyThemeChanges, applyBackgroundImage } from '@/utils/theme-utils';
+import { logger } from '@/utils/logging';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
