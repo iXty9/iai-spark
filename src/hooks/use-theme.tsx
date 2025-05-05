@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { logger } from '@/utils/logging';
 import { applyThemeChanges, applyBackgroundImage } from '@/utils/theme-utils';
-import { fetchAppSettings } from '@/services/admin/settingsService';
+import { fetchAppSettings, forceReloadSettings } from '@/services/admin/settingsService';
 
 type Theme = 'dark' | 'light';
 
@@ -24,7 +24,11 @@ export function useTheme() {
   );
   const [isThemeLoaded, setIsThemeLoaded] = useState(false);
   const [isThemeLoading, setIsThemeLoading] = useState(false);
+  const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
+  const [isBackgroundLoaded, setIsBackgroundLoaded] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [lastBackgroundImage, setLastBackgroundImage] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Apply the theme mode without updating the profile
   const applyThemeMode = (newTheme: Theme) => {
@@ -36,43 +40,74 @@ export function useTheme() {
 
   // Function to specifically apply background
   const applyBackgroundWithRetry = useCallback((imageUrl: string | null, opacity: number) => {
-    if (imageUrl) {
-      logger.info('Applying background image', { 
-        module: 'theme', 
-        imageUrl: imageUrl.substring(0, 30) + '...',
-        opacity
-      });
-      
-      // Store the last applied background
-      setLastBackgroundImage(imageUrl);
-      
-      // For image URLs, preload the image first to ensure it loads properly
-      if (imageUrl.startsWith('http') || imageUrl.startsWith('data:')) {
-        const img = new Image();
-        
-        img.onload = () => {
-          logger.info('Background image loaded successfully', { module: 'theme' });
-          applyBackgroundImage(imageUrl, opacity);
-        };
-        
-        img.onerror = () => {
-          logger.error('Failed to load background image', null, { 
-            module: 'theme',
-            imageUrl: imageUrl.substring(0, 30) + '...' 
-          });
-          // If image fails to load, clear background
-          applyBackgroundImage(null, opacity);
-        };
-        
-        img.src = imageUrl;
-      } else {
-        // For non-URL backgrounds, apply directly
-        applyBackgroundImage(imageUrl, opacity);
-      }
-    } else {
+    if (!imageUrl) {
       // No background image, just clear it
       setLastBackgroundImage(null);
+      setIsBackgroundLoading(false);
+      setIsBackgroundLoaded(true);
       applyBackgroundImage(null, opacity);
+      return;
+    }
+    
+    setIsBackgroundLoading(true);
+    setIsBackgroundLoaded(false);
+    
+    logger.info('Applying background image', { 
+      module: 'theme', 
+      imageUrl: imageUrl.substring(0, 30) + '...',
+      opacity
+    });
+    
+    // Store the last applied background
+    setLastBackgroundImage(imageUrl);
+    
+    // For image URLs, preload the image first to ensure it loads properly
+    if (imageUrl.startsWith('http') || imageUrl.startsWith('data:')) {
+      const img = new Image();
+      
+      img.onload = () => {
+        logger.info('Background image loaded successfully', { module: 'theme' });
+        
+        // Apply the background
+        applyBackgroundImage(imageUrl, opacity);
+        
+        // Mark background as loaded
+        setIsBackgroundLoading(false);
+        setIsBackgroundLoaded(true);
+        
+        // Setup a verification check to make sure it actually applied
+        setTimeout(() => {
+          const body = document.body;
+          const hasBackgroundImage = body.style.backgroundImage && 
+                                     body.style.backgroundImage !== 'none';
+          
+          if (!hasBackgroundImage && imageUrl) {
+            logger.warn('Background image not applied in verification check, retrying', { module: 'theme' });
+            // Force reapply background
+            applyBackgroundImage(imageUrl, opacity);
+          }
+        }, 500);
+      };
+      
+      img.onerror = () => {
+        logger.error('Failed to load background image', null, { 
+          module: 'theme',
+          imageUrl: imageUrl.substring(0, 30) + '...'
+        });
+        
+        // If image fails to load, clear background
+        applyBackgroundImage(null, opacity);
+        setLoadError('Failed to load background image');
+        setIsBackgroundLoading(false);
+        setIsBackgroundLoaded(true); // Still mark as loaded, just without background
+      };
+      
+      img.src = imageUrl;
+    } else {
+      // For non-URL backgrounds, apply directly
+      applyBackgroundImage(imageUrl, opacity);
+      setIsBackgroundLoading(false);
+      setIsBackgroundLoaded(true);
     }
   }, []);
 
@@ -85,6 +120,8 @@ export function useTheme() {
       if (isThemeLoading) return; // Prevent concurrent loading
       
       setIsThemeLoading(true);
+      setLoadError(null);
+      
       try {
         let themeApplied = false;
         
@@ -120,13 +157,13 @@ export function useTheme() {
               if (themeSettings.backgroundImage) {
                 const opacity = parseFloat(themeSettings.backgroundOpacity || '0.5');
                 applyBackgroundWithRetry(themeSettings.backgroundImage, opacity);
-                logger.info('Applied background from user profile', { module: 'theme' });
               } else {
                 applyBackgroundWithRetry(null, 0.5);
               }
             }
           } catch (e) {
             logger.error('Error parsing user theme settings', e, { module: 'theme' });
+            setLoadError('Error parsing user theme settings');
           }
         }
         
@@ -135,17 +172,21 @@ export function useTheme() {
           logger.info('Looking for default theme settings', { 
             module: 'theme',
             isAnonymous: !user,
-            hasProfile: !!profile
+            hasProfile: !!profile,
+            attempt: loadAttempt + 1
           });
           
           try {
-            // Fetch app settings to get default theme with longer timeout for initial load
-            const fetchTimeout = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Theme fetch timeout')), 5000)
-            );
-            
-            const fetchSettingsPromise = fetchAppSettings();
-            const appSettings = await Promise.race([fetchSettingsPromise, fetchTimeout]);
+            // Try to fetch with a retry mechanism
+            let appSettings;
+            try {
+              // First try regular fetch
+              appSettings = await fetchAppSettings();
+            } catch (fetchError) {
+              // If that fails, try force reload
+              logger.warn('Initial fetch failed, trying force reload', { module: 'theme' });
+              appSettings = await forceReloadSettings();
+            }
             
             // Add type check to ensure default_theme_settings exists before trying to access it
             if (appSettings && typeof appSettings === 'object' && 'default_theme_settings' in appSettings) {
@@ -180,6 +221,7 @@ export function useTheme() {
                   }
                 } else {
                   logger.info('Default theme settings were empty or invalid', { module: 'theme' });
+                  setLoadError('Default theme settings were empty or invalid');
                 }
               } catch (parseError) {
                 logger.error('Error parsing default theme settings JSON', parseError, { 
@@ -188,15 +230,18 @@ export function useTheme() {
                     ? appSettings.default_theme_settings.substring(0, 50) + '...' 
                     : typeof appSettings.default_theme_settings
                 });
+                setLoadError('Error parsing default theme settings');
               }
             } else {
               logger.info('No default theme settings found in app_settings', { 
                 module: 'theme',
                 settingsKeys: appSettings ? Object.keys(appSettings) : 'no settings' 
               });
+              setLoadError('No default theme settings found');
             }
           } catch (e) {
             logger.error('Error fetching or applying default theme settings', e, { module: 'theme' });
+            setLoadError('Error fetching theme settings');
           }
         }
         
@@ -216,6 +261,7 @@ export function useTheme() {
         });
         
         logger.error('Error processing theme settings', e, { module: 'theme' });
+        setLoadError('Error processing theme settings');
         // Still set theme as loaded, even if there was an error
         setIsThemeLoaded(true);
       } finally {
@@ -224,12 +270,15 @@ export function useTheme() {
     };
     
     applyUserTheme();
-  }, [theme, user, profile, isThemeLoading, applyBackgroundWithRetry]);
+  }, [theme, user, profile, isThemeLoading, applyBackgroundWithRetry, loadAttempt]);
 
   // Function to manually reload the theme - useful for debugging
   const reloadTheme = useCallback(() => {
     logger.info('Manual theme reload requested', { module: 'theme' });
     setIsThemeLoaded(false);
+    setIsBackgroundLoaded(false);
+    setLoadAttempt(prev => prev + 1);
+    setLoadError(null);
     
     // Allow a small delay before starting to reload
     setTimeout(() => {
@@ -240,32 +289,39 @@ export function useTheme() {
 
   // Add effect to monitor DOM changes and ensure background is applied
   useEffect(() => {
-    if (!lastBackgroundImage) return;
+    if (!lastBackgroundImage || !isThemeLoaded) return;
     
     // Create a timer to check if background is visible after theme loads
-    if (isThemeLoaded) {
-      const timer = setTimeout(() => {
-        const body = document.body;
-        const hasBackgroundImage = body.style.backgroundImage && 
-                                   body.style.backgroundImage !== 'none';
-        
-        logger.info('Background visibility check', { 
-          module: 'theme', 
-          hasBackgroundImage,
-          bodyHasBackgroundClass: body.classList.contains('with-bg-image'),
-          currentBackgroundCSS: body.style.backgroundImage
-        });
-        
-        // If background should be visible but isn't, reapply it
-        if (lastBackgroundImage && !hasBackgroundImage) {
-          logger.warn('Background image not visible, reapplying', { module: 'theme' });
-          applyBackgroundWithRetry(lastBackgroundImage, 0.5);
-        }
-      }, 2000);
+    const timer = setTimeout(() => {
+      const body = document.body;
+      const hasBackgroundImage = body.style.backgroundImage && 
+                               body.style.backgroundImage !== 'none';
       
-      return () => clearTimeout(timer);
-    }
+      logger.info('Background visibility check', { 
+        module: 'theme', 
+        hasBackgroundImage,
+        bodyHasBackgroundClass: body.classList.contains('with-bg-image'),
+        currentBackgroundCSS: body.style.backgroundImage
+      });
+      
+      // If background should be visible but isn't, reapply it
+      if (lastBackgroundImage && !hasBackgroundImage) {
+        logger.warn('Background image not visible, reapplying', { module: 'theme' });
+        applyBackgroundWithRetry(lastBackgroundImage, 0.5);
+      }
+    }, 2000);
+    
+    return () => clearTimeout(timer);
   }, [isThemeLoaded, lastBackgroundImage, applyBackgroundWithRetry]);
 
-  return { theme, setTheme, isThemeLoaded, reloadTheme };
+  return { 
+    theme, 
+    setTheme, 
+    isThemeLoaded,
+    isThemeLoading,
+    isBackgroundLoaded,
+    isBackgroundLoading,
+    loadError,
+    reloadTheme 
+  };
 }

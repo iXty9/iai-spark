@@ -11,7 +11,7 @@ import { forceReloadSettings } from '@/services/admin/settingsService';
 const Index = () => {
   const { isIOSSafari, showFallbackInput } = useIOSSafari();
   const location = useLocation();
-  const { isThemeLoaded, theme, reloadTheme } = useTheme();
+  const { isThemeLoaded, isThemeLoading, isBackgroundLoading, loadError, theme, reloadTheme } = useTheme();
   const [attemptedThemeLoad, setAttemptedThemeLoad] = useState(false);
   const [isLoadingTheme, setIsLoadingTheme] = useState(true);
   
@@ -40,17 +40,32 @@ const Index = () => {
   // Check if theme loaded properly, and if not, attempt to force load it once
   useEffect(() => {
     const loadThemeIfNeeded = async () => {
-      setIsLoadingTheme(true);
       logger.info('Index component mounted - checking theme status', { 
         module: 'index',
         isThemeLoaded, 
-        attemptedThemeLoad 
+        isThemeLoading,
+        isBackgroundLoading,
+        attemptedThemeLoad,
+        hasError: !!loadError
       });
+      
+      // If theme is loading, wait for it
+      if (isThemeLoading || isBackgroundLoading) {
+        setIsLoadingTheme(true);
+        return;
+      }
+      
+      // If theme is loaded and no errors, not loading anymore
+      if (isThemeLoaded && !loadError) {
+        setIsLoadingTheme(false);
+        return;
+      }
       
       // Only attempt to force load theme once
       if (!isThemeLoaded && !attemptedThemeLoad) {
         logger.info('Attempting to force load theme on Index component mount', { module: 'index' });
         setAttemptedThemeLoad(true);
+        setIsLoadingTheme(true);
         
         try {
           // Wait for normal theme loading to complete first
@@ -83,14 +98,14 @@ const Index = () => {
           // Set loading to false after waiting a bit to ensure theme is applied
           setTimeout(() => setIsLoadingTheme(false), 500);
         }
-      } else {
-        // Theme is already loaded, so set loading to false
+      } else if (attemptedThemeLoad) {
+        // We've already tried once, so not loading anymore
         setIsLoadingTheme(false);
       }
     };
     
     loadThemeIfNeeded();
-  }, [isThemeLoaded, attemptedThemeLoad, reloadTheme]);
+  }, [isThemeLoaded, isThemeLoading, isBackgroundLoading, loadError, attemptedThemeLoad, reloadTheme]);
   
   // Log when theme is loaded to help with debugging
   useEffect(() => {
@@ -98,11 +113,10 @@ const Index = () => {
       logger.info('Theme loaded in Index component', { 
         module: 'index',
         theme,
-        attemptedForceLoad: attemptedThemeLoad
+        attemptedForceLoad: attemptedThemeLoad,
+        hasBackgroundImage: document.body.style.backgroundImage !== '' && 
+                           document.body.style.backgroundImage !== 'none'
       });
-      
-      // If theme is loaded, we're not loading anymore
-      setIsLoadingTheme(false);
     }
   }, [isThemeLoaded, theme, attemptedThemeLoad]);
   

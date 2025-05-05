@@ -1,3 +1,4 @@
+
 import { ThemeColors } from "@/types/theme";
 import { logger } from "@/utils/logging";
 
@@ -114,11 +115,17 @@ function darkenColor(color: string, amount: number): string {
 
 /**
  * Applies background image and opacity to the document body
+ * Returns true if background was applied, false otherwise
  */
-export const applyBackgroundImage = (image: string | null, opacity: number) => {
+export const applyBackgroundImage = (image: string | null, opacity: number): boolean => {
   const root = document.documentElement;
   
   try {
+    // Add loading state class to body
+    if (image) {
+      document.body.classList.add('loading-bg-image');
+    }
+    
     // Set the opacity CSS variable first
     root.style.setProperty('--bg-opacity', opacity.toString());
     
@@ -130,8 +137,12 @@ export const applyBackgroundImage = (image: string | null, opacity: number) => {
         imageStart: image.substring(0, 20) + '...'
       });
       
-      // Apply background image to body
-      document.body.style.backgroundImage = `url(${image})`;
+      // Apply background image to body with specific CSS 
+      document.body.style.backgroundImage = `url("${image}")`;
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundPosition = 'center center';
+      document.body.style.backgroundRepeat = 'no-repeat';
+      document.body.style.backgroundAttachment = 'fixed';
       document.body.classList.add('with-bg-image');
       
       // Force a repaint to ensure the background is applied
@@ -139,23 +150,59 @@ export const applyBackgroundImage = (image: string | null, opacity: number) => {
       document.body.offsetHeight; // Force reflow
       document.body.style.display = '';
       
-      // Verify background was applied
+      // Setup a verification check
       setTimeout(() => {
-        if (!document.body.style.backgroundImage || document.body.style.backgroundImage === 'none') {
+        // Remove loading state
+        document.body.classList.remove('loading-bg-image');
+        
+        if (!document.body.style.backgroundImage || 
+            document.body.style.backgroundImage === 'none' || 
+            document.body.style.backgroundImage === '') {
           logger.warn('Background image did not apply correctly, retrying', { module: 'theme-utils' });
-          document.body.style.backgroundImage = `url(${image})`;
+          document.body.style.backgroundImage = `url("${image}")`;
+          
+          // Perform a second verification
+          setTimeout(() => {
+            const hasBackground = document.body.style.backgroundImage && 
+                               document.body.style.backgroundImage !== 'none' &&
+                               document.body.style.backgroundImage !== '';
+            
+            logger.info('Second verification check for background', { 
+              module: 'theme-utils',
+              hasBackground,
+              backgroundImage: document.body.style.backgroundImage
+            });
+            
+            if (!hasBackground) {
+              // One last try with a different approach
+              const imgUrl = image.startsWith('data:') ? image : `url("${image}")`;
+              document.body.setAttribute('style', `
+                background-image: ${imgUrl};
+                background-size: cover;
+                background-position: center center;
+                background-repeat: no-repeat;
+                background-attachment: fixed;
+              `);
+            }
+          }, 500);
         }
-      }, 100);
+      }, 200);
+      
+      return true;
     } else {
       // Remove background image
       logger.info('Removing background image', { module: 'theme-utils' });
       document.body.style.backgroundImage = 'none';
       document.body.classList.remove('with-bg-image');
+      document.body.classList.remove('loading-bg-image');
+      return true;
     }
   } catch (error) {
     logger.error('Error applying background image', error, { module: 'theme-utils' });
     // Ensure we don't leave the body in a broken state
     document.body.style.display = '';
+    document.body.classList.remove('loading-bg-image');
+    return false;
   }
 };
 

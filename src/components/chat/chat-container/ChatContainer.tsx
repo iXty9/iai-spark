@@ -62,10 +62,11 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   // Render loading state if theme is still loading
   if (isThemeLoading) {
     return (
-      <div className="h-full w-full flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading theme...</p>
+      <div className="h-full w-full flex items-center justify-center bg-background/20 backdrop-blur-sm">
+        <div className="text-center p-6 rounded-lg border border-border/30 bg-background/80 backdrop-blur-md">
+          <Loader2 className="h-10 w-10 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-lg font-medium mb-1">Loading theme...</p>
+          <p className="text-sm text-muted-foreground">Please wait while we prepare your experience</p>
         </div>
       </div>
     );

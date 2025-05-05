@@ -34,6 +34,8 @@ interface LogOptions {
   throttle?: boolean;
   once?: boolean;
   module?: string;
+  imageUrl?: string; // Added missing property
+  settings?: any; // Added missing property
 }
 
 /**
