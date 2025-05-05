@@ -1,5 +1,5 @@
-
 import { ThemeColors } from "@/types/theme";
+import { logger } from "@/utils/logging";
 
 /**
  * Applies theme color changes to the document root element
@@ -118,17 +118,44 @@ function darkenColor(color: string, amount: number): string {
 export const applyBackgroundImage = (image: string | null, opacity: number) => {
   const root = document.documentElement;
   
-  // Set the opacity CSS variable first
-  root.style.setProperty('--bg-opacity', opacity.toString());
-  
-  if (image) {
-    // Apply background image to body
-    document.body.style.backgroundImage = `url(${image})`;
-    document.body.classList.add('with-bg-image');
-  } else {
-    // Remove background image
-    document.body.style.backgroundImage = 'none';
-    document.body.classList.remove('with-bg-image');
+  try {
+    // Set the opacity CSS variable first
+    root.style.setProperty('--bg-opacity', opacity.toString());
+    
+    if (image) {
+      // Log the application of background image
+      logger.info('Applying background image to body', { 
+        module: 'theme-utils',
+        imageType: image.startsWith('data:') ? 'data-url' : 'url',
+        imageStart: image.substring(0, 20) + '...'
+      });
+      
+      // Apply background image to body
+      document.body.style.backgroundImage = `url(${image})`;
+      document.body.classList.add('with-bg-image');
+      
+      // Force a repaint to ensure the background is applied
+      document.body.style.display = 'none';
+      document.body.offsetHeight; // Force reflow
+      document.body.style.display = '';
+      
+      // Verify background was applied
+      setTimeout(() => {
+        if (!document.body.style.backgroundImage || document.body.style.backgroundImage === 'none') {
+          logger.warn('Background image did not apply correctly, retrying', { module: 'theme-utils' });
+          document.body.style.backgroundImage = `url(${image})`;
+        }
+      }, 100);
+    } else {
+      // Remove background image
+      logger.info('Removing background image', { module: 'theme-utils' });
+      document.body.style.backgroundImage = 'none';
+      document.body.classList.remove('with-bg-image');
+    }
+  } catch (error) {
+    logger.error('Error applying background image', error, { module: 'theme-utils' });
+    // Ensure we don't leave the body in a broken state
+    document.body.style.display = '';
   }
 };
 

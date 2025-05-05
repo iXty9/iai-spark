@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { MessageList } from '../MessageList';
 import { MessageInput } from '../MessageInput';
@@ -10,15 +11,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Message } from '@/types/chat';
 import { useIOSSafari } from '@/hooks/use-ios-safari';
 import { cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
+import { logger } from '@/utils/logging';
 
 interface ChatContainerProps {
   className?: string;
-  onReloadTheme?: () => void; // Add the missing prop
+  onReloadTheme?: () => void;
+  isThemeLoading?: boolean;
 }
 
 export const ChatContainer: React.FC<ChatContainerProps> = ({ 
   className, 
-  onReloadTheme 
+  onReloadTheme,
+  isThemeLoading = false
 }) => {
   const {
     messages,
@@ -39,6 +44,14 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
   
+  // Log theme loading state changes
+  React.useEffect(() => {
+    logger.info('ChatContainer theme loading state:', { 
+      module: 'chat', 
+      isThemeLoading
+    });
+  }, [isThemeLoading]);
+  
   const handleImportChat = (importedMessages: Message[]) => {
     if (importedMessages && importedMessages.length > 0) {
       setMessages(importedMessages);
@@ -46,12 +59,24 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
     }
   };
 
+  // Render loading state if theme is still loading
+  if (isThemeLoading) {
+    return (
+      <div className="h-full w-full flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading theme...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <ChatLayout
       onClearChat={handleClearChat}
       onExportChat={handleExportChat}
       onImportChat={handleImportChat}
-      onReloadTheme={onReloadTheme} // Pass the prop down to ChatLayout
+      onReloadTheme={onReloadTheme}
       messages={messages}
       className={className}
     >

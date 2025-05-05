@@ -1,36 +1,38 @@
 
 import React from 'react';
-import { CollapsibleHeader } from '../CollapsibleHeader';
+import { ChatHeader } from '../ChatHeader';
 import { Message } from '@/types/chat';
-import { cn } from '@/lib/utils';
 
-interface ChatLayoutProps {
-  children: React.ReactNode;
+interface CollapsibleHeaderProps {
   onClearChat: () => void;
   onExportChat: () => void;
   onImportChat: (messages: Message[]) => void;
-  onReloadTheme?: () => void; // Add the missing prop
-  messages?: Message[];
+  onReloadTheme?: () => void;
+  messages: Message[];
+}
+
+interface ChatLayoutProps extends CollapsibleHeaderProps {
+  children: React.ReactNode;
   className?: string;
 }
 
-export const ChatLayout: React.FC<ChatLayoutProps> = ({ 
-  children, 
-  onClearChat, 
+export const ChatLayout: React.FC<ChatLayoutProps> = ({
+  children,
+  className = '',
+  onClearChat,
   onExportChat,
   onImportChat,
   onReloadTheme,
-  messages = [],
-  className
+  messages,
 }) => {
   return (
-    <div className={cn("chat-container flex flex-col h-full overflow-hidden bg-transparent", className)}>
-      <CollapsibleHeader 
-        onClearChat={onClearChat}
-        onExportChat={onExportChat}
+    <div className={`h-full flex flex-col ${className}`}>
+      <ChatHeader 
+        onClearChat={onClearChat} 
+        onExportChat={onExportChat} 
         onImportChat={onImportChat}
-        onReloadTheme={onReloadTheme} // Pass the prop to CollapsibleHeader
-        messages={messages}
+        onReloadTheme={onReloadTheme}
+        hasMessages={messages.length > 0} 
       />
       {children}
     </div>

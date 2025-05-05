@@ -11,8 +11,9 @@ import { forceReloadSettings } from '@/services/admin/settingsService';
 const Index = () => {
   const { isIOSSafari, showFallbackInput } = useIOSSafari();
   const location = useLocation();
-  const { isThemeLoaded, theme } = useTheme();
+  const { isThemeLoaded, theme, reloadTheme } = useTheme();
   const [attemptedThemeLoad, setAttemptedThemeLoad] = useState(false);
+  const [isLoadingTheme, setIsLoadingTheme] = useState(true);
   
   // Apply iOS viewport fixes
   useEffect(() => {
@@ -39,28 +40,57 @@ const Index = () => {
   // Check if theme loaded properly, and if not, attempt to force load it once
   useEffect(() => {
     const loadThemeIfNeeded = async () => {
+      setIsLoadingTheme(true);
+      logger.info('Index component mounted - checking theme status', { 
+        module: 'index',
+        isThemeLoaded, 
+        attemptedThemeLoad 
+      });
+      
       // Only attempt to force load theme once
       if (!isThemeLoaded && !attemptedThemeLoad) {
         logger.info('Attempting to force load theme on Index component mount', { module: 'index' });
         setAttemptedThemeLoad(true);
         
         try {
-          // Wait 1 second to allow normal theme loading to complete first
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Wait for normal theme loading to complete first
+          await new Promise(resolve => setTimeout(resolve, 1500));
           
           // If theme is still not loaded, force reload settings
           if (!isThemeLoaded) {
             logger.info('Force loading theme settings', { module: 'index' });
-            await forceReloadSettings();
+            const settings = await forceReloadSettings();
+            
+            // Check if settings returned default theme and log
+            if (settings && settings.default_theme_settings) {
+              logger.info('Successfully loaded default theme from settings', { 
+                module: 'index',
+                hasDefaultTheme: true
+              });
+              
+              // Explicitly trigger theme reload to apply settings
+              reloadTheme();
+            } else {
+              logger.warn('No default theme found in settings after force reload', { 
+                module: 'index',
+                settingsKeys: Object.keys(settings || {})
+              });
+            }
           }
         } catch (error) {
           logger.error('Error during automatic theme loading', error, { module: 'index' });
+        } finally {
+          // Set loading to false after waiting a bit to ensure theme is applied
+          setTimeout(() => setIsLoadingTheme(false), 500);
         }
+      } else {
+        // Theme is already loaded, so set loading to false
+        setIsLoadingTheme(false);
       }
     };
     
     loadThemeIfNeeded();
-  }, [isThemeLoaded, attemptedThemeLoad]);
+  }, [isThemeLoaded, attemptedThemeLoad, reloadTheme]);
   
   // Log when theme is loaded to help with debugging
   useEffect(() => {
@@ -70,6 +100,9 @@ const Index = () => {
         theme,
         attemptedForceLoad: attemptedThemeLoad
       });
+      
+      // If theme is loaded, we're not loading anymore
+      setIsLoadingTheme(false);
     }
   }, [isThemeLoaded, theme, attemptedThemeLoad]);
   
@@ -79,7 +112,7 @@ const Index = () => {
       style={{ height: isIOSSafari ? 'calc(var(--vh, 1vh) * 100)' : '100vh' }}
     >
       <div className={`h-full w-full ${isIOSSafari ? 'ios-viewport-fix' : ''}`}>
-        <Chat />
+        <Chat isThemeLoading={isLoadingTheme} />
       </div>
       <IOSFallbackInput show={isIOSSafari && showFallbackInput} />
     </div>

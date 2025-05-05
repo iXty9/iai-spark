@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -13,6 +12,7 @@ import { Message } from '@/types/chat';
 import { logger } from '@/utils/logging';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTheme } from '@/hooks/use-theme';
 
 interface WelcomeProps {
   onStartChat: (message: string) => void;
@@ -30,6 +30,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) =
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const hasSubmitted = useRef<boolean>(false);
   const { isDevMode } = useDevMode();
+  const { isThemeLoaded } = useTheme();
   
   // Use the text area resize hook
   useTextareaResize(textareaRef, message);
@@ -38,9 +39,22 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) =
     // Load app settings
     const loadSettings = async () => {
       try {
+        // Log that we're starting to load settings
+        logger.info('Welcome: Loading app settings', { module: 'welcome' });
+        
         const settings = await fetchAppSettings();
         setTagline(settings.app_name || "The Everywhere Intelligent Assistant");
         setAvatarUrl(settings.avatar_url || "https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png");
+        
+        // Log the settings we loaded
+        logger.info('Welcome: App settings loaded', { 
+          module: 'welcome',
+          hasAppName: !!settings.app_name,
+          hasAvatarUrl: !!settings.avatar_url,
+          hasSiteTitle: !!settings.site_title,
+          hasDefaultTheme: !!settings.default_theme_settings,
+          isThemeLoaded
+        });
         
         // Set the document title if available
         if (settings.site_title && typeof document !== 'undefined') {
@@ -48,6 +62,8 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) =
         }
       } catch (error) {
         console.error('Error loading app settings:', error);
+        logger.error('Welcome: Error loading app settings', error, { module: 'welcome' });
+        
         // Use defaults if settings can't be loaded
         setTagline("The Everywhere Intelligent Assistant");
         setAvatarUrl("https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png");
@@ -72,7 +88,24 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) =
         isTransitioning: false
       });
     }
-  }, [isDevMode]);
+    
+    // Log theme loaded state
+    logger.info('Welcome: Component mounted', { 
+      module: 'welcome',
+      isThemeLoaded
+    });
+  }, [isDevMode, isThemeLoaded]);
+
+  useEffect(() => {
+    // When theme is loaded, check if body has background image
+    if (isThemeLoaded) {
+      logger.info('Welcome: Theme loaded, checking background', { 
+        module: 'welcome',
+        bodyHasBackgroundImage: document.body.classList.contains('with-bg-image'),
+        backgroundImageStyle: document.body.style.backgroundImage || 'none'
+      });
+    }
+  }, [isThemeLoaded]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
