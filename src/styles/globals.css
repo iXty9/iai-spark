@@ -1,0 +1,29 @@
+
+/* Global styles to ensure consistent theme application */
+html, body {
+  transition: background-color 0.3s ease-in-out, color 0.3s ease-in-out;
+}
+
+/* Ensure theme is properly applied to all elements */
+:root, html, body, #root {
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+/* Make sure backgrounds properly use theme variables */
+.bg-background {
+  background-color: var(--background-color) !important;
+}
+
+/* Force apply theme to welcome screen */
+.welcome-screen {
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+/* Ensure transitions are smooth */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 0.3s;
+  transition-timing-function: ease;
+}

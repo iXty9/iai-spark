@@ -14,9 +14,12 @@ type AppSetting = {
 // Enhanced cache management
 let settingsCache: Record<string, string> | null = null;
 let lastFetchTime = 0;
-const CACHE_DURATION = 10000; // 10 seconds cache for production (reduced from 15s for more responsive updates)
+const CACHE_DURATION = 5000; // 5 seconds cache for production (reduced from 10s)
 // Use shorter cache during development for easier testing
-const DEV_CACHE_DURATION = 2000; // 2 seconds in development (reduced from 3s)
+const DEV_CACHE_DURATION = 1000; // 1 second in development (reduced from 2s)
+// Even shorter cache for anonymous users to ensure they get theme updates quickly
+const ANONYMOUS_CACHE_DURATION = 2000; // 2 seconds for production anonymous users
+const DEV_ANONYMOUS_CACHE_DURATION = 500; // 0.5 seconds for dev anonymous users
 
 // Public method to clear the cache, useful when settings change
 export function clearSettingsCache() {
@@ -25,32 +28,46 @@ export function clearSettingsCache() {
   lastFetchTime = 0;
 }
 
-export async function fetchAppSettings(): Promise<Record<string, string>> {
+export async function fetchAppSettings(forceRefresh = false): Promise<Record<string, string>> {
   try {
     const now = Date.now();
+    
+    // Determine if we're dealing with an anonymous user
+    const isAnonymous = !localStorage.getItem('supabase.auth.token');
+    
+    // Select appropriate cache duration based on environment and user status
     const cacheDuration = process.env.NODE_ENV === 'development' 
-      ? DEV_CACHE_DURATION 
-      : CACHE_DURATION;
+      ? (isAnonymous ? DEV_ANONYMOUS_CACHE_DURATION : DEV_CACHE_DURATION)
+      : (isAnonymous ? ANONYMOUS_CACHE_DURATION : CACHE_DURATION);
     
     // For anonymous users (no localStorage theme), bypass cache more aggressively
     // to ensure they get the latest default theme faster
     const hasLocalTheme = localStorage.getItem('theme') !== null;
-    const useCacheDuration = hasLocalTheme ? cacheDuration : cacheDuration / 2;
     
-    // Return cached settings if valid
-    if (settingsCache && (now - lastFetchTime < useCacheDuration)) {
+    // If force refresh is requested, ignore cache
+    if (forceRefresh) {
+      logger.info('Force refreshing app settings', { module: 'settings' });
+    }
+    // Return cached settings if valid and not force refreshing
+    else if (settingsCache && (now - lastFetchTime < cacheDuration)) {
       logger.info('Using cached app settings', { 
         module: 'settings', 
         cache: true,
         cacheAge: now - lastFetchTime,
         settingsCount: Object.keys(settingsCache).length,
-        hasLocalTheme
+        hasLocalTheme,
+        isAnonymous
       });
       return settingsCache;
     }
     
-    // Fetch fresh settings if cache expired or doesn't exist
-    logger.info('Fetching app settings from database', { module: 'settings' });
+    // Fetch fresh settings if cache expired, doesn't exist, or force refreshing
+    logger.info('Fetching app settings from database', { 
+      module: 'settings',
+      forceRefresh,
+      isAnonymous 
+    });
+    
     const { data, error } = await supabase
       .from('app_settings')
       .select('*');
@@ -82,7 +99,8 @@ export async function fetchAppSettings(): Promise<Record<string, string>> {
     logger.info('App settings fetched successfully', { 
       module: 'settings', 
       settingCount: Object.keys(settings).length,
-      hasDefaultTheme
+      hasDefaultTheme,
+      isAnonymous
     });
     
     if (hasDefaultTheme) {

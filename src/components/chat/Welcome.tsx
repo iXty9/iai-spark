@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Send, Circle, Info } from 'lucide-react';
+import { Send, Circle, Info, Sun, Moon } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { useDevMode } from '@/store/use-dev-mode';
@@ -13,6 +13,7 @@ import { Message } from '@/types/chat';
 import { logger } from '@/utils/logging';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface WelcomeProps {
   onStartChat: (message: string) => void;
@@ -30,15 +31,21 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) =
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const hasSubmitted = useRef<boolean>(false);
   const { isDevMode } = useDevMode();
+  const { theme, setTheme, refreshTheme } = useTheme();
   
   // Use the text area resize hook
   useTextareaResize(textareaRef, message);
   
   useEffect(() => {
-    // Load app settings
+    // Load app settings with force refresh to ensure we have latest values
     const loadSettings = async () => {
       try {
-        const settings = await fetchAppSettings();
+        logger.info('Welcome screen loading app settings', { module: 'welcome' });
+        // Force refresh the theme first
+        await refreshTheme();
+        
+        // Then load app settings
+        const settings = await fetchAppSettings(true);
         setTagline(settings.app_name || "The Everywhere Intelligent Assistant");
         setAvatarUrl(settings.avatar_url || "https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png");
         
@@ -72,7 +79,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) =
         isTransitioning: false
       });
     }
-  }, [isDevMode]);
+  }, [isDevMode, refreshTheme]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +97,13 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) =
       e.preventDefault();
       submitMessage();
     }
+  };
+  
+  // Handle theme toggle
+  const handleThemeToggle = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    logger.info(`Welcome screen: Toggling theme to ${newTheme}`, null, { module: 'welcome' });
+    setTheme(newTheme);
   };
 
   // Core business logic separated from debugging
@@ -166,35 +180,48 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) =
       )}
       
       <div className="w-full text-center space-y-6">
-        <div className="flex items-center justify-center gap-3">
-          <Avatar className="w-16 h-16 relative">
-            {isLoadingSettings ? (
-              <Skeleton className="w-16 h-16 rounded-full" />
-            ) : !avatarError && avatarUrl ? (
-              <AvatarImage 
-                src={avatarUrl}
-                alt="Ixty AI Logo" 
-                onError={handleImageError}
-              />
-            ) : null}
-            <AvatarFallback className="bg-[#ea384c]/10 text-[#ea384c] font-bold flex items-center justify-center">
-              <div className="relative">
-                <Circle className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[#ea384c] w-full h-full" />
-                <Info className="relative z-10 text-[#ea384c]" size={18} />
-              </div>
-            </AvatarFallback>
-          </Avatar>
-          
-          <div className="space-y-2 text-left">
-            <h1 className="text-2xl font-bold text-[#ea384c]">Ixty AI</h1>
-            {isLoadingSettings ? (
-              <Skeleton className="h-5 w-48" />
-            ) : (
-              <p className="text-muted-foreground">
-                "{tagline}"
-              </p>
-            )}
+        <div className="flex items-center justify-between w-full mb-6">
+          <div className="flex items-center gap-3">
+            <Avatar className="w-16 h-16 relative">
+              {isLoadingSettings ? (
+                <Skeleton className="w-16 h-16 rounded-full" />
+              ) : !avatarError && avatarUrl ? (
+                <AvatarImage 
+                  src={avatarUrl}
+                  alt="Ixty AI Logo" 
+                  onError={handleImageError}
+                />
+              ) : null}
+              <AvatarFallback className="bg-[#ea384c]/10 text-[#ea384c] font-bold flex items-center justify-center">
+                <div className="relative">
+                  <Circle className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[#ea384c] w-full h-full" />
+                  <Info className="relative z-10 text-[#ea384c]" size={18} />
+                </div>
+              </AvatarFallback>
+            </Avatar>
+            
+            <div className="space-y-2 text-left">
+              <h1 className="text-2xl font-bold text-[#ea384c]">Ixty AI</h1>
+              {isLoadingSettings ? (
+                <Skeleton className="h-5 w-48" />
+              ) : (
+                <p className="text-muted-foreground">
+                  "{tagline}"
+                </p>
+              )}
+            </div>
           </div>
+          
+          {/* Theme toggle button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleThemeToggle}
+            className="rounded-full"
+            aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+          >
+            {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+          </Button>
         </div>
         
         <form onSubmit={handleSubmit} className="flex flex-col gap-2 w-full max-w-xl mx-auto">

@@ -1,4 +1,3 @@
-
 import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, Trash2, Sun, Moon, Code, Upload } from 'lucide-react';
@@ -8,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useTheme } from '@/hooks/use-theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useDevMode } from '@/store/use-dev-mode';
 import { UserMenu } from '@/components/UserMenu';
 import { importChat } from '@/services/import/importService';
@@ -68,6 +67,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     const newTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
     logger.info(`Theme toggled to ${newTheme} mode`, { module: 'ui' });
+    
+    // Add a small timeout to allow the theme to be applied
+    setTimeout(() => {
+      // Force refresh to make sure changes are applied thoroughly
+      document.body.style.transition = 'none';
+      document.body.offsetHeight; // Force reflow
+      document.body.style.transition = '';
+    }, 50);
   };
   
   const handleDevModeToggle = (e: React.MouseEvent) => {

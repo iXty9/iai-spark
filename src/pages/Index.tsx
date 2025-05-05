@@ -3,9 +3,8 @@ import React, { useEffect } from 'react';
 import { Chat } from '@/components/chat/Chat';
 import { useIOSSafari } from '@/hooks/use-ios-safari';
 import { IOSFallbackInput } from '@/components/chat/IOSFallbackInput';
-import { useTheme } from '@/hooks/use-theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import { logger } from '@/utils/logging';
-import { clearSettingsCache } from '@/services/admin/settingsService';
 
 const Index = () => {
   const { isIOSSafari, showFallbackInput } = useIOSSafari();
@@ -33,31 +32,26 @@ const Index = () => {
     }
   }, [isIOSSafari]);
   
-  // Ensure theme is loaded, and refresh it if needed
+  // Ensure theme is loaded and force refresh if needed
   useEffect(() => {
-    // Force clear settings cache on index page mount for fresh theme
-    clearSettingsCache();
+    // Force refresh theme immediately on index page mount to ensure proper setup
+    logger.info('Index component mounted, forcing theme refresh', { module: 'index' });
+    refreshTheme().then(() => {
+      logger.info('Initial theme refresh completed in Index component', { module: 'index' });
+    });
     
-    // Force refresh theme on initial load to ensure proper application
-    if (!isThemeLoaded) {
-      logger.info('Forcing theme refresh on Index component mount', { module: 'index' });
-      setTimeout(() => {
-        refreshTheme();
-      }, 100); // Small delay to ensure DOM is ready
-    } else {
-      logger.info('Theme already loaded in Index component', { module: 'index' });
-    }
-    
-    // Second refresh after a delay to catch any race conditions
+    // Secondary refresh after delay to catch any race conditions
     const secondRefreshTimer = setTimeout(() => {
-      logger.info('Performing secondary theme refresh for stability', { module: 'index' });
-      refreshTheme();
+      if (!isThemeLoaded) {
+        logger.info('Performing secondary theme refresh in Index component', { module: 'index' });
+        refreshTheme();
+      }
     }, 800);
     
     return () => {
       clearTimeout(secondRefreshTimer);
     };
-  }, [isThemeLoaded, refreshTheme]);
+  }, [refreshTheme, isThemeLoaded]);
   
   return (
     <div 

@@ -1,7 +1,7 @@
 
 import React, { useEffect } from 'react';
 import { ChatContainer } from './chat-container/ChatContainer';
-import { useTheme } from '@/hooks/use-theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import { logger } from '@/utils/logging';
 
 export const Chat = () => {
@@ -10,6 +10,7 @@ export const Chat = () => {
   // Ensure theme is properly initialized when chat loads
   useEffect(() => {
     logger.info('Chat component mounted, refreshing theme', { module: 'chat' });
+    // Refresh theme to ensure it's properly applied after navigation
     refreshTheme();
   }, [refreshTheme]);
   

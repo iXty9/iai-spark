@@ -15,6 +15,7 @@
   --bg-opacity: 0.5;
 }
 
+/* Default dark theme colors - will be applied when .dark class is present */
 .dark {
   /* Dark theme defaults */
   --background-color: #121212;
@@ -30,6 +31,7 @@
   --link-color: #75a7ff;
 }
 
+/* Always apply these base styles */
 body {
   background-color: var(--background-color);
   color: var(--text-color);
@@ -109,6 +111,28 @@ a {
 }
 
 /* Force theme application */
-html:root {
-  color-scheme: light dark;
+html.light {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+/* Ensure theme transitions are smooth */
+.theme-transition {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Explicitly set chat bubble colors */
+.user-message {
+  background-color: var(--user-bubble-color);
+  opacity: var(--user-bubble-opacity);
+  color: var(--user-text-color);
+}
+
+.ai-message {
+  background-color: var(--ai-bubble-color);
+  opacity: var(--ai-bubble-opacity);
+  color: var(--ai-text-color);
 }
