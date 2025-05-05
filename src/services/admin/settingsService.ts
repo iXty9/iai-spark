@@ -41,6 +41,13 @@ export async function fetchAppSettings(): Promise<Record<string, string>> {
       throw error;
     }
 
+    // Add extra logging to see raw response
+    logger.info('Raw app_settings data received:', { 
+      module: 'settings',
+      count: data?.length || 0,
+      firstFewSettings: data?.slice(0, 3)
+    });
+
     // Convert to key-value map
     const settings: Record<string, string> = {};
     data?.forEach((setting: AppSetting) => {
@@ -56,6 +63,7 @@ export async function fetchAppSettings(): Promise<Record<string, string>> {
     logger.info('App settings fetched successfully', { 
       module: 'settings', 
       settingCount: Object.keys(settings).length,
+      settingKeys: Object.keys(settings),
       hasDefaultTheme
     });
     
@@ -75,7 +83,8 @@ export async function fetchAppSettings(): Promise<Record<string, string>> {
     return settings;
   } catch (error) {
     logger.error('Unexpected error in fetchAppSettings:', error, { module: 'settings' });
-    throw error;
+    // Return an empty object instead of throwing to prevent app crashes
+    return {};
   }
 }
 

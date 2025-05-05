@@ -104,8 +104,9 @@ export function useTheme() {
             const fetchSettingsPromise = fetchAppSettings();
             const appSettings = await Promise.race([fetchSettingsPromise, fetchTimeout]);
             
-            if (appSettings && appSettings.default_theme_settings) {
-              const defaultThemeSettings = JSON.parse(appSettings.default_theme_settings);
+            // Add type check to ensure default_theme_settings exists before trying to access it
+            if (appSettings && typeof appSettings === 'object' && 'default_theme_settings' in appSettings) {
+              const defaultThemeSettings = JSON.parse(String(appSettings.default_theme_settings));
               
               if (defaultThemeSettings) {
                 logger.info('Found default theme settings in app_settings', { 
