@@ -1,15 +1,20 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { logger } from '@/utils/logging';
 import { applyThemeChanges, applyBackgroundImage } from '@/utils/theme-utils';
-import { fetchAppSettings, forceReloadSettings } from '@/services/admin/settingsService';
+import { fetchAppSettings } from '@/services/admin/settingsService';
 
 type Theme = 'dark' | 'light';
 
+// Global safety constants
+const MAX_BACKGROUND_RETRIES = 2;
+const THEME_LOAD_TIMEOUT = 8000;
+
 export function useTheme() {
   const { user, profile } = useAuth();
+  // Determine initial theme from localStorage or system preference
   const [theme, setTheme] = useState<Theme>(
     () => {
       const savedTheme = localStorage.getItem('theme') as Theme;
@@ -22,304 +27,237 @@ export function useTheme() {
         : 'light';
     }
   );
+  
   const [isThemeLoaded, setIsThemeLoaded] = useState(false);
   const [isThemeLoading, setIsThemeLoading] = useState(false);
-  const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
-  const [isBackgroundLoaded, setIsBackgroundLoaded] = useState(false);
-  const [loadAttempt, setLoadAttempt] = useState(0);
-  const [lastBackgroundImage, setLastBackgroundImage] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  
+  // Simplified state - reduce states that were causing cascading updates
+  const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
+  const loadAttemptRef = useRef(0);
+  const bgRetryCountRef = useRef(0);
+  const themeLoadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Apply the theme mode without updating the profile
-  const applyThemeMode = (newTheme: Theme) => {
+  const applyThemeMode = useCallback((newTheme: Theme) => {
     const root = window.document.documentElement;
+    
+    // Remove both classes first to ensure clean state
     root.classList.remove('light', 'dark');
     root.classList.add(newTheme);
+    
+    // Update localStorage
     localStorage.setItem('theme', newTheme);
-  };
+  }, []);
 
-  // Function to specifically apply background
+  // Simplified background image handler - fewer retries and verification steps
   const applyBackgroundWithRetry = useCallback((imageUrl: string | null, opacity: number) => {
+    // Reset background if no image
     if (!imageUrl) {
-      // No background image, just clear it
-      setLastBackgroundImage(null);
-      setIsBackgroundLoading(false);
-      setIsBackgroundLoaded(true);
       applyBackgroundImage(null, opacity);
+      setIsBackgroundLoading(false);
+      return;
+    }
+    
+    // Limit retries to prevent infinite loops
+    if (bgRetryCountRef.current >= MAX_BACKGROUND_RETRIES) {
+      logger.warn('Max background retries reached, using fallback', { module: 'theme' });
+      applyBackgroundImage(null, opacity);
+      setIsBackgroundLoading(false);
       return;
     }
     
     setIsBackgroundLoading(true);
-    setIsBackgroundLoaded(false);
     
     logger.info('Applying background image', { 
       module: 'theme', 
-      imageUrl: imageUrl.substring(0, 30) + '...',
-      opacity
+      retryCount: bgRetryCountRef.current
     });
     
-    // Store the last applied background
-    setLastBackgroundImage(imageUrl);
-    
-    // For image URLs, preload the image first to ensure it loads properly
+    // For image URLs, preload first
     if (imageUrl.startsWith('http') || imageUrl.startsWith('data:')) {
       const img = new Image();
       
       img.onload = () => {
-        logger.info('Background image loaded successfully', { module: 'theme' });
-        
-        // Apply the background
+        // Apply the background directly
         applyBackgroundImage(imageUrl, opacity);
-        
-        // Mark background as loaded
         setIsBackgroundLoading(false);
-        setIsBackgroundLoaded(true);
-        
-        // Setup a verification check to make sure it actually applied
-        setTimeout(() => {
-          const body = document.body;
-          const hasBackgroundImage = body.style.backgroundImage && 
-                                     body.style.backgroundImage !== 'none';
-          
-          if (!hasBackgroundImage && imageUrl) {
-            logger.warn('Background image not applied in verification check, retrying', { module: 'theme' });
-            // Force reapply background
-            applyBackgroundImage(imageUrl, opacity);
-          }
-        }, 500);
       };
       
       img.onerror = () => {
-        logger.error('Failed to load background image', null, { 
-          module: 'theme',
-          imageUrl: imageUrl.substring(0, 30) + '...'
-        });
-        
-        // If image fails to load, clear background
+        logger.error('Failed to load background image', null, { module: 'theme' });
         applyBackgroundImage(null, opacity);
-        setLoadError('Failed to load background image');
         setIsBackgroundLoading(false);
-        setIsBackgroundLoaded(true); // Still mark as loaded, just without background
       };
       
+      // Set source to start loading
       img.src = imageUrl;
+      bgRetryCountRef.current++;
     } else {
       // For non-URL backgrounds, apply directly
       applyBackgroundImage(imageUrl, opacity);
       setIsBackgroundLoading(false);
-      setIsBackgroundLoaded(true);
     }
   }, []);
 
-  // Main effect to apply theme
+  // Main effect to apply theme with safety mechanisms
   useEffect(() => {
-    // Apply the theme mode (light/dark class)
+    // Clear any existing timeout when effect reruns
+    if (themeLoadTimeoutRef.current) {
+      clearTimeout(themeLoadTimeoutRef.current);
+      themeLoadTimeoutRef.current = null;
+    }
+    
+    // Apply theme mode first (light/dark class)
     applyThemeMode(theme);
     
-    const applyUserTheme = async () => {
-      if (isThemeLoading) return; // Prevent concurrent loading
-      
+    // Set up safety timeout
+    themeLoadTimeoutRef.current = setTimeout(() => {
+      if (isThemeLoading) {
+        logger.warn('Theme loading timeout reached', { module: 'theme' });
+        setIsThemeLoading(false);
+        setIsThemeLoaded(true);
+        setLoadError('Theme loading timed out. Using default theme.');
+      }
+    }, THEME_LOAD_TIMEOUT);
+    
+    // Only load theme if not already loaded or loading
+    if (!isThemeLoaded && !isThemeLoading) {
       setIsThemeLoading(true);
       setLoadError(null);
       
-      try {
-        let themeApplied = false;
-        
-        // STEP 1: Try to apply theme from user profile if logged in
-        if (user && profile?.theme_settings) {
-          logger.info('Applying theme from user profile', { 
-            module: 'theme', 
-            userId: user.id 
-          });
-          try {
-            // Get existing theme settings
-            const themeSettings = JSON.parse(profile.theme_settings);
-            
-            if (themeSettings) {
-              // Apply theme colors based on current mode
-              const currentTheme = theme === 'light' 
-                ? themeSettings.lightTheme 
-                : themeSettings.darkTheme;
-              
-              // Only apply CSS variables if theme colors exist
-              if (currentTheme) {
-                // Update CSS variables with theme colors
-                applyThemeChanges(currentTheme);
-                themeApplied = true;
-                logger.info('Applied theme from user profile', { 
-                  module: 'theme',
-                  theme: theme,
-                  hasBackground: !!themeSettings.backgroundImage
-                });
-              }
-              
-              // Apply background image and opacity if they exist
-              if (themeSettings.backgroundImage) {
-                const opacity = parseFloat(themeSettings.backgroundOpacity || '0.5');
-                applyBackgroundWithRetry(themeSettings.backgroundImage, opacity);
-              } else {
-                applyBackgroundWithRetry(null, 0.5);
-              }
-            }
-          } catch (e) {
-            logger.error('Error parsing user theme settings', e, { module: 'theme' });
-            setLoadError('Error parsing user theme settings');
-          }
-        }
-        
-        // STEP 2: If no user theme was applied or user is not logged in, fetch and apply default theme settings
-        if (!themeApplied) {
-          logger.info('Looking for default theme settings', { 
-            module: 'theme',
-            isAnonymous: !user,
-            hasProfile: !!profile,
-            attempt: loadAttempt + 1
-          });
+      const loadTheme = async () => {
+        try {
+          let themeApplied = false;
           
-          try {
-            // Try to fetch with a retry mechanism
-            let appSettings;
+          // Try to apply theme from user profile if logged in
+          if (user && profile?.theme_settings) {
             try {
-              // First try regular fetch
-              appSettings = await fetchAppSettings();
-            } catch (fetchError) {
-              // If that fails, try force reload
-              logger.warn('Initial fetch failed, trying force reload', { module: 'theme' });
-              appSettings = await forceReloadSettings();
+              // Parse and apply user theme
+              const themeSettings = JSON.parse(profile.theme_settings);
+              
+              if (themeSettings) {
+                // Apply theme colors based on current mode
+                const currentTheme = theme === 'light' 
+                  ? themeSettings.lightTheme 
+                  : themeSettings.darkTheme;
+                
+                if (currentTheme) {
+                  applyThemeChanges(currentTheme);
+                  themeApplied = true;
+                }
+                
+                // Apply background if it exists
+                if (themeSettings.backgroundImage) {
+                  const opacity = parseFloat(themeSettings.backgroundOpacity || '0.5');
+                  applyBackgroundWithRetry(themeSettings.backgroundImage, opacity);
+                } else {
+                  applyBackgroundWithRetry(null, 0.5);
+                }
+              }
+            } catch (e) {
+              logger.error('Error parsing user theme settings', e, { module: 'theme' });
             }
-            
-            // Add type check to ensure default_theme_settings exists before trying to access it
-            if (appSettings && typeof appSettings === 'object' && 'default_theme_settings' in appSettings) {
-              try {
-                const defaultThemeSettingsStr = String(appSettings.default_theme_settings);
-                const defaultThemeSettings = JSON.parse(defaultThemeSettingsStr);
+          }
+          
+          // If no user theme was applied, use defaults
+          if (!themeApplied) {
+            try {
+              // Fetch app settings (only once)
+              const appSettings = await fetchAppSettings();
+              
+              if (appSettings && appSettings.default_theme_settings) {
+                const defaultThemeSettings = JSON.parse(appSettings.default_theme_settings);
                 
                 if (defaultThemeSettings) {
-                  logger.info('Found default theme settings in app_settings', { 
-                    module: 'theme',
-                    hasBackgroundImage: !!defaultThemeSettings.backgroundImage 
-                  });
-                  
                   // Apply theme colors based on current mode
                   const currentTheme = theme === 'light' 
                     ? defaultThemeSettings.lightTheme 
                     : defaultThemeSettings.darkTheme;
                   
                   if (currentTheme) {
-                    logger.info('Applying default theme colors', { module: 'theme', theme });
                     applyThemeChanges(currentTheme);
                     themeApplied = true;
                   }
                   
                   // Apply background image if it exists
                   if (defaultThemeSettings.backgroundImage) {
-                    logger.info('Applying default background image', { module: 'theme' });
                     const opacity = parseFloat(defaultThemeSettings.backgroundOpacity || '0.5');
                     applyBackgroundWithRetry(defaultThemeSettings.backgroundImage, opacity);
                   } else {
                     applyBackgroundWithRetry(null, 0.5);
                   }
-                } else {
-                  logger.info('Default theme settings were empty or invalid', { module: 'theme' });
-                  setLoadError('Default theme settings were empty or invalid');
                 }
-              } catch (parseError) {
-                logger.error('Error parsing default theme settings JSON', parseError, { 
-                  module: 'theme',
-                  settings: typeof appSettings.default_theme_settings === 'string' 
-                    ? appSettings.default_theme_settings.substring(0, 50) + '...' 
-                    : typeof appSettings.default_theme_settings
-                });
-                setLoadError('Error parsing default theme settings');
               }
-            } else {
-              logger.info('No default theme settings found in app_settings', { 
-                module: 'theme',
-                settingsKeys: appSettings ? Object.keys(appSettings) : 'no settings' 
-              });
-              setLoadError('No default theme settings found');
+            } catch (e) {
+              logger.error('Error fetching app settings', e, { module: 'theme' });
             }
-          } catch (e) {
-            logger.error('Error fetching or applying default theme settings', e, { module: 'theme' });
-            setLoadError('Error fetching theme settings');
+          }
+          
+          // Fallback to system defaults if nothing applied
+          if (!themeApplied) {
+            // System defaults are in theme.css
+            logger.info('Using system default theme', { module: 'theme' });
+            applyBackgroundWithRetry(null, 0.5);
+          }
+          
+          // Mark theme as loaded, regardless of the outcome
+          setIsThemeLoaded(true);
+          
+        } catch (e) {
+          logger.error('Error processing theme settings', e, { module: 'theme' });
+          setLoadError('Error processing theme settings');
+          setIsThemeLoaded(true); // Still mark as loaded to prevent endless retries
+        } finally {
+          setIsThemeLoading(false);
+          
+          // Clear timeout since we're done
+          if (themeLoadTimeoutRef.current) {
+            clearTimeout(themeLoadTimeoutRef.current);
+            themeLoadTimeoutRef.current = null;
           }
         }
-        
-        // STEP 3: If still no theme applied, use hardcoded defaults as fallback
-        if (!themeApplied) {
-          logger.info('Using hardcoded default theme (fallback)', { module: 'theme' });
-          // System defaults are in theme.css, just apply blank background
-          applyBackgroundWithRetry(null, 0.5);
-        }
-        
-        setIsThemeLoaded(true);
-      } catch (e) {
-        // Use emitDebugEvent and logger for errors
-        emitDebugEvent({
-          lastError: `Error processing theme settings`,
-          lastAction: 'Theme parse failed'
-        });
-        
-        logger.error('Error processing theme settings', e, { module: 'theme' });
-        setLoadError('Error processing theme settings');
-        // Still set theme as loaded, even if there was an error
-        setIsThemeLoaded(true);
-      } finally {
-        setIsThemeLoading(false);
+      };
+      
+      loadTheme();
+    }
+    
+    return () => {
+      // Clear timeout on cleanup
+      if (themeLoadTimeoutRef.current) {
+        clearTimeout(themeLoadTimeoutRef.current);
+        themeLoadTimeoutRef.current = null;
       }
     };
-    
-    applyUserTheme();
-  }, [theme, user, profile, isThemeLoading, applyBackgroundWithRetry, loadAttempt]);
+  }, [theme, user, profile, applyThemeMode, applyBackgroundWithRetry]);
 
-  // Function to manually reload the theme - useful for debugging
+  // Simplified reloadTheme function
   const reloadTheme = useCallback(() => {
+    // Prevent excessive reloads
+    loadAttemptRef.current++;
+    if (loadAttemptRef.current > 3) {
+      logger.warn('Too many theme reload attempts', { 
+        module: 'theme', 
+        attempts: loadAttemptRef.current 
+      });
+      return;
+    }
+    
     logger.info('Manual theme reload requested', { module: 'theme' });
+    
+    // Reset state to trigger reloading
     setIsThemeLoaded(false);
-    setIsBackgroundLoaded(false);
-    setLoadAttempt(prev => prev + 1);
     setLoadError(null);
     
-    // Allow a small delay before starting to reload
-    setTimeout(() => {
-      // Reapply theme mode which will trigger the main effect
-      applyThemeMode(theme);
-    }, 100);
-  }, [theme]);
-
-  // Add effect to monitor DOM changes and ensure background is applied
-  useEffect(() => {
-    if (!lastBackgroundImage || !isThemeLoaded) return;
-    
-    // Create a timer to check if background is visible after theme loads
-    const timer = setTimeout(() => {
-      const body = document.body;
-      const hasBackgroundImage = body.style.backgroundImage && 
-                               body.style.backgroundImage !== 'none';
-      
-      logger.info('Background visibility check', { 
-        module: 'theme', 
-        hasBackgroundImage,
-        bodyHasBackgroundClass: body.classList.contains('with-bg-image'),
-        currentBackgroundCSS: body.style.backgroundImage
-      });
-      
-      // If background should be visible but isn't, reapply it
-      if (lastBackgroundImage && !hasBackgroundImage) {
-        logger.warn('Background image not visible, reapplying', { module: 'theme' });
-        applyBackgroundWithRetry(lastBackgroundImage, 0.5);
-      }
-    }, 2000);
-    
-    return () => clearTimeout(timer);
-  }, [isThemeLoaded, lastBackgroundImage, applyBackgroundWithRetry]);
+    // Reapply theme mode to trigger the main effect
+    applyThemeMode(theme);
+  }, [theme, applyThemeMode]);
 
   return { 
     theme, 
     setTheme, 
     isThemeLoaded,
     isThemeLoading,
-    isBackgroundLoaded,
     isBackgroundLoading,
     loadError,
     reloadTheme 

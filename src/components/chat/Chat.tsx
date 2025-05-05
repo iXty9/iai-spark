@@ -1,10 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ChatContainer } from './chat-container/ChatContainer';
 import { useTheme } from '@/hooks/use-theme';
 import { toast } from '@/hooks/use-toast';
-import { forceReloadSettings } from '@/services/admin/settingsService';
-import { logger } from '@/utils/logging';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
@@ -14,82 +12,51 @@ interface ChatProps {
 }
 
 export const Chat: React.FC<ChatProps> = ({ isThemeLoading = false }) => {
-  const { theme, reloadTheme, isThemeLoaded, loadError, isBackgroundLoading } = useTheme();
-  const [reloadAttempts, setReloadAttempts] = useState(0);
+  const { 
+    reloadTheme, 
+    isThemeLoaded, 
+    loadError 
+  } = useTheme();
   const [isManuallyReloading, setIsManuallyReloading] = useState(false);
   
-  // Effect to automatically retry theme loading if background fails
-  useEffect(() => {
-    if (isThemeLoaded && loadError && reloadAttempts < 2) {
-      logger.info('Auto-retrying theme load due to error', { 
-        module: 'chat',
-        error: loadError,
-        attempt: reloadAttempts + 1
-      });
-      
-      // Wait a bit before retrying
-      const timer = setTimeout(() => {
-        setReloadAttempts(prev => prev + 1);
-        reloadTheme();
-      }, 2000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [isThemeLoaded, loadError, reloadAttempts, reloadTheme]);
-  
-  // Function to reload theme by toggling light/dark mode and back
-  const handleReloadTheme = async () => {
+  // Handle manual theme reload
+  const handleReloadTheme = () => {
     try {
       setIsManuallyReloading(true);
       
-      // Log that we're handling the reload request
-      logger.info('Chat component handling reload theme request', { module: 'chat' });
-      
-      // Fetch new settings first to ensure we have latest
-      const settings = await forceReloadSettings();
-      
-      if (settings && settings.default_theme_settings) {
-        logger.info('Found default theme in settings during manual reload', { 
-          module: 'chat',
-          settingsKeys: Object.keys(settings)
-        });
-      } else {
-        logger.warn('No default theme found in settings during manual reload', { 
-          module: 'chat' 
-        });
-      }
-      
-      // Call the reload function from useTheme hook
+      // Call the reload function
       reloadTheme();
       
+      // Show toast
       toast({
         title: "Theme Reload Triggered",
         description: "Theme reload has been triggered",
         duration: 2000,
       });
+      
+      // Reset state after a delay
+      setTimeout(() => {
+        setIsManuallyReloading(false);
+      }, 3000);
     } catch (error) {
       console.error('Error during theme reload:', error);
-      logger.error('Error during theme reload in Chat component', error, { module: 'chat' });
       
       toast({
         variant: "destructive",
         title: "Theme Load Failed",
-        description: "Could not load default theme settings",
+        description: "Could not load theme settings",
         duration: 3000,
       });
-    } finally {
-      // Set manually reloading to false after a delay to allow time for the reload to finish
-      setTimeout(() => {
-        setIsManuallyReloading(false);
-      }, 3000);
+      
+      setIsManuallyReloading(false);
     }
   };
   
-  // Determine if we should show the loading state
-  const showThemeLoading = isThemeLoading || isManuallyReloading || isBackgroundLoading;
+  // Determine if we should show loading state - simplified logic
+  const showThemeLoading = isThemeLoading || isManuallyReloading;
   
   // Render error state if there's a theme loading error
-  if (isThemeLoaded && loadError && reloadAttempts >= 2) {
+  if (isThemeLoaded && loadError) {
     return (
       <div className="h-full flex items-center justify-center p-4">
         <div className="max-w-md w-full">

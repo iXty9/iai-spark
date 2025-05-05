@@ -12,7 +12,6 @@ import { Message } from '@/types/chat';
 import { useIOSSafari } from '@/hooks/use-ios-safari';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
-import { logger } from '@/utils/logging';
 
 interface ChatContainerProps {
   className?: string;
@@ -43,14 +42,6 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   const [isTransitioning, setIsTransitioning] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
-  
-  // Log theme loading state changes
-  React.useEffect(() => {
-    logger.info('ChatContainer theme loading state:', { 
-      module: 'chat', 
-      isThemeLoading
-    });
-  }, [isThemeLoading]);
   
   const handleImportChat = (importedMessages: Message[]) => {
     if (importedMessages && importedMessages.length > 0) {
