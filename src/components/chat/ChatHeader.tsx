@@ -1,7 +1,7 @@
 
 import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Download, Trash2, Sun, Moon, Code, Upload } from 'lucide-react';
+import { Download, Trash2, Sun, Moon, Code, Upload, RefreshCw } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,11 +13,14 @@ import { useDevMode } from '@/store/use-dev-mode';
 import { UserMenu } from '@/components/UserMenu';
 import { importChat } from '@/services/import/importService';
 import { toast } from "@/hooks/use-toast";
+import { forceReloadSettings } from '@/services/admin/settingsService';
+import { applyThemeChanges, applyBackgroundImage } from '@/utils/theme-utils';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
   onExportChat: () => void;
   onImportChat: (messages: any[]) => void;
+  onReloadTheme?: () => void;
   hasMessages?: boolean;
   dynamicPadding?: {
     left: number;
@@ -30,11 +33,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onClearChat, 
   onExportChat,
   onImportChat,
+  onReloadTheme,
   hasMessages = false,
   dynamicPadding = { left: 4, right: 4 },
   isMobile = false
 }) => {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, isThemeLoaded } = useTheme();
   const { isDevMode, toggleDevMode } = useDevMode();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -86,6 +90,75 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       });
     }
   };
+
+  // New function to handle force reloading theme
+  const handleReloadTheme = async () => {
+    try {
+      // Show loading toast
+      toast({
+        title: "Loading Theme",
+        description: "Fetching default theme settings...",
+        duration: 1500,
+      });
+
+      // Force reload settings from backend
+      const settings = await forceReloadSettings();
+      
+      if (settings.default_theme_settings) {
+        // Parse theme settings
+        const themeSettings = JSON.parse(settings.default_theme_settings);
+        
+        // Apply theme colors based on current mode
+        const currentTheme = theme === 'light' 
+          ? themeSettings.lightTheme 
+          : themeSettings.darkTheme;
+        
+        if (currentTheme) {
+          // Apply theme colors
+          applyThemeChanges(currentTheme);
+          
+          // Apply background if available
+          if (themeSettings.backgroundImage) {
+            const opacity = parseFloat(themeSettings.backgroundOpacity || '0.5');
+            applyBackgroundImage(themeSettings.backgroundImage, opacity);
+          } else {
+            applyBackgroundImage(null, 0.5);
+          }
+          
+          // Show success toast
+          toast({
+            title: "Theme Loaded",
+            description: `Default theme applied successfully (${theme} mode)`,
+            duration: 3000,
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Theme Error",
+            description: "Default theme settings are incomplete",
+          });
+        }
+      } else {
+        toast({
+          variant: "destructive",
+          title: "No Default Theme",
+          description: "No default theme settings found in database",
+        });
+      }
+      
+      // Call the parent's reload handler if provided
+      if (onReloadTheme) {
+        onReloadTheme();
+      }
+    } catch (error) {
+      console.error('Failed to reload theme:', error);
+      toast({
+        variant: "destructive",
+        title: "Theme Load Failed",
+        description: "Could not load default theme settings",
+      });
+    }
+  };
   
   return (
     <header className={`p-4 ${isMobile ? 'rounded-b-lg' : ''} flex items-center justify-between`}>
@@ -132,6 +205,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="border-none shadow-md rounded-xl">
+            {/* New Load Theme option */}
+            <DropdownMenuItem onClick={handleReloadTheme} className={isMobile ? "flex items-center" : ""}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              <span>{isMobile ? "Load Theme" : "Load Default Theme"}</span>
+            </DropdownMenuItem>
+            
             {!isMobile && hasMessages && (
               <DropdownMenuItem onClick={onExportChat}>
                 <Download className="mr-2 h-4 w-4" />

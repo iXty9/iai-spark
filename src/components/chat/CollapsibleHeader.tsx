@@ -12,6 +12,7 @@ interface CollapsibleHeaderProps {
   onClearChat: () => void;
   onExportChat: () => void;
   onImportChat: (messages: Message[]) => void;
+  onReloadTheme: () => void;
   messages?: Message[];
 }
 
@@ -19,6 +20,7 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
   onClearChat, 
   onExportChat,
   onImportChat,
+  onReloadTheme,
   messages = []
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -55,6 +57,7 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
           onClearChat={onClearChat} 
           onExportChat={onExportChat}
           onImportChat={onImportChat}
+          onReloadTheme={onReloadTheme}
           hasMessages={hasMessages}
           dynamicPadding={dynamicPadding}
           isMobile={isMobile}

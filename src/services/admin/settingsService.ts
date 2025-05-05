@@ -79,6 +79,17 @@ export async function fetchAppSettings(): Promise<Record<string, string>> {
   }
 }
 
+// New function to force clear cache and reload settings
+export async function forceReloadSettings(): Promise<Record<string, string>> {
+  logger.info('Force clearing settings cache', { module: 'settings' });
+  // Clear the cache
+  settingsCache = null;
+  lastFetchTime = 0;
+  
+  // Fetch fresh settings
+  return await fetchAppSettings();
+}
+
 export async function updateAppSetting(key: string, value: string): Promise<void> {
   try {
     // Get the current user ID

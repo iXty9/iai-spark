@@ -23,6 +23,7 @@ export function useTheme() {
     }
   );
   const [isThemeLoaded, setIsThemeLoaded] = useState(false);
+  const [isThemeLoading, setIsThemeLoading] = useState(false);
 
   // Apply the theme mode without updating the profile
   const applyThemeMode = (newTheme: Theme) => {
@@ -32,17 +33,24 @@ export function useTheme() {
     localStorage.setItem('theme', newTheme);
   };
 
+  // Main effect to apply theme
   useEffect(() => {
     // Apply the theme mode (light/dark class)
     applyThemeMode(theme);
     
     const applyUserTheme = async () => {
+      if (isThemeLoading) return; // Prevent concurrent loading
+      
+      setIsThemeLoading(true);
       try {
         let themeApplied = false;
         
         // STEP 1: Try to apply theme from user profile if logged in
         if (user && profile?.theme_settings) {
-          logger.info('Applying theme from user profile', { module: 'theme' });
+          logger.info('Applying theme from user profile', { 
+            module: 'theme', 
+            userId: user.id 
+          });
           try {
             // Get existing theme settings
             const themeSettings = JSON.parse(profile.theme_settings);
@@ -88,8 +96,13 @@ export function useTheme() {
           });
           
           try {
-            // Fetch app settings to get default theme
-            const appSettings = await fetchAppSettings();
+            // Fetch app settings to get default theme with longer timeout for initial load
+            const fetchTimeout = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Theme fetch timeout')), 5000)
+            );
+            
+            const fetchSettingsPromise = fetchAppSettings();
+            const appSettings = await Promise.race([fetchSettingsPromise, fetchTimeout]);
             
             if (appSettings && appSettings.default_theme_settings) {
               const defaultThemeSettings = JSON.parse(appSettings.default_theme_settings);
@@ -146,12 +159,26 @@ export function useTheme() {
         });
         
         logger.error('Error processing theme settings', e, { module: 'theme' });
+        // Still set theme as loaded, even if there was an error
         setIsThemeLoaded(true);
+      } finally {
+        setIsThemeLoading(false);
       }
     };
     
     applyUserTheme();
   }, [theme, user, profile]);
 
-  return { theme, setTheme, isThemeLoaded };
+  // Function to manually reload the theme - useful for debugging
+  const reloadTheme = async () => {
+    logger.info('Manual theme reload requested', { module: 'theme' });
+    setIsThemeLoaded(false);
+    // Allow a small delay before starting to reload
+    setTimeout(() => {
+      // Reapply theme mode which will trigger the main effect
+      applyThemeMode(theme);
+    }, 100);
+  };
+
+  return { theme, setTheme, isThemeLoaded, reloadTheme };
 }
