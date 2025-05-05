@@ -1,3 +1,4 @@
+
 import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, Trash2, Sun, Moon, Code, Upload, RefreshCw } from 'lucide-react';
@@ -14,7 +15,6 @@ import { importChat } from '@/services/import/importService';
 import { toast } from "@/hooks/use-toast";
 import { forceReloadSettings } from '@/services/admin/settingsService';
 import { applyThemeChanges, applyBackgroundImage } from '@/utils/theme-utils';
-import { logger } from '@/utils/logging';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
@@ -104,14 +104,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       // Force reload settings from backend
       const settings = await forceReloadSettings();
       
-      // Add additional logging to see exactly what's coming back from settings
-      console.log("Theme settings loaded:", settings);
-      logger.info('Theme settings loaded from forceReloadSettings', { 
-        module: 'theme',
-        settingsKeys: Object.keys(settings),
-        hasDefaultTheme: !!settings.default_theme_settings
-      });
-      
       if (settings.default_theme_settings) {
         // Parse theme settings
         const themeSettings = JSON.parse(settings.default_theme_settings);
@@ -147,48 +139,10 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           });
         }
       } else {
-        // If we get here, we know for sure no default theme exists in the database
         toast({
           variant: "destructive",
           title: "No Default Theme",
-          description: "No default theme settings found in database. Please create a default theme in settings.",
-        });
-        
-        // Apply hardcoded fallback theme to ensure something is visible
-        const fallbackLightTheme = {
-          backgroundColor: '#ffffff',
-          primaryColor: '#ea384c',
-          textColor: '#000000',
-          accentColor: '#9b87f5',
-          userBubbleColor: '#ea384c',
-          aiBubbleColor: '#9b87f5',
-          userBubbleOpacity: 0.3,
-          aiBubbleOpacity: 0.3,
-          userTextColor: '#000000',
-          aiTextColor: '#000000'
-        };
-        
-        const fallbackDarkTheme = {
-          backgroundColor: '#121212',
-          primaryColor: '#ea384c',
-          textColor: '#ffffff',
-          accentColor: '#9b87f5',
-          userBubbleColor: '#ea384c',
-          aiBubbleColor: '#9b87f5',
-          userBubbleOpacity: 0.3,
-          aiBubbleOpacity: 0.3,
-          userTextColor: '#ffffff',
-          aiTextColor: '#ffffff'
-        };
-        
-        // Apply the fallback theme based on current mode
-        const fallbackTheme = theme === 'light' ? fallbackLightTheme : fallbackDarkTheme;
-        applyThemeChanges(fallbackTheme);
-        applyBackgroundImage(null, 0.5);
-        
-        logger.info('Applied fallback theme due to missing default theme', { 
-          module: 'theme',
-          theme 
+          description: "No default theme settings found in database",
         });
       }
       

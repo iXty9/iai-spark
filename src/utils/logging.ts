@@ -34,8 +34,6 @@ interface LogOptions {
   throttle?: boolean;
   once?: boolean;
   module?: string;
-  imageUrl?: string;
-  settings?: any;
 }
 
 /**

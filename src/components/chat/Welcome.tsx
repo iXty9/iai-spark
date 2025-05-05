@@ -20,14 +20,14 @@ interface WelcomeProps {
 }
 
 export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) => {
-  const [message, setMessage] = useState('');
-  const [tagline, setTagline] = useState<string | null>(null);
-  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [message, setMessage] = React.useState('');
+  const [tagline, setTagline] = React.useState<string | null>(null);
+  const [isLoadingSettings, setIsLoadingSettings] = React.useState(true);
+  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
   const isMobile = useIsMobile();
-  const [avatarError, setAvatarError] = useState(false);
+  const [avatarError, setAvatarError] = React.useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const hasSubmitted = useRef<boolean>(false);
   const { isDevMode } = useDevMode();
   
@@ -38,9 +38,6 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) =
     // Load app settings
     const loadSettings = async () => {
       try {
-        // Log that we're starting to load settings
-        logger.info('Welcome: Loading app settings', { module: 'welcome' });
-        
         const settings = await fetchAppSettings();
         setTagline(settings.app_name || "The Everywhere Intelligent Assistant");
         setAvatarUrl(settings.avatar_url || "https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png");
@@ -51,8 +48,6 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onImportChat }) =
         }
       } catch (error) {
         console.error('Error loading app settings:', error);
-        logger.error('Welcome: Error loading app settings', error, { module: 'welcome' });
-        
         // Use defaults if settings can't be loaded
         setTagline("The Everywhere Intelligent Assistant");
         setAvatarUrl("https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png");
