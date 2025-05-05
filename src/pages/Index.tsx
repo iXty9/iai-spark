@@ -3,12 +3,14 @@ import React, { useEffect } from 'react';
 import { Chat } from '@/components/chat/Chat';
 import { useIOSSafari } from '@/hooks/use-ios-safari';
 import { IOSFallbackInput } from '@/components/chat/IOSFallbackInput';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useLocation } from 'react-router-dom';
+import { useTheme } from '@/hooks/use-theme';
 import { logger } from '@/utils/logging';
 
 const Index = () => {
   const { isIOSSafari, showFallbackInput } = useIOSSafari();
-  const { isThemeLoaded, refreshTheme } = useTheme();
+  const location = useLocation();
+  const { isThemeLoaded } = useTheme();
   
   // Apply iOS viewport fixes
   useEffect(() => {
@@ -32,26 +34,12 @@ const Index = () => {
     }
   }, [isIOSSafari]);
   
-  // Ensure theme is loaded and force refresh if needed
+  // Log when theme is loaded to help with debugging
   useEffect(() => {
-    // Force refresh theme immediately on index page mount to ensure proper setup
-    logger.info('Index component mounted, forcing theme refresh', { module: 'index' });
-    refreshTheme().then(() => {
-      logger.info('Initial theme refresh completed in Index component', { module: 'index' });
-    });
-    
-    // Secondary refresh after delay to catch any race conditions
-    const secondRefreshTimer = setTimeout(() => {
-      if (!isThemeLoaded) {
-        logger.info('Performing secondary theme refresh in Index component', { module: 'index' });
-        refreshTheme();
-      }
-    }, 800);
-    
-    return () => {
-      clearTimeout(secondRefreshTimer);
-    };
-  }, [refreshTheme, isThemeLoaded]);
+    if (isThemeLoaded) {
+      logger.info('Theme loaded in Index component', { module: 'index' });
+    }
+  }, [isThemeLoaded]);
   
   return (
     <div 

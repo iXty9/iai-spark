@@ -1,3 +1,4 @@
+
 import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, Trash2, Sun, Moon, Code, Upload } from 'lucide-react';
@@ -7,12 +8,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useTheme } from '@/hooks/use-theme';
 import { useDevMode } from '@/store/use-dev-mode';
 import { UserMenu } from '@/components/UserMenu';
 import { importChat } from '@/services/import/importService';
 import { toast } from "@/hooks/use-toast";
-import { logger } from '@/utils/logging';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
@@ -61,20 +61,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  };
-  
-  const handleThemeToggle = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-    logger.info(`Theme toggled to ${newTheme} mode`, { module: 'ui' });
-    
-    // Add a small timeout to allow the theme to be applied
-    setTimeout(() => {
-      // Force refresh to make sure changes are applied thoroughly
-      document.body.style.transition = 'none';
-      document.body.offsetHeight; // Force reflow
-      document.body.style.transition = '';
-    }, 50);
   };
   
   const handleDevModeToggle = (e: React.MouseEvent) => {
@@ -130,7 +116,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           <Button 
             variant="ghost" 
             size="icon"
-            onClick={handleThemeToggle}
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
@@ -178,7 +164,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   <Code className="mr-2 h-4 w-4" />
                   <span>Dev {isDevMode ? '(On)' : '(Off)'}</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleThemeToggle} className="flex items-center">
+                <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="flex items-center">
                   {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
                   <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
                 </DropdownMenuItem>

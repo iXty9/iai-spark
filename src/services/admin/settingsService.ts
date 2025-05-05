@@ -11,76 +11,33 @@ type AppSetting = {
   updated_by: string | null;
 };
 
-// Enhanced cache management
+// Simple in-memory cache
 let settingsCache: Record<string, string> | null = null;
 let lastFetchTime = 0;
-const CACHE_DURATION = 5000; // 5 seconds cache for production (reduced from 10s)
-// Use shorter cache during development for easier testing
-const DEV_CACHE_DURATION = 1000; // 1 second in development (reduced from 2s)
-// Even shorter cache for anonymous users to ensure they get theme updates quickly
-const ANONYMOUS_CACHE_DURATION = 2000; // 2 seconds for production anonymous users
-const DEV_ANONYMOUS_CACHE_DURATION = 500; // 0.5 seconds for dev anonymous users
+const CACHE_DURATION = 60000; // 1 minute cache
 
-// Public method to clear the cache, useful when settings change
-export function clearSettingsCache() {
-  logger.info('Settings cache manually cleared', { module: 'settings' });
-  settingsCache = null;
-  lastFetchTime = 0;
-}
-
-export async function fetchAppSettings(forceRefresh = false): Promise<Record<string, string>> {
+export async function fetchAppSettings(): Promise<Record<string, string>> {
   try {
     const now = Date.now();
     
-    // Determine if we're dealing with an anonymous user
-    const isAnonymous = !localStorage.getItem('supabase.auth.token');
-    
-    // Select appropriate cache duration based on environment and user status
-    const cacheDuration = process.env.NODE_ENV === 'development' 
-      ? (isAnonymous ? DEV_ANONYMOUS_CACHE_DURATION : DEV_CACHE_DURATION)
-      : (isAnonymous ? ANONYMOUS_CACHE_DURATION : CACHE_DURATION);
-    
-    // For anonymous users (no localStorage theme), bypass cache more aggressively
-    // to ensure they get the latest default theme faster
-    const hasLocalTheme = localStorage.getItem('theme') !== null;
-    
-    // If force refresh is requested, ignore cache
-    if (forceRefresh) {
-      logger.info('Force refreshing app settings', { module: 'settings' });
-    }
-    // Return cached settings if valid and not force refreshing
-    else if (settingsCache && (now - lastFetchTime < cacheDuration)) {
+    // Return cached settings if valid
+    if (settingsCache && (now - lastFetchTime < CACHE_DURATION)) {
       logger.info('Using cached app settings', { 
         module: 'settings', 
         cache: true,
-        cacheAge: now - lastFetchTime,
-        settingsCount: Object.keys(settingsCache).length,
-        hasLocalTheme,
-        isAnonymous
+        cacheAge: now - lastFetchTime
       });
       return settingsCache;
     }
     
-    // Fetch fresh settings if cache expired, doesn't exist, or force refreshing
-    logger.info('Fetching app settings from database', { 
-      module: 'settings',
-      forceRefresh,
-      isAnonymous 
-    });
-    
+    // Fetch fresh settings if cache expired or doesn't exist
+    logger.info('Fetching app settings from database', { module: 'settings' });
     const { data, error } = await supabase
       .from('app_settings')
       .select('*');
 
     if (error) {
       logger.error('Error fetching app settings:', error, { module: 'settings' });
-      
-      // If we have a cache, return it as fallback even if expired
-      if (settingsCache) {
-        logger.warn('Using expired cache as fallback after fetch error', { module: 'settings' });
-        return settingsCache;
-      }
-      
       throw error;
     }
 
@@ -99,8 +56,7 @@ export async function fetchAppSettings(forceRefresh = false): Promise<Record<str
     logger.info('App settings fetched successfully', { 
       module: 'settings', 
       settingCount: Object.keys(settings).length,
-      hasDefaultTheme,
-      isAnonymous
+      hasDefaultTheme
     });
     
     if (hasDefaultTheme) {
@@ -119,9 +75,7 @@ export async function fetchAppSettings(forceRefresh = false): Promise<Record<str
     return settings;
   } catch (error) {
     logger.error('Unexpected error in fetchAppSettings:', error, { module: 'settings' });
-    
-    // Last resort: return empty settings object to prevent crashes
-    return {};
+    throw error;
   }
 }
 
@@ -169,9 +123,8 @@ export async function updateAppSetting(key: string, value: string): Promise<void
       }
     }
     
-    // Force clear the cache immediately after an update
-    clearSettingsCache();
-    logger.info(`App setting ${key} updated and cache cleared`, { module: 'settings' });
+    // Clear the cache so next fetch gets fresh data
+    settingsCache = null;
     
   } catch (error) {
     logger.error(`Unexpected error updating app setting ${key}:`, error, { module: 'settings' });
@@ -184,16 +137,11 @@ export async function setDefaultTheme(themeSettings: ThemeSettings): Promise<voi
     // Convert theme settings object to JSON string
     const themeSettingsJSON = JSON.stringify(themeSettings);
     
-    logger.info('Setting default theme for all users', { 
-      module: 'settings',
-      hasBackground: !!themeSettings.backgroundImage,
-      mode: themeSettings.mode
-    });
-    
     // Save as default theme in app_settings
     await updateAppSetting('default_theme_settings', themeSettingsJSON);
     
-    // The updateAppSetting function already clears the cache
+    // Clear the cache
+    settingsCache = null;
     
     logger.info('Default theme settings updated successfully', { 
       module: 'settings',
