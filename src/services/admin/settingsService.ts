@@ -64,20 +64,22 @@ export async function updateAppSetting(
 ): Promise<boolean> {
   try {
     // Check if setting exists
-    const { data: existingData, error: checkError } = await supabase
+    const checkResponse = await supabase
       .from('app_settings')
       .select('id')
-      .eq('key', key)
-      .single();
+      .eq('key', key);
     
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+    const existingData = checkResponse.data;
+    const checkError = checkResponse.error;
+    
+    if (checkError) {
       logger.error(`Error checking if setting ${key} exists:`, checkError);
       return false;
     }
     
     let result;
     
-    if (existingData) {
+    if (existingData && existingData.length > 0) {
       // Update existing setting
       result = await supabase
         .from('app_settings')

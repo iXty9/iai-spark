@@ -41,12 +41,14 @@ export const useAuthState = () => {
         console.log('Fetching profile attempt', fetchAttempts.current, 'for user:', userId);
       }
       
-      // Use maybeSingle instead of single to avoid errors when no profile is found
-      const { data, error } = await supabase
+      // Fix the deep type instantiation error by breaking down the query steps
+      const response = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+        .eq('id', userId);
+        
+      const data = response.data?.[0] || null;
+      const error = response.error;
         
       // Handle error case
       if (error) {

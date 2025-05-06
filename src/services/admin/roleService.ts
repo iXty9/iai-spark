@@ -1,50 +1,101 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { logger } from '@/utils/logging';
-import { invokeAdminFunction } from './utils/adminFunctionUtils';
 import { UserRole } from './types/userTypes';
+import { logger } from '@/utils/logging';
 
-export async function updateUserRole(userId: string, role: UserRole): Promise<void> {
+/**
+ * Checks if a user has a specific role
+ * @param userId The user ID to check
+ * @param role The role to check for
+ * @returns A promise resolving to a boolean indicating if the user has the role
+ */
+export async function hasRole(userId: string, role: UserRole): Promise<boolean> {
   try {
-    // Use the edge function to update user role
-    await invokeAdminFunction('updateUserRole', { userId, role });
+    const functionResponse = await supabase.rpc('has_role', {
+      _user_id: userId,
+      _role: role
+    });
+
+    if (functionResponse.error) {
+      logger.error('Error checking user role:', functionResponse.error);
+      return false;
+    }
+    
+    return functionResponse.data === true;
   } catch (error) {
-    logger.error('Error in updateUserRole:', error, { module: 'roles' });
-    throw error;
+    logger.error('Unexpected error in hasRole:', error);
+    return false;
   }
 }
 
-export async function checkIsAdmin(): Promise<boolean> {
+/**
+ * Fetch a user's role from the database
+ */
+export async function getUserRole(userId: string): Promise<UserRole | null> {
   try {
-    // Get the current session
-    const sessionResponse = await supabase.auth.getSession();
-    const session = sessionResponse?.data?.session;
+    // Break down the query steps to avoid deep type instantiation
+    const response = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId);
     
-    if (!session?.user) return false;
+    const data = response.data?.[0];
+    const error = response.error;
     
-    const userId = session.user.id;
-    
-    try {
-      // Use proper typing by using maybeSingle instead of single
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role, user_id')
-        .eq('user_id', userId)
-        .maybeSingle();
-      
-      if (error) {
-        logger.error('Error checking admin status:', error, { module: 'roles' });
-        return false;
-      }
+    if (error) {
+      logger.error('Error fetching user role:', error);
+      return null;
+    }
 
-      // Check if the user has an admin role
-      return data?.role === 'admin';
-    } catch (err) {
-      logger.error('Error executing user_roles query:', err, { module: 'roles' });
+    return data?.role || null;
+  } catch (error) {
+    logger.error('Unexpected error in getUserRole:', error);
+    return null;
+  }
+}
+
+/**
+ * Set a user's role in the database
+ */
+export async function setUserRole(userId: string, role: UserRole): Promise<boolean> {
+  try {
+    // Check if role entry exists
+    const response = await supabase
+      .from('user_roles')
+      .select('id')
+      .eq('user_id', userId);
+    
+    const existingRole = response.data?.[0];
+    const error = response.error;
+    
+    if (error) {
+      logger.error('Error checking existing user role:', error);
       return false;
     }
+
+    let result;
+    
+    if (existingRole) {
+      // Update
+      result = await supabase
+        .from('user_roles')
+        .update({ role })
+        .eq('user_id', userId);
+    } else {
+      // Insert
+      result = await supabase
+        .from('user_roles')
+        .insert({ user_id: userId, role });
+    }
+
+    if (result.error) {
+      logger.error('Error setting user role:', result.error);
+      return false;
+    }
+
+    return true;
   } catch (error) {
-    logger.error('Error in checkIsAdmin:', error, { module: 'roles' });
+    logger.error('Unexpected error in setUserRole:', error);
     return false;
   }
 }
