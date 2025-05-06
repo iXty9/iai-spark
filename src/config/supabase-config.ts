@@ -1,5 +1,6 @@
 
 import { logger } from '@/utils/logging';
+import { resetSupabaseClient } from '@/services/supabase/connection-service';
 
 export interface SupabaseConfig {
   url: string;
@@ -60,6 +61,21 @@ export const isDevelopment = () => {
  */
 export function hasStoredConfig(): boolean {
   try {
+    // Check for force_init parameter first - this overrides default behavior
+    const urlParams = new URLSearchParams(window.location.search);
+    const forceInit = urlParams.get('force_init') === 'true';
+    
+    // If forcing initialization, don't use or create default config
+    if (forceInit) {
+      logger.info('Force init parameter detected, bypassing default config', {
+        module: 'supabase-config'
+      });
+      
+      // Check if there's actually a stored config despite force_init
+      const storedConfig = localStorage.getItem(STORAGE_KEY);
+      return !!storedConfig && !forceInit;
+    }
+    
     // In development, we can use hardcoded defaults to skip initialization
     if (isDevelopment()) {
       const storedConfig = localStorage.getItem(STORAGE_KEY);
@@ -72,16 +88,6 @@ export function hasStoredConfig(): boolean {
       logger.info(`No stored config found in development. Default config saved: ${saved}`, {
         module: 'supabase-config'
       });
-      
-      // Check for force_init parameter
-      const urlParams = new URLSearchParams(window.location.search);
-      const forceInit = urlParams.get('force_init') === 'true';
-      if (forceInit) {
-        logger.info('Force init parameter detected, bypassing default config', {
-          module: 'supabase-config'
-        });
-        return false;
-      }
       
       return saved;
     }
@@ -175,7 +181,11 @@ export function saveConfig(config: SupabaseConfig): boolean {
 export function clearConfig(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
-    logger.info('Supabase configuration cleared successfully', {
+    
+    // Also reset the Supabase client to ensure a complete reset
+    resetSupabaseClient();
+    
+    logger.info('Supabase configuration cleared and client reset successfully', {
       module: 'supabase-config'
     });
   } catch (e) {

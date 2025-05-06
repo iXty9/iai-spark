@@ -3,8 +3,32 @@
 // Do not edit it directly.
 
 import { getSupabaseClient } from '@/services/supabase/connection-service';
+import { toast } from '@/hooks/use-toast';
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
+// Get the Supabase client
+const client = getSupabaseClient();
 
-export const supabase = getSupabaseClient();
+// Handle reset configuration scenarios
+export const supabase = client || {
+  // Provide fallback methods that show a toast when the client is not available
+  auth: {
+    getSession: () => {
+      toast({
+        title: 'Connection Error',
+        description: 'Supabase client is not available. Please initialize the application.',
+        variant: 'destructive'
+      });
+      return Promise.resolve({ data: { session: null }, error: new Error('Client not initialized') });
+    },
+    // Add other auth methods as needed
+    signOut: () => Promise.resolve({ error: new Error('Client not initialized') }),
+    signInWithPassword: () => Promise.resolve({ data: { user: null, session: null }, error: new Error('Client not initialized') }),
+    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+  },
+  from: () => ({
+    select: () => ({
+      limit: () => Promise.resolve({ data: null, error: new Error('Client not initialized') })
+    })
+  }),
+  // Add other methods as needed
+};

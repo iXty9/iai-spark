@@ -14,6 +14,17 @@ export function getSupabaseClient() {
   if (supabaseInstance) return supabaseInstance;
   
   try {
+    // Check for force_init parameter - don't initialize client if forcing init
+    const urlParams = new URLSearchParams(window.location.search);
+    const forceInit = urlParams.get('force_init') === 'true';
+    
+    if (forceInit) {
+      logger.info('Force init parameter detected, not initializing Supabase client', {
+        module: 'supabase'
+      });
+      return null;
+    }
+    
     // Get config from storage or use default
     const config = hasStoredConfig() ? getStoredConfig() : getDefaultConfig();
     
@@ -44,8 +55,8 @@ export function getSupabaseClient() {
       variant: 'destructive'
     });
     
-    // Return the instance even if there's an error to prevent repeated errors
-    return supabaseInstance;
+    // Return null instead of potentially invalid instance
+    return null;
   }
 }
 
@@ -80,5 +91,9 @@ export async function testSupabaseConnection(url: string, anonKey: string): Prom
  * This is useful when the configuration changes
  */
 export function resetSupabaseClient() {
+  logger.info('Resetting Supabase client instance', {
+    module: 'supabase'
+  });
+  
   supabaseInstance = null;
 }

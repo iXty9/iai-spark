@@ -5,9 +5,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { ThemeProvider } from "@/hooks/use-theme"; // Import ThemeProvider
+import { ThemeProvider } from "@/hooks/use-theme";
 import { useEffect, useState } from "react";
-import { hasStoredConfig, getStoredConfig, forceDefaultConfig, isDevelopment, saveConfig } from "@/config/supabase-config";
+import { hasStoredConfig, getStoredConfig, forceDefaultConfig, isDevelopment, saveConfig, clearConfig } from "@/config/supabase-config";
+import { resetSupabaseClient } from "@/services/supabase/connection-service";
 import { logger } from "@/utils/logging";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -30,8 +31,8 @@ const AppInitializer = ({ children }: { children: React.ReactNode }) => {
     const forceInit = urlParams.get('force_init') === 'true';
     
     if (resetConfig) {
-      // For debugging: clear config and reload with force_init parameter
-      localStorage.removeItem('spark_supabase_config');
+      // For debugging: clear config, reset client and reload with force_init parameter
+      clearConfig(); // This now also resets the client
       window.location.href = window.location.pathname + '?force_init=true'; // Reload with force_init
       return;
     }
@@ -42,18 +43,18 @@ const AppInitializer = ({ children }: { children: React.ReactNode }) => {
     });
     
     // Get stored config to check if we need to initialize
-    const config = getStoredConfig();
-    const initialized = hasStoredConfig();
-    
-    logger.info(`Initialization check: hasStoredConfig=${initialized}, config=${config ? 'exists' : 'null'}`, {
-      module: 'initialization'
-    });
-    
-    // If force_init parameter is present, always show the init page
+    // Only do this if not forcing initialization
     if (forceInit) {
       setIsInitialized(false);
       return;
     }
+    
+    const config = getStoredConfig();
+    const initialized = hasStoredConfig();
+    
+    logger.info(`Initialization check: hasStoredConfig=${initialized}, config=${config ? 'exists' : 'null'}, forceInit=${forceInit}`, {
+      module: 'initialization'
+    });
     
     setIsInitialized(initialized);
   }, []);
@@ -70,7 +71,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AppInitializer>
       <AuthProvider>
-        <ThemeProvider> {/* Add ThemeProvider here, wrapping all theme-dependent components */}
+        <ThemeProvider>
           <TooltipProvider>
             <Toaster />
             <Sonner />
@@ -111,7 +112,7 @@ const App = () => (
               </Routes>
             </BrowserRouter>
           </TooltipProvider>
-        </ThemeProvider> {/* Close ThemeProvider */}
+        </ThemeProvider>
       </AuthProvider>
     </AppInitializer>
   </QueryClientProvider>
@@ -125,6 +126,15 @@ const RequireInitialization = ({ children }: { children: React.ReactNode }) => {
     const hostname = window.location.hostname;
     const initialized = hasStoredConfig();
     const isDev = isDevelopment();
+    
+    // Check for force_init parameter - if present, redirect to initialize
+    const urlParams = new URLSearchParams(window.location.search);
+    const forceInit = urlParams.get('force_init') === 'true';
+    
+    if (forceInit) {
+      setIsReady(false);
+      return;
+    }
     
     // Log detailed initialization status
     logger.info(`RequireInitialization check - hostname: ${hostname}, initialized: ${initialized}, isDevelopment: ${isDev}`, {
@@ -169,7 +179,7 @@ const RequireInitialization = ({ children }: { children: React.ReactNode }) => {
   
   if (!isReady) {
     // Not initialized, redirect to initialization page
-    return <Navigate to="/initialize" replace />;
+    return <Navigate to="/initialize?force_init=true" replace />;
   }
   
   // Initialized, render children

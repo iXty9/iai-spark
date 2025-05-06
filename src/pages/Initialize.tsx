@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ConnectionForm } from '@/components/init/ConnectionForm';
@@ -8,6 +9,7 @@ import { toast } from '@/hooks/use-toast';
 import { ArrowLeft, ArrowRight, Database, ShieldCheck, Settings, Info, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { resetSupabaseClient } from '@/services/supabase/connection-service';
 
 // Initialize page steps
 enum InitStep {
@@ -33,14 +35,18 @@ const Initialize = () => {
   // Check if already initialized
   useEffect(() => {
     if (resetConfig) {
-      // Clear config and reload with force_init parameter to prevent automatic redirection
-      clearConfig();
+      // Clear config, reset Supabase client, and reload with force_init parameter
+      clearConfig(); // This now also calls resetSupabaseClient()
       toast({
         title: 'Configuration Reset',
         description: 'The stored configuration has been cleared.',
       });
-      // Reload the page with force_init parameter
-      navigate('/initialize?force_init=true');
+      
+      // Use a slight delay before redirecting to ensure localStorage is updated
+      setTimeout(() => {
+        // Reload the page with force_init parameter
+        navigate('/initialize?force_init=true', { replace: true });
+      }, 100);
       return;
     }
     
@@ -81,9 +87,9 @@ const Initialize = () => {
     }, 2000);
   };
   
-  // Reset stored configuration - update to include force_init parameter
+  // Reset stored configuration with force_init parameter
   const handleResetConfig = () => {
-    navigate('/initialize?reset_config=true&force_init=true');
+    navigate('/initialize?reset_config=true&force_init=true', { replace: true });
   };
   
   // Render the current step
