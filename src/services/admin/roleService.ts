@@ -11,7 +11,7 @@ import { logger } from '@/utils/logging';
  */
 export async function hasRole(userId: string, role: UserRole): Promise<boolean> {
   try {
-    // Check if user exists in user_roles with the specified role
+    // Use a simpler query to avoid deep type instantiation
     const { data, error } = await supabase
       .from('user_roles')
       .select('id')
@@ -37,14 +37,11 @@ export async function hasRole(userId: string, role: UserRole): Promise<boolean> 
 export async function getUserRole(userId: string): Promise<UserRole | null> {
   try {
     // Break down the query steps to avoid deep type instantiation
-    const response = await supabase
+    const { data, error } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
       .maybeSingle();
-    
-    const data = response.data;
-    const error = response.error;
     
     if (error) {
       logger.error('Error fetching user role:', error);
@@ -63,15 +60,12 @@ export async function getUserRole(userId: string): Promise<UserRole | null> {
  */
 export async function setUserRole(userId: string, role: UserRole): Promise<boolean> {
   try {
-    // Check if role entry exists
-    const response = await supabase
+    // Check if role entry exists without complex chains
+    const { data, error } = await supabase
       .from('user_roles')
       .select('id')
       .eq('user_id', userId)
       .maybeSingle();
-    
-    const existingRole = response.data;
-    const error = response.error;
     
     if (error) {
       logger.error('Error checking existing user role:', error);
@@ -80,7 +74,7 @@ export async function setUserRole(userId: string, role: UserRole): Promise<boole
 
     let result;
     
-    if (existingRole) {
+    if (data) {
       // Update
       result = await supabase
         .from('user_roles')

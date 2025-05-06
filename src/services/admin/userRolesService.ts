@@ -1,67 +1,39 @@
 
-import { logger } from '@/utils/logging';
 import { supabase } from '@/integrations/supabase/client';
-import { getUserRole, setUserRole, hasRole } from './roleService';
-import { UserRole, UserWithRole, UsersFetchOptions, UsersSearchOptions, UsersFetchResult } from './types/userTypes';
-import { invokeAdminFunction } from './utils/adminFunctionUtils';
+import { logger } from '@/utils/logging';
 
-export async function updateUserRole(userId: string, role: UserRole): Promise<boolean> {
-  return setUserRole(userId, role);
-}
-
+/**
+ * Checks if the current user is an admin
+ * @returns A promise resolving to a boolean indicating if the user is admin
+ */
 export async function checkIsAdmin(userId?: string): Promise<boolean> {
   try {
+    // If userId is not provided, get the current user from session
     if (!userId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      userId = user?.id;
+      if (!userId) {
+        logger.warn('checkIsAdmin: No user is logged in');
+        return false;
+      }
+    }
+
+    // Query the user_roles table
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .eq('role', 'admin')
+      .maybeSingle();
+    
+    if (error) {
+      logger.error('Error checking admin role:', error);
       return false;
     }
-    return await hasRole(userId, 'admin');
+    
+    return !!data;
   } catch (error) {
-    logger.error('Error checking admin role:', error);
+    logger.error('Unexpected error in checkIsAdmin:', error);
     return false;
   }
 }
-
-/**
- * Fetch users with pagination and filtering
- */
-export async function fetchUsers(options: UsersFetchOptions = {}): Promise<UsersFetchResult> {
-  try {
-    // Use the edge function to fetch users with admin privileges
-    const result = await invokeAdminFunction('listUsers', options);
-    
-    return {
-      users: result.users || [],
-      totalCount: result.totalCount || 0
-    };
-  } catch (error) {
-    logger.error('Error in fetchUsers:', error, { module: 'roles' });
-    return { users: [], totalCount: 0 };
-  }
-}
-
-/**
- * Search users by query string
- */
-export async function searchUsers(options: UsersSearchOptions): Promise<UsersFetchResult> {
-  try {
-    // Use the edge function to search users
-    const result = await invokeAdminFunction('searchUsers', options);
-    
-    return {
-      users: result.users || [],
-      totalCount: result.totalCount || 0
-    };
-  } catch (error) {
-    logger.error('Error in searchUsers:', error, { module: 'roles' });
-    return { users: [], totalCount: 0 };
-  }
-}
-
-// Re-export types
-export type { UserWithRole, UserRole, UsersFetchOptions, UsersSearchOptions, UsersFetchResult };
-
-// Re-export from roleService
-export { 
-  getUserRole,
-  hasRole
-};

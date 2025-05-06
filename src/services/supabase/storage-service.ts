@@ -13,19 +13,17 @@ export const BACKGROUNDS_BUCKET = 'backgrounds';
 export async function ensureBucketExists(bucketName: string): Promise<boolean> {
   try {
     // First check if the bucket exists by trying to list files
-    const { data, error } = await supabase
-      .storage
-      .from(bucketName)
-      .list();
+    const { data, error } = await supabase.storage.listBuckets();
     
-    if (error && error.message.includes('bucket not found')) {
+    const bucketExists = data?.some(bucket => bucket.name === bucketName);
+    
+    if (!bucketExists) {
       logger.info(`Creating bucket ${bucketName} as it doesn't exist`, { module: 'storage' });
       
-      // Create the bucket using RPC
-      const { error: createError } = await supabase.rpc('create_storage_bucket', {
-        name: bucketName,
+      // Create the bucket using the createBucket method
+      const { error: createError } = await supabase.storage.createBucket(bucketName, {
         public: true,
-        file_size_limit: 5242880 // 5MB
+        fileSizeLimit: 5242880 // 5MB
       });
       
       if (createError) {
@@ -67,10 +65,7 @@ export async function listFiles(bucketName: string, path: string = '') {
     // Ensure bucket exists
     await ensureBucketExists(bucketName);
     
-    const { data, error } = await supabase
-      .storage
-      .from(bucketName)
-      .list(path);
+    const { data, error } = await supabase.storage.from(bucketName).list(path);
     
     if (error) {
       logger.error(`Error listing files in ${bucketName}/${path}:`, error, { module: 'storage' });
@@ -89,7 +84,7 @@ export async function listFiles(bucketName: string, path: string = '') {
  */
 export async function uploadAvatar(
   userId: string,
-  file: File | Blob
+  file: File
 ): Promise<{ url: string | null; error: Error | null }> {
   return uploadFile(
     file, 
@@ -104,7 +99,7 @@ export async function uploadAvatar(
  */
 export async function uploadBackground(
   userId: string,
-  file: File | Blob
+  file: File
 ): Promise<{ url: string | null; error: Error | null }> {
   return uploadFile(
     file, 
@@ -118,7 +113,7 @@ export async function uploadBackground(
  * Upload a file to a Supabase bucket
  */
 export async function uploadFile(
-  file: File | Blob,
+  file: File,
   bucketName: string,
   path: string,
   options: {
@@ -136,7 +131,7 @@ export async function uploadFile(
     }
     
     // Process file if needed
-    let fileToUpload = file;
+    let fileToUpload: File | Blob = file;
     
     if (options.optimize && file.type.startsWith('image/')) {
       try {
@@ -161,7 +156,7 @@ export async function uploadFile(
       }
     }
     
-    // Upload file
+    // Upload file using the correct method
     const { data, error } = await supabase
       .storage
       .from(bucketName)

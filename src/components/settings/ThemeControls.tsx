@@ -16,7 +16,7 @@ import { AlertCircle, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-interface ThemeControlsProps {
+export interface ThemeControlsProps {
   colors: ThemeColors;
   onColorChange: (e: React.ChangeEvent<HTMLInputElement> | { name: string; value: any }) => void;
   isActive?: boolean;

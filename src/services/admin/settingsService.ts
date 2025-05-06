@@ -63,14 +63,14 @@ export async function updateAppSetting(
   value: string
 ): Promise<boolean> {
   try {
-    // Check if setting exists
+    // Check if setting exists using a simpler query pattern
     const { data: existingData, error: checkError } = await supabase
       .from('app_settings')
       .select('id')
       .eq('key', key)
-      .maybeSingle();
+      .single();
     
-    if (checkError) {
+    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned" error
       logger.error(`Error checking if setting ${key} exists:`, checkError);
       return false;
     }
@@ -117,6 +117,7 @@ export async function deleteAppSetting(key: string): Promise<boolean> {
       return false;
     }
     
+    logger.info(`File deleted successfully: ${key}`, { module: 'settings' });
     return true;
   } catch (error) {
     logger.error(`Unexpected error deleting setting ${key}:`, error);

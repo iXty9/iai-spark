@@ -33,7 +33,7 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
   
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="bg-card/80 backdrop-blur-sm">
         <CardContent className="pt-6">
           <div className="mb-6">
             <h3 className="text-lg font-medium mb-2">Theme Colors</h3>

@@ -5,12 +5,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
 
 // Define explicit types for Supabase responses 
-interface ProfileData {
+export interface ProfileData {
   id: string;
   username?: string;
   first_name?: string;
   last_name?: string;
   avatar_url?: string;
+  theme_settings?: string;
   [key: string]: any;
 }
 
@@ -41,14 +42,12 @@ export const useAuthState = () => {
         console.log('Fetching profile attempt', fetchAttempts.current, 'for user:', userId);
       }
       
-      // Fix the deep type instantiation error by breaking down the query steps
-      const response = await supabase
+      // Fix the deep type instantiation error by using a simpler query
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId);
-        
-      const data = response.data?.[0] || null;
-      const error = response.error;
+        .eq('id', userId)
+        .single();
         
       // Handle error case
       if (error) {
@@ -83,7 +82,7 @@ export const useAuthState = () => {
             timestamp: new Date().toISOString()
           });
         }
-        setProfile(data);
+        setProfile(data as ProfileData);
         setLastError(null);
       } else if (process.env.NODE_ENV === 'development') {
         console.warn('No profile data found for user:', userId);

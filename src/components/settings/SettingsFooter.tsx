@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
@@ -24,14 +24,14 @@ export function SettingsFooter({
   hasChanges = false 
 }: SettingsFooterProps) {
   const { user } = useAuth();
-  const [isAdmin, setIsAdmin] = React.useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   
-  React.useEffect(() => {
+  useEffect(() => {
     // Check if the user is an admin
     const checkAdminStatus = async () => {
       if (!user) return;
       try {
-        const adminStatus = await checkIsAdmin();
+        const adminStatus = await checkIsAdmin(user.id);
         setIsAdmin(adminStatus);
       } catch (error) {
         console.error('Error checking admin status:', error);
