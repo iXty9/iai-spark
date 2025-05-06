@@ -1,7 +1,5 @@
-
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { updateProfile } from '@/contexts/auth/authOperations';
 import { ThemeColors } from '@/types/theme';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { logger } from '@/utils/logging';
@@ -22,7 +20,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   // State
-  const { profile, updateProfile: updateUserProfile } = useAuth();
+  const { profile, updateProfile } = useAuth();
   const [theme, setTheme] = useState<Theme>('light');
   const [isThemeLoaded, setIsThemeLoaded] = useState<boolean>(false);
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
@@ -154,7 +152,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       
       themeSettings.mode = newTheme;
       
-      updateUserProfile({ theme_settings: JSON.stringify(themeSettings) });
+      updateProfile({ theme_settings: JSON.stringify(themeSettings) });
     }
   };
   
@@ -190,7 +188,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       themeSettings.backgroundImage = image;
       themeSettings.backgroundOpacity = opacity;
       
-      updateUserProfile({ theme_settings: JSON.stringify(themeSettings) });
+      updateProfile({ theme_settings: JSON.stringify(themeSettings) });
     }
   };
   

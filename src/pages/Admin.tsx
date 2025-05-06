@@ -50,7 +50,7 @@ export default function Admin() {
       }
 
       try {
-        const adminStatus = await checkIsAdmin();
+        const adminStatus = await checkIsAdmin(user.id);
         
         // Only update state if component is still mounted
         if (isMounted) {

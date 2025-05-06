@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -25,7 +24,7 @@ export const UserMenu = () => {
   useEffect(() => {
     if (user) {
       const fetchAdminStatus = async () => {
-        const adminStatus = await checkIsAdmin();
+        const adminStatus = await checkIsAdmin(user.id);
         setIsAdmin(adminStatus);
       };
       fetchAdminStatus();
@@ -135,4 +134,3 @@ export const UserMenu = () => {
     </DropdownMenu>
   );
 };
-

@@ -9,8 +9,11 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<bo
   return setUserRole(userId, role);
 }
 
-export async function checkIsAdmin(userId: string): Promise<boolean> {
+export async function checkIsAdmin(userId?: string): Promise<boolean> {
   try {
+    if (!userId) {
+      return false;
+    }
     return await hasRole(userId, 'admin');
   } catch (error) {
     logger.error('Error checking admin role:', error);

@@ -9,8 +9,8 @@ export interface AppearanceSettingsProps {
   theme: 'light' | 'dark';
   lightTheme: ThemeColors;
   darkTheme: ThemeColors;
-  onLightThemeChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onDarkThemeChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onLightThemeChange: (colorKey: string, value: string) => void;
+  onDarkThemeChange: (colorKey: string, value: string) => void;
   onResetTheme: () => void;
 }
 
@@ -22,6 +22,15 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
   onDarkThemeChange,
   onResetTheme
 }) => {
+  // Create wrapper functions to adapt the event-based interface to the colorKey/value interface
+  const handleLightThemeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onLightThemeChange(e.target.name, e.target.value);
+  };
+  
+  const handleDarkThemeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onDarkThemeChange(e.target.name, e.target.value);
+  };
+  
   return (
     <div className="space-y-6">
       <Card>
@@ -42,7 +51,7 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <ThemeControls 
                   colors={lightTheme}
-                  onChange={onLightThemeChange}
+                  onColorChange={handleLightThemeChange}
                   isActive={theme === 'light'}
                 />
               </div>
@@ -56,7 +65,7 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <ThemeControls 
                   colors={darkTheme}
-                  onChange={onDarkThemeChange}
+                  onColorChange={handleDarkThemeChange}
                   isActive={theme === 'dark'}
                 />
               </div>

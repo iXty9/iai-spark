@@ -22,8 +22,8 @@ const queryClient = new QueryClient();
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AuthProvider>
+      <AuthProvider>
+        <ThemeProvider>
           {/* Self-healing system component */}
           <SystemSelfHealer />
           
@@ -39,8 +39,8 @@ function App() {
             </Routes>
           </Router>
           <Toaster />
-        </AuthProvider>
-      </ThemeProvider>
+        </ThemeProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
