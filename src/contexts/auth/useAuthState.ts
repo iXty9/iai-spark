@@ -30,17 +30,24 @@ export const useAuthState = () => {
         console.log('Fetching profile attempt', fetchAttempts.current, 'for user:', userId);
       }
       
-      const response = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+      // Use a simpler query approach to avoid deep type instantiations
+      let response;
+      try {
+        // Simplify the query structure
+        response = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+      } catch (err) {
+        console.error('Error in profiles query:', err);
+        response = { error: err as Error, data: null, status: 500 };
+      }
 
-      // Get error and data, handling different response shapes
+      // Safely access response properties
       const error = response?.error;
       const data = response?.data;
-      // Handle status safely with optional chaining
-      const status = 'status' in response ? response.status : undefined;
+      const status = response?.status;
 
       if (error) {
         if (process.env.NODE_ENV === 'development') {

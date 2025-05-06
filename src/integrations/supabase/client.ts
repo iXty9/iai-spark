@@ -8,7 +8,7 @@ import { toast } from '@/hooks/use-toast';
 // Get the Supabase client
 const client = getSupabaseClient();
 
-// Define a more comprehensive type-compatible fallback client
+// Define a comprehensive type-compatible fallback client
 const fallbackClient = {
   auth: {
     getSession: () => {
@@ -29,16 +29,42 @@ const fallbackClient = {
     select: (columns?: string) => ({
       eq: (column: string, value: any) => ({
         limit: (limit: number) => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
-        maybeSingle: () => Promise.resolve({ data: null, error: new Error('Client not initialized'), status: 500 })
+        maybeSingle: () => Promise.resolve({ 
+          data: null, 
+          error: new Error('Client not initialized'), 
+          status: 500,
+          count: null
+        })
       }),
-      limit: (limit: number) => Promise.resolve({ data: null, error: new Error('Client not initialized') })
+      limit: (limit: number) => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
+      maybeSingle: () => Promise.resolve({ 
+        data: null, 
+        error: new Error('Client not initialized'),
+        status: 500,
+        count: null
+      }),
     }),
-    insert: (data: any) => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
+    insert: (data: any) => Promise.resolve({ 
+      data: null, 
+      error: new Error('Client not initialized'),
+      status: 500,
+      count: null
+    }),
     update: (data: any) => ({
-      eq: (column: string, value: any) => Promise.resolve({ data: null, error: new Error('Client not initialized') })
+      eq: (column: string, value: any) => Promise.resolve({ 
+        data: null, 
+        error: new Error('Client not initialized'),
+        status: 500,
+        count: null
+      })
     }),
     eq: (column: string, value: any) => ({
-      maybeSingle: () => Promise.resolve({ data: null, error: new Error('Client not initialized'), status: 500 })
+      maybeSingle: () => Promise.resolve({ 
+        data: null, 
+        error: new Error('Client not initialized'), 
+        status: 500,
+        count: null
+      })
     })
   }),
   storage: {
@@ -49,7 +75,12 @@ const fallbackClient = {
   },
   functions: {
     invoke: (functionName: string, options?: { body?: any; headers?: any }) => 
-      Promise.resolve({ data: null, error: new Error('Client not initialized'), status: 500 })
+      Promise.resolve({ 
+        data: null, 
+        error: new Error('Client not initialized'), 
+        status: 500,
+        count: null
+      })
   }
 };
 

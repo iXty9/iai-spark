@@ -16,21 +16,30 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<vo
 
 export async function checkIsAdmin(): Promise<boolean> {
   try {
-    const { data: session } = await supabase.auth.getSession();
-    if (!session?.session?.user) return false;
+    // Get the current session
+    const sessionResponse = await supabase.auth.getSession();
+    const session = sessionResponse?.data?.session;
     
-    const userId = session.session.user.id;
+    if (!session?.user) return false;
     
-    // Using a type guard to avoid deep type instantiations
-    const query = supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId);
+    const userId = session.user.id;
     
-    // Add additional filter after establishing proper query
-    const response = await query.eq('role', 'admin').maybeSingle();
-
-    // Safely access properties with explicit type management
+    // Simplify query to avoid deep type instantiations
+    let response;
+    try {
+      // Simple query approach
+      response = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('role', 'admin')
+        .maybeSingle();
+    } catch (err) {
+      logger.error('Error executing user_roles query:', err, { module: 'roles' });
+      return false;
+    }
+    
+    // Safely access properties
     const error = response?.error;
     const data = response?.data;
 

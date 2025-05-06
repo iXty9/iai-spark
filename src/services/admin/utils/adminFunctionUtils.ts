@@ -5,8 +5,11 @@ import { logger } from '@/utils/logging';
 // Helper function to invoke admin-users edge function
 export async function invokeAdminFunction(action: string, params: any = {}): Promise<any> {
   try {
-    const { data: session } = await supabase.auth.getSession();
-    if (!session?.session) {
+    // Get the current session
+    const sessionResponse = await supabase.auth.getSession();
+    const session = sessionResponse?.data?.session;
+    
+    if (!session) {
       throw new Error('No active session');
     }
 
@@ -16,16 +19,27 @@ export async function invokeAdminFunction(action: string, params: any = {}): Pro
       throw new Error('Supabase functions API is not available');
     }
 
-    const response = await supabase.functions.invoke('admin-users', {
-      body: { action, params },
-      headers: {
-        Authorization: `Bearer ${session.session.access_token}`
-      }
-    });
+    // Invoke the edge function with error handling
+    let response;
+    try {
+      response = await supabase.functions.invoke('admin-users', {
+        body: { action, params },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
+      });
+    } catch (err) {
+      logger.error(`Error in supabase.functions.invoke:`, err, { module: 'roles' });
+      throw err;
+    }
 
-    // Safely access properties with optional chaining
-    const data = response?.data;
-    const error = response?.error;
+    // Safely access properties with explicit error handling
+    if (!response) {
+      throw new Error(`No response from admin-users function (${action})`);
+    }
+    
+    const data = response.data;
+    const error = response.error;
 
     if (error) {
       logger.error(`Error invoking admin-users function (${action}):`, error, { module: 'roles' });
