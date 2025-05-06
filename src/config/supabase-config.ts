@@ -12,11 +12,20 @@ const STORAGE_KEY = 'spark_supabase_config';
 
 // Environment detection
 export const isDevelopment = () => {
+  const hostname = window.location.hostname;
+  // Log the hostname for debugging
+  logger.info(`Checking isDevelopment for hostname: ${hostname}`, {
+    module: 'supabase-config',
+    once: true
+  });
+  
   return (
-    window.location.hostname === 'localhost' || 
-    window.location.hostname === '127.0.0.1' ||
-    window.location.hostname.includes('lovable.dev') ||
-    window.location.hostname.includes('.lovable.app')
+    hostname === 'localhost' || 
+    hostname === '127.0.0.1' ||
+    hostname.includes('lovable.dev') ||
+    hostname.includes('.lovable.app') ||
+    // Include preview domains
+    hostname.includes('preview--') 
   );
 };
 
@@ -34,8 +43,11 @@ export function hasStoredConfig(): boolean {
       
       // For development, save default config in localStorage to avoid initialization loop
       const defaultConfig = getDefaultConfig();
-      saveConfig(defaultConfig);
-      return true;
+      const saved = saveConfig(defaultConfig);
+      logger.info(`No stored config found in development. Default config saved: ${saved}`, {
+        module: 'supabase-config'
+      });
+      return saved;
     }
     
     // In production, strictly require stored configuration

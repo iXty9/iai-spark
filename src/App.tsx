@@ -7,7 +7,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/hooks/use-theme"; // Import ThemeProvider
 import { useEffect, useState } from "react";
-import { hasStoredConfig, getStoredConfig, forceDefaultConfig } from "@/config/supabase-config";
+import { hasStoredConfig, getStoredConfig, forceDefaultConfig, isDevelopment } from "@/config/supabase-config";
+import { logger } from "@/utils/logging";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
@@ -33,6 +34,11 @@ const AppInitializer = ({ children }: { children: React.ReactNode }) => {
       window.location.href = window.location.pathname; // Reload without params
       return;
     }
+    
+    // Log the current hostname and development status
+    logger.info(`Current hostname: ${window.location.hostname}, isDevelopment: ${isDevelopment()}`, {
+      module: 'initialization'
+    });
     
     // Check if we have a stored Supabase configuration
     const initialized = hasStoredConfig();
@@ -105,8 +111,16 @@ const RequireInitialization = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const initialized = hasStoredConfig();
     
+    // Log initialization status
+    logger.info(`Initialization check - initialized: ${initialized}, isDevelopment: ${isDevelopment()}`, {
+      module: 'initialization'
+    });
+    
     // If we're in development and not initialized, force default config
-    if (!initialized && window.location.hostname === 'localhost') {
+    if (!initialized && isDevelopment()) {
+      logger.info('In development environment, attempting to force default config', {
+        module: 'initialization'
+      });
       const success = forceDefaultConfig();
       setIsReady(success);
     } else {
