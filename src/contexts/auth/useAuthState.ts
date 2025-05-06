@@ -2,6 +2,13 @@
 import { useState, useRef } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logging';
+
+type ProfileResult = { 
+  data: any[] | null; 
+  error: Error | null;
+  status: number;
+};
 
 export const useAuthState = () => {
   const [session, setSession] = useState<Session | null>(null);
@@ -30,32 +37,27 @@ export const useAuthState = () => {
         console.log('Fetching profile attempt', fetchAttempts.current, 'for user:', userId);
       }
       
-      // Use explicit type casting to avoid TypeScript deep instantiation issues
-      const { data, error, status } = await supabase
+      // Use a simpler fetch approach to avoid type issues
+      const result = await supabase
         .from('profiles')
-        .select('*') as { 
-          data: any[] | null; 
-          error: Error | null; 
-          status: number 
-        };
+        .select('*')
+        .eq('id', userId) as unknown as ProfileResult;
 
-      // Apply filter in memory if needed
-      let profileData = null;
-      
-      if (error) {
+      // Handle error case
+      if (result.error) {
         if (process.env.NODE_ENV === 'development') {
           console.error('Profile fetch error:', {
-            error,
-            status,
+            error: result.error,
+            status: result.status,
             attempt: fetchAttempts.current,
             userId
           });
         }
         
-        setLastError(error);
+        setLastError(result.error);
 
         // Retry logic for specific errors
-        if (fetchAttempts.current < maxRetries && status !== 404) {
+        if (fetchAttempts.current < maxRetries && result.status !== 404) {
           if (process.env.NODE_ENV === 'development') {
             console.log('Scheduling retry...');
           }
@@ -66,9 +68,9 @@ export const useAuthState = () => {
         }
       }
 
-      if (data) {
-        // Find the profile that matches the userId
-        profileData = data.find((p: any) => p.id === userId) || null;
+      // Process the data if it exists
+      if (result.data && result.data.length > 0) {
+        const profileData = result.data[0];
         
         if (profileData) {
           if (process.env.NODE_ENV === 'development') {

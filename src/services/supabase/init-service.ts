@@ -4,6 +4,7 @@ import { getAllInitScripts } from './init-scripts';
 import { logger } from '@/utils/logging';
 import { saveConfig, SupabaseConfig } from '@/config/supabase-config';
 import { resetSupabaseClient } from './connection-service';
+import { createExecSqlFunction, execSql } from './exec-sql';
 
 /**
  * Initialize a new Supabase database with required schema
@@ -19,6 +20,12 @@ export async function initializeSupabaseDb(
   try {
     logger.info('Starting Supabase database initialization', { module: 'init' });
     
+    // First, ensure the exec_sql function exists
+    const funcResult = await createExecSqlFunction(url, serviceKey);
+    if (!funcResult.success) {
+      return funcResult;
+    }
+    
     // Create admin client with the service key
     const adminClient = createClient(url, serviceKey);
     
@@ -27,21 +34,9 @@ export async function initializeSupabaseDb(
     
     // Execute each script sequentially
     for (const script of scripts) {
-      const { error } = await adminClient.rpc('exec_sql', { sql: script });
-      
-      if (error) {
-        logger.error('Error executing initialization script', { 
-          module: 'init', 
-          error: error.message, 
-          details: error.details,
-          hint: error.hint,
-          script: script.substring(0, 100) + '...'
-        });
-        
-        return { 
-          success: false, 
-          error: `Database initialization failed: ${error.message}` 
-        };
+      const result = await execSql(url, serviceKey, script);
+      if (!result.success) {
+        return result;
       }
     }
     

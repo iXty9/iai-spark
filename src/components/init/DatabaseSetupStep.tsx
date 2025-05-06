@@ -3,7 +3,9 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { initializeSupabaseDb } from '@/services/supabase/init-service';
-import { Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Link } from 'react-router-dom';
 
 interface DatabaseSetupStepProps {
   supabaseUrl: string;
@@ -23,11 +25,13 @@ export function DatabaseSetupStep({
   const [isInitializing, setIsInitializing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
+  const [showExecSqlHelp, setShowExecSqlHelp] = useState(false);
   
   // Handle the initialize database button
   const handleInitialize = async () => {
     setIsInitializing(true);
     setError(null);
+    setShowExecSqlHelp(false);
     
     try {
       const result = await initializeSupabaseDb(supabaseUrl, serviceKey, anonKey);
@@ -38,6 +42,12 @@ export function DatabaseSetupStep({
         setTimeout(onSuccess, 1500); // Show success state before continuing
       } else {
         setError(result.error || 'Database initialization failed');
+        
+        // Check if the error is related to missing exec_sql function
+        if (result.error?.includes('function exec_sql(text) does not exist') ||
+            result.error?.includes('exec_sql function')) {
+          setShowExecSqlHelp(true);
+        }
       }
     } catch (err: any) {
       setError(`Error: ${err.message || 'Unknown error'}`);
@@ -79,9 +89,37 @@ export function DatabaseSetupStep({
           
           {error && (
             <div className="flex items-center gap-2 bg-destructive/10 text-destructive p-3 rounded-md text-sm mt-4">
-              <XCircle className="h-5 w-5" />
+              <XCircle className="h-5 w-5 flex-shrink-0" />
               <span>{error}</span>
             </div>
+          )}
+          
+          {showExecSqlHelp && (
+            <Alert variant="warning" className="mt-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Missing Required Function</AlertTitle>
+              <AlertDescription className="space-y-2">
+                <p>
+                  The <code>exec_sql</code> function is missing in your Supabase database. 
+                  We tried to create it automatically but encountered an issue.
+                </p>
+                <p>
+                  Please try again. If the problem persists, you can manually create the function
+                  in the Supabase SQL Editor with the following SQL:
+                </p>
+                <pre className="bg-muted p-2 rounded text-xs overflow-auto">
+                  {`CREATE OR REPLACE FUNCTION exec_sql(sql text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  EXECUTE sql;
+END;
+$$;`}
+                </pre>
+              </AlertDescription>
+            </Alert>
           )}
         </div>
       </CardContent>
