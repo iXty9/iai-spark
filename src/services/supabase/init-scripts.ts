@@ -4,9 +4,15 @@
  */
 
 export const initScripts = {
-  // Create app_role enum
+  // Create app_role enum using DO block for conditional creation
   createAppRoleEnum: `
-    CREATE TYPE IF NOT EXISTS public.app_role AS ENUM ('admin', 'moderator', 'user');
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role') THEN
+        CREATE TYPE public.app_role AS ENUM ('admin', 'moderator', 'user');
+      END IF;
+    END
+    $$;
   `,
   
   // Create profiles table 

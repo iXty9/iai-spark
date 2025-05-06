@@ -4,6 +4,15 @@ import { logger } from '@/utils/logging';
 import { invokeAdminFunction } from './utils/adminFunctionUtils';
 import { UserRole } from './types/userTypes';
 
+// Define explicit types for Supabase responses
+interface RoleResult {
+  data: Array<{
+    role: string;
+    user_id: string;
+  }> | null;
+  error: Error | null;
+}
+
 export async function updateUserRole(userId: string, role: UserRole): Promise<void> {
   try {
     // Use the edge function to update user role
@@ -29,7 +38,7 @@ export async function checkIsAdmin(): Promise<boolean> {
       const { data, error } = await supabase
         .from('user_roles')
         .select('role, user_id')
-        .eq('user_id', userId);
+        .eq('user_id', userId) as RoleResult;
       
       if (error) {
         logger.error('Error checking admin status:', error, { module: 'roles' });

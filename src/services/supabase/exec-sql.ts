@@ -50,24 +50,36 @@ export async function createExecSqlFunction(
         logger.info('The exec_sql function does not exist, creating it now', { module: 'init' });
       }
       
-      // Execute the SQL directly to create the function
-      const { error: createError } = await adminClient.from('_exec_sql_setup_')
-        .select('*')
-        .limit(1)
-        .then(() => {
-          return { error: null }; // Just to match expected return structure
-        })
-        .catch(async () => {
-          // Direct SQL execution fallback
-          const { error } = await adminClient.query(createFunctionSql);
-          return { error };
-        });
+      // Execute raw SQL using REST API to create the function
+      const result = await adminClient.auth.getSession();
       
-      if (createError) {
-        logger.error('Error creating exec_sql function:', createError, { module: 'init' });
-        return { 
-          success: false, 
-          error: `Failed to create exec_sql function: ${createError.message || 'Unknown error'}` 
+      if (!result.data.session) {
+        return {
+          success: false,
+          error: 'No session available to execute SQL'
+        };
+      }
+      
+      // Use direct SQL execution through the REST API
+      const response = await fetch(`${url}/rest/v1/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${result.data.session.access_token}`,
+          'apikey': serviceKey,
+          'X-Client-Info': 'supabase-js'
+        },
+        body: JSON.stringify({
+          query: createFunctionSql
+        })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        logger.error('Error creating exec_sql function:', errorText, { module: 'init' });
+        return {
+          success: false,
+          error: `Failed to create exec_sql function: ${errorText}`
         };
       }
       

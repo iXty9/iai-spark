@@ -12,6 +12,16 @@ interface AppSetting {
   updated_by: string | null;
 }
 
+interface AppSettingsResult {
+  data: AppSetting[] | null;
+  error: Error | null;
+}
+
+interface SingleSettingResult {
+  data: AppSetting | null;
+  error: Error | null;
+}
+
 // Simple in-memory cache
 let settingsCache: Record<string, string> | null = null;
 let lastFetchTime = 0;
@@ -37,7 +47,7 @@ export async function fetchAppSettings(): Promise<Record<string, string>> {
     // Create a query with direct response handling
     const { data, error } = await supabase
       .from('app_settings')
-      .select('*');
+      .select('*') as AppSettingsResult;
     
     if (error) {
       logger.error('Error fetching app settings:', error, { module: 'settings' });
@@ -106,7 +116,7 @@ export async function updateAppSetting(key: string, value: string): Promise<void
     const { data: existingData, error: existingError } = await supabase
       .from('app_settings')
       .select('*')
-      .eq('key', key);
+      .eq('key', key) as AppSettingsResult;
     
     // Safely check for errors
     if (existingError) {

@@ -5,22 +5,24 @@ import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
 
 // Define explicit types for Supabase responses 
+interface ProfileData {
+  id: string;
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+  avatar_url?: string;
+  [key: string]: any;
+}
+
 interface ProfileResult {
-  data: Array<{
-    id: string;
-    username?: string;
-    first_name?: string;
-    last_name?: string;
-    avatar_url?: string;
-    [key: string]: any;
-  }> | null;
+  data: ProfileData | null;
   error: Error | null;
 }
 
 export const useAuthState = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<any | null>(null);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [lastError, setLastError] = useState<Error | null>(null);
   const isFetchingProfile = useRef<boolean>(false);
@@ -49,7 +51,7 @@ export const useAuthState = () => {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .single() as ProfileResult;
       
       // Handle error case
       if (error) {
