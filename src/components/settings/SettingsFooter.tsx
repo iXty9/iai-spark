@@ -42,9 +42,14 @@ export function SettingsFooter({
   }, [user]);
 
   return (
-    <CardFooter className="flex justify-between border-t pt-4">
-      <div className="flex space-x-2">
-        <Button variant="outline" onClick={onReset} disabled={isSubmitting}>
+    <CardFooter className="flex flex-col-reverse sm:flex-row items-center justify-between gap-2 border-t px-6 py-4">
+      <div className="flex flex-wrap gap-2 mt-2 sm:mt-0">
+        <Button 
+          variant="outline" 
+          onClick={onReset} 
+          disabled={isSubmitting}
+          size="sm"
+        >
           Reset to Defaults
         </Button>
         
@@ -54,19 +59,27 @@ export function SettingsFooter({
             onClick={onSetDefault} 
             disabled={isSubmitting}
             className="border-amber-500 hover:bg-amber-500/10"
+            size="sm"
           >
             Set Default Theme
           </Button>
         )}
       </div>
-      <div className="space-x-2">
-        <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
+      <div className="flex gap-2 w-full sm:w-auto">
+        <Button 
+          variant="outline" 
+          onClick={onCancel} 
+          disabled={isSubmitting}
+          size="sm"
+          className="flex-1 sm:flex-none"
+        >
           Cancel
         </Button>
         <Button 
           onClick={onSave} 
           disabled={isSubmitting || !hasChanges}
-          className={!hasChanges ? 'opacity-50' : ''}
+          className={`flex-1 sm:flex-none ${!hasChanges ? 'opacity-50' : ''}`}
+          size="sm"
         >
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isSubmitting ? 'Saving...' : 'Save Changes'}
