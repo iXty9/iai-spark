@@ -15,12 +15,10 @@ type AppSetting = {
 interface SettingsQueryResult {
   data: AppSetting[] | null;
   error: Error | null;
-  status: number;
 }
 
 interface UpdateResult {
   error: Error | null;
-  status: number;
 }
 
 // Simple in-memory cache
@@ -45,21 +43,19 @@ export async function fetchAppSettings(): Promise<Record<string, string>> {
     // Fetch fresh settings if cache expired or doesn't exist
     logger.info('Fetching app settings from database', { module: 'settings' });
     
-    // Create a query
+    // Create a query with explicit typing
     const response = await supabase
       .from('app_settings')
-      .select();
+      .select('*')
+      .then(res => res as unknown as SettingsQueryResult);
     
-    // Then explicitly cast the response to our simpler interface
-    const { data, error } = response as unknown as SettingsQueryResult;
-    
-    if (error) {
-      logger.error('Error fetching app settings:', error, { module: 'settings' });
-      throw error;
+    if (response.error) {
+      logger.error('Error fetching app settings:', response.error, { module: 'settings' });
+      throw response.error;
     }
 
     // Safe access to data
-    const settingsData = data || [];
+    const settingsData = response.data || [];
     
     // Convert to key-value map
     const settings: Record<string, string> = {};
@@ -119,20 +115,18 @@ export async function updateAppSetting(key: string, value: string): Promise<void
     // Check if the setting already exists
     const existingResponse = await supabase
       .from('app_settings')
-      .select()
-      .eq('key', key);
-    
-    // Explicitly cast the response
-    const { data: existingData, error: existingError } = existingResponse as unknown as SettingsQueryResult;
+      .select('*')
+      .eq('key', key)
+      .then(res => res as unknown as SettingsQueryResult);
     
     // Safely check for errors
-    if (existingError) {
-      logger.error(`Error checking existing app setting ${key}:`, existingError, { module: 'settings' });
-      throw existingError;
+    if (existingResponse.error) {
+      logger.error(`Error checking existing app setting ${key}:`, existingResponse.error, { module: 'settings' });
+      throw existingResponse.error;
     }
     
     // Check if setting exists
-    const existingSetting = existingData && existingData.length > 0 ? existingData[0] : null;
+    const existingSetting = existingResponse.data && existingResponse.data.length > 0 ? existingResponse.data[0] : null;
     
     if (existingSetting) {
       // Update existing setting
@@ -143,15 +137,13 @@ export async function updateAppSetting(key: string, value: string): Promise<void
           updated_at: new Date().toISOString(), 
           updated_by: userId 
         })
-        .eq('key', key);
+        .eq('key', key)
+        .then(res => res as unknown as UpdateResult);
           
-      // Explicitly cast the response  
-      const { error: updateError } = updateResponse as unknown as UpdateResult;
-      
       // Safely check for errors in update result
-      if (updateError) {
-        logger.error(`Error updating app setting ${key}:`, updateError, { module: 'settings' });
-        throw updateError;
+      if (updateResponse.error) {
+        logger.error(`Error updating app setting ${key}:`, updateResponse.error, { module: 'settings' });
+        throw updateResponse.error;
       }
     } else {
       // Insert new setting
@@ -162,15 +154,13 @@ export async function updateAppSetting(key: string, value: string): Promise<void
           value, 
           updated_at: new Date().toISOString(), 
           updated_by: userId 
-        });
+        })
+        .then(res => res as unknown as UpdateResult);
           
-      // Explicitly cast the response
-      const { error: insertError } = insertResponse as unknown as UpdateResult;
-      
       // Safely check for errors in insert result
-      if (insertError) {
-        logger.error(`Error creating app setting ${key}:`, insertError, { module: 'settings' });
-        throw insertError;
+      if (insertResponse.error) {
+        logger.error(`Error creating app setting ${key}:`, insertResponse.error, { module: 'settings' });
+        throw insertResponse.error;
       }
     }
     

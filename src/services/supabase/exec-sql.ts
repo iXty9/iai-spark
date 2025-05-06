@@ -50,24 +50,17 @@ export async function createExecSqlFunction(
         logger.info('The exec_sql function does not exist, creating it now', { module: 'init' });
       }
       
-      // Create the function using raw SQL
-      // Using the from().select() pattern which is more compatible than direct query
-      const { error: directError } = await adminClient
-        .from('_dummy_table_for_raw_query_')
-        .select('*')
-        .eq('id', -1)
-        .options({ 
-          head: false, 
-          count: null,
-          // @ts-ignore - Using undocumented but working feature to run raw SQL
-          db: { query: createFunctionSql } 
-        });
+      // Use the rpc method to create the function
+      const { error: createError } = await adminClient.rpc('exec_sql_setup', { setup_sql: createFunctionSql }).catch(() => {
+        // If rpc fails, try direct query as fallback
+        return adminClient.from('_exec_sql_setup_').select('*').limit(1).then(() => ({ error: new Error('Function creation failed') }));
+      });
       
-      if (directError) {
-        logger.error('Error creating exec_sql function:', directError, { module: 'init' });
+      if (createError) {
+        logger.error('Error creating exec_sql function:', createError, { module: 'init' });
         return { 
           success: false, 
-          error: `Failed to create exec_sql function: ${directError.message || 'Unknown error'}` 
+          error: `Failed to create exec_sql function: ${createError.message || 'Unknown error'}` 
         };
       }
       

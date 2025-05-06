@@ -14,11 +14,10 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<vo
   }
 }
 
-// Define explicit types to avoid deep type recursion
+// Define explicit types for Supabase responses to avoid deep type recursion
 interface RoleQueryResult {
   data: Array<{ role: string; user_id: string }> | null;
   error: Error | null;
-  status: number;
 }
 
 export async function checkIsAdmin(): Promise<boolean> {
@@ -36,19 +35,17 @@ export async function checkIsAdmin(): Promise<boolean> {
       const response = await supabase
         .from('user_roles')
         .select('role, user_id')
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .then(res => res as unknown as RoleQueryResult);
       
-      // Then explicitly cast the response to our simpler interface
-      const { data, error } = response as unknown as RoleQueryResult;
-      
-      if (error) {
-        logger.error('Error checking admin status:', error, { module: 'roles' });
+      if (response.error) {
+        logger.error('Error checking admin status:', response.error, { module: 'roles' });
         return false;
       }
 
       // Check if the user has an admin role
-      if (data) {
-        const adminRole = data.find(role => role.role === 'admin');
+      if (response.data) {
+        const adminRole = response.data.find(role => role.role === 'admin');
         return !!adminRole;
       }
       

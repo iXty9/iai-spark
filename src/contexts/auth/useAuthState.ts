@@ -4,11 +4,10 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
 
-// Define explicit types to avoid deep type recursion
+// Define explicit types for Supabase responses to avoid deep type recursion
 interface ProfileResult {
   data: any[] | null; 
   error: Error | null;
-  status: number;
 }
 
 export const useAuthState = () => {
@@ -42,26 +41,23 @@ export const useAuthState = () => {
       const response = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId);
+        .eq('id', userId)
+        .then(res => res as unknown as ProfileResult);
       
-      // Explicitly cast the response to our simplified interface
-      const { data, error, status } = response as unknown as ProfileResult;
-
       // Handle error case
-      if (error) {
+      if (response.error) {
         if (process.env.NODE_ENV === 'development') {
           console.error('Profile fetch error:', {
-            error: error,
-            status: status,
+            error: response.error,
             attempt: fetchAttempts.current,
             userId
           });
         }
         
-        setLastError(error);
+        setLastError(response.error);
 
         // Retry logic for specific errors
-        if (fetchAttempts.current < maxRetries && status !== 404) {
+        if (fetchAttempts.current < maxRetries) {
           if (process.env.NODE_ENV === 'development') {
             console.log('Scheduling retry...');
           }
@@ -73,8 +69,8 @@ export const useAuthState = () => {
       }
 
       // Process the data if it exists
-      if (data && data.length > 0) {
-        const profileData = data[0];
+      if (response.data && response.data.length > 0) {
+        const profileData = response.data[0];
         
         if (profileData) {
           if (process.env.NODE_ENV === 'development') {
