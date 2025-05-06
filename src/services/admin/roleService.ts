@@ -14,10 +14,11 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<vo
   }
 }
 
-type RoleQueryResult = {
+interface RoleQueryResult {
   data: Array<{ role: string; user_id: string }> | null;
   error: Error | null;
-};
+  status: number;
+}
 
 export async function checkIsAdmin(): Promise<boolean> {
   try {
@@ -30,20 +31,21 @@ export async function checkIsAdmin(): Promise<boolean> {
     const userId = session.user.id;
     
     try {
-      // Use a simpler approach to avoid TypeScript deep instantiation
-      const result = await supabase
+      // Create a query and then cast the response
+      const { data, error } = await supabase
         .from('user_roles')
         .select('role, user_id')
-        .eq('user_id', userId) as unknown as RoleQueryResult;
+        .eq('user_id', userId)
+        .then(result => result as unknown as RoleQueryResult);
       
-      if (result.error) {
-        logger.error('Error checking admin status:', result.error, { module: 'roles' });
+      if (error) {
+        logger.error('Error checking admin status:', error, { module: 'roles' });
         return false;
       }
 
       // Check if the user has an admin role
-      if (result.data) {
-        const adminRole = result.data.find(role => role.role === 'admin');
+      if (data) {
+        const adminRole = data.find(role => role.role === 'admin');
         return !!adminRole;
       }
       

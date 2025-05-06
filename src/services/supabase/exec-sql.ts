@@ -32,37 +32,36 @@ export async function createExecSqlFunction(
     `;
     
     try {
-      // Execute SQL to create the function
-      const { error } = await adminClient.rpc('exec_sql', { sql: createFunctionSql });
-      
-      // If we get an error that the function doesn't exist, we need to create it manually
-      if (error && error.message.includes('function exec_sql(text) does not exist')) {
-        logger.info('The exec_sql function does not exist, creating manually', { module: 'init' });
+      // First try to use the function to see if it exists
+      try {
+        // Try to call the function if it exists
+        const { error } = await adminClient.rpc('exec_sql', { sql: 'SELECT 1' });
         
-        // Create the function using direct SQL query
-        const { error: directError } = await adminClient.sql(createFunctionSql);
-        
-        if (directError) {
-          logger.error('Error creating exec_sql function directly:', directError, { module: 'init' });
-          return { 
-            success: false, 
-            error: `Failed to create exec_sql function: ${directError.message}` 
-          };
+        if (!error) {
+          // Function exists and works
+          logger.info('Exec_sql function is available', { module: 'init' });
+          return { success: true };
         }
         
-        logger.info('Successfully created exec_sql function', { module: 'init' });
-        return { success: true };
-      } else if (error) {
-        // Some other error occurred
-        logger.error('Error checking exec_sql function:', error, { module: 'init' });
+        // If we get here, function might exist but has an issue
+        logger.warn('Exec_sql function exists but may have issues, attempting to recreate', { module: 'init' });
+      } catch (error: any) {
+        // Function doesn't exist, we'll create it
+        logger.info('The exec_sql function does not exist, creating it now', { module: 'init' });
+      }
+      
+      // Create the function using raw SQL query
+      const { error: directError } = await adminClient.query(createFunctionSql);
+      
+      if (directError) {
+        logger.error('Error creating exec_sql function:', directError, { module: 'init' });
         return { 
           success: false, 
-          error: `Error checking exec_sql function: ${error.message}` 
+          error: `Failed to create exec_sql function: ${directError.message || 'Unknown error'}` 
         };
       }
       
-      // Function already existed and was successfully called (or it was just created)
-      logger.info('Exec_sql function is available', { module: 'init' });
+      logger.info('Successfully created exec_sql function', { module: 'init' });
       return { success: true };
       
     } catch (error: any) {
@@ -105,7 +104,7 @@ export async function execSql(
       return functionResult;
     }
     
-    // Execute the SQL script
+    // Execute the SQL script using RPC
     const { error } = await adminClient.rpc('exec_sql', { sql });
     
     if (error) {

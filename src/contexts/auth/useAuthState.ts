@@ -4,11 +4,11 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
 
-type ProfileResult = { 
+interface ProfileResult {
   data: any[] | null; 
   error: Error | null;
   status: number;
-};
+}
 
 export const useAuthState = () => {
   const [session, setSession] = useState<Session | null>(null);
@@ -37,27 +37,28 @@ export const useAuthState = () => {
         console.log('Fetching profile attempt', fetchAttempts.current, 'for user:', userId);
       }
       
-      // Use a simpler fetch approach to avoid type issues
-      const result = await supabase
+      // Create a basic query and then cast the response to our simpler interface
+      const { data, error, status } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId) as unknown as ProfileResult;
+        .eq('id', userId)
+        .then(result => result as unknown as ProfileResult);
 
       // Handle error case
-      if (result.error) {
+      if (error) {
         if (process.env.NODE_ENV === 'development') {
           console.error('Profile fetch error:', {
-            error: result.error,
-            status: result.status,
+            error: error,
+            status: status,
             attempt: fetchAttempts.current,
             userId
           });
         }
         
-        setLastError(result.error);
+        setLastError(error);
 
         // Retry logic for specific errors
-        if (fetchAttempts.current < maxRetries && result.status !== 404) {
+        if (fetchAttempts.current < maxRetries && status !== 404) {
           if (process.env.NODE_ENV === 'development') {
             console.log('Scheduling retry...');
           }
@@ -69,8 +70,8 @@ export const useAuthState = () => {
       }
 
       // Process the data if it exists
-      if (result.data && result.data.length > 0) {
-        const profileData = result.data[0];
+      if (data && data.length > 0) {
+        const profileData = data[0];
         
         if (profileData) {
           if (process.env.NODE_ENV === 'development') {
