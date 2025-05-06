@@ -1,4 +1,3 @@
-
 import { logger } from '@/utils/logging';
 
 export interface SupabaseConfig {
@@ -10,11 +9,32 @@ export interface SupabaseConfig {
 // Storage key for Supabase configuration
 const STORAGE_KEY = 'spark_supabase_config';
 
+// Environment detection
+const isDevelopment = () => {
+  return (
+    window.location.hostname === 'localhost' || 
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname.includes('lovable.dev') ||
+    window.location.hostname.includes('.lovable.app')
+  );
+};
+
 /**
  * Check if Supabase configuration exists in local storage
+ * In development mode, will return true even if no config is stored
  */
 export function hasStoredConfig(): boolean {
   try {
+    // In development, we can use hardcoded defaults to skip initialization
+    if (isDevelopment()) {
+      const storedConfig = localStorage.getItem(STORAGE_KEY);
+      // If there's already a stored config, use that
+      if (storedConfig) return true;
+      // Otherwise, consider the default config as valid in development
+      return true;
+    }
+    
+    // In production, strictly require stored configuration
     const storedConfig = localStorage.getItem(STORAGE_KEY);
     return !!storedConfig;
   } catch (e) {
@@ -25,15 +45,32 @@ export function hasStoredConfig(): boolean {
 
 /**
  * Get Supabase configuration from local storage
+ * In development, will return default config if none is stored
  */
 export function getStoredConfig(): SupabaseConfig | null {
   try {
     const storedConfig = localStorage.getItem(STORAGE_KEY);
-    if (!storedConfig) return null;
     
-    return JSON.parse(storedConfig) as SupabaseConfig;
+    // If stored config exists, return it
+    if (storedConfig) {
+      return JSON.parse(storedConfig) as SupabaseConfig;
+    }
+    
+    // In development mode, fall back to hardcoded defaults
+    if (isDevelopment()) {
+      return getDefaultConfig();
+    }
+    
+    // In production with no config, return null
+    return null;
   } catch (e) {
     logger.error('Error retrieving Supabase config from storage', e);
+    
+    // In development, fall back to defaults even on error
+    if (isDevelopment()) {
+      return getDefaultConfig();
+    }
+    
     return null;
   }
 }

@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { MessageList } from '../MessageList';
 import { MessageInput } from '../MessageInput';
@@ -14,9 +13,10 @@ import { cn } from '@/lib/utils';
 
 interface ChatContainerProps {
   className?: string;
+  onReloadTheme?: () => void;
 }
 
-export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
+export const ChatContainer: React.FC<ChatContainerProps> = ({ className, onReloadTheme }) => {
   const {
     messages,
     message,
@@ -48,6 +48,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
       onClearChat={handleClearChat}
       onExportChat={handleExportChat}
       onImportChat={handleImportChat}
+      onReloadTheme={onReloadTheme}
       messages={messages}
       className={className}
     >
