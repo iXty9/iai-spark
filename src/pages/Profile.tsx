@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -146,25 +145,34 @@ export default function Profile() {
       
       setUploading(true);
       
+      // Check if storage API is available
+      if (!supabase.storage || typeof supabase.storage.from !== 'function') {
+        throw new Error('Storage API is not available. Please make sure the application is properly initialized.');
+      }
+      
       // Generate a secure random filename with file extension
       const fileExt = file.name.split('.').pop();
       const randomString = crypto.randomUUID();
       const filePath = `${user!.id}/${randomString}.${fileExt}`;
       
       // Upload the file to Supabase storage
-      const { error: uploadError } = await supabase.storage
+      const uploadResponse = await supabase.storage
         .from('avatars')
         .upload(filePath, file);
         
-      if (uploadError) {
-        throw uploadError;
+      if (uploadResponse?.error) {
+        throw uploadResponse.error;
       }
       
       // Get the public URL
-      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      const urlResponse = supabase.storage.from('avatars').getPublicUrl(filePath);
+      
+      if (!urlResponse?.data?.publicUrl) {
+        throw new Error('Failed to get public URL for uploaded file');
+      }
       
       // Update the user's profile with the new avatar URL
-      await updateProfile({ avatar_url: data.publicUrl });
+      await updateProfile({ avatar_url: urlResponse.data.publicUrl });
       
       toast({
         title: "Avatar updated",

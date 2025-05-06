@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "@/hooks/use-toast";
 
@@ -45,6 +46,16 @@ export const signUp = async (
   options?: { phone_number?: string, full_name?: string }
 ) => {
   try {
+    // Handle the case when supabase might be the fallback object
+    if (typeof supabase.auth.signUp !== 'function') {
+      toast({
+        variant: "destructive",
+        title: "Signup failed",
+        description: "The authentication service is not available. Please initialize the application.",
+      });
+      throw new Error("Authentication service not available");
+    }
+    
     const authPromise = supabase.auth.signUp({
       email,
       password,

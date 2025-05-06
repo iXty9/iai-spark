@@ -30,11 +30,13 @@ export const useAuthState = () => {
         console.log('Fetching profile attempt', fetchAttempts.current, 'for user:', userId);
       }
       
-      const { data, error, status } = await supabase
+      const response = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
+
+      const { data, error, status } = response || { data: null, error: null, status: 500 };
 
       if (error) {
         if (process.env.NODE_ENV === 'development') {

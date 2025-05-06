@@ -32,9 +32,21 @@ export async function fetchAppSettings(): Promise<Record<string, string>> {
     
     // Fetch fresh settings if cache expired or doesn't exist
     logger.info('Fetching app settings from database', { module: 'settings' });
-    const { data, error } = await supabase
-      .from('app_settings')
-      .select('*');
+    
+    // Try to fetch settings
+    let data: AppSetting[] = [];
+    let error = null;
+    
+    try {
+      const response = await supabase
+        .from('app_settings')
+        .select('*');
+      
+      data = response?.data || [];
+      error = response?.error;
+    } catch (err) {
+      error = err as Error;
+    }
 
     if (error) {
       logger.error('Error fetching app settings:', error, { module: 'settings' });
@@ -43,7 +55,7 @@ export async function fetchAppSettings(): Promise<Record<string, string>> {
 
     // Convert to key-value map
     const settings: Record<string, string> = {};
-    data?.forEach((setting: AppSetting) => {
+    data.forEach((setting: AppSetting) => {
       settings[setting.key] = setting.value;
     });
     
@@ -93,18 +105,20 @@ export async function forceReloadSettings(): Promise<Record<string, string>> {
 export async function updateAppSetting(key: string, value: string): Promise<void> {
   try {
     // Get the current user ID
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData?.user?.id || null;
+    const userData = await supabase.auth.getSession();
+    const userId = userData?.data?.session?.user?.id || null;
     
     // Check if the setting already exists
-    const { data: existingSettings } = await supabase
+    const existingSettingsResponse = await supabase
       .from('app_settings')
       .select('id')
       .eq('key', key);
       
+    const existingSettings = existingSettingsResponse?.data || [];
+    
     if (existingSettings && existingSettings.length > 0) {
       // Update existing setting
-      const { error } = await supabase
+      const updateResponse = await supabase
         .from('app_settings')
         .update({ 
           value, 
@@ -113,13 +127,13 @@ export async function updateAppSetting(key: string, value: string): Promise<void
         })
         .eq('key', key);
 
-      if (error) {
-        logger.error(`Error updating app setting ${key}:`, error, { module: 'settings' });
-        throw error;
+      if (updateResponse?.error) {
+        logger.error(`Error updating app setting ${key}:`, updateResponse.error, { module: 'settings' });
+        throw updateResponse.error;
       }
     } else {
       // Insert new setting
-      const { error } = await supabase
+      const insertResponse = await supabase
         .from('app_settings')
         .insert({ 
           key,
@@ -128,9 +142,9 @@ export async function updateAppSetting(key: string, value: string): Promise<void
           updated_by: userId 
         });
 
-      if (error) {
-        logger.error(`Error creating app setting ${key}:`, error, { module: 'settings' });
-        throw error;
+      if (insertResponse?.error) {
+        logger.error(`Error creating app setting ${key}:`, insertResponse.error, { module: 'settings' });
+        throw insertResponse.error;
       }
     }
     

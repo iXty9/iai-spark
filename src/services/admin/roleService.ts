@@ -17,16 +17,19 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<vo
 export async function checkIsAdmin(): Promise<boolean> {
   try {
     const { data: session } = await supabase.auth.getSession();
-    if (!session.session?.user) return false;
+    if (!session?.session?.user) return false;
     
     const userId = session.session.user.id;
     
-    const { data, error } = await supabase
+    const response = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
       .eq('role', 'admin')
       .maybeSingle();
+
+    const error = response?.error;
+    const data = response?.data;
 
     if (error) {
       logger.error('Error checking admin status:', error, { module: 'roles' });

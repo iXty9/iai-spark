@@ -20,15 +20,39 @@ export const supabase = client || {
       });
       return Promise.resolve({ data: { session: null }, error: new Error('Client not initialized') });
     },
-    // Add other auth methods as needed
     signOut: () => Promise.resolve({ error: new Error('Client not initialized') }),
     signInWithPassword: () => Promise.resolve({ data: { user: null, session: null }, error: new Error('Client not initialized') }),
     onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    // Add missing auth methods
+    signUp: () => Promise.resolve({ data: { user: null, session: null }, error: new Error('Client not initialized') }),
+    getUser: () => Promise.resolve({ data: { user: null }, error: new Error('Client not initialized') })
   },
-  from: () => ({
+  from: (table) => ({
     select: () => ({
+      eq: () => ({
+        limit: () => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
+        maybeSingle: () => Promise.resolve({ data: null, error: new Error('Client not initialized') })
+      }),
       limit: () => Promise.resolve({ data: null, error: new Error('Client not initialized') })
+    }),
+    insert: () => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
+    update: () => ({
+      eq: () => Promise.resolve({ data: null, error: new Error('Client not initialized') })
+    }),
+    eq: () => ({
+      maybeSingle: () => Promise.resolve({ data: null, error: new Error('Client not initialized') })
     })
   }),
+  // Add storage methods
+  storage: {
+    from: (bucket) => ({
+      upload: () => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
+      getPublicUrl: () => ({ data: { publicUrl: '' } })
+    })
+  },
+  // Add functions methods
+  functions: {
+    invoke: () => Promise.resolve({ data: null, error: new Error('Client not initialized') })
+  },
   // Add other methods as needed
 };
