@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useTheme } from '@/hooks/use-theme';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
@@ -22,6 +23,7 @@ interface ThemeControlsProps {
 }
 
 export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeControlsProps) {
+  const { theme } = useTheme();
   const [showContrastChecks, setShowContrastChecks] = useState<boolean>(true);
   
   const handleSliderChange = (name: string, value: number[]) => {
