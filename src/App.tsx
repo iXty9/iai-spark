@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/hooks/use-theme"; // Import ThemeProvider
 import { useEffect, useState } from "react";
 import { hasStoredConfig, getStoredConfig, forceDefaultConfig } from "@/config/supabase-config";
 import Index from "./pages/Index";
@@ -50,46 +51,48 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AppInitializer>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              {/* Add initialize route */}
-              <Route path="/initialize" element={<Initialize />} />
-              
-              {/* Routes that require initialization */}
-              <Route path="/" element={
-                <RequireInitialization>
-                  <Index />
-                </RequireInitialization>
-              } />
-              <Route path="/auth" element={
-                <RequireInitialization>
-                  <Auth />
-                </RequireInitialization>
-              } />
-              <Route path="/profile" element={
-                <RequireInitialization>
-                  <Profile />
-                </RequireInitialization>
-              } />
-              <Route path="/settings" element={
-                <RequireInitialization>
-                  <Settings />
-                </RequireInitialization>
-              } />
-              <Route path="/admin" element={
-                <RequireInitialization>
-                  <Admin />
-                </RequireInitialization>
-              } />
-              
-              {/* Catch-all route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
+        <ThemeProvider> {/* Add ThemeProvider here, wrapping all theme-dependent components */}
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                {/* Add initialize route */}
+                <Route path="/initialize" element={<Initialize />} />
+                
+                {/* Routes that require initialization */}
+                <Route path="/" element={
+                  <RequireInitialization>
+                    <Index />
+                  </RequireInitialization>
+                } />
+                <Route path="/auth" element={
+                  <RequireInitialization>
+                    <Auth />
+                  </RequireInitialization>
+                } />
+                <Route path="/profile" element={
+                  <RequireInitialization>
+                    <Profile />
+                  </RequireInitialization>
+                } />
+                <Route path="/settings" element={
+                  <RequireInitialization>
+                    <Settings />
+                  </RequireInitialization>
+                } />
+                <Route path="/admin" element={
+                  <RequireInitialization>
+                    <Admin />
+                  </RequireInitialization>
+                } />
+                
+                {/* Catch-all route */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </ThemeProvider> {/* Close ThemeProvider */}
       </AuthProvider>
     </AppInitializer>
   </QueryClientProvider>
