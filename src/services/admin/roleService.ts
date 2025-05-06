@@ -14,6 +14,7 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<vo
   }
 }
 
+// Define explicit types to avoid deep type recursion
 interface RoleQueryResult {
   data: Array<{ role: string; user_id: string }> | null;
   error: Error | null;
@@ -31,12 +32,14 @@ export async function checkIsAdmin(): Promise<boolean> {
     const userId = session.user.id;
     
     try {
-      // Create a query and then cast the response
-      const { data, error } = await supabase
+      // Create a query
+      const response = await supabase
         .from('user_roles')
         .select('role, user_id')
-        .eq('user_id', userId)
-        .then(result => result as unknown as RoleQueryResult);
+        .eq('user_id', userId);
+      
+      // Then explicitly cast the response to our simpler interface
+      const { data, error } = response as unknown as RoleQueryResult;
       
       if (error) {
         logger.error('Error checking admin status:', error, { module: 'roles' });

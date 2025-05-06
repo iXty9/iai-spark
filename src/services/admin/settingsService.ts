@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
 import { ThemeSettings } from '@/types/theme';
 
+// Define explicit types to avoid deep type recursion
 type AppSetting = {
   id: string;
   key: string;
@@ -44,11 +45,13 @@ export async function fetchAppSettings(): Promise<Record<string, string>> {
     // Fetch fresh settings if cache expired or doesn't exist
     logger.info('Fetching app settings from database', { module: 'settings' });
     
-    // Create a query and then cast the response to our simpler interface
-    const { data, error } = await supabase
+    // Create a query
+    const response = await supabase
       .from('app_settings')
-      .select()
-      .then(result => result as unknown as SettingsQueryResult);
+      .select();
+    
+    // Then explicitly cast the response to our simpler interface
+    const { data, error } = response as unknown as SettingsQueryResult;
     
     if (error) {
       logger.error('Error fetching app settings:', error, { module: 'settings' });
@@ -114,11 +117,13 @@ export async function updateAppSetting(key: string, value: string): Promise<void
     const userId = userData?.data?.session?.user?.id || null;
     
     // Check if the setting already exists
-    const { data: existingData, error: existingError } = await supabase
+    const existingResponse = await supabase
       .from('app_settings')
       .select()
-      .eq('key', key)
-      .then(result => result as unknown as SettingsQueryResult);
+      .eq('key', key);
+    
+    // Explicitly cast the response
+    const { data: existingData, error: existingError } = existingResponse as unknown as SettingsQueryResult;
     
     // Safely check for errors
     if (existingError) {
@@ -131,16 +136,18 @@ export async function updateAppSetting(key: string, value: string): Promise<void
     
     if (existingSetting) {
       // Update existing setting
-      const { error: updateError } = await supabase
+      const updateResponse = await supabase
         .from('app_settings')
         .update({ 
           value, 
           updated_at: new Date().toISOString(), 
           updated_by: userId 
         })
-        .eq('key', key)
-        .then(result => result as unknown as UpdateResult);
+        .eq('key', key);
           
+      // Explicitly cast the response  
+      const { error: updateError } = updateResponse as unknown as UpdateResult;
+      
       // Safely check for errors in update result
       if (updateError) {
         logger.error(`Error updating app setting ${key}:`, updateError, { module: 'settings' });
@@ -148,16 +155,18 @@ export async function updateAppSetting(key: string, value: string): Promise<void
       }
     } else {
       // Insert new setting
-      const { error: insertError } = await supabase
+      const insertResponse = await supabase
         .from('app_settings')
         .insert({ 
           key,
           value, 
           updated_at: new Date().toISOString(), 
           updated_by: userId 
-        })
-        .then(result => result as unknown as UpdateResult);
+        });
           
+      // Explicitly cast the response
+      const { error: insertError } = insertResponse as unknown as UpdateResult;
+      
       // Safely check for errors in insert result
       if (insertError) {
         logger.error(`Error creating app setting ${key}:`, insertError, { module: 'settings' });

@@ -50,8 +50,18 @@ export async function createExecSqlFunction(
         logger.info('The exec_sql function does not exist, creating it now', { module: 'init' });
       }
       
-      // Create the function using raw SQL query
-      const { error: directError } = await adminClient.query(createFunctionSql);
+      // Create the function using raw SQL
+      // Using the from().select() pattern which is more compatible than direct query
+      const { error: directError } = await adminClient
+        .from('_dummy_table_for_raw_query_')
+        .select('*')
+        .eq('id', -1)
+        .options({ 
+          head: false, 
+          count: null,
+          // @ts-ignore - Using undocumented but working feature to run raw SQL
+          db: { query: createFunctionSql } 
+        });
       
       if (directError) {
         logger.error('Error creating exec_sql function:', directError, { module: 'init' });

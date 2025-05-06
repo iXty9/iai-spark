@@ -4,6 +4,7 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
 
+// Define explicit types to avoid deep type recursion
 interface ProfileResult {
   data: any[] | null; 
   error: Error | null;
@@ -37,12 +38,14 @@ export const useAuthState = () => {
         console.log('Fetching profile attempt', fetchAttempts.current, 'for user:', userId);
       }
       
-      // Create a basic query and then cast the response to our simpler interface
-      const { data, error, status } = await supabase
+      // Create a basic query with explicit typing for the response
+      const response = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId)
-        .then(result => result as unknown as ProfileResult);
+        .eq('id', userId);
+      
+      // Explicitly cast the response to our simplified interface
+      const { data, error, status } = response as unknown as ProfileResult;
 
       // Handle error case
       if (error) {
