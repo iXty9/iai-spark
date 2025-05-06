@@ -10,15 +10,40 @@ import { useTheme } from '@/hooks/use-theme';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { useThemeColorActions } from '@/hooks/settings/use-theme-color-actions';
+import { ThemeColors } from '@/types/theme';
 
 const Settings = () => {
   const navigate = useNavigate();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, lightTheme, darkTheme, setLightTheme, setDarkTheme } = useTheme();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   
-  // Placeholder settings handlers
+  const { 
+    handleLightThemeChange,
+    handleDarkThemeChange
+  } = useThemeColorActions({
+    theme: theme as 'light' | 'dark',
+    lightTheme: lightTheme as ThemeColors,
+    darkTheme: darkTheme as ThemeColors,
+    setLightTheme,
+    setDarkTheme
+  });
+  
+  const handleResetTheme = () => {
+    // Reset themes to defaults
+    setLightTheme(null);
+    setDarkTheme(null);
+    toast({
+      title: "Theme Reset",
+      description: "Theme colors have been reset to defaults.",
+      duration: 3000,
+    });
+    setHasChanges(true);
+  };
+  
+  // Settings handlers
   const handleSave = () => {
     setIsSubmitting(true);
     toast({
@@ -66,15 +91,20 @@ const Settings = () => {
               Customize the colors and appearance of the application
             </p>
             
-            <div className="border rounded-lg p-4">
-              <p>Theme customization coming soon...</p>
-            </div>
+            <AppearanceSettings
+              theme={theme as 'light' | 'dark'}
+              lightTheme={lightTheme as ThemeColors}
+              darkTheme={darkTheme as ThemeColors}
+              onLightThemeChange={handleLightThemeChange}
+              onDarkThemeChange={handleDarkThemeChange}
+              onResetTheme={handleResetTheme}
+            />
           </TabsContent>
           
           <TabsContent value="background" className="space-y-6 mt-4">
             <div className="border rounded-lg p-4">
               <h3 className="text-lg font-medium mb-3">Background Image</h3>
-              <p>Background customization coming soon...</p>
+              <BackgroundSettings />
             </div>
           </TabsContent>
           

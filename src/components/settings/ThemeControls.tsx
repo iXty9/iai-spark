@@ -16,12 +16,12 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ThemeControlsProps {
-  theme: 'light' | 'dark';
   colors: ThemeColors;
   onColorChange: (e: React.ChangeEvent<HTMLInputElement> | { name: string; value: any }) => void;
+  isActive?: boolean;
 }
 
-export function ThemeControls({ theme, colors, onColorChange }: ThemeControlsProps) {
+export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeControlsProps) {
   const [showContrastChecks, setShowContrastChecks] = useState<boolean>(true);
   
   const handleSliderChange = (name: string, value: number[]) => {
@@ -31,7 +31,7 @@ export function ThemeControls({ theme, colors, onColorChange }: ThemeControlsPro
   const getPreviewStyle = (color: string) => {
     return {
       backgroundColor: color,
-      border: theme === 'light' ? '1px solid #ccc' : '1px solid #333'
+      border: isActive ? '1px solid #ccc' : '1px solid #333'
     };
   };
 
