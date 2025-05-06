@@ -30,36 +30,32 @@ export const useAuthState = () => {
         console.log('Fetching profile attempt', fetchAttempts.current, 'for user:', userId);
       }
       
-      // Use a simpler query approach to avoid TypeScript deep instantiation issues
-      // Call directly without chaining to avoid complex types
-      const response = await supabase.from('profiles').select('*');
+      // Use explicit type casting to avoid TypeScript deep instantiation issues
+      const { data, error, status } = await supabase
+        .from('profiles')
+        .select('*') as { 
+          data: any[] | null; 
+          error: Error | null; 
+          status: number 
+        };
 
       // Apply filter in memory if needed
       let profileData = null;
-      let responseError = null;
       
-      if (response.error) {
-        responseError = response.error;
-      } else if (response.data) {
-        // Find the profile that matches the userId
-        profileData = response.data.find((p: any) => p.id === userId) || null;
-      }
-        
-      // Handle errors
-      if (responseError) {
+      if (error) {
         if (process.env.NODE_ENV === 'development') {
           console.error('Profile fetch error:', {
-            error: responseError,
-            status: response.status,
+            error,
+            status,
             attempt: fetchAttempts.current,
             userId
           });
         }
         
-        setLastError(responseError);
+        setLastError(error);
 
         // Retry logic for specific errors
-        if (fetchAttempts.current < maxRetries && response.status !== 404) {
+        if (fetchAttempts.current < maxRetries && status !== 404) {
           if (process.env.NODE_ENV === 'development') {
             console.log('Scheduling retry...');
           }
@@ -70,18 +66,23 @@ export const useAuthState = () => {
         }
       }
 
-      if (profileData) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Profile fetched successfully:', {
-            userId,
-            hasData: !!profileData,
-            timestamp: new Date().toISOString()
-          });
+      if (data) {
+        // Find the profile that matches the userId
+        profileData = data.find((p: any) => p.id === userId) || null;
+        
+        if (profileData) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Profile fetched successfully:', {
+              userId,
+              hasData: !!profileData,
+              timestamp: new Date().toISOString()
+            });
+          }
+          setProfile(profileData);
+          setLastError(null);
+        } else if (process.env.NODE_ENV === 'development') {
+          console.warn('No profile data found for user:', userId);
         }
-        setProfile(profileData);
-        setLastError(null);
-      } else if (process.env.NODE_ENV === 'development') {
-        console.warn('No profile data found for user:', userId);
       }
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {

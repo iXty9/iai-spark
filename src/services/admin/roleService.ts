@@ -25,18 +25,23 @@ export async function checkIsAdmin(): Promise<boolean> {
     const userId = session.user.id;
     
     try {
-      // Use a simpler query approach without complex chaining to avoid TypeScript issues
-      const response = await supabase.from('user_roles').select('role');
+      // Use explicit type casting to avoid TypeScript deep instantiation issues
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role, user_id') as {
+          data: Array<{ role: string; user_id: string }> | null;
+          error: Error | null;
+        };
       
-      if (response.error) {
-        logger.error('Error checking admin status:', response.error, { module: 'roles' });
+      if (error) {
+        logger.error('Error checking admin status:', error, { module: 'roles' });
         return false;
       }
 
       // Apply filter in memory instead of in the query
-      if (response.data) {
-        const adminRole = response.data.find(
-          (role: any) => role.user_id === userId && role.role === 'admin'
+      if (data) {
+        const adminRole = data.find(
+          (role) => role.user_id === userId && role.role === 'admin'
         );
         return !!adminRole;
       }
