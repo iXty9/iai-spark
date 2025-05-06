@@ -30,9 +30,9 @@ const AppInitializer = ({ children }: { children: React.ReactNode }) => {
     const forceInit = urlParams.get('force_init') === 'true';
     
     if (resetConfig) {
-      // For debugging: clear config and reload
+      // For debugging: clear config and reload with force_init parameter
       localStorage.removeItem('spark_supabase_config');
-      window.location.href = window.location.pathname; // Reload without params
+      window.location.href = window.location.pathname + '?force_init=true'; // Reload with force_init
       return;
     }
     

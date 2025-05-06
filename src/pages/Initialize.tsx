@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ConnectionForm } from '@/components/init/ConnectionForm';
@@ -34,14 +33,14 @@ const Initialize = () => {
   // Check if already initialized
   useEffect(() => {
     if (resetConfig) {
-      // Clear config and reload without params
+      // Clear config and reload with force_init parameter to prevent automatic redirection
       clearConfig();
       toast({
         title: 'Configuration Reset',
         description: 'The stored configuration has been cleared.',
       });
-      // Reload the page without parameters
-      navigate('/initialize');
+      // Reload the page with force_init parameter
+      navigate('/initialize?force_init=true');
       return;
     }
     
@@ -82,9 +81,9 @@ const Initialize = () => {
     }, 2000);
   };
   
-  // Reset stored configuration
+  // Reset stored configuration - update to include force_init parameter
   const handleResetConfig = () => {
-    navigate('/initialize?reset_config=true');
+    navigate('/initialize?reset_config=true&force_init=true');
   };
   
   // Render the current step
