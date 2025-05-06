@@ -64,13 +64,11 @@ export async function updateAppSetting(
 ): Promise<boolean> {
   try {
     // Check if setting exists
-    const checkResponse = await supabase
+    const { data: existingData, error: checkError } = await supabase
       .from('app_settings')
       .select('id')
-      .eq('key', key);
-    
-    const existingData = checkResponse.data;
-    const checkError = checkResponse.error;
+      .eq('key', key)
+      .maybeSingle();
     
     if (checkError) {
       logger.error(`Error checking if setting ${key} exists:`, checkError);
@@ -79,7 +77,7 @@ export async function updateAppSetting(
     
     let result;
     
-    if (existingData && existingData.length > 0) {
+    if (existingData?.id) {
       // Update existing setting
       result = await supabase
         .from('app_settings')

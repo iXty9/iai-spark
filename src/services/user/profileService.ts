@@ -1,7 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
-import { uploadAvatar, ensureStorageBucketsExist } from '@/services/supabase/storage-service';
+import { uploadFile, AVATARS_BUCKET, ensureStorageBucketsExist } from '@/services/supabase/storage-service';
 
 export interface ProfileUpdateData {
   username?: string;
@@ -69,8 +69,13 @@ export async function uploadProfileAvatar(
     // Ensure storage is properly configured
     await ensureStorageBucketsExist();
     
-    // Upload the avatar
-    const { url, error } = await uploadAvatar(userId, file);
+    // Upload the avatar using the generic file upload function
+    const { url, error } = await uploadFile(
+      file,
+      AVATARS_BUCKET,
+      `${userId}/${crypto.randomUUID()}`,
+      { optimize: true, maxWidth: 400, maxHeight: 400 }
+    );
 
     if (error) {
       return {

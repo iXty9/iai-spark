@@ -12,21 +12,21 @@ export const BACKGROUNDS_BUCKET = 'backgrounds';
  */
 export async function ensureBucketExists(bucketName: string): Promise<boolean> {
   try {
-    // First try to access the bucket directly
-    const { data: bucket, error } = await supabase
+    // First check if the bucket exists by trying to list files
+    const { data, error } = await supabase
       .storage
-      .getBucket(bucketName);
-
-    // If bucket doesn't exist, create it
-    if (!bucket && error) {
+      .from(bucketName)
+      .list();
+    
+    if (error && error.message.includes('bucket not found')) {
       logger.info(`Creating bucket ${bucketName} as it doesn't exist`, { module: 'storage' });
       
-      const { error: createError } = await supabase
-        .storage
-        .createBucket(bucketName, {
-          public: true,
-          fileSizeLimit: 5242880 // 5MB
-        });
+      // Create the bucket using RPC
+      const { error: createError } = await supabase.rpc('create_storage_bucket', {
+        name: bucketName,
+        public: true,
+        file_size_limit: 5242880 // 5MB
+      });
       
       if (createError) {
         logger.error(`Failed to create bucket ${bucketName}:`, createError, { module: 'storage' });
@@ -34,11 +34,27 @@ export async function ensureBucketExists(bucketName: string): Promise<boolean> {
       }
       
       logger.info(`Successfully created bucket ${bucketName}`, { module: 'storage' });
+      return true;
     }
     
-    return true;
+    return !error;
   } catch (error) {
     logger.error(`Error ensuring bucket ${bucketName} exists:`, error, { module: 'storage' });
+    return false;
+  }
+}
+
+/**
+ * Ensure all storage buckets required by the application exist
+ */
+export async function ensureStorageBucketsExist(): Promise<boolean> {
+  try {
+    const avatarsBucketExists = await ensureBucketExists(AVATARS_BUCKET);
+    const backgroundsBucketExists = await ensureBucketExists(BACKGROUNDS_BUCKET);
+    
+    return avatarsBucketExists && backgroundsBucketExists;
+  } catch (error) {
+    logger.error('Error ensuring storage buckets exist:', error, { module: 'storage' });
     return false;
   }
 }
@@ -69,11 +85,37 @@ export async function listFiles(bucketName: string, path: string = '') {
 }
 
 /**
+ * Upload an avatar for a user
+ */
+export async function uploadAvatar(
+  userId: string,
+  file: File | Blob
+): Promise<{ url: string | null; error: Error | null }> {
+  return uploadFile(
+    file, 
+    AVATARS_BUCKET, 
+    `${userId}/${crypto.randomUUID()}`, 
+    { optimize: true, maxWidth: 400, maxHeight: 400 }
+  );
+}
+
+/**
+ * Upload a background image
+ */
+export async function uploadBackground(
+  userId: string,
+  file: File | Blob
+): Promise<{ url: string | null; error: Error | null }> {
+  return uploadFile(
+    file, 
+    BACKGROUNDS_BUCKET, 
+    `${userId}/${crypto.randomUUID()}`, 
+    { optimize: true, maxWidth: 1920, maxHeight: 1080 }
+  );
+}
+
+/**
  * Upload a file to a Supabase bucket
- * @param file The file to upload
- * @param bucketName The name of the bucket to upload to
- * @param path The path within the bucket
- * @returns The URL of the uploaded file
  */
 export async function uploadFile(
   file: File | Blob,
@@ -98,12 +140,21 @@ export async function uploadFile(
     
     if (options.optimize && file.type.startsWith('image/')) {
       try {
-        fileToUpload = await optimizeImage(file, options.maxWidth, options.maxHeight, options.quality);
-        logger.info('Image optimized for upload', { 
-          module: 'storage',
-          originalSize: file.size, 
-          optimizedSize: fileToUpload.size 
+        const optimized = await optimizeImage(file, {
+          maxWidth: options.maxWidth,
+          maxHeight: options.maxHeight,
+          quality: options.quality || 0.8,
+          format: 'image/jpeg'
         });
+        
+        if (optimized) {
+          fileToUpload = optimized;
+          logger.info('Image optimized for upload', { 
+            module: 'storage',
+            originalSize: file.size, 
+            optimizedSize: fileToUpload.size 
+          });
+        }
       } catch (error) {
         logger.warn('Failed to optimize image, using original:', error, { module: 'storage' });
         // Continue with original file if optimization fails

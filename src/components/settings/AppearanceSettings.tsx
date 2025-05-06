@@ -41,7 +41,7 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <ThemeControls 
-                  themeColors={lightTheme}
+                  colors={lightTheme}
                   onChange={onLightThemeChange}
                   isActive={theme === 'light'}
                 />
@@ -55,7 +55,7 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <ThemeControls 
-                  themeColors={darkTheme}
+                  colors={darkTheme}
                   onChange={onDarkThemeChange}
                   isActive={theme === 'dark'}
                 />

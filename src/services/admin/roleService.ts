@@ -11,17 +11,20 @@ import { logger } from '@/utils/logging';
  */
 export async function hasRole(userId: string, role: UserRole): Promise<boolean> {
   try {
-    const functionResponse = await supabase.rpc('has_role', {
-      _user_id: userId,
-      _role: role
-    });
-
-    if (functionResponse.error) {
-      logger.error('Error checking user role:', functionResponse.error);
+    // Check if user exists in user_roles with the specified role
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('role', role)
+      .maybeSingle();
+    
+    if (error) {
+      logger.error('Error checking user role:', error);
       return false;
     }
     
-    return functionResponse.data === true;
+    return !!data;
   } catch (error) {
     logger.error('Unexpected error in hasRole:', error);
     return false;
@@ -37,9 +40,10 @@ export async function getUserRole(userId: string): Promise<UserRole | null> {
     const response = await supabase
       .from('user_roles')
       .select('role')
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .maybeSingle();
     
-    const data = response.data?.[0];
+    const data = response.data;
     const error = response.error;
     
     if (error) {
@@ -63,9 +67,10 @@ export async function setUserRole(userId: string, role: UserRole): Promise<boole
     const response = await supabase
       .from('user_roles')
       .select('id')
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .maybeSingle();
     
-    const existingRole = response.data?.[0];
+    const existingRole = response.data;
     const error = response.error;
     
     if (error) {
