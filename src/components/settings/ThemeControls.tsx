@@ -42,37 +42,50 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
     onColorChange({ name: colorName, value: suggestedColor });
   };
   
+  // Ensure colors object has all required properties with fallbacks
+  const safeColors = {
+    backgroundColor: colors?.backgroundColor || '#ffffff',
+    textColor: colors?.textColor || '#000000',
+    userBubbleColor: colors?.userBubbleColor || '#e5e7eb',
+    userBubbleOpacity: colors?.userBubbleOpacity || 1,
+    userTextColor: colors?.userTextColor || '#000000',
+    aiBubbleColor: colors?.aiBubbleColor || '#f3f4f6',
+    aiBubbleOpacity: colors?.aiBubbleOpacity || 1,
+    aiTextColor: colors?.aiTextColor || '#000000',
+    ...colors
+  };
+  
   // Color contrast checks
-  const textOnBgContrast = getContrastRatio(colors.textColor, colors.backgroundColor);
-  const textOnBgRating = getContrastRating(colors.textColor, colors.backgroundColor);
+  const textOnBgContrast = getContrastRatio(safeColors.textColor, safeColors.backgroundColor);
+  const textOnBgRating = getContrastRating(safeColors.textColor, safeColors.backgroundColor);
   
   const userTextOnBubbleContrast = getContrastRatio(
-    colors.userTextColor, 
-    colors.userBubbleColor
+    safeColors.userTextColor, 
+    safeColors.userBubbleColor
   );
   const userTextRating = getContrastRating(
-    colors.userTextColor, 
-    colors.userBubbleColor
+    safeColors.userTextColor, 
+    safeColors.userBubbleColor
   );
   
   const aiTextOnBubbleContrast = getContrastRatio(
-    colors.aiTextColor, 
-    colors.aiBubbleColor
+    safeColors.aiTextColor, 
+    safeColors.aiBubbleColor
   );
   const aiTextRating = getContrastRating(
-    colors.aiTextColor, 
-    colors.aiBubbleColor
+    safeColors.aiTextColor, 
+    safeColors.aiBubbleColor
   );
 
   // Suggested accessible colors
   const suggestedTextColor = textOnBgRating === 'Fail' ? 
-    suggestAccessibleColor(colors.textColor, colors.backgroundColor) : null;
+    suggestAccessibleColor(safeColors.textColor, safeColors.backgroundColor) : null;
   
   const suggestedUserTextColor = userTextRating === 'Fail' ?
-    suggestAccessibleColor(colors.userTextColor, colors.userBubbleColor) : null;
+    suggestAccessibleColor(safeColors.userTextColor, safeColors.userBubbleColor) : null;
     
   const suggestedAiTextColor = aiTextRating === 'Fail' ?
-    suggestAccessibleColor(colors.aiTextColor, colors.aiBubbleColor) : null;
+    suggestAccessibleColor(safeColors.aiTextColor, safeColors.aiBubbleColor) : null;
 
   const ContrastBadge = ({ rating }: { rating: 'AAA' | 'AA' | 'Fail' }) => {
     let color = 'bg-red-500';
@@ -89,15 +102,15 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
 
   return (
     <div className={`space-y-6 ${theme === 'light' ? 'text-black' : 'text-white'}`}>
-      <div className="p-3 rounded-md border mb-4" style={{ backgroundColor: colors.backgroundColor }}>
-        <h3 className="font-medium mb-2" style={{ color: colors.textColor }}>Theme Preview</h3>
+      <div className="p-3 rounded-md border mb-4" style={{ backgroundColor: safeColors.backgroundColor }}>
+        <h3 className="font-medium mb-2" style={{ color: safeColors.textColor }}>Theme Preview</h3>
         <div className="flex space-x-2 mb-2">
           <div 
             className="p-2 rounded-lg flex-1 text-center"
             style={{ 
-              backgroundColor: colors.userBubbleColor,
-              opacity: colors.userBubbleOpacity,
-              color: colors.userTextColor
+              backgroundColor: safeColors.userBubbleColor,
+              opacity: safeColors.userBubbleOpacity,
+              color: safeColors.userTextColor
             }}
           >
             User Message
@@ -105,9 +118,9 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
           <div 
             className="p-2 rounded-lg flex-1 text-center"
             style={{ 
-              backgroundColor: colors.aiBubbleColor,
-              opacity: colors.aiBubbleOpacity,
-              color: colors.aiTextColor
+              backgroundColor: safeColors.aiBubbleColor,
+              opacity: safeColors.aiBubbleOpacity,
+              color: safeColors.aiTextColor
             }}
           >
             AI Message
@@ -214,18 +227,18 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
         <div className="space-y-2">
           <Label htmlFor="backgroundColor">Background Color</Label>
           <div className="flex items-center space-x-2">
-            <div className="w-6 h-6 rounded-md" style={getPreviewStyle(colors.backgroundColor)}></div>
+            <div className="w-6 h-6 rounded-md" style={getPreviewStyle(safeColors.backgroundColor)}></div>
             <Input
               id="backgroundColor"
               name="backgroundColor"
               type="color"
-              value={colors.backgroundColor}
+              value={safeColors.backgroundColor}
               onChange={onColorChange}
               className="w-12 h-8"
             />
             <Input
               type="text"
-              value={colors.backgroundColor}
+              value={safeColors.backgroundColor}
               onChange={onColorChange}
               name="backgroundColor"
               className="flex-1"
@@ -235,18 +248,18 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
         <div className="space-y-2">
           <Label htmlFor="textColor">Default Text Color</Label>
           <div className="flex items-center space-x-2">
-            <div className="w-6 h-6 rounded-md" style={getPreviewStyle(colors.textColor)}></div>
+            <div className="w-6 h-6 rounded-md" style={getPreviewStyle(safeColors.textColor)}></div>
             <Input
               id="textColor"
               name="textColor"
               type="color"
-              value={colors.textColor}
+              value={safeColors.textColor}
               onChange={onColorChange}
               className="w-12 h-8"
             />
             <Input
               type="text"
-              value={colors.textColor}
+              value={safeColors.textColor}
               onChange={onColorChange}
               name="textColor"
               className="flex-1"
@@ -261,18 +274,18 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
           <div className="space-y-2">
             <Label htmlFor="userBubbleColor">User Message Color</Label>
             <div className="flex items-center space-x-2">
-              <div className="w-6 h-6 rounded-md" style={getPreviewStyle(colors.userBubbleColor)}></div>
+              <div className="w-6 h-6 rounded-md" style={getPreviewStyle(safeColors.userBubbleColor)}></div>
               <Input
                 id="userBubbleColor"
                 name="userBubbleColor"
                 type="color"
-                value={colors.userBubbleColor}
+                value={safeColors.userBubbleColor}
                 onChange={onColorChange}
                 className="w-12 h-8"
               />
               <Input
                 type="text"
-                value={colors.userBubbleColor}
+                value={safeColors.userBubbleColor}
                 onChange={onColorChange}
                 name="userBubbleColor"
                 className="flex-1"
@@ -283,14 +296,14 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
           <div className="space-y-2">
             <div className="flex justify-between">
               <Label htmlFor="userBubbleOpacity">User Message Opacity</Label>
-              <span>{Math.round(colors.userBubbleOpacity * 100)}%</span>
+              <span>{Math.round(safeColors.userBubbleOpacity * 100)}%</span>
             </div>
             <Slider
               id="userBubbleOpacity"
               min={0.1}
               max={1}
               step={0.05}
-              value={[colors.userBubbleOpacity]}
+              value={[safeColors.userBubbleOpacity]}
               onValueChange={(value) => handleSliderChange('userBubbleOpacity', value)}
               className="w-full"
             />
@@ -299,18 +312,18 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
           <div className="space-y-2">
             <Label htmlFor="userTextColor">User Text Color</Label>
             <div className="flex items-center space-x-2">
-              <div className="w-6 h-6 rounded-md" style={getPreviewStyle(colors.userTextColor)}></div>
+              <div className="w-6 h-6 rounded-md" style={getPreviewStyle(safeColors.userTextColor)}></div>
               <Input
                 id="userTextColor"
                 name="userTextColor"
                 type="color"
-                value={colors.userTextColor}
+                value={safeColors.userTextColor}
                 onChange={onColorChange}
                 className="w-12 h-8"
               />
               <Input
                 type="text"
-                value={colors.userTextColor}
+                value={safeColors.userTextColor}
                 onChange={onColorChange}
                 name="userTextColor"
                 className="flex-1"
@@ -326,18 +339,18 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
           <div className="space-y-2">
             <Label htmlFor="aiBubbleColor">AI Message Color</Label>
             <div className="flex items-center space-x-2">
-              <div className="w-6 h-6 rounded-md" style={getPreviewStyle(colors.aiBubbleColor)}></div>
+              <div className="w-6 h-6 rounded-md" style={getPreviewStyle(safeColors.aiBubbleColor)}></div>
               <Input
                 id="aiBubbleColor"
                 name="aiBubbleColor"
                 type="color"
-                value={colors.aiBubbleColor}
+                value={safeColors.aiBubbleColor}
                 onChange={onColorChange}
                 className="w-12 h-8"
               />
               <Input
                 type="text"
-                value={colors.aiBubbleColor}
+                value={safeColors.aiBubbleColor}
                 onChange={onColorChange}
                 name="aiBubbleColor"
                 className="flex-1"
@@ -348,14 +361,14 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
           <div className="space-y-2">
             <div className="flex justify-between">
               <Label htmlFor="aiBubbleOpacity">AI Message Opacity</Label>
-              <span>{Math.round(colors.aiBubbleOpacity * 100)}%</span>
+              <span>{Math.round(safeColors.aiBubbleOpacity * 100)}%</span>
             </div>
             <Slider
               id="aiBubbleOpacity"
               min={0.1}
               max={1}
               step={0.05}
-              value={[colors.aiBubbleOpacity]}
+              value={[safeColors.aiBubbleOpacity]}
               onValueChange={(value) => handleSliderChange('aiBubbleOpacity', value)}
               className="w-full"
             />
@@ -364,18 +377,18 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
           <div className="space-y-2">
             <Label htmlFor="aiTextColor">AI Text Color</Label>
             <div className="flex items-center space-x-2">
-              <div className="w-6 h-6 rounded-md" style={getPreviewStyle(colors.aiTextColor)}></div>
+              <div className="w-6 h-6 rounded-md" style={getPreviewStyle(safeColors.aiTextColor)}></div>
               <Input
                 id="aiTextColor"
                 name="aiTextColor"
                 type="color"
-                value={colors.aiTextColor}
+                value={safeColors.aiTextColor}
                 onChange={onColorChange}
                 className="w-12 h-8"
               />
               <Input
                 type="text"
-                value={colors.aiTextColor}
+                value={safeColors.aiTextColor}
                 onChange={onColorChange}
                 name="aiTextColor"
                 className="flex-1"
