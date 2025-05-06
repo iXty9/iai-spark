@@ -11,21 +11,21 @@ interface AppSettings {
 
 export async function fetchAppSettings(): Promise<AppSettings> {
   try {
-    // Optimized query to avoid deep type issues
-    const result = await supabase
+    // Use a simpler query to avoid type issues
+    const { data, error } = await supabase
       .from('app_settings')
       .select('key, value');
       
     // Handle errors
-    if (result.error) {
-      logger.error('Error fetching app settings:', result.error);
+    if (error) {
+      logger.error('Error fetching app settings:', error);
       return {};
     }
     
     // Transform into an object
     const settings: AppSettings = {};
-    if (result.data) {
-      result.data.forEach(row => {
+    if (data) {
+      data.forEach(row => {
         settings[row.key] = row.value;
       });
     }
@@ -39,23 +39,28 @@ export async function fetchAppSettings(): Promise<AppSettings> {
 
 export async function updateAppSetting(key: string, value: string): Promise<boolean> {
   try {
-    // Check if setting exists
-    const getResult = await supabase
+    // Check if setting exists using a simpler query pattern
+    const { data: existingSetting, error: getError } = await supabase
       .from('app_settings')
       .select('id')
       .eq('key', key)
       .maybeSingle();
       
+    if (getError) {
+      logger.error(`Error checking if setting ${key} exists:`, getError);
+      return false;
+    }
+    
     let result;
     
-    if (getResult.data) {
-      // Update
+    if (existingSetting) {
+      // Update existing setting
       result = await supabase
         .from('app_settings')
         .update({ value })
         .eq('key', key);
     } else {
-      // Insert
+      // Insert new setting
       result = await supabase
         .from('app_settings')
         .insert({ key, value });
@@ -78,18 +83,18 @@ export async function updateAppSetting(key: string, value: string): Promise<bool
  */
 export async function getAppSettingsMap(): Promise<Record<string, string>> {
   try {
-    const result = await supabase
+    const { data, error } = await supabase
       .from('app_settings')
       .select('key, value');
       
-    if (result.error) {
-      logger.error('Error fetching app settings map:', result.error);
+    if (error) {
+      logger.error('Error fetching app settings map:', error);
       return {};
     }
     
     const settingsMap: Record<string, string> = {};
-    if (result.data) {
-      result.data.forEach(row => {
+    if (data) {
+      data.forEach(row => {
         settingsMap[row.key] = row.value;
       });
     }

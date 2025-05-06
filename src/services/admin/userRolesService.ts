@@ -10,6 +10,8 @@ export interface UserWithRole {
   email: string;
   created_at: string;
   role: UserRole | null;
+  username?: string;  // Add username property
+  last_sign_in_at?: string; // Add last_sign_in_at property
 }
 
 export interface UsersFetchOptions {

@@ -60,6 +60,38 @@ export async function createBucketIfNotExists(bucketName: string, isPublic = tru
 }
 
 /**
+ * Ensure required storage buckets exist for the application
+ * This function is called by the SystemSelfHealer component
+ */
+export async function ensureStorageBucketsExist(): Promise<boolean> {
+  try {
+    logger.info('Ensuring storage buckets exist', { module: 'storage' });
+    
+    // List of required buckets and their public status
+    const requiredBuckets = [
+      { name: 'avatars', isPublic: true },
+      { name: 'uploads', isPublic: true },
+      { name: 'backgrounds', isPublic: true }
+    ];
+    
+    // Create all required buckets
+    for (const bucket of requiredBuckets) {
+      const success = await createBucketIfNotExists(bucket.name, bucket.isPublic);
+      if (!success) {
+        logger.error(`Failed to create bucket ${bucket.name}`, { module: 'storage' });
+        return false;
+      }
+      logger.info(`Bucket ${bucket.name} is ready`, { module: 'storage' });
+    }
+    
+    return true;
+  } catch (error) {
+    logger.error('Error ensuring storage buckets exist:', error, { module: 'storage' });
+    return false;
+  }
+}
+
+/**
  * List files in a bucket with an optional path prefix
  */
 export async function listFiles(bucket: string, prefix = ''): Promise<{ data: any[] | null, error: StorageError | null }> {
