@@ -7,7 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/hooks/use-theme"; // Import ThemeProvider
 import { useEffect, useState } from "react";
-import { hasStoredConfig, getStoredConfig, forceDefaultConfig, isDevelopment } from "@/config/supabase-config";
+import { hasStoredConfig, getStoredConfig, forceDefaultConfig, isDevelopment, saveConfig } from "@/config/supabase-config";
 import { logger } from "@/utils/logging";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -27,6 +27,7 @@ const AppInitializer = ({ children }: { children: React.ReactNode }) => {
     // Check URL parameters for debug options
     const urlParams = new URLSearchParams(window.location.search);
     const resetConfig = urlParams.get('reset_config') === 'true';
+    const forceInit = urlParams.get('force_init') === 'true';
     
     if (resetConfig) {
       // For debugging: clear config and reload
@@ -40,8 +41,20 @@ const AppInitializer = ({ children }: { children: React.ReactNode }) => {
       module: 'initialization'
     });
     
-    // Check if we have a stored Supabase configuration
+    // Get stored config to check if we need to initialize
+    const config = getStoredConfig();
     const initialized = hasStoredConfig();
+    
+    logger.info(`Initialization check: hasStoredConfig=${initialized}, config=${config ? 'exists' : 'null'}`, {
+      module: 'initialization'
+    });
+    
+    // If force_init parameter is present, always show the init page
+    if (forceInit) {
+      setIsInitialized(false);
+      return;
+    }
+    
     setIsInitialized(initialized);
   }, []);
   
@@ -109,15 +122,36 @@ const RequireInitialization = ({ children }: { children: React.ReactNode }) => {
   const [isReady, setIsReady] = useState<boolean | null>(null);
 
   useEffect(() => {
+    const hostname = window.location.hostname;
     const initialized = hasStoredConfig();
+    const isDev = isDevelopment();
     
-    // Log initialization status
-    logger.info(`Initialization check - initialized: ${initialized}, isDevelopment: ${isDevelopment()}`, {
+    // Log detailed initialization status
+    logger.info(`RequireInitialization check - hostname: ${hostname}, initialized: ${initialized}, isDevelopment: ${isDev}`, {
       module: 'initialization'
     });
     
+    // Special case for custom domains in production
+    if (!initialized && !isDev && hostname !== 'localhost' && 
+        !hostname.includes('lovable.dev') && !hostname.includes('lovable.app')) {
+      logger.info(`Custom domain detected (${hostname}), attempting to use default config`, {
+        module: 'initialization'
+      });
+      const config = getStoredConfig();
+      
+      if (!config) {
+        // For custom domains without config, try to force a default config
+        logger.info('No config found for custom domain, forcing default config', {
+          module: 'initialization'
+        });
+        const success = forceDefaultConfig();
+        setIsReady(success);
+        return;
+      }
+    }
+    
     // If we're in development and not initialized, force default config
-    if (!initialized && isDevelopment()) {
+    if (!initialized && isDev) {
       logger.info('In development environment, attempting to force default config', {
         module: 'initialization'
       });

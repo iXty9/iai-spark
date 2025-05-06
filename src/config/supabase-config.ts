@@ -1,4 +1,3 @@
-
 import { logger } from '@/utils/logging';
 
 export interface SupabaseConfig {
@@ -10,6 +9,12 @@ export interface SupabaseConfig {
 // Storage key for Supabase configuration
 const STORAGE_KEY = 'spark_supabase_config';
 
+// List of known custom production domains 
+const KNOWN_PRODUCTION_DOMAINS = [
+  'ixty.ai',
+  'iai-spark.lovable.app' // Include the production Lovable app domain
+];
+
 // Environment detection
 export const isDevelopment = () => {
   const hostname = window.location.hostname;
@@ -18,15 +23,34 @@ export const isDevelopment = () => {
     module: 'supabase-config',
     once: true
   });
+
+  // Check if this is one of our known production domains
+  const isKnownProductionDomain = KNOWN_PRODUCTION_DOMAINS.some(domain => 
+    hostname === domain || hostname.endsWith('.' + domain)
+  );
   
-  return (
+  // If it's a known production domain, it's definitely not development
+  if (isKnownProductionDomain) {
+    logger.info(`Hostname ${hostname} matched known production domain`, {
+      module: 'supabase-config'
+    });
+    return false;
+  }
+  
+  // Otherwise, check if it's a development or preview domain
+  const isDev = (
     hostname === 'localhost' || 
     hostname === '127.0.0.1' ||
     hostname.includes('lovable.dev') ||
     hostname.includes('.lovable.app') ||
-    // Include preview domains
     hostname.includes('preview--') 
   );
+  
+  logger.info(`Hostname ${hostname} isDevelopment check result: ${isDev}`, {
+    module: 'supabase-config'
+  });
+  
+  return isDev;
 };
 
 /**
@@ -52,7 +76,14 @@ export function hasStoredConfig(): boolean {
     
     // In production, strictly require stored configuration
     const storedConfig = localStorage.getItem(STORAGE_KEY);
-    return !!storedConfig;
+    const hasConfig = !!storedConfig;
+    
+    // Log detailed information about the stored config state
+    logger.info(`Production environment: stored config exists = ${hasConfig}`, {
+      module: 'supabase-config'
+    });
+    
+    return hasConfig;
   } catch (e) {
     logger.error('Error checking for stored Supabase config', e);
     return false;
