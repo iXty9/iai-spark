@@ -19,7 +19,7 @@ export async function invokeAdminFunction(action: string, params: any = {}): Pro
       throw new Error('Supabase functions API is not available');
     }
 
-    // Invoke the edge function with error handling
+    // Invoke the edge function with safe error handling
     try {
       const response = await supabase.functions.invoke('admin-users', {
         body: { action, params },
@@ -32,12 +32,14 @@ export async function invokeAdminFunction(action: string, params: any = {}): Pro
         throw new Error(`No response from admin-users function (${action})`);
       }
       
-      if (response.error) {
+      // Use in operator to safely check for error property
+      if (response && 'error' in response && response.error) {
         logger.error(`Error invoking admin-users function (${action}):`, response.error, { module: 'roles' });
         throw response.error;
       }
 
-      return response.data;
+      // Safely return data if it exists
+      return response && 'data' in response ? response.data : null;
     } catch (err) {
       logger.error(`Error in supabase.functions.invoke:`, err, { module: 'roles' });
       throw err;

@@ -8,7 +8,7 @@ import { toast } from '@/hooks/use-toast';
 // Get the Supabase client
 const client = getSupabaseClient();
 
-// Define a comprehensive type for PostgrestResponse
+// Define a type for PostgrestResponse that includes common properties
 interface PostgrestResponse {
   data: any | null;
   error: Error | null;
@@ -16,7 +16,7 @@ interface PostgrestResponse {
   count: number | null;
 }
 
-// Define a comprehensive type-compatible fallback client
+// Define a simplified fallback client that ensures consistent typing
 const fallbackClient = {
   auth: {
     getSession: () => {
@@ -34,7 +34,7 @@ const fallbackClient = {
     getUser: () => Promise.resolve({ data: { user: null }, error: new Error('Client not initialized') })
   },
   from: (table: string) => {
-    // Create a standard response object
+    // Create a standardized response
     const standardResponse = (): Promise<PostgrestResponse> => 
       Promise.resolve({
         data: null,
@@ -42,49 +42,46 @@ const fallbackClient = {
         status: 500,
         count: null
       });
-
-    // Create a query builder with chainable methods
-    const createQueryBuilder = () => {
-      const builder = {
-        eq: (column: string, value: any) => createQueryBuilder(),
-        select: (columns?: string) => createQueryBuilder(),
-        order: (column: string, options?: { ascending?: boolean }) => createQueryBuilder(),
+    
+    // Base query builder for PostgreSQL table operations
+    return {
+      select: (columns?: string) => ({
+        eq: (column: string, value: any) => standardResponse(),
+        neq: (column: string, value: any) => standardResponse(),
+        gt: (column: string, value: any) => standardResponse(),
+        gte: (column: string, value: any) => standardResponse(),
+        lt: (column: string, value: any) => standardResponse(),
+        lte: (column: string, value: any) => standardResponse(),
+        like: (column: string, pattern: string) => standardResponse(),
+        ilike: (column: string, pattern: string) => standardResponse(),
+        is: (column: string, value: any) => standardResponse(),
+        in: (column: string, values: any[]) => standardResponse(),
+        contains: (column: string, value: any) => standardResponse(),
+        containedBy: (column: string, values: any[]) => standardResponse(),
+        filter: (column: string, operator: string, value: any) => standardResponse(),
+        match: (query: object) => standardResponse(),
+        order: (column: string, options?: object) => ({
+          limit: (limit: number) => standardResponse(),
+          single: () => standardResponse(),
+          maybeSingle: () => standardResponse(),
+          range: (from: number, to: number) => standardResponse(),
+          eq: (column: string, value: any) => standardResponse(),
+          neq: (column: string, value: any) => standardResponse(),
+        }),
         limit: (limit: number) => standardResponse(),
         single: () => standardResponse(),
         maybeSingle: () => standardResponse(),
-        match: (query: any) => createQueryBuilder(),
-        filter: (column: string, operator: string, value: any) => createQueryBuilder(),
-        range: (from: number, to: number) => createQueryBuilder(),
-        gte: (column: string, value: any) => createQueryBuilder(),
-        lte: (column: string, value: any) => createQueryBuilder(),
-        gt: (column: string, value: any) => createQueryBuilder(),
-        lt: (column: string, value: any) => createQueryBuilder(),
-        neq: (column: string, value: any) => createQueryBuilder(),
-        in: (column: string, values: any[]) => createQueryBuilder(),
-        is: (column: string, value: any) => createQueryBuilder(),
-        contains: (column: string, value: any) => createQueryBuilder(),
-        containedBy: (column: string, value: any) => createQueryBuilder(),
-        textSearch: (column: string, query: string, options?: { config?: string }) => createQueryBuilder(),
-        like: (column: string, pattern: string) => createQueryBuilder(),
-        ilike: (column: string, pattern: string) => createQueryBuilder(),
-      };
-      
-      return builder;
-    };
-
-    return {
-      select: (columns?: string) => createQueryBuilder(),
+        range: (from: number, to: number) => standardResponse()
+      }),
       insert: (data: any) => standardResponse(),
       update: (data: any) => ({
         eq: (column: string, value: any) => standardResponse(),
-        match: (query: any) => standardResponse(),
+        match: (query: object) => standardResponse()
       }),
       delete: () => ({
         eq: (column: string, value: any) => standardResponse(),
-        match: (query: any) => standardResponse(),
-      }),
-      eq: (column: string, value: any) => createQueryBuilder(),
-      neq: (column: string, value: any) => createQueryBuilder(),
+        match: (query: object) => standardResponse()
+      })
     };
   },
   storage: {
@@ -95,9 +92,9 @@ const fallbackClient = {
   },
   functions: {
     invoke: (functionName: string, options?: { body?: any; headers?: any }) => 
-      Promise.resolve({ 
-        data: null, 
-        error: new Error('Client not initialized'), 
+      Promise.resolve({
+        data: null,
+        error: new Error('Client not initialized'),
         status: 500,
         count: null
       })
