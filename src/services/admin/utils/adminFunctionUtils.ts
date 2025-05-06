@@ -23,7 +23,9 @@ export async function invokeAdminFunction(action: string, params: any = {}): Pro
       }
     });
 
-    const { data, error } = response || { data: null, error: null };
+    // Safely access properties with optional chaining
+    const data = response?.data;
+    const error = response?.error;
 
     if (error) {
       logger.error(`Error invoking admin-users function (${action}):`, error, { module: 'roles' });

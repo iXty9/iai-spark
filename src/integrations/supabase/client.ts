@@ -8,9 +8,8 @@ import { toast } from '@/hooks/use-toast';
 // Get the Supabase client
 const client = getSupabaseClient();
 
-// Handle reset configuration scenarios
-export const supabase = client || {
-  // Provide fallback methods that show a toast when the client is not available
+// Define a more comprehensive type-compatible fallback client
+const fallbackClient = {
   auth: {
     getSession: () => {
       toast({
@@ -23,36 +22,36 @@ export const supabase = client || {
     signOut: () => Promise.resolve({ error: new Error('Client not initialized') }),
     signInWithPassword: () => Promise.resolve({ data: { user: null, session: null }, error: new Error('Client not initialized') }),
     onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-    // Add missing auth methods
     signUp: () => Promise.resolve({ data: { user: null, session: null }, error: new Error('Client not initialized') }),
     getUser: () => Promise.resolve({ data: { user: null }, error: new Error('Client not initialized') })
   },
-  from: (table) => ({
-    select: () => ({
-      eq: () => ({
-        limit: () => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
-        maybeSingle: () => Promise.resolve({ data: null, error: new Error('Client not initialized') })
+  from: (table: string) => ({
+    select: (columns?: string) => ({
+      eq: (column: string, value: any) => ({
+        limit: (limit: number) => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
+        maybeSingle: () => Promise.resolve({ data: null, error: new Error('Client not initialized'), status: 500 })
       }),
-      limit: () => Promise.resolve({ data: null, error: new Error('Client not initialized') })
+      limit: (limit: number) => Promise.resolve({ data: null, error: new Error('Client not initialized') })
     }),
-    insert: () => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
-    update: () => ({
-      eq: () => Promise.resolve({ data: null, error: new Error('Client not initialized') })
+    insert: (data: any) => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
+    update: (data: any) => ({
+      eq: (column: string, value: any) => Promise.resolve({ data: null, error: new Error('Client not initialized') })
     }),
-    eq: () => ({
-      maybeSingle: () => Promise.resolve({ data: null, error: new Error('Client not initialized') })
+    eq: (column: string, value: any) => ({
+      maybeSingle: () => Promise.resolve({ data: null, error: new Error('Client not initialized'), status: 500 })
     })
   }),
-  // Add storage methods
   storage: {
-    from: (bucket) => ({
-      upload: () => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
-      getPublicUrl: () => ({ data: { publicUrl: '' } })
+    from: (bucket: string) => ({
+      upload: (path: string, file: any) => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
+      getPublicUrl: (path: string) => ({ data: { publicUrl: '' } })
     })
   },
-  // Add functions methods
   functions: {
-    invoke: () => Promise.resolve({ data: null, error: new Error('Client not initialized') })
-  },
-  // Add other methods as needed
+    invoke: (functionName: string, options?: { body?: any; headers?: any }) => 
+      Promise.resolve({ data: null, error: new Error('Client not initialized'), status: 500 })
+  }
 };
+
+// Handle reset configuration scenarios
+export const supabase = client || fallbackClient;

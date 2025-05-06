@@ -36,7 +36,11 @@ export const useAuthState = () => {
         .eq('id', userId)
         .maybeSingle();
 
-      const { data, error, status } = response || { data: null, error: null, status: 500 };
+      // Get error and data, handling different response shapes
+      const error = response?.error;
+      const data = response?.data;
+      // Handle status safely with optional chaining
+      const status = 'status' in response ? response.status : undefined;
 
       if (error) {
         if (process.env.NODE_ENV === 'development') {

@@ -21,13 +21,16 @@ export async function checkIsAdmin(): Promise<boolean> {
     
     const userId = session.session.user.id;
     
-    const response = await supabase
+    // Using a type guard to avoid deep type instantiations
+    const query = supabase
       .from('user_roles')
       .select('role')
-      .eq('user_id', userId)
-      .eq('role', 'admin')
-      .maybeSingle();
+      .eq('user_id', userId);
+    
+    // Add additional filter after establishing proper query
+    const response = await query.eq('role', 'admin').maybeSingle();
 
+    // Safely access properties with explicit type management
     const error = response?.error;
     const data = response?.data;
 
