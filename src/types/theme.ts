@@ -15,8 +15,8 @@ export interface ThemeColors {
 export interface ThemeSettings {
   mode?: 'light' | 'dark';
   colors?: {
-    light?: ThemeColors;
-    dark?: ThemeColors;
+    light?: Partial<ThemeColors>;
+    dark?: Partial<ThemeColors>;
   };
   lightTheme?: ThemeColors;
   darkTheme?: ThemeColors;
