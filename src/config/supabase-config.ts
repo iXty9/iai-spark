@@ -1,3 +1,4 @@
+
 import { logger } from '@/utils/logging';
 
 export interface SupabaseConfig {
@@ -71,6 +72,17 @@ export function hasStoredConfig(): boolean {
       logger.info(`No stored config found in development. Default config saved: ${saved}`, {
         module: 'supabase-config'
       });
+      
+      // Check for force_init parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const forceInit = urlParams.get('force_init') === 'true';
+      if (forceInit) {
+        logger.info('Force init parameter detected, bypassing default config', {
+          module: 'supabase-config'
+        });
+        return false;
+      }
+      
       return saved;
     }
     
@@ -103,10 +115,19 @@ export function getStoredConfig(): SupabaseConfig | null {
       return JSON.parse(storedConfig) as SupabaseConfig;
     }
     
-    // In development mode, save and return hardcoded defaults
-    if (isDevelopment()) {
+    // Check for force_init parameter - don't use default if forcing init
+    const urlParams = new URLSearchParams(window.location.search);
+    const forceInit = urlParams.get('force_init') === 'true';
+    
+    // In development mode, save and return hardcoded defaults unless forcing init
+    if (isDevelopment() && !forceInit) {
       const defaultConfig = getDefaultConfig();
       saveConfig(defaultConfig);
+      
+      logger.warn('Using hardcoded default Supabase credentials for development', {
+        module: 'supabase-config'
+      });
+      
       return defaultConfig;
     }
     
@@ -115,15 +136,20 @@ export function getStoredConfig(): SupabaseConfig | null {
   } catch (e) {
     logger.error('Error retrieving Supabase config from storage', e);
     
-    // In development, save and return defaults even on error
+    // In development, save and return defaults even on error (unless forcing init)
     if (isDevelopment()) {
-      const defaultConfig = getDefaultConfig();
-      try {
-        saveConfig(defaultConfig);
-      } catch (e) {
-        // Ignore error on saving
+      const urlParams = new URLSearchParams(window.location.search);
+      const forceInit = urlParams.get('force_init') === 'true';
+      
+      if (!forceInit) {
+        const defaultConfig = getDefaultConfig();
+        try {
+          saveConfig(defaultConfig);
+        } catch (e) {
+          // Ignore error on saving
+        }
+        return defaultConfig;
       }
-      return defaultConfig;
     }
     
     return null;
@@ -149,6 +175,9 @@ export function saveConfig(config: SupabaseConfig): boolean {
 export function clearConfig(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
+    logger.info('Supabase configuration cleared successfully', {
+      module: 'supabase-config'
+    });
   } catch (e) {
     logger.error('Error clearing Supabase config', e);
   }
@@ -171,8 +200,19 @@ export function forceDefaultConfig(): boolean {
 /**
  * Get hardcoded default Supabase configuration for development
  * This is used as a fallback when no configuration is available
+ * 
+ * ⚠️ SECURITY WARNING ⚠️
+ * These credentials should be replaced before production deployment.
+ * They are only meant for development and testing purposes.
+ * In a production environment, proper configuration must be done
+ * during the initialization process.
  */
 export function getDefaultConfig(): SupabaseConfig {
+  logger.warn('⚠️ Using hardcoded Supabase credentials - FOR DEVELOPMENT ONLY ⚠️', {
+    module: 'supabase-config',
+    once: true
+  });
+  
   return {
     url: "https://ymtdtzkskjdqlzhjuesk.supabase.co",
     anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltdGR0emtza2pkcWx6aGp1ZXNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5MjUyNDYsImV4cCI6MjA2MDUwMTI0Nn0.sOQdxH63edhcIgjx6mxjHkeam4IQGViaWYLdFDepIaE",

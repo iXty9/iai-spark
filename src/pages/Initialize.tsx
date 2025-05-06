@@ -1,12 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ConnectionForm } from '@/components/init/ConnectionForm';
 import { DatabaseSetupStep } from '@/components/init/DatabaseSetupStep';
 import { AdminSetupForm } from '@/components/init/AdminSetupForm';
-import { hasStoredConfig, isDevelopment } from '@/config/supabase-config';
+import { hasStoredConfig, isDevelopment, clearConfig } from '@/config/supabase-config';
 import { toast } from '@/hooks/use-toast';
-import { ArrowLeft, ArrowRight, Database, ShieldCheck, Settings } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Database, ShieldCheck, Settings, Info, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 // Initialize page steps
 enum InitStep {
@@ -18,17 +20,32 @@ enum InitStep {
 
 const Initialize = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [currentStep, setCurrentStep] = useState<InitStep>(InitStep.Connection);
   const [supabaseUrl, setSupabaseUrl] = useState('');
   const [anonKey, setAnonKey] = useState('');
   const [serviceKey, setServiceKey] = useState('');
   
+  // Parse URL parameters
+  const urlParams = new URLSearchParams(location.search);
+  const forceInit = urlParams.get('force_init') === 'true';
+  const resetConfig = urlParams.get('reset_config') === 'true';
+  
   // Check if already initialized
   useEffect(() => {
-    // Allow forcing the initialize page with force_init parameter
-    const urlParams = new URLSearchParams(window.location.search);
-    const forceInit = urlParams.get('force_init') === 'true';
+    if (resetConfig) {
+      // Clear config and reload without params
+      clearConfig();
+      toast({
+        title: 'Configuration Reset',
+        description: 'The stored configuration has been cleared.',
+      });
+      // Reload the page without parameters
+      navigate('/initialize');
+      return;
+    }
     
+    // Allow forcing the initialize page with force_init parameter
     if (!forceInit && hasStoredConfig()) {
       toast({
         title: 'Already Configured',
@@ -36,7 +53,7 @@ const Initialize = () => {
       });
       navigate('/');
     }
-  }, [navigate]);
+  }, [navigate, forceInit, resetConfig]);
   
   // Handle successful connection setup
   const handleConnectionSuccess = (url: string, anon: string, service: string) => {
@@ -63,6 +80,11 @@ const Initialize = () => {
     setTimeout(() => {
       navigate('/');
     }, 2000);
+  };
+  
+  // Reset stored configuration
+  const handleResetConfig = () => {
+    navigate('/initialize?reset_config=true');
   };
   
   // Render the current step
@@ -103,6 +125,39 @@ const Initialize = () => {
           </div>
         );
     }
+  };
+  
+  // Render the developer info alert
+  const renderDevAlert = () => {
+    if (isDevelopment()) {
+      return (
+        <Alert className="mb-6">
+          <Info className="h-4 w-4" />
+          <AlertTitle>Developer Information</AlertTitle>
+          <AlertDescription className="space-y-2">
+            <p>
+              This installation is using URL parameters to control initialization:
+            </p>
+            <ul className="list-disc pl-5 space-y-1 text-sm">
+              <li><code>force_init=true</code> - Forces initialization page (current: {forceInit ? 'On' : 'Off'})</li>
+              <li><code>reset_config=true</code> - Clears stored configuration</li>
+            </ul>
+            <div className="flex gap-2 mt-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleResetConfig}
+                className="text-xs"
+              >
+                <RefreshCw className="mr-1 h-3 w-3" />
+                Reset Configuration
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      );
+    }
+    return null;
   };
   
   // Render the step indicator
@@ -155,6 +210,9 @@ const Initialize = () => {
             Configure your application for first use
           </p>
         </div>
+        
+        {/* Developer information alert */}
+        {renderDevAlert()}
         
         {currentStep !== InitStep.Complete && renderStepIndicator()}
         
