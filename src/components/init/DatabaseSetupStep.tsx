@@ -34,6 +34,7 @@ export function DatabaseSetupStep({
       
       if (result.success) {
         setInitialized(true);
+        // Configuration is saved in the init service
         setTimeout(onSuccess, 1500); // Show success state before continuing
       } else {
         setError(result.error || 'Database initialization failed');

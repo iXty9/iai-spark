@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
-import { hasStoredConfig } from "@/config/supabase-config";
+import { hasStoredConfig, getStoredConfig } from "@/config/supabase-config";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";

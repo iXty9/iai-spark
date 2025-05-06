@@ -45,6 +45,7 @@ export function AdminSetupForm({ supabaseUrl, serviceKey, onSuccess, onBack }: A
       );
       
       if (result.success) {
+        // Configuration is already saved in the init-service
         onSuccess();
       } else {
         setError(result.error || 'Failed to create admin user');
