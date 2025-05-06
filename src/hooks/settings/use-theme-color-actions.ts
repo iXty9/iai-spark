@@ -16,10 +16,16 @@ export const useThemeColorActions = ({
   darkTheme,
   setLightTheme,
   setDarkTheme
-}: UseThemeColorActionsProps) => {
+}: UseThemeColorActionsProps = {
+  theme: 'light',
+  lightTheme: {} as ThemeColors,
+  darkTheme: {} as ThemeColors,
+  setLightTheme: () => {},
+  setDarkTheme: () => {}
+}) => {
 
-  const handleLightThemeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+  const handleLightThemeChange = (e: React.ChangeEvent<HTMLInputElement> | { name: string; value: any }) => {
+    const { name, value } = 'target' in e ? e.target : e;
     const updatedTheme: ThemeColors = {
       ...lightTheme,
       [name]: value
@@ -32,8 +38,8 @@ export const useThemeColorActions = ({
     }
   };
 
-  const handleDarkThemeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+  const handleDarkThemeChange = (e: React.ChangeEvent<HTMLInputElement> | { name: string; value: any }) => {
+    const { name, value } = 'target' in e ? e.target : e;
     const updatedTheme: ThemeColors = {
       ...darkTheme,
       [name]: value
@@ -46,8 +52,18 @@ export const useThemeColorActions = ({
     }
   };
 
+  const handleLightModeOpacityChange = (name: string, value: number) => {
+    handleLightThemeChange({ name, value });
+  };
+
+  const handleDarkModeOpacityChange = (name: string, value: number) => {
+    handleDarkThemeChange({ name, value });
+  };
+
   return {
     handleLightThemeChange,
-    handleDarkThemeChange
+    handleDarkThemeChange,
+    handleLightModeOpacityChange,
+    handleDarkModeOpacityChange
   };
 };

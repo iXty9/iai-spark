@@ -1,4 +1,3 @@
-
 /**
  * SQL scripts for initializing a Supabase database
  */
@@ -146,65 +145,68 @@ export const initScripts = {
     CREATE POLICY "Admins can delete app settings" ON public.app_settings
       FOR DELETE USING (public.has_role(auth.uid(), 'admin'));
   `,
-
-  // Create storage bucket for avatars
+  
+  // Create the avatars storage bucket
   createAvatarsBucket: `
-    DO $$
-    BEGIN
-      -- Create avatars bucket if it doesn't exist
-      INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-      VALUES (
-        'avatars',
-        'avatars',
-        true,
-        5242880, -- 5MB
-        ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp']::text[]
-      )
-      ON CONFLICT (id) DO UPDATE SET
-        public = EXCLUDED.public,
-        file_size_limit = EXCLUDED.file_size_limit,
-        allowed_mime_types = EXCLUDED.allowed_mime_types;
-    END
-    $$;
+    -- Create the avatars storage bucket if it doesn't exist
+    INSERT INTO storage.buckets (id, name, public, avif_autodetection)
+    VALUES ('avatars', 'avatars', true, false)
+    ON CONFLICT (id) DO NOTHING;
   `,
   
-  // Set up RLS policies for the avatars bucket
+  // Create RLS policies for the avatars bucket
   createAvatarsRLSPolicies: `
-    -- Storage policies for avatars
-    BEGIN;
-      -- Policy for avatar uploads
-      DROP POLICY IF EXISTS "Users can upload their own avatars" ON storage.objects;
-      CREATE POLICY "Users can upload their own avatars" ON storage.objects
-        FOR INSERT
-        WITH CHECK (
-          bucket_id = 'avatars' AND
-          (storage.foldername(name))[1] = auth.uid()::text
-        );
-      
-      -- Policy for avatar viewing (public for all authenticated users)
-      DROP POLICY IF EXISTS "Avatar images are publicly viewable" ON storage.objects;
-      CREATE POLICY "Avatar images are publicly viewable" ON storage.objects
-        FOR SELECT
-        USING (bucket_id = 'avatars');
-      
-      -- Policy for avatar updates
-      DROP POLICY IF EXISTS "Users can update their own avatars" ON storage.objects;
-      CREATE POLICY "Users can update their own avatars" ON storage.objects
-        FOR UPDATE
-        USING (
-          bucket_id = 'avatars' AND
-          auth.uid()::text = (storage.foldername(name))[1]
-        );
-      
-      -- Policy for avatar deletion
-      DROP POLICY IF EXISTS "Users can delete their own avatars" ON storage.objects;
-      CREATE POLICY "Users can delete their own avatars" ON storage.objects
-        FOR DELETE
-        USING (
-          bucket_id = 'avatars' AND
-          auth.uid()::text = (storage.foldername(name))[1]
-        );
-    COMMIT;
+    -- Create policy to allow users to select their own avatars
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM storage.policies 
+        WHERE name = 'Avatar Select Policy' AND bucket_id = 'avatars'
+      ) THEN
+        CREATE POLICY "Avatar Select Policy"
+          ON storage.objects FOR SELECT
+          USING (bucket_id = 'avatars' AND (auth.role() = 'authenticated' OR storage.foldername(name)[1] = auth.uid()));
+      END IF;
+    END $$;
+
+    -- Create policy to allow users to insert their own avatars
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM storage.policies 
+        WHERE name = 'Avatar Insert Policy' AND bucket_id = 'avatars'
+      ) THEN
+        CREATE POLICY "Avatar Insert Policy"
+          ON storage.objects FOR INSERT
+          WITH CHECK (bucket_id = 'avatars' AND auth.role() = 'authenticated' AND storage.foldername(name)[1] = auth.uid());
+      END IF;
+    END $$;
+
+    -- Create policy to allow users to update their own avatars
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM storage.policies 
+        WHERE name = 'Avatar Update Policy' AND bucket_id = 'avatars'
+      ) THEN
+        CREATE POLICY "Avatar Update Policy"
+          ON storage.objects FOR UPDATE
+          USING (bucket_id = 'avatars' AND auth.role() = 'authenticated' AND storage.foldername(name)[1] = auth.uid());
+      END IF;
+    END $$;
+
+    -- Create policy to allow users to delete their own avatars
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM storage.policies 
+        WHERE name = 'Avatar Delete Policy' AND bucket_id = 'avatars'
+      ) THEN
+        CREATE POLICY "Avatar Delete Policy"
+          ON storage.objects FOR DELETE
+          USING (bucket_id = 'avatars' AND auth.role() = 'authenticated' AND storage.foldername(name)[1] = auth.uid());
+      END IF;
+    END $$;
   `
 };
 

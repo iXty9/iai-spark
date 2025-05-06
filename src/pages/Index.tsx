@@ -6,7 +6,7 @@ import { IOSFallbackInput } from '@/components/chat/IOSFallbackInput';
 import { useLocation } from 'react-router-dom';
 import { useTheme } from '@/hooks/use-theme';
 import { logger } from '@/utils/logging';
-import { forceReloadSettings } from '@/services/admin/settingsService';
+import { fetchAppSettings } from '@/services/admin/settingsService';
 
 const Index = () => {
   const { isIOSSafari, showFallbackInput } = useIOSSafari();
@@ -51,7 +51,7 @@ const Index = () => {
           // If theme is still not loaded, force reload settings
           if (!isThemeLoaded) {
             logger.info('Force loading theme settings', { module: 'index' });
-            await forceReloadSettings();
+            await fetchAppSettings();
           }
         } catch (error) {
           logger.error('Error during automatic theme loading', error, { module: 'index' });

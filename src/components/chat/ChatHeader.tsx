@@ -1,4 +1,3 @@
-
 import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, Trash2, Sun, Moon, Code, Upload, RefreshCw } from 'lucide-react';
@@ -13,7 +12,7 @@ import { useDevMode } from '@/store/use-dev-mode';
 import { UserMenu } from '@/components/UserMenu';
 import { importChat } from '@/services/import/importService';
 import { toast } from "@/hooks/use-toast";
-import { forceReloadSettings } from '@/services/admin/settingsService';
+import { fetchAppSettings } from '@/services/admin/settingsService';
 import { applyThemeChanges, applyBackgroundImage } from '@/utils/theme-utils';
 
 interface ChatHeaderProps {
@@ -91,7 +90,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     }
   };
 
-  // New function to handle force reloading theme
+  // Function to handle force reloading theme
   const handleReloadTheme = async () => {
     try {
       // Show loading toast
@@ -102,7 +101,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       });
 
       // Force reload settings from backend
-      const settings = await forceReloadSettings();
+      const settings = await fetchAppSettings();
       
       if (settings.default_theme_settings) {
         // Parse theme settings
@@ -205,7 +204,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="border-none shadow-md rounded-xl">
-            {/* New Load Theme option */}
+            {/* Load Theme option */}
             <DropdownMenuItem onClick={handleReloadTheme} className={isMobile ? "flex items-center" : ""}>
               <RefreshCw className="mr-2 h-4 w-4" />
               <span>{isMobile ? "Load Theme" : "Load Default Theme"}</span>

@@ -13,9 +13,21 @@ export interface ThemeColors {
 }
 
 export interface ThemeSettings {
-  mode: 'light' | 'dark';
-  lightTheme: ThemeColors;
-  darkTheme: ThemeColors;
-  backgroundImage: string | null;
-  backgroundOpacity: string;
+  mode?: 'light' | 'dark';
+  colors?: {
+    light?: ThemeColors;
+    dark?: ThemeColors;
+  };
+  lightTheme?: ThemeColors;
+  darkTheme?: ThemeColors;
+  backgroundImage?: string | null;
+  backgroundOpacity?: string | number;
+  backgroundConfig?: {
+    image?: string | null;
+    opacity?: number;
+    position?: string;
+    blur?: number;
+  };
+  name?: string;
+  exportDate?: string;
 }

@@ -6,6 +6,7 @@ import { logger } from '@/utils/logging';
 export interface AppSettings {
   avatar_url?: string;
   default_theme?: string;
+  default_theme_settings?: string;
   [key: string]: any;
 }
 
@@ -16,8 +17,7 @@ export async function fetchAppSettings(): Promise<AppSettings> {
   try {
     const { data, error } = await supabase
       .from('app_settings')
-      .select('key, value')
-      .maybeSingle();
+      .select('key, value');
     
     if (error) {
       logger.error('Error fetching app settings:', error);
@@ -40,6 +40,22 @@ export async function fetchAppSettings(): Promise<AppSettings> {
 }
 
 /**
+ * Force reload settings from the database
+ * Used when settings were possibly updated elsewhere or during app initialization
+ */
+export async function forceReloadSettings(): Promise<AppSettings> {
+  try {
+    logger.info('Forcing reload of app settings', { module: 'settings' });
+    
+    const settings = await fetchAppSettings();
+    return settings;
+  } catch (error) {
+    logger.error('Error in forceReloadSettings:', error);
+    return {};
+  }
+}
+
+/**
  * Update an application setting
  */
 export async function updateAppSetting(
@@ -52,9 +68,9 @@ export async function updateAppSetting(
       .from('app_settings')
       .select('id')
       .eq('key', key)
-      .maybeSingle();
+      .single();
     
-    if (checkError) {
+    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
       logger.error(`Error checking if setting ${key} exists:`, checkError);
       return false;
     }

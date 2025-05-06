@@ -10,7 +10,6 @@ import Settings from '@/pages/Settings';
 import Profile from '@/pages/Profile';
 import NotFound from '@/pages/NotFound';
 import Initialize from '@/pages/Initialize';
-import { DevModeProvider } from '@/store/use-dev-mode';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SystemSelfHealer } from '@/components/system/SystemSelfHealer';
 
@@ -23,27 +22,25 @@ const queryClient = new QueryClient();
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <DevModeProvider>
-        <ThemeProvider>
-          <AuthProvider>
-            {/* Self-healing system component */}
-            <SystemSelfHealer />
-            
-            <Router>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/admin" element={<Admin />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/initialize" element={<Initialize />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Router>
-            <Toaster />
-          </AuthProvider>
-        </ThemeProvider>
-      </DevModeProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          {/* Self-healing system component */}
+          <SystemSelfHealer />
+          
+          <Router>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/initialize" element={<Initialize />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Router>
+          <Toaster />
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
