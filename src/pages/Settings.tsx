@@ -1,297 +1,81 @@
 
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import { useTheme } from '@/hooks/use-theme';
-import { useAuth } from '@/contexts/AuthContext';
+import React from 'react';
+import { SettingsTabs } from '@/components/settings/SettingsTabs';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
-import { ThemeColors, ThemeSettings } from '@/types/theme';
+import { BackgroundSettings } from '@/components/settings/BackgroundSettings';
+import { ThemeImportExport } from '@/components/settings/ThemeImportExport';
 import { SettingsHeader } from '@/components/settings/SettingsHeader';
 import { SettingsFooter } from '@/components/settings/SettingsFooter';
-import { useSettingsState } from '@/hooks/settings/use-settings-state';
-import { useSettingsActions } from '@/hooks/settings/use-settings-actions';
-import { logger } from '@/utils/logging';
-import { applyBackgroundImage, applyThemeChanges } from '@/utils/theme-utils';
-import { Skeleton } from '@/components/ui/skeleton';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { setDefaultTheme } from '@/services/admin/settingsService';
-import { createThemeSettingsObject } from '@/utils/theme-utils';
+import { useTheme } from '@/hooks/use-theme';
+import { useThemeColorActions } from '@/hooks/settings/use-theme-color-actions';
+import { useBackgroundActions } from '@/hooks/settings/use-background-actions';
+import { useSettingsPersistence } from '@/hooks/settings/use-settings-persistence';
 
-export default function Settings() {
-  const navigate = useNavigate();
+const Settings = () => {
   const { theme, setTheme } = useTheme();
-  const { toast } = useToast();
-  const { user, updateProfile } = useAuth();
-  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
-  const [showSetDefaultDialog, setShowSetDefaultDialog] = useState(false);
-  
   const { 
-    lightTheme, 
-    darkTheme, 
-    backgroundImage, 
-    backgroundOpacity,
-    isSubmitting,
-    isLoading,
-    hasChanges,
-    setLightTheme,
-    setDarkTheme,
-    setBackgroundImage,
-    setBackgroundOpacity,
-    setIsSubmitting,
-    setHasChanges
-  } = useSettingsState();
-  
-  const {
-    handleLightThemeChange,
+    handleLightThemeChange, 
     handleDarkThemeChange,
-    handleBackgroundImageUpload,
+    handleLightModeOpacityChange,
+    handleDarkModeOpacityChange,
+  } = useThemeColorActions();
+
+  const { 
+    handleBackgroundImageChange,
+    handleBackgroundOpacityChange,
     handleRemoveBackground,
-    handleOpacityChange,
-    handleSaveSettings,
-    handleResetSettings,
-    handleThemeChange,
+    handleBackgroundPositionChange,
+    handleBackgroundBlurChange,
     isBackgroundLoading,
-    imageInfo
-  } = useSettingsActions({
-    user,
-    theme,
-    toast,
-    lightTheme,
-    darkTheme,
-    backgroundImage,
-    backgroundOpacity,
-    isSubmitting,
-    hasChanges,
-    setLightTheme,
-    setDarkTheme,
-    setBackgroundImage,
-    setBackgroundOpacity,
-    setIsSubmitting,
-    setHasChanges,
-    setTheme,
-    updateProfile
-  });
+  } = useBackgroundActions();
 
-  // Apply background on the settings page too
-  useEffect(() => {
-    // Apply current background image if it exists
-    if (backgroundImage) {
-      logger.info('Applying background image to settings page', { module: 'settings' });
-      applyBackgroundImage(backgroundImage, backgroundOpacity);
-    } else {
-      applyBackgroundImage(null, backgroundOpacity);
-    }
-  }, [backgroundImage, backgroundOpacity]);
-
-  const handleThemeColorChange = (themeType: 'light' | 'dark', value: React.ChangeEvent<HTMLInputElement> | { name: string; value: any }) => {
-    if ('target' in value) {
-      // Handle standard input change event
-      if (themeType === 'light') {
-        handleLightThemeChange(value);
-      } else {
-        handleDarkThemeChange(value);
-      }
-    } else {
-      // Handle custom slider change event
-      const { name, value: newValue } = value;
-      const updatedTheme = themeType === 'light' ? 
-        { ...lightTheme, [name]: newValue } : 
-        { ...darkTheme, [name]: newValue };
-      
-      if (themeType === 'light') {
-        setLightTheme(updatedTheme);
-      } else {
-        setDarkTheme(updatedTheme);
-      }
-    }
-  };
-
-  const handleGoBack = () => {
-    if (hasChanges) {
-      setShowDiscardDialog(true);
-    } else {
-      navigate(-1);
-    }
-  };
-
-  const handleDiscard = () => {
-    setShowDiscardDialog(false);
-    navigate(-1);
-  };
-
-  const handleImportTheme = (themeSettings: ThemeSettings) => {
-    try {
-      // Update theme mode if provided
-      if (themeSettings.mode && ['light', 'dark'].includes(themeSettings.mode)) {
-        handleThemeChange(themeSettings.mode as 'light' | 'dark');
-      }
-      
-      // Update light theme if provided
-      if (themeSettings.lightTheme) {
-        setLightTheme({
-          ...lightTheme,
-          ...themeSettings.lightTheme
-        });
-        
-        // Apply immediately if we're in light mode
-        if (theme === 'light') {
-          applyThemeChanges(themeSettings.lightTheme);
-        }
-      }
-      
-      // Update dark theme if provided
-      if (themeSettings.darkTheme) {
-        setDarkTheme({
-          ...darkTheme,
-          ...themeSettings.darkTheme
-        });
-        
-        // Apply immediately if we're in dark mode
-        if (theme === 'dark') {
-          applyThemeChanges(themeSettings.darkTheme);
-        }
-      }
-      
-      // Update background image if provided
-      if ('backgroundImage' in themeSettings) {
-        setBackgroundImage(themeSettings.backgroundImage);
-      }
-      
-      // Update background opacity if provided
-      if (themeSettings.backgroundOpacity !== undefined) {
-        const opacity = parseFloat(themeSettings.backgroundOpacity);
-        if (!isNaN(opacity)) {
-          setBackgroundOpacity(opacity);
-        }
-      }
-      
-      // Apply background immediately
-      applyBackgroundImage(
-        'backgroundImage' in themeSettings ? themeSettings.backgroundImage : backgroundImage,
-        themeSettings.backgroundOpacity !== undefined ? 
-          parseFloat(themeSettings.backgroundOpacity) : backgroundOpacity
-      );
-      
-      // Mark settings as changed
-      setHasChanges(true);
-      
-      logger.info('Theme settings imported successfully', { module: 'settings' });
-    } catch (error) {
-      logger.error('Error importing theme settings:', error);
-      toast({
-        variant: "destructive",
-        title: "Import failed",
-        description: "Failed to import theme settings",
-      });
-    }
-  };
-
-  const handleSetDefaultTheme = async () => {
-    try {
-      setShowSetDefaultDialog(false);
-      setIsSubmitting(true);
-      
-      // Create the theme settings object from current state
-      const themeSettings = createThemeSettingsObject(
-        theme, 
-        lightTheme, 
-        darkTheme, 
-        backgroundImage, 
-        backgroundOpacity
-      );
-      
-      // Save as default theme
-      await setDefaultTheme(themeSettings);
-      
-      toast({
-        title: "Default theme set",
-        description: "This theme will now be used as the default for all users",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to set default theme. Please try again.",
-      });
-      logger.error('Error setting default theme:', error, { module: 'settings' });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const {
+    handleResetTheme,
+    handleResetBackgroundOnly,
+    handleSaveTheme,
+    handleImportTheme,
+    isSaving
+  } = useSettingsPersistence();
 
   return (
-    <div className="container max-w-2xl py-10">
-      <Card className="bg-background/80 backdrop-blur-sm">
-        <SettingsHeader onGoBack={handleGoBack} />
-        <div className="p-6">
-          {isLoading ? (
-            <div className="space-y-4">
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-40 w-full" />
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-40 w-full" />
-            </div>
-          ) : (
-            <AppearanceSettings
-              theme={theme}
-              lightTheme={lightTheme}
-              darkTheme={darkTheme}
-              backgroundImage={backgroundImage}
-              backgroundOpacity={backgroundOpacity}
-              onThemeChange={handleThemeChange}
-              onLightThemeChange={(e) => handleThemeColorChange('light', e)}
-              onDarkThemeChange={(e) => handleThemeColorChange('dark', e)}
-              onBackgroundImageUpload={handleBackgroundImageUpload}
-              onBackgroundOpacityChange={handleOpacityChange}
-              onRemoveBackground={handleRemoveBackground}
-              onImportTheme={handleImportTheme}
-              isBackgroundLoading={isBackgroundLoading}
-              imageInfo={imageInfo}
-            />
-          )}
-        </div>
-        <SettingsFooter 
-          onReset={handleResetSettings} 
-          onCancel={handleGoBack} 
-          onSave={handleSaveSettings}
-          onSetDefault={() => setShowSetDefaultDialog(true)}
-          isSubmitting={isSubmitting}
-          hasChanges={hasChanges}
-        />
-      </Card>
+    <div className="flex flex-col min-h-screen bg-background">
+      <SettingsHeader />
       
-      {/* Discard changes dialog */}
-      <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Discard changes?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have unsaved changes. Are you sure you want to discard them?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDiscard}>Discard</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      
-      {/* Set Default Theme dialog */}
-      <AlertDialog open={showSetDefaultDialog} onOpenChange={setShowSetDefaultDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Set as Default Theme</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will set the current theme as the default for all users. Are you sure?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSetDefaultTheme}>Set as Default</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <main className="flex-1 container max-w-4xl mx-auto p-4 pt-0">
+        <SettingsTabs>
+          <AppearanceSettings 
+            theme={theme}
+            onLightThemeChange={handleLightThemeChange}
+            onDarkThemeChange={handleDarkThemeChange}
+            onLightModeOpacityChange={handleLightModeOpacityChange}
+            onDarkModeOpacityChange={handleDarkModeOpacityChange}
+            onResetTheme={handleResetTheme}
+          />
+          
+          <BackgroundSettings 
+            theme={theme}
+            onBackgroundImageChange={handleBackgroundImageChange}
+            onBackgroundOpacityChange={handleBackgroundOpacityChange}
+            onBackgroundPositionChange={handleBackgroundPositionChange}
+            onBackgroundBlurChange={handleBackgroundBlurChange}
+            onRemoveBackground={handleRemoveBackground}
+            onResetBackgroundOnly={handleResetBackgroundOnly}
+            isLoading={isBackgroundLoading}
+          />
+          
+          <ThemeImportExport
+            theme={theme}
+            onImport={handleImportTheme}
+          />
+        </SettingsTabs>
+      </main>
+
+      <SettingsFooter 
+        onSaveTheme={handleSaveTheme}
+        isSaving={isSaving} 
+      />
     </div>
   );
-}
+};
+
+export default Settings;

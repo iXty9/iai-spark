@@ -1,193 +1,109 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
-import { ThemeSettings } from '@/types/theme';
 
-// Define explicit types for app settings
-interface AppSetting {
-  id: string;
-  key: string;
-  value: string;
-  updated_at: string;
-  updated_by: string | null;
+// Define the AppSettings type
+export interface AppSettings {
+  avatar_url?: string;
+  default_theme?: string;
+  [key: string]: any;
 }
 
-interface AppSettingsResult {
-  data: AppSetting[] | null;
-  error: Error | null;
-}
-
-interface SingleSettingResult {
-  data: AppSetting | null;
-  error: Error | null;
-}
-
-// Simple in-memory cache
-let settingsCache: Record<string, string> | null = null;
-let lastFetchTime = 0;
-const CACHE_DURATION = 60000; // 1 minute cache
-
-export async function fetchAppSettings(): Promise<Record<string, string>> {
+/**
+ * Fetch application settings from the database
+ */
+export async function fetchAppSettings(): Promise<AppSettings> {
   try {
-    const now = Date.now();
-    
-    // Return cached settings if valid
-    if (settingsCache && (now - lastFetchTime < CACHE_DURATION)) {
-      logger.info('Using cached app settings', { 
-        module: 'settings', 
-        cache: true,
-        cacheAge: now - lastFetchTime
-      });
-      return settingsCache;
-    }
-    
-    // Fetch fresh settings if cache expired or doesn't exist
-    logger.info('Fetching app settings from database', { module: 'settings' });
-    
-    // Create a query with direct response handling
     const { data, error } = await supabase
       .from('app_settings')
-      .select('*') as AppSettingsResult;
+      .select('key, value')
+      .maybeSingle();
     
     if (error) {
-      logger.error('Error fetching app settings:', error, { module: 'settings' });
-      throw error;
+      logger.error('Error fetching app settings:', error);
+      return {};
     }
-
-    // Safe access to data
-    const settingsData = data || [];
     
-    // Convert to key-value map
-    const settings: Record<string, string> = {};
-    settingsData.forEach((setting: AppSetting) => {
-      settings[setting.key] = setting.value;
-    });
-    
-    // Update cache
-    settingsCache = settings;
-    lastFetchTime = now;
-    
-    // Log what we found
-    const hasDefaultTheme = !!settings.default_theme_settings;
-    logger.info('App settings fetched successfully', { 
-      module: 'settings', 
-      settingCount: Object.keys(settings).length,
-      hasDefaultTheme
-    });
-    
-    if (hasDefaultTheme) {
-      try {
-        const themeData = JSON.parse(settings.default_theme_settings);
-        logger.info('Default theme parsed successfully', {
-          module: 'settings',
-          hasBackground: !!themeData?.backgroundImage,
-          mode: themeData?.mode
-        });
-      } catch (e) {
-        logger.warn('Failed to parse default theme settings for logging', { module: 'settings' });
-      }
+    // Convert array of key-value pairs to object
+    const settings: AppSettings = {};
+    if (data && Array.isArray(data)) {
+      data.forEach((item: { key: string; value: string }) => {
+        settings[item.key] = item.value;
+      });
     }
-
+    
     return settings;
   } catch (error) {
-    logger.error('Unexpected error in fetchAppSettings:', error, { module: 'settings' });
-    throw error;
+    logger.error('Unexpected error in fetchAppSettings:', error);
+    return {};
   }
 }
 
-// New function to force clear cache and reload settings
-export async function forceReloadSettings(): Promise<Record<string, string>> {
-  logger.info('Force clearing settings cache', { module: 'settings' });
-  // Clear the cache
-  settingsCache = null;
-  lastFetchTime = 0;
-  
-  // Fetch fresh settings
-  return await fetchAppSettings();
-}
-
-export async function updateAppSetting(key: string, value: string): Promise<void> {
+/**
+ * Update an application setting
+ */
+export async function updateAppSetting(
+  key: string, 
+  value: string
+): Promise<boolean> {
   try {
-    // Get the current user ID
-    const userData = await supabase.auth.getSession();
-    const userId = userData?.data?.session?.user?.id || null;
-    
-    // Check if the setting already exists
-    const { data: existingData, error: existingError } = await supabase
+    // Check if setting exists
+    const { data: existingData, error: checkError } = await supabase
       .from('app_settings')
-      .select('*')
-      .eq('key', key) as AppSettingsResult;
+      .select('id')
+      .eq('key', key)
+      .maybeSingle();
     
-    // Safely check for errors
-    if (existingError) {
-      logger.error(`Error checking existing app setting ${key}:`, existingError, { module: 'settings' });
-      throw existingError;
+    if (checkError) {
+      logger.error(`Error checking if setting ${key} exists:`, checkError);
+      return false;
     }
     
-    // Check if setting exists
-    const existingSetting = existingData && existingData.length > 0 ? existingData[0] : null;
+    let result;
     
-    if (existingSetting) {
+    if (existingData) {
       // Update existing setting
-      const { error: updateError } = await supabase
+      result = await supabase
         .from('app_settings')
-        .update({ 
-          value, 
-          updated_at: new Date().toISOString(), 
-          updated_by: userId 
-        })
+        .update({ value })
         .eq('key', key);
-          
-      // Safely check for errors in update result
-      if (updateError) {
-        logger.error(`Error updating app setting ${key}:`, updateError, { module: 'settings' });
-        throw updateError;
-      }
     } else {
       // Insert new setting
-      const { error: insertError } = await supabase
+      result = await supabase
         .from('app_settings')
-        .insert({ 
-          key,
-          value, 
-          updated_at: new Date().toISOString(), 
-          updated_by: userId 
-        });
-          
-      // Safely check for errors in insert result
-      if (insertError) {
-        logger.error(`Error creating app setting ${key}:`, insertError, { module: 'settings' });
-        throw insertError;
-      }
+        .insert({ key, value });
     }
     
-    // Clear the cache so next fetch gets fresh data
-    settingsCache = null;
+    if (result.error) {
+      logger.error(`Error updating app setting ${key}:`, result.error);
+      return false;
+    }
     
+    return true;
   } catch (error) {
-    logger.error(`Unexpected error updating app setting ${key}:`, error, { module: 'settings' });
-    throw error;
+    logger.error(`Unexpected error updating setting ${key}:`, error);
+    return false;
   }
 }
 
-export async function setDefaultTheme(themeSettings: ThemeSettings): Promise<void> {
+/**
+ * Delete an application setting
+ */
+export async function deleteAppSetting(key: string): Promise<boolean> {
   try {
-    // Convert theme settings object to JSON string
-    const themeSettingsJSON = JSON.stringify(themeSettings);
+    const { error } = await supabase
+      .from('app_settings')
+      .delete()
+      .eq('key', key);
     
-    // Save as default theme in app_settings
-    await updateAppSetting('default_theme_settings', themeSettingsJSON);
+    if (error) {
+      logger.error(`Error deleting app setting ${key}:`, error);
+      return false;
+    }
     
-    // Clear the cache
-    settingsCache = null;
-    
-    logger.info('Default theme settings updated successfully', { 
-      module: 'settings',
-      hasBackground: !!themeSettings.backgroundImage,
-      mode: themeSettings.mode
-    });
+    return true;
   } catch (error) {
-    logger.error('Error setting default theme:', error, { module: 'settings' });
-    throw error;
+    logger.error(`Unexpected error deleting setting ${key}:`, error);
+    return false;
   }
 }

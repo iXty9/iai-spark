@@ -1,201 +1,382 @@
-
-import React, { useState } from 'react';
+import React, { useState, useCallback, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Download, Upload, Copy, Check, Share2 } from 'lucide-react';
-import { ThemeSettings } from '@/types/theme';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Share, Download, Upload, AlertCircle } from 'lucide-react';
+import { ThemeSettings } from '@/types/theme';
 
 interface ThemeImportExportProps {
-  theme: 'light' | 'dark';
-  lightTheme: any;
-  darkTheme: any;
-  backgroundImage: string | null;
-  backgroundOpacity: number;
-  onImportTheme: (themeSettings: ThemeSettings) => void;
+  theme: ThemeSettings;
+  onImport: (theme: ThemeSettings) => void;
 }
 
-export function ThemeImportExport({
-  theme,
-  lightTheme,
-  darkTheme,
-  backgroundImage,
-  backgroundOpacity,
-  onImportTheme
-}: ThemeImportExportProps) {
+export function ThemeImportExport({ theme, onImport }: ThemeImportExportProps) {
+  const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [themeJson, setThemeJson] = useState('');
+  const [themeName, setThemeName] = useState('');
+  const [themeUrl, setThemeUrl] = useState('');
+  const [importMethod, setImportMethod] = useState<'json' | 'url'>('json');
+  const [importError, setImportError] = useState<string | null>(null);
   const { toast } = useToast();
-  const [copied, setCopied] = useState(false);
-  const [showImportDialog, setShowImportDialog] = useState(false);
-  const [importData, setImportData] = useState('');
-  const [importError, setImportError] = useState('');
-  
-  // Create theme settings object for export
-  const themeSettings: ThemeSettings = {
-    mode: theme,
-    lightTheme,
-    darkTheme,
-    backgroundImage,
-    backgroundOpacity: backgroundOpacity.toString()
-  };
-  
-  // Format theme JSON for export
-  const themeJson = JSON.stringify(themeSettings, null, 2);
-  
-  // Handle theme export
-  const handleExportTheme = () => {
-    // Create a blob with the theme data
-    const blob = new Blob([themeJson], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    
-    // Create a temporary link element
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `theme-settings-${Date.now()}.json`;
-    
-    // Trigger download and clean up
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
-    toast({
-      title: "Theme exported",
-      description: "Theme settings exported successfully",
-    });
-  };
-  
-  // Handle copy to clipboard
-  const handleCopyTheme = async () => {
+
+  // Export current theme as JSON
+  const handleExport = useCallback(() => {
     try {
-      await navigator.clipboard.writeText(themeJson);
-      setCopied(true);
-      toast({
-        title: "Copied to clipboard",
-        description: "Theme settings copied to clipboard",
-      });
+      const themeToExport = {
+        ...theme,
+        name: themeName || 'My Custom Theme',
+        exportDate: new Date().toISOString(),
+      };
       
-      // Reset copied state after 2 seconds
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
+      setThemeJson(JSON.stringify(themeToExport, null, 2));
+      setExportOpen(true);
+    } catch (error) {
+      console.error('Error exporting theme:', error);
       toast({
-        variant: "destructive",
-        title: "Copy failed",
-        description: "Failed to copy settings. Try exporting instead.",
+        title: "Export Failed",
+        description: "There was an error exporting your theme.",
+        variant: "destructive"
       });
     }
-  };
-  
-  // Handle theme import from JSON
-  const handleImport = () => {
+  }, [theme, themeName, toast]);
+
+  // Copy the JSON to clipboard
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(themeJson)
+      .then(() => {
+        toast({
+          title: "Copied!",
+          description: "Theme JSON copied to clipboard.",
+        });
+      })
+      .catch(err => {
+        console.error('Failed to copy:', err);
+        toast({
+          title: "Copy Failed",
+          description: "Could not copy to clipboard. Please try manually selecting the text.",
+          variant: "destructive"
+        });
+      });
+  }, [themeJson, toast]);
+
+  // Create a shareable URL with theme data
+  const handleCreateShareUrl = useCallback(() => {
     try {
-      // Reset error state
-      setImportError('');
+      const minifiedTheme = {
+        // Include only essential theme properties to keep URL short
+        colors: theme.colors,
+        backgroundConfig: theme.backgroundConfig
+      };
       
-      // Parse the JSON data
-      const importedSettings = JSON.parse(importData);
+      const encoded = encodeURIComponent(btoa(JSON.stringify(minifiedTheme)));
+      const url = `${window.location.origin}/settings?theme=${encoded}`;
+      setThemeUrl(url);
       
-      // Validate required fields
-      if (!importedSettings.lightTheme || !importedSettings.darkTheme) {
-        setImportError('Invalid theme format: Missing required theme data');
-        return;
-      }
+      navigator.clipboard.writeText(url)
+        .then(() => {
+          toast({
+            title: "URL Created and Copied!",
+            description: "Shareable theme URL has been copied to your clipboard.",
+          });
+        })
+        .catch(err => {
+          console.error('Failed to copy URL:', err);
+          toast({
+            title: "URL Created",
+            description: "Copy the URL from the field below.",
+          });
+        });
+    } catch (error) {
+      console.error('Error creating share URL:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create shareable URL.",
+        variant: "destructive"
+      });
+    }
+  }, [theme, toast]);
+
+  // Download theme as JSON file
+  const handleDownload = useCallback(() => {
+    try {
+      const dataStr = JSON.stringify({
+        ...theme,
+        name: themeName || 'My Custom Theme',
+        exportDate: new Date().toISOString(),
+      }, null, 2);
       
-      // Validate mode
-      if (importedSettings.mode && !['light', 'dark'].includes(importedSettings.mode)) {
-        setImportError('Invalid theme mode: Must be "light" or "dark"');
-        return;
-      }
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      const exportFileName = `${themeName || 'theme'}-${new Date().toISOString().slice(0,10)}.json`;
       
-      // Apply the imported theme
-      onImportTheme(importedSettings);
-      
-      // Close dialog and show success message
-      setShowImportDialog(false);
-      setImportData('');
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileName);
+      linkElement.click();
+      linkElement.remove();
       
       toast({
-        title: "Theme imported",
-        description: "Theme settings imported successfully",
+        title: "Theme Downloaded",
+        description: `Saved as ${exportFileName}`,
       });
-    } catch (err) {
-      // Handle JSON parse error
-      setImportError('Invalid JSON format. Please check your theme data.');
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        title: "Download Failed",
+        description: "There was an error downloading your theme.",
+        variant: "destructive"
+      });
     }
-  };
-  
+  }, [theme, themeName, toast]);
+
+  // Import theme from JSON
+  const handleImport = useCallback(() => {
+    setImportError(null);
+    
+    try {
+      if (importMethod === 'json') {
+        if (!themeJson.trim()) {
+          setImportError("Please enter theme JSON data");
+          return;
+        }
+        
+        const imported = JSON.parse(themeJson);
+        
+        // Basic validation
+        if (!imported.colors) {
+          setImportError("Invalid theme format: missing colors");
+          return;
+        }
+        
+        onImport(imported);
+        setImportOpen(false);
+        toast({
+          title: "Theme Imported",
+          description: `Successfully imported ${imported.name || 'theme'}.`,
+        });
+      } else if (importMethod === 'url') {
+        if (!themeUrl.trim()) {
+          setImportError("Please enter a theme URL");
+          return;
+        }
+        
+        try {
+          const url = new URL(themeUrl);
+          const themeParam = url.searchParams.get('theme');
+          
+          if (!themeParam) {
+            setImportError("Invalid theme URL: no theme data found");
+            return;
+          }
+          
+          const decoded = JSON.parse(atob(decodeURIComponent(themeParam)));
+          
+          // Basic validation
+          if (!decoded.colors) {
+            setImportError("Invalid theme format in URL: missing colors");
+            return;
+          }
+          
+          onImport(decoded);
+          setImportOpen(false);
+          toast({
+            title: "Theme Imported",
+            description: "Successfully imported theme from URL.",
+          });
+        } catch (error) {
+          console.error('URL parsing error:', error);
+          setImportError("Invalid theme URL: could not parse theme data");
+        }
+      }
+    } catch (error) {
+      console.error('Import error:', error);
+      setImportError("Could not parse theme JSON. Please check the format.");
+    }
+  }, [themeJson, themeUrl, importMethod, onImport, toast]);
+
   return (
-    <>
-      <div className="space-y-4 border rounded-md p-4">
-        <h3 className="font-medium mb-2">Export & Import Theme</h3>
-        
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Button
-            variant="outline"
-            onClick={handleExportTheme}
-            className="flex-1"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export Theme
-          </Button>
-          
-          <Button
-            variant="outline"
-            onClick={handleCopyTheme}
-            className="flex-1"
-          >
-            {copied ? (
-              <Check className="h-4 w-4 mr-2 text-green-500" />
-            ) : (
-              <Copy className="h-4 w-4 mr-2" />
-            )}
-            Copy as JSON
-          </Button>
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle>Theme Import & Export</CardTitle>
+        <CardDescription>Share your theme or import themes from others</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <Label htmlFor="theme-name">Theme Name</Label>
+          <Input
+            id="theme-name"
+            value={themeName}
+            onChange={(e) => setThemeName(e.target.value)}
+            className="mt-1"
+            placeholder="My Awesome Theme"
+          />
         </div>
-        
-        <Button
-          variant="secondary"
-          onClick={() => setShowImportDialog(true)}
-          className="w-full"
-        >
-          <Upload className="h-4 w-4 mr-2" />
-          Import Theme
+      </CardContent>
+      <CardFooter className="flex flex-wrap gap-2">
+        <Button onClick={handleExport} variant="outline">
+          <Share className="mr-2 h-4 w-4" />
+          Export Theme
         </Button>
-      </div>
+        <Button onClick={handleDownload} variant="outline">
+          <Download className="mr-2 h-4 w-4" />
+          Download
+        </Button>
+        <Dialog open={importOpen} onOpenChange={setImportOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline">
+              <Upload className="mr-2 h-4 w-4" />
+              Import Theme
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Import Theme</DialogTitle>
+              <DialogDescription>
+                Paste theme JSON or enter a theme URL
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="flex items-center space-x-4">
+                <Button
+                  variant={importMethod === 'json' ? "default" : "outline"}
+                  onClick={() => setImportMethod('json')}
+                  size="sm"
+                >
+                  JSON
+                </Button>
+                <Button
+                  variant={importMethod === 'url' ? "default" : "outline"}
+                  onClick={() => setImportMethod('url')}
+                  size="sm"
+                >
+                  URL
+                </Button>
+              </div>
+              
+              {importMethod === 'json' ? (
+                <div>
+                  <Label htmlFor="theme-json" className="sr-only">
+                    Theme JSON
+                  </Label>
+                  <Textarea
+                    id="theme-json"
+                    value={themeJson}
+                    onChange={(e) => setThemeJson(e.target.value)}
+                    placeholder='{"colors":{"light":{"primary":"..."},"dark":{...}},"backgroundConfig":{...}}'
+                    rows={8}
+                    className="font-mono text-xs resize-none"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <Label htmlFor="theme-url" className="sr-only">
+                    Theme URL
+                  </Label>
+                  <Input
+                    id="theme-url"
+                    value={themeUrl}
+                    onChange={(e) => setThemeUrl(e.target.value)}
+                    placeholder="https://example.com/settings?theme=..."
+                    className="w-full"
+                  />
+                </div>
+              )}
+              
+              {importError && (
+                <div className="text-destructive flex items-center gap-2 text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  {importError}
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="secondary" onClick={() => setImportOpen(false)}>
+                Cancel
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button type="button">Import</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Import theme?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will replace your current theme settings. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleImport}>Continue</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </CardFooter>
       
-      {/* Import Dialog */}
-      <AlertDialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Import Theme</AlertDialogTitle>
-            <AlertDialogDescription>
-              Paste your theme JSON data below. This will replace your current theme settings.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          
-          <div className="my-4">
-            <Label htmlFor="import-data">Theme Data (JSON)</Label>
-            <Input
-              id="import-data"
-              value={importData}
-              onChange={(e) => setImportData(e.target.value)}
-              className="h-32"
-              placeholder='{"mode":"light","lightTheme":{...},"darkTheme":{...}}'
-              as="textarea"
+      {/* Export Dialog */}
+      <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Export Theme</DialogTitle>
+            <DialogDescription>
+              Copy the JSON below or create a shareable URL.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Textarea
+              value={themeJson}
+              className="font-mono text-xs resize-none"
+              rows={8}
+              readOnly
             />
-            
-            {importError && (
-              <p className="text-sm text-red-500 mt-1">{importError}</p>
-            )}
+            <Input
+              value={themeUrl}
+              className="w-full"
+              placeholder="Generate a shareable URL..."
+              readOnly
+            />
           </div>
-          
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleImport}>Import</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+          <DialogFooter className="flex flex-wrap justify-end gap-2 sm:justify-between">
+            <Button type="button" variant="outline" onClick={handleCreateShareUrl}>
+              <Share className="mr-2 h-4 w-4" />
+              Create Shareable URL
+            </Button>
+            <div className="flex gap-2">
+              <Button type="button" variant="secondary" onClick={handleCopy}>
+                Copy JSON
+              </Button>
+              <Button type="button" onClick={() => setExportOpen(false)}>
+                Close
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }

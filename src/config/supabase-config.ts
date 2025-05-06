@@ -5,6 +5,7 @@ import { resetSupabaseClient } from '@/services/supabase/connection-service';
 export interface SupabaseConfig {
   url: string;
   anonKey: string;
+  serviceKey?: string; // Added for self-healing operations
   isInitialized: boolean;
 }
 

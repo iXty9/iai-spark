@@ -4,15 +4,6 @@ import { logger } from '@/utils/logging';
 import { invokeAdminFunction } from './utils/adminFunctionUtils';
 import { UserRole } from './types/userTypes';
 
-// Define explicit types for Supabase responses
-interface RoleResult {
-  data: Array<{
-    role: string;
-    user_id: string;
-  }> | null;
-  error: Error | null;
-}
-
 export async function updateUserRole(userId: string, role: UserRole): Promise<void> {
   try {
     // Use the edge function to update user role
@@ -34,14 +25,12 @@ export async function checkIsAdmin(): Promise<boolean> {
     const userId = session.user.id;
     
     try {
-      // Fix for TS2589: Use proper typing by capturing the response first
-      const response = await supabase
+      // Use proper typing by using maybeSingle instead of single
+      const { data, error } = await supabase
         .from('user_roles')
         .select('role, user_id')
-        .eq('user_id', userId);
-      
-      // Then cast it to the expected type
-      const { data, error } = response as RoleResult;
+        .eq('user_id', userId)
+        .maybeSingle();
       
       if (error) {
         logger.error('Error checking admin status:', error, { module: 'roles' });
@@ -49,12 +38,7 @@ export async function checkIsAdmin(): Promise<boolean> {
       }
 
       // Check if the user has an admin role
-      if (data) {
-        const adminRole = data.find(role => role.role === 'admin');
-        return !!adminRole;
-      }
-      
-      return false;
+      return data?.role === 'admin';
     } catch (err) {
       logger.error('Error executing user_roles query:', err, { module: 'roles' });
       return false;

@@ -41,7 +41,12 @@ export async function initializeSupabaseDb(
     }
     
     // Save the configuration if initialization succeeded
-    const config: SupabaseConfig = { url, anonKey, isInitialized: true };
+    const config: SupabaseConfig = { 
+      url, 
+      anonKey, 
+      serviceKey, // Store service key for self-healing operations
+      isInitialized: true 
+    };
     const saved = saveConfig(config);
     
     if (!saved) {
@@ -111,9 +116,6 @@ export async function createInitialAdmin(
         error: `Created user but failed to add admin role: ${roleError.message}` 
       };
     }
-    
-    // Configuration should already be saved from the previous step,
-    // but we can verify it's there and re-save if needed
     
     logger.info('Initial admin user created successfully', { module: 'init', userId: userData.user.id });
     return { success: true };
