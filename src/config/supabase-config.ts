@@ -1,3 +1,4 @@
+
 import { logger } from '@/utils/logging';
 
 export interface SupabaseConfig {
@@ -10,7 +11,7 @@ export interface SupabaseConfig {
 const STORAGE_KEY = 'spark_supabase_config';
 
 // Environment detection
-const isDevelopment = () => {
+export const isDevelopment = () => {
   return (
     window.location.hostname === 'localhost' || 
     window.location.hostname === '127.0.0.1' ||
@@ -30,7 +31,10 @@ export function hasStoredConfig(): boolean {
       const storedConfig = localStorage.getItem(STORAGE_KEY);
       // If there's already a stored config, use that
       if (storedConfig) return true;
-      // Otherwise, consider the default config as valid in development
+      
+      // For development, save default config in localStorage to avoid initialization loop
+      const defaultConfig = getDefaultConfig();
+      saveConfig(defaultConfig);
       return true;
     }
     
@@ -56,9 +60,11 @@ export function getStoredConfig(): SupabaseConfig | null {
       return JSON.parse(storedConfig) as SupabaseConfig;
     }
     
-    // In development mode, fall back to hardcoded defaults
+    // In development mode, save and return hardcoded defaults
     if (isDevelopment()) {
-      return getDefaultConfig();
+      const defaultConfig = getDefaultConfig();
+      saveConfig(defaultConfig);
+      return defaultConfig;
     }
     
     // In production with no config, return null
@@ -66,9 +72,15 @@ export function getStoredConfig(): SupabaseConfig | null {
   } catch (e) {
     logger.error('Error retrieving Supabase config from storage', e);
     
-    // In development, fall back to defaults even on error
+    // In development, save and return defaults even on error
     if (isDevelopment()) {
-      return getDefaultConfig();
+      const defaultConfig = getDefaultConfig();
+      try {
+        saveConfig(defaultConfig);
+      } catch (e) {
+        // Ignore error on saving
+      }
+      return defaultConfig;
     }
     
     return null;
@@ -96,6 +108,20 @@ export function clearConfig(): void {
     localStorage.removeItem(STORAGE_KEY);
   } catch (e) {
     logger.error('Error clearing Supabase config', e);
+  }
+}
+
+/**
+ * Force save the default configuration
+ * Useful for debugging or resetting to development defaults
+ */
+export function forceDefaultConfig(): boolean {
+  try {
+    const defaultConfig = getDefaultConfig();
+    return saveConfig(defaultConfig);
+  } catch (e) {
+    logger.error('Error forcing default config', e);
+    return false;
   }
 }
 

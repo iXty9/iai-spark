@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ConnectionForm } from '@/components/init/ConnectionForm';
 import { DatabaseSetupStep } from '@/components/init/DatabaseSetupStep';
 import { AdminSetupForm } from '@/components/init/AdminSetupForm';
-import { hasStoredConfig } from '@/config/supabase-config';
+import { hasStoredConfig, isDevelopment } from '@/config/supabase-config';
 import { toast } from '@/hooks/use-toast';
 import { ArrowLeft, ArrowRight, Database, ShieldCheck, Settings } from 'lucide-react';
 
@@ -25,7 +25,11 @@ const Initialize = () => {
   
   // Check if already initialized
   useEffect(() => {
-    if (hasStoredConfig()) {
+    // Allow forcing the initialize page with force_init parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const forceInit = urlParams.get('force_init') === 'true';
+    
+    if (!forceInit && hasStoredConfig()) {
       toast({
         title: 'Already Configured',
         description: 'Supabase connection is already configured.',

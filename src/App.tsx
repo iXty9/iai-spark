@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
-import { hasStoredConfig, getStoredConfig } from "@/config/supabase-config";
+import { hasStoredConfig, getStoredConfig, forceDefaultConfig } from "@/config/supabase-config";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
@@ -22,6 +22,17 @@ const AppInitializer = ({ children }: { children: React.ReactNode }) => {
   const [isInitialized, setIsInitialized] = useState<boolean | null>(null);
   
   useEffect(() => {
+    // Check URL parameters for debug options
+    const urlParams = new URLSearchParams(window.location.search);
+    const resetConfig = urlParams.get('reset_config') === 'true';
+    
+    if (resetConfig) {
+      // For debugging: clear config and reload
+      localStorage.removeItem('spark_supabase_config');
+      window.location.href = window.location.pathname; // Reload without params
+      return;
+    }
+    
     // Check if we have a stored Supabase configuration
     const initialized = hasStoredConfig();
     setIsInitialized(initialized);
@@ -90,7 +101,14 @@ const RequireInitialization = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const initialized = hasStoredConfig();
-    setIsReady(initialized);
+    
+    // If we're in development and not initialized, force default config
+    if (!initialized && window.location.hostname === 'localhost') {
+      const success = forceDefaultConfig();
+      setIsReady(success);
+    } else {
+      setIsReady(initialized);
+    }
   }, []);
 
   if (isReady === null) {
