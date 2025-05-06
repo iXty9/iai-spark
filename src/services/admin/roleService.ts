@@ -24,31 +24,25 @@ export async function checkIsAdmin(): Promise<boolean> {
     
     const userId = session.user.id;
     
-    // Simplify query to avoid deep type instantiations
-    let response;
     try {
-      // Simple query approach
-      response = await supabase
+      // Simplify query to avoid deep type instantiations
+      const { data, error } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
         .eq('role', 'admin')
         .maybeSingle();
+      
+      if (error) {
+        logger.error('Error checking admin status:', error, { module: 'roles' });
+        return false;
+      }
+
+      return !!data;
     } catch (err) {
       logger.error('Error executing user_roles query:', err, { module: 'roles' });
       return false;
     }
-    
-    // Safely access properties
-    const error = response?.error;
-    const data = response?.data;
-
-    if (error) {
-      logger.error('Error checking admin status:', error, { module: 'roles' });
-      return false;
-    }
-
-    return !!data;
   } catch (error) {
     logger.error('Error in checkIsAdmin:', error, { module: 'roles' });
     return false;

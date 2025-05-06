@@ -33,26 +33,16 @@ export async function fetchAppSettings(): Promise<Record<string, string>> {
     // Fetch fresh settings if cache expired or doesn't exist
     logger.info('Fetching app settings from database', { module: 'settings' });
     
-    // Try to fetch settings with simplified approach
-    let data: AppSetting[] = [];
-    let error = null;
+    // Use simplified approach to avoid deep type instantiation
+    const response = await supabase.from('app_settings').select('*');
     
-    try {
-      // Simplified query to avoid deep type instantiation
-      const response = await supabase.from('app_settings').select('*');
-      
-      // Safely access properties
-      data = response?.data || [];
-      error = response?.error;
-    } catch (err) {
-      error = err as Error;
+    if (response.error) {
+      logger.error('Error fetching app settings:', response.error, { module: 'settings' });
+      throw response.error;
     }
 
-    if (error) {
-      logger.error('Error fetching app settings:', error, { module: 'settings' });
-      throw error;
-    }
-
+    const data = response.data || [];
+    
     // Convert to key-value map
     const settings: Record<string, string> = {};
     data.forEach((setting: AppSetting) => {
@@ -109,71 +99,47 @@ export async function updateAppSetting(key: string, value: string): Promise<void
     const userId = userData?.data?.session?.user?.id || null;
     
     // Check if the setting already exists with simplified query
-    let existingSettings: any[] = [];
-    let queryError = null;
-    
-    try {
-      const existingResponse = await supabase
-        .from('app_settings')
-        .select('id')
-        .eq('key', key);
-        
-      existingSettings = existingResponse?.data || [];
-      queryError = existingResponse?.error;
-    } catch (err) {
-      queryError = err;
+    const existingResponse = await supabase
+      .from('app_settings')
+      .select('id')
+      .eq('key', key);
+      
+    if (existingResponse.error) {
+      logger.error(`Error checking existing app setting ${key}:`, existingResponse.error, { module: 'settings' });
+      throw existingResponse.error;
     }
     
-    if (queryError) {
-      logger.error(`Error checking existing app setting ${key}:`, queryError, { module: 'settings' });
-      throw queryError;
-    }
+    const existingSettings = existingResponse.data || [];
     
     if (existingSettings && existingSettings.length > 0) {
       // Update existing setting with simplified approach
-      let updateError = null;
-      
-      try {
-        const updateResult = await supabase
-          .from('app_settings')
-          .update({ 
-            value, 
-            updated_at: new Date().toISOString(), 
-            updated_by: userId 
-          })
-          .eq('key', key);
+      const updateResult = await supabase
+        .from('app_settings')
+        .update({ 
+          value, 
+          updated_at: new Date().toISOString(), 
+          updated_by: userId 
+        })
+        .eq('key', key);
           
-        updateError = updateResult?.error;
-      } catch (err) {
-        updateError = err;
-      }
-
-      if (updateError) {
-        logger.error(`Error updating app setting ${key}:`, updateError, { module: 'settings' });
-        throw updateError;
+      if (updateResult.error) {
+        logger.error(`Error updating app setting ${key}:`, updateResult.error, { module: 'settings' });
+        throw updateResult.error;
       }
     } else {
       // Insert new setting with simplified approach
-      let insertError = null;
-      
-      try {
-        const insertResult = await supabase
-          .from('app_settings')
-          .insert({ 
-            key,
-            value, 
-            updated_at: new Date().toISOString(), 
-            updated_by: userId 
-          });
+      const insertResult = await supabase
+        .from('app_settings')
+        .insert({ 
+          key,
+          value, 
+          updated_at: new Date().toISOString(), 
+          updated_by: userId 
+        });
           
-        insertError = insertResult?.error;
-      } catch (err) {
-        insertError = err;
-      }
-
-      if (insertError) {
-        logger.error(`Error creating app setting ${key}:`, insertError, { module: 'settings' });
-        throw insertError;
+      if (insertResult.error) {
+        logger.error(`Error creating app setting ${key}:`, insertResult.error, { module: 'settings' });
+        throw insertResult.error;
       }
     }
     

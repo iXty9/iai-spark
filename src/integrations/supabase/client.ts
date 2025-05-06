@@ -8,6 +8,14 @@ import { toast } from '@/hooks/use-toast';
 // Get the Supabase client
 const client = getSupabaseClient();
 
+// Define a comprehensive type for PostgrestResponse
+interface PostgrestResponse {
+  data: any | null;
+  error: Error | null;
+  status: number;
+  count: number | null;
+}
+
 // Define a comprehensive type-compatible fallback client
 const fallbackClient = {
   auth: {
@@ -25,48 +33,60 @@ const fallbackClient = {
     signUp: () => Promise.resolve({ data: { user: null, session: null }, error: new Error('Client not initialized') }),
     getUser: () => Promise.resolve({ data: { user: null }, error: new Error('Client not initialized') })
   },
-  from: (table: string) => ({
-    select: (columns?: string) => ({
-      eq: (column: string, value: any) => ({
-        limit: (limit: number) => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
-        maybeSingle: () => Promise.resolve({ 
-          data: null, 
-          error: new Error('Client not initialized'), 
-          status: 500,
-          count: null
-        })
-      }),
-      limit: (limit: number) => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
-      maybeSingle: () => Promise.resolve({ 
-        data: null, 
+  from: (table: string) => {
+    // Create a standard response object
+    const standardResponse = (): Promise<PostgrestResponse> => 
+      Promise.resolve({
+        data: null,
         error: new Error('Client not initialized'),
         status: 500,
         count: null
+      });
+
+    // Create a query builder with chainable methods
+    const createQueryBuilder = () => {
+      const builder = {
+        eq: (column: string, value: any) => createQueryBuilder(),
+        select: (columns?: string) => createQueryBuilder(),
+        order: (column: string, options?: { ascending?: boolean }) => createQueryBuilder(),
+        limit: (limit: number) => standardResponse(),
+        single: () => standardResponse(),
+        maybeSingle: () => standardResponse(),
+        match: (query: any) => createQueryBuilder(),
+        filter: (column: string, operator: string, value: any) => createQueryBuilder(),
+        range: (from: number, to: number) => createQueryBuilder(),
+        gte: (column: string, value: any) => createQueryBuilder(),
+        lte: (column: string, value: any) => createQueryBuilder(),
+        gt: (column: string, value: any) => createQueryBuilder(),
+        lt: (column: string, value: any) => createQueryBuilder(),
+        neq: (column: string, value: any) => createQueryBuilder(),
+        in: (column: string, values: any[]) => createQueryBuilder(),
+        is: (column: string, value: any) => createQueryBuilder(),
+        contains: (column: string, value: any) => createQueryBuilder(),
+        containedBy: (column: string, value: any) => createQueryBuilder(),
+        textSearch: (column: string, query: string, options?: { config?: string }) => createQueryBuilder(),
+        like: (column: string, pattern: string) => createQueryBuilder(),
+        ilike: (column: string, pattern: string) => createQueryBuilder(),
+      };
+      
+      return builder;
+    };
+
+    return {
+      select: (columns?: string) => createQueryBuilder(),
+      insert: (data: any) => standardResponse(),
+      update: (data: any) => ({
+        eq: (column: string, value: any) => standardResponse(),
+        match: (query: any) => standardResponse(),
       }),
-    }),
-    insert: (data: any) => Promise.resolve({ 
-      data: null, 
-      error: new Error('Client not initialized'),
-      status: 500,
-      count: null
-    }),
-    update: (data: any) => ({
-      eq: (column: string, value: any) => Promise.resolve({ 
-        data: null, 
-        error: new Error('Client not initialized'),
-        status: 500,
-        count: null
-      })
-    }),
-    eq: (column: string, value: any) => ({
-      maybeSingle: () => Promise.resolve({ 
-        data: null, 
-        error: new Error('Client not initialized'), 
-        status: 500,
-        count: null
-      })
-    })
-  }),
+      delete: () => ({
+        eq: (column: string, value: any) => standardResponse(),
+        match: (query: any) => standardResponse(),
+      }),
+      eq: (column: string, value: any) => createQueryBuilder(),
+      neq: (column: string, value: any) => createQueryBuilder(),
+    };
+  },
   storage: {
     from: (bucket: string) => ({
       upload: (path: string, file: any) => Promise.resolve({ data: null, error: new Error('Client not initialized') }),

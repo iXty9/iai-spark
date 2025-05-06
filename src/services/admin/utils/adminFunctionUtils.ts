@@ -20,33 +20,28 @@ export async function invokeAdminFunction(action: string, params: any = {}): Pro
     }
 
     // Invoke the edge function with error handling
-    let response;
     try {
-      response = await supabase.functions.invoke('admin-users', {
+      const response = await supabase.functions.invoke('admin-users', {
         body: { action, params },
         headers: {
           Authorization: `Bearer ${session.access_token}`
         }
       });
+      
+      if (!response) {
+        throw new Error(`No response from admin-users function (${action})`);
+      }
+      
+      if (response.error) {
+        logger.error(`Error invoking admin-users function (${action}):`, response.error, { module: 'roles' });
+        throw response.error;
+      }
+
+      return response.data;
     } catch (err) {
       logger.error(`Error in supabase.functions.invoke:`, err, { module: 'roles' });
       throw err;
     }
-
-    // Safely access properties with explicit error handling
-    if (!response) {
-      throw new Error(`No response from admin-users function (${action})`);
-    }
-    
-    const data = response.data;
-    const error = response.error;
-
-    if (error) {
-      logger.error(`Error invoking admin-users function (${action}):`, error, { module: 'roles' });
-      throw error;
-    }
-
-    return data;
   } catch (error) {
     logger.error(`Error in admin function call (${action}):`, error, { module: 'roles' });
     throw error;
