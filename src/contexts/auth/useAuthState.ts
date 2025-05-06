@@ -4,9 +4,16 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
 
-// Define explicit types for Supabase responses to avoid deep type recursion
+// Define explicit types for Supabase responses 
 interface ProfileResult {
-  data: any[] | null; 
+  data: Array<{
+    id: string;
+    username?: string;
+    first_name?: string;
+    last_name?: string;
+    avatar_url?: string;
+    [key: string]: any;
+  }> | null;
   error: Error | null;
 }
 
@@ -37,24 +44,24 @@ export const useAuthState = () => {
         console.log('Fetching profile attempt', fetchAttempts.current, 'for user:', userId);
       }
       
-      // Create a basic query with explicit typing for the response
-      const response = await supabase
+      // Create a query with explicit type handling
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .then(res => res as unknown as ProfileResult);
+        .single();
       
       // Handle error case
-      if (response.error) {
+      if (error) {
         if (process.env.NODE_ENV === 'development') {
           console.error('Profile fetch error:', {
-            error: response.error,
+            error,
             attempt: fetchAttempts.current,
             userId
           });
         }
         
-        setLastError(response.error);
+        setLastError(error);
 
         // Retry logic for specific errors
         if (fetchAttempts.current < maxRetries) {
@@ -69,22 +76,18 @@ export const useAuthState = () => {
       }
 
       // Process the data if it exists
-      if (response.data && response.data.length > 0) {
-        const profileData = response.data[0];
-        
-        if (profileData) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Profile fetched successfully:', {
-              userId,
-              hasData: !!profileData,
-              timestamp: new Date().toISOString()
-            });
-          }
-          setProfile(profileData);
-          setLastError(null);
-        } else if (process.env.NODE_ENV === 'development') {
-          console.warn('No profile data found for user:', userId);
+      if (data) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Profile fetched successfully:', {
+            userId,
+            hasData: !!data,
+            timestamp: new Date().toISOString()
+          });
         }
+        setProfile(data);
+        setLastError(null);
+      } else if (process.env.NODE_ENV === 'development') {
+        console.warn('No profile data found for user:', userId);
       }
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {

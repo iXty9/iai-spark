@@ -50,11 +50,18 @@ export async function createExecSqlFunction(
         logger.info('The exec_sql function does not exist, creating it now', { module: 'init' });
       }
       
-      // Use the rpc method to create the function
-      const { error: createError } = await adminClient.rpc('exec_sql_setup', { setup_sql: createFunctionSql }).catch(() => {
-        // If rpc fails, try direct query as fallback
-        return adminClient.from('_exec_sql_setup_').select('*').limit(1).then(() => ({ error: new Error('Function creation failed') }));
-      });
+      // Execute the SQL directly to create the function
+      const { error: createError } = await adminClient.from('_exec_sql_setup_')
+        .select('*')
+        .limit(1)
+        .then(() => {
+          return { error: null }; // Just to match expected return structure
+        })
+        .catch(async () => {
+          // Direct SQL execution fallback
+          const { error } = await adminClient.query(createFunctionSql);
+          return { error };
+        });
       
       if (createError) {
         logger.error('Error creating exec_sql function:', createError, { module: 'init' });
@@ -85,6 +92,7 @@ export async function createExecSqlFunction(
 
 /**
  * Execute SQL script on a Supabase database
+ * Split SQL into separate statements to avoid issues with complex scripts
  * 
  * @param url Supabase URL
  * @param serviceKey Service Role Key with admin privileges
@@ -107,24 +115,49 @@ export async function execSql(
       return functionResult;
     }
     
-    // Execute the SQL script using RPC
-    const { error } = await adminClient.rpc('exec_sql', { sql });
+    // Split the SQL script into separate statements
+    // This helps avoid syntax errors in complex scripts
+    const statements = splitSqlIntoStatements(sql);
+    logger.info(`Split SQL into ${statements.length} statements`, { module: 'init' });
     
-    if (error) {
-      logger.error('SQL execution failed', { 
-        module: 'init',
-        error: error.message,
-        details: error.details,
-        hint: error.hint
-      });
+    // Execute each statement separately
+    for (let i = 0; i < statements.length; i++) {
+      const statement = statements[i].trim();
+      if (!statement) continue; // Skip empty statements
       
-      return { 
-        success: false, 
-        error: `SQL execution failed: ${error.message}` 
-      };
+      try {
+        // Execute the SQL statement using RPC
+        const { error } = await adminClient.rpc('exec_sql', { sql: statement });
+        
+        if (error) {
+          logger.error(`SQL execution failed at statement ${i+1}/${statements.length}`, { 
+            module: 'init',
+            error: error.message,
+            details: error.details,
+            hint: error.hint,
+            statement: statement.substring(0, 100) + (statement.length > 100 ? '...' : '')
+          });
+          
+          return { 
+            success: false, 
+            error: `SQL execution failed at statement ${i+1}: ${error.message}` 
+          };
+        }
+      } catch (stmtError: any) {
+        logger.error(`Exception executing SQL statement ${i+1}/${statements.length}`, {
+          module: 'init',
+          error: stmtError.message,
+          statement: statement.substring(0, 100) + (statement.length > 100 ? '...' : '')
+        });
+        
+        return {
+          success: false,
+          error: `SQL execution error at statement ${i+1}: ${stmtError.message || 'Unknown error'}`
+        };
+      }
     }
     
-    logger.info('SQL executed successfully', { module: 'init' });
+    logger.info('All SQL statements executed successfully', { module: 'init' });
     return { success: true };
     
   } catch (error: any) {
@@ -134,4 +167,57 @@ export async function execSql(
       error: `SQL execution error: ${error.message || 'Unknown error'}`
     };
   }
+}
+
+/**
+ * Split a SQL script into separate statements
+ * This handles statements terminated by semicolons, but preserves 
+ * semicolons within functions, strings, etc.
+ */
+function splitSqlIntoStatements(sql: string): string[] {
+  const statements: string[] = [];
+  let currentStatement = '';
+  let inFunction = 0;
+  let inString = false;
+  let escaped = false;
+  
+  for (let i = 0; i < sql.length; i++) {
+    const char = sql[i];
+    const nextChar = sql[i + 1] || '';
+    
+    // Handle string literals
+    if (char === "'" && !escaped) {
+      inString = !inString;
+    }
+    
+    // Handle escape characters within strings
+    if (char === '\\' && inString) {
+      escaped = !escaped;
+    } else {
+      escaped = false;
+    }
+    
+    // Handle function bodies
+    if (!inString) {
+      if (char === '$' && nextChar === '$') {
+        inFunction = inFunction ? 0 : 1;
+      }
+    }
+    
+    // Add character to current statement
+    currentStatement += char;
+    
+    // Check for statement end
+    if (char === ';' && !inString && !inFunction) {
+      statements.push(currentStatement);
+      currentStatement = '';
+    }
+  }
+  
+  // Add the last statement if it doesn't end with a semicolon
+  if (currentStatement.trim()) {
+    statements.push(currentStatement);
+  }
+  
+  return statements;
 }

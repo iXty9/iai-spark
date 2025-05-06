@@ -28,8 +28,8 @@ export const initScripts = {
   createUserRolesTable: `
     CREATE TABLE IF NOT EXISTS public.user_roles (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES auth.users ON DELETE CASCADE,
-      role app_role NOT NULL DEFAULT 'user',
+      user_id UUID REFERENCES auth.users ON DELETE CASCADE,
+      role app_role DEFAULT 'user',
       UNIQUE (user_id, role)
     );
   `,
@@ -38,8 +38,8 @@ export const initScripts = {
   createAppSettingsTable: `
     CREATE TABLE IF NOT EXISTS public.app_settings (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      key TEXT NOT NULL,
-      value TEXT NOT NULL,
+      key TEXT,
+      value TEXT,
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
       updated_by UUID
     );
