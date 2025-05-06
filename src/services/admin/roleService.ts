@@ -34,11 +34,14 @@ export async function checkIsAdmin(): Promise<boolean> {
     const userId = session.user.id;
     
     try {
-      // Create a query with proper typing
-      const { data, error } = await supabase
+      // Fix for TS2589: Use proper typing by capturing the response first
+      const response = await supabase
         .from('user_roles')
         .select('role, user_id')
-        .eq('user_id', userId) as RoleResult;
+        .eq('user_id', userId);
+      
+      // Then cast it to the expected type
+      const { data, error } = response as RoleResult;
       
       if (error) {
         logger.error('Error checking admin status:', error, { module: 'roles' });

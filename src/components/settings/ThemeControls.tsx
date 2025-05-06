@@ -1,9 +1,19 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { ThemeColors } from '@/types/theme';
+import { Badge } from '@/components/ui/badge';
+import { 
+  getContrastRatio, 
+  getContrastRating, 
+  formatContrastRatio,
+  suggestAccessibleColor
+} from '@/utils/color-contrast';
+import { AlertCircle, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ThemeControlsProps {
   theme: 'light' | 'dark';
@@ -12,6 +22,8 @@ interface ThemeControlsProps {
 }
 
 export function ThemeControls({ theme, colors, onColorChange }: ThemeControlsProps) {
+  const [showContrastChecks, setShowContrastChecks] = useState<boolean>(true);
+  
   const handleSliderChange = (name: string, value: number[]) => {
     onColorChange({ name, value: value[0] });
   };
@@ -21,6 +33,56 @@ export function ThemeControls({ theme, colors, onColorChange }: ThemeControlsPro
       backgroundColor: color,
       border: theme === 'light' ? '1px solid #ccc' : '1px solid #333'
     };
+  };
+
+  // Apply suggested accessible color
+  const handleApplySuggestion = (colorName: string, suggestedColor: string) => {
+    onColorChange({ name: colorName, value: suggestedColor });
+  };
+  
+  // Color contrast checks
+  const textOnBgContrast = getContrastRatio(colors.textColor, colors.backgroundColor);
+  const textOnBgRating = getContrastRating(colors.textColor, colors.backgroundColor);
+  
+  const userTextOnBubbleContrast = getContrastRatio(
+    colors.userTextColor, 
+    colors.userBubbleColor
+  );
+  const userTextRating = getContrastRating(
+    colors.userTextColor, 
+    colors.userBubbleColor
+  );
+  
+  const aiTextOnBubbleContrast = getContrastRatio(
+    colors.aiTextColor, 
+    colors.aiBubbleColor
+  );
+  const aiTextRating = getContrastRating(
+    colors.aiTextColor, 
+    colors.aiBubbleColor
+  );
+
+  // Suggested accessible colors
+  const suggestedTextColor = textOnBgRating === 'Fail' ? 
+    suggestAccessibleColor(colors.textColor, colors.backgroundColor) : null;
+  
+  const suggestedUserTextColor = userTextRating === 'Fail' ?
+    suggestAccessibleColor(colors.userTextColor, colors.userBubbleColor) : null;
+    
+  const suggestedAiTextColor = aiTextRating === 'Fail' ?
+    suggestAccessibleColor(colors.aiTextColor, colors.aiBubbleColor) : null;
+
+  const ContrastBadge = ({ rating }: { rating: 'AAA' | 'AA' | 'Fail' }) => {
+    let color = 'bg-red-500';
+    if (rating === 'AAA') color = 'bg-green-500';
+    else if (rating === 'AA') color = 'bg-yellow-500';
+    
+    return (
+      <Badge className={`text-xs ${color}`}>
+        {rating === 'Fail' ? <AlertCircle className="h-3 w-3 mr-1" /> : <Check className="h-3 w-3 mr-1" />}
+        {rating}
+      </Badge>
+    );
   };
 
   return (
@@ -50,6 +112,101 @@ export function ThemeControls({ theme, colors, onColorChange }: ThemeControlsPro
           </div>
         </div>
       </div>
+      
+      {showContrastChecks && (
+        <div className="p-3 rounded-md border mb-4 space-y-2">
+          <div className="flex justify-between items-center">
+            <h3 className="font-medium">Accessibility Checks</h3>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShowContrastChecks(false)}
+            >
+              Hide
+            </Button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <div className="p-2 border rounded-md">
+              <div className="flex justify-between">
+                <span>Text on Background</span>
+                <ContrastBadge rating={textOnBgRating} />
+              </div>
+              <div className="text-xs mt-1">
+                Ratio: {formatContrastRatio(textOnBgContrast)}
+              </div>
+              {suggestedTextColor && (
+                <div className="flex items-center mt-2">
+                  <div 
+                    className="w-4 h-4 rounded-sm mr-1"
+                    style={{ backgroundColor: suggestedTextColor }}
+                  ></div>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="text-xs py-1 h-6"
+                    onClick={() => handleApplySuggestion('textColor', suggestedTextColor)}
+                  >
+                    Apply suggested color
+                  </Button>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-2 border rounded-md">
+              <div className="flex justify-between">
+                <span>User Text</span>
+                <ContrastBadge rating={userTextRating} />
+              </div>
+              <div className="text-xs mt-1">
+                Ratio: {formatContrastRatio(userTextOnBubbleContrast)}
+              </div>
+              {suggestedUserTextColor && (
+                <div className="flex items-center mt-2">
+                  <div 
+                    className="w-4 h-4 rounded-sm mr-1"
+                    style={{ backgroundColor: suggestedUserTextColor }}
+                  ></div>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="text-xs py-1 h-6"
+                    onClick={() => handleApplySuggestion('userTextColor', suggestedUserTextColor)}
+                  >
+                    Apply suggested color
+                  </Button>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-2 border rounded-md">
+              <div className="flex justify-between">
+                <span>AI Text</span>
+                <ContrastBadge rating={aiTextRating} />
+              </div>
+              <div className="text-xs mt-1">
+                Ratio: {formatContrastRatio(aiTextOnBubbleContrast)}
+              </div>
+              {suggestedAiTextColor && (
+                <div className="flex items-center mt-2">
+                  <div 
+                    className="w-4 h-4 rounded-sm mr-1"
+                    style={{ backgroundColor: suggestedAiTextColor }}
+                  ></div>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="text-xs py-1 h-6"
+                    onClick={() => handleApplySuggestion('aiTextColor', suggestedAiTextColor)}
+                  >
+                    Apply suggested color
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">

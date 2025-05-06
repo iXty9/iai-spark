@@ -2,12 +2,20 @@
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Palette, Sun, Moon, Image } from 'lucide-react';
-import { ThemeColors } from '@/types/theme';
+import { Palette, Sun, Moon, Image, Share2 } from 'lucide-react';
+import { ThemeColors, ThemeSettings } from '@/types/theme';
 import { ThemeControls } from './ThemeControls';
 import { BackgroundSettings } from './BackgroundSettings';
+import { ThemeImportExport } from './ThemeImportExport';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+interface ImageInfo {
+  originalSize?: string;
+  optimizedSize?: string;
+  width?: number;
+  height?: number;
+}
 
 interface AppearanceSettingsProps {
   theme: 'light' | 'dark';
@@ -21,7 +29,9 @@ interface AppearanceSettingsProps {
   onBackgroundImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onBackgroundOpacityChange: (value: number[]) => void;
   onRemoveBackground: () => void;
+  onImportTheme?: (themeSettings: ThemeSettings) => void;
   isBackgroundLoading?: boolean;
+  imageInfo?: ImageInfo;
 }
 
 export function AppearanceSettings({
@@ -36,7 +46,9 @@ export function AppearanceSettings({
   onBackgroundImageUpload,
   onBackgroundOpacityChange,
   onRemoveBackground,
-  isBackgroundLoading = false
+  onImportTheme,
+  isBackgroundLoading = false,
+  imageInfo = {}
 }: AppearanceSettingsProps) {
   return (
     <div className="space-y-6">
@@ -67,7 +79,7 @@ export function AppearanceSettings({
         </RadioGroup>
       </div>
 
-      <Accordion type="single" collapsible defaultValue="background" className="w-full">
+      <Accordion type="multiple" defaultValue={["background", "colors"]} className="w-full">
         <AccordionItem value="background">
           <AccordionTrigger className="flex items-center">
             <div className="flex items-center">
@@ -84,6 +96,7 @@ export function AppearanceSettings({
                 onOpacityChange={onBackgroundOpacityChange}
                 onRemoveBackground={onRemoveBackground}
                 isLoading={isBackgroundLoading}
+                imageInfo={imageInfo}
               />
             </div>
           </AccordionContent>
@@ -131,6 +144,29 @@ export function AppearanceSettings({
             </div>
           </AccordionContent>
         </AccordionItem>
+        
+        {onImportTheme && (
+          <AccordionItem value="share">
+            <AccordionTrigger className="flex items-center">
+              <div className="flex items-center">
+                <Share2 className="h-5 w-5 mr-2" />
+                <span>Share Theme</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="pt-4">
+                <ThemeImportExport
+                  theme={theme}
+                  lightTheme={lightTheme}
+                  darkTheme={darkTheme}
+                  backgroundImage={backgroundImage}
+                  backgroundOpacity={backgroundOpacity}
+                  onImportTheme={onImportTheme}
+                />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        )}
       </Accordion>
     </div>
   );

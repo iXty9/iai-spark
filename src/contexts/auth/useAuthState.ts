@@ -14,7 +14,8 @@ interface ProfileData {
   [key: string]: any;
 }
 
-interface ProfileResult {
+// Fix for TS2589 and TS2339: Define specific return type for the query
+interface ProfileQueryResult {
   data: ProfileData | null;
   error: Error | null;
 }
@@ -46,12 +47,15 @@ export const useAuthState = () => {
         console.log('Fetching profile attempt', fetchAttempts.current, 'for user:', userId);
       }
       
-      // Create a query with explicit type handling
-      const { data, error } = await supabase
+      // Create a query with explicit type handling - Fix for TS2589 and TS2339
+      const response = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single() as ProfileResult;
+        .single();
+        
+      // Directly assign response to typed variables
+      const { data, error } = response as ProfileQueryResult;
       
       // Handle error case
       if (error) {

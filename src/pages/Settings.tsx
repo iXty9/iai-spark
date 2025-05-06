@@ -6,13 +6,13 @@ import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
-import { ThemeColors } from '@/types/theme';
+import { ThemeColors, ThemeSettings } from '@/types/theme';
 import { SettingsHeader } from '@/components/settings/SettingsHeader';
 import { SettingsFooter } from '@/components/settings/SettingsFooter';
 import { useSettingsState } from '@/hooks/settings/use-settings-state';
 import { useSettingsActions } from '@/hooks/settings/use-settings-actions';
 import { logger } from '@/utils/logging';
-import { applyBackgroundImage } from '@/utils/theme-utils';
+import { applyBackgroundImage, applyThemeChanges } from '@/utils/theme-utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { setDefaultTheme } from '@/services/admin/settingsService';
@@ -51,7 +51,8 @@ export default function Settings() {
     handleSaveSettings,
     handleResetSettings,
     handleThemeChange,
-    isBackgroundLoading
+    isBackgroundLoading,
+    imageInfo
   } = useSettingsActions({
     user,
     theme,
@@ -119,6 +120,73 @@ export default function Settings() {
     navigate(-1);
   };
 
+  const handleImportTheme = (themeSettings: ThemeSettings) => {
+    try {
+      // Update theme mode if provided
+      if (themeSettings.mode && ['light', 'dark'].includes(themeSettings.mode)) {
+        handleThemeChange(themeSettings.mode as 'light' | 'dark');
+      }
+      
+      // Update light theme if provided
+      if (themeSettings.lightTheme) {
+        setLightTheme({
+          ...lightTheme,
+          ...themeSettings.lightTheme
+        });
+        
+        // Apply immediately if we're in light mode
+        if (theme === 'light') {
+          applyThemeChanges(themeSettings.lightTheme);
+        }
+      }
+      
+      // Update dark theme if provided
+      if (themeSettings.darkTheme) {
+        setDarkTheme({
+          ...darkTheme,
+          ...themeSettings.darkTheme
+        });
+        
+        // Apply immediately if we're in dark mode
+        if (theme === 'dark') {
+          applyThemeChanges(themeSettings.darkTheme);
+        }
+      }
+      
+      // Update background image if provided
+      if ('backgroundImage' in themeSettings) {
+        setBackgroundImage(themeSettings.backgroundImage);
+      }
+      
+      // Update background opacity if provided
+      if (themeSettings.backgroundOpacity !== undefined) {
+        const opacity = parseFloat(themeSettings.backgroundOpacity);
+        if (!isNaN(opacity)) {
+          setBackgroundOpacity(opacity);
+        }
+      }
+      
+      // Apply background immediately
+      applyBackgroundImage(
+        'backgroundImage' in themeSettings ? themeSettings.backgroundImage : backgroundImage,
+        themeSettings.backgroundOpacity !== undefined ? 
+          parseFloat(themeSettings.backgroundOpacity) : backgroundOpacity
+      );
+      
+      // Mark settings as changed
+      setHasChanges(true);
+      
+      logger.info('Theme settings imported successfully', { module: 'settings' });
+    } catch (error) {
+      logger.error('Error importing theme settings:', error);
+      toast({
+        variant: "destructive",
+        title: "Import failed",
+        description: "Failed to import theme settings",
+      });
+    }
+  };
+
   const handleSetDefaultTheme = async () => {
     try {
       setShowSetDefaultDialog(false);
@@ -177,7 +245,9 @@ export default function Settings() {
               onBackgroundImageUpload={handleBackgroundImageUpload}
               onBackgroundOpacityChange={handleOpacityChange}
               onRemoveBackground={handleRemoveBackground}
+              onImportTheme={handleImportTheme}
               isBackgroundLoading={isBackgroundLoading}
+              imageInfo={imageInfo}
             />
           )}
         </div>

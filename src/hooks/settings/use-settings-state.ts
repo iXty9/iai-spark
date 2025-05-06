@@ -5,6 +5,13 @@ import { ThemeColors } from '@/types/theme';
 import { logger } from '@/utils/logging';
 import { useTheme } from '@/hooks/use-theme';
 
+export interface ImageInfo {
+  originalSize?: string;
+  optimizedSize?: string;
+  width?: number;
+  height?: number;
+}
+
 export const useSettingsState = () => {
   const { profile } = useAuth();
   const { theme } = useTheme();
@@ -14,6 +21,7 @@ export const useSettingsState = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
+  const [imageInfo, setImageInfo] = useState<ImageInfo>({});
   
   // Default light theme colors
   const defaultLightTheme: ThemeColors = {
@@ -57,8 +65,11 @@ export const useSettingsState = () => {
     setHasChanges(true);
   };
   
-  const updateBackgroundImage = (image: string | null) => {
+  const updateBackgroundImage = (image: string | null, info?: ImageInfo) => {
     setBackgroundImage(image);
+    if (info) {
+      setImageInfo(info);
+    }
     setHasChanges(true);
   };
   
@@ -110,6 +121,12 @@ export const useSettingsState = () => {
             aiTextColor: themeSettings.darkTheme.aiTextColor || themeSettings.darkTheme.textColor
           });
         }
+        
+        // Load image info if available
+        if (themeSettings.imageInfo) {
+          setImageInfo(themeSettings.imageInfo);
+        }
+        
         setHasChanges(false);
         setIsLoading(false);
       } catch (e) {
@@ -130,11 +147,13 @@ export const useSettingsState = () => {
     isSubmitting,
     isLoading,
     hasChanges,
+    imageInfo,
     setLightTheme: updateLightTheme,
     setDarkTheme: updateDarkTheme, 
     setBackgroundImage: updateBackgroundImage,
     setBackgroundOpacity: updateBackgroundOpacity,
     setIsSubmitting,
-    setHasChanges
+    setHasChanges,
+    setImageInfo: (info: ImageInfo) => setImageInfo(info)
   };
 };

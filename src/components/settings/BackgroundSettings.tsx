@@ -3,7 +3,15 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { Upload, X, Loader2 } from 'lucide-react';
+import { Upload, X, Loader2, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+interface ImageInfo {
+  originalSize?: string;
+  optimizedSize?: string;
+  width?: number;
+  height?: number;
+}
 
 interface BackgroundSettingsProps {
   backgroundImage: string | null;
@@ -12,6 +20,7 @@ interface BackgroundSettingsProps {
   onOpacityChange: (value: number[]) => void;
   onRemoveBackground: () => void;
   isLoading?: boolean;
+  imageInfo?: ImageInfo;
 }
 
 export function BackgroundSettings({
@@ -20,7 +29,8 @@ export function BackgroundSettings({
   onBackgroundImageUpload,
   onOpacityChange,
   onRemoveBackground,
-  isLoading = false
+  isLoading = false,
+  imageInfo = {}
 }: BackgroundSettingsProps) {
   return (
     <div className="space-y-4">
@@ -43,6 +53,35 @@ export function BackgroundSettings({
               <X className="h-4 w-4 mr-1" />
               Remove
             </Button>
+            
+            {imageInfo && (imageInfo.width || imageInfo.optimizedSize) && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="absolute top-2 left-2 bg-black/50 hover:bg-black/70"
+                    >
+                      <Info className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <div className="space-y-1 text-xs">
+                      {imageInfo.width && imageInfo.height && (
+                        <div>Dimensions: {imageInfo.width}×{imageInfo.height}px</div>
+                      )}
+                      {imageInfo.originalSize && (
+                        <div>Original: {imageInfo.originalSize}</div>
+                      )}
+                      {imageInfo.optimizedSize && (
+                        <div>Optimized: {imageInfo.optimizedSize}</div>
+                      )}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </div>
         ) : (
           <div className="w-full h-48 border-2 border-dashed border-muted-foreground rounded-lg flex items-center justify-center bg-checkerboard">
@@ -84,6 +123,7 @@ export function BackgroundSettings({
       
       <div className="text-sm text-muted-foreground">
         <p>A lower opacity will make the background color more visible through the image.</p>
+        <p className="mt-1">For best results, use images sized at least 1920×1080px.</p>
       </div>
     </div>
   );

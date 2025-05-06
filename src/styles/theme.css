@@ -1,5 +1,6 @@
 
 :root {
+  /* Base theme colors */
   --background-color: #ffffff;
   --primary-color: #ea384c;
   --text-color: #000000;
@@ -14,6 +15,16 @@
   --bg-opacity: 0.5; /* 50% as default */
   --glass-opacity: 0.8; /* For glass UI elements */
   --glass-blur: 8px; /* For glass UI elements */
+
+  /* Theme transition properties */
+  --theme-transition-duration: 400ms;
+  --theme-transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
+  --theme-transition-property: background-color, color, border-color, opacity, backdrop-filter, box-shadow;
+}
+
+/* Apply transitions to all themeable elements */
+body, body *, .theme-transition {
+  transition: var(--theme-transition-property) var(--theme-transition-duration) var(--theme-transition-timing);
 }
 
 .dark {
@@ -65,6 +76,8 @@ body.with-bg-image::before {
   z-index: -1;
   background-color: var(--background-color);
   opacity: var(--bg-opacity, 0.5); /* Default to 50% if not set */
+  transition: opacity var(--theme-transition-duration) var(--theme-transition-timing),
+              background-color var(--theme-transition-duration) var(--theme-transition-timing);
 }
 
 /* Make transparent background work better with chat */
@@ -84,7 +97,10 @@ body.with-bg-image::before {
   border: none !important;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  transition: transform 0.2s ease;
+  transition: transform 0.2s ease, 
+              background-color var(--theme-transition-duration) var(--theme-transition-timing),
+              color var(--theme-transition-duration) var(--theme-transition-timing),
+              opacity var(--theme-transition-duration) var(--theme-transition-timing);
   text-align: left; /* Ensure text is left aligned */
 }
 
@@ -95,18 +111,23 @@ body.with-bg-image::before {
   border: none !important;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  transition: transform 0.2s ease;
+  transition: transform 0.2s ease,
+              background-color var(--theme-transition-duration) var(--theme-transition-timing),
+              color var(--theme-transition-duration) var(--theme-transition-timing),
+              opacity var(--theme-transition-duration) var(--theme-transition-timing);
 }
 
 /* Apply AI text color directly to the content */
 .ai-message-bubble * {
   color: var(--ai-text-color) !important;
+  transition: color var(--theme-transition-duration) var(--theme-transition-timing);
 }
 
 /* Except for links which should use the link color */
 .ai-message-bubble a,
 .user-message-bubble a {
   color: var(--link-color) !important;
+  transition: color var(--theme-transition-duration) var(--theme-transition-timing);
 }
 
 /* Improved hover effect for message bubbles without shadow */
@@ -231,4 +252,58 @@ body.with-bg-image::before {
     background-size: cover;
     min-height: 100vh;
   }
+}
+
+/* Theme Animation Classes */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.theme-fade-in {
+  animation: fadeIn var(--theme-transition-duration) var(--theme-transition-timing);
+}
+
+.theme-fade-out {
+  animation: fadeOut var(--theme-transition-duration) var(--theme-transition-timing);
+}
+
+/* Contrast checks */
+.contrast-warning {
+  position: relative;
+}
+
+.contrast-warning::after {
+  content: "⚠️";
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 14px;
+}
+
+/* Image loading state */
+.bg-loading {
+  position: relative;
+}
+
+.bg-loading::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
