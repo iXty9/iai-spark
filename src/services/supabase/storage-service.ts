@@ -1,210 +1,202 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { StorageError } from '@supabase/storage-js';
 import { logger } from '@/utils/logging';
-import { optimizeImage } from '@/utils/image-optimizer';
 
-// Define supported bucket names
-export const AVATARS_BUCKET = 'avatars';
-export const BACKGROUNDS_BUCKET = 'backgrounds';
+interface FileInfo {
+  name: string;
+  size: number;
+  type: string;
+  lastModified?: number;
+}
 
 /**
- * Check if a bucket exists, and create it if it doesn't
+ * Check if a storage bucket exists
  */
-export async function ensureBucketExists(bucketName: string): Promise<boolean> {
+export async function checkIfBucketExists(bucketName: string): Promise<boolean> {
   try {
-    // First check if the bucket exists by trying to list files
-    const { data, error } = await supabase.storage.listBuckets();
+    // Get list of buckets and check if our bucket exists
+    const { data: buckets, error } = await supabase.storage.listBuckets();
     
-    const bucketExists = data?.some(bucket => bucket.name === bucketName);
+    if (error) {
+      logger.error(`Error checking if bucket ${bucketName} exists:`, error);
+      return false;
+    }
     
-    if (!bucketExists) {
-      logger.info(`Creating bucket ${bucketName} as it doesn't exist`, { module: 'storage' });
-      
-      // Create the bucket using the createBucket method
-      const { error: createError } = await supabase.storage.createBucket(bucketName, {
-        public: true,
-        fileSizeLimit: 5242880 // 5MB
-      });
-      
-      if (createError) {
-        logger.error(`Failed to create bucket ${bucketName}:`, createError, { module: 'storage' });
-        return false;
-      }
-      
-      logger.info(`Successfully created bucket ${bucketName}`, { module: 'storage' });
+    return buckets?.some(bucket => bucket.name === bucketName) || false;
+  } catch (error) {
+    logger.error(`Unexpected error checking if bucket ${bucketName} exists:`, error);
+    return false;
+  }
+}
+
+/**
+ * Create a new storage bucket if it doesn't exist
+ */
+export async function createBucketIfNotExists(bucketName: string, isPublic = true): Promise<boolean> {
+  try {
+    const bucketExists = await checkIfBucketExists(bucketName);
+    
+    if (bucketExists) {
       return true;
     }
     
-    return !error;
-  } catch (error) {
-    logger.error(`Error ensuring bucket ${bucketName} exists:`, error, { module: 'storage' });
-    return false;
-  }
-}
-
-/**
- * Ensure all storage buckets required by the application exist
- */
-export async function ensureStorageBucketsExist(): Promise<boolean> {
-  try {
-    const avatarsBucketExists = await ensureBucketExists(AVATARS_BUCKET);
-    const backgroundsBucketExists = await ensureBucketExists(BACKGROUNDS_BUCKET);
-    
-    return avatarsBucketExists && backgroundsBucketExists;
-  } catch (error) {
-    logger.error('Error ensuring storage buckets exist:', error, { module: 'storage' });
-    return false;
-  }
-}
-
-/**
- * List files in a bucket directory
- */
-export async function listFiles(bucketName: string, path: string = '') {
-  try {
-    // Ensure bucket exists
-    await ensureBucketExists(bucketName);
-    
-    const { data, error } = await supabase.storage.from(bucketName).list(path);
+    // Create bucket
+    const { error } = await supabase.storage.createBucket({
+      name: bucketName,
+      public: isPublic
+    });
     
     if (error) {
-      logger.error(`Error listing files in ${bucketName}/${path}:`, error, { module: 'storage' });
-      return { files: [], error };
+      logger.error(`Error creating bucket ${bucketName}:`, error);
+      return false;
     }
     
-    return { files: data, error: null };
+    return true;
   } catch (error) {
-    logger.error(`Unexpected error listing files in ${bucketName}/${path}:`, error, { module: 'storage' });
-    return { files: [], error };
+    logger.error(`Unexpected error creating bucket ${bucketName}:`, error);
+    return false;
   }
 }
 
 /**
- * Upload an avatar for a user
+ * List files in a bucket with an optional path prefix
  */
-export async function uploadAvatar(
-  userId: string,
-  file: File
-): Promise<{ url: string | null; error: Error | null }> {
-  return uploadFile(
-    file, 
-    AVATARS_BUCKET, 
-    `${userId}/${crypto.randomUUID()}`, 
-    { optimize: true, maxWidth: 400, maxHeight: 400 }
-  );
-}
-
-/**
- * Upload a background image
- */
-export async function uploadBackground(
-  userId: string,
-  file: File
-): Promise<{ url: string | null; error: Error | null }> {
-  return uploadFile(
-    file, 
-    BACKGROUNDS_BUCKET, 
-    `${userId}/${crypto.randomUUID()}`, 
-    { optimize: true, maxWidth: 1920, maxHeight: 1080 }
-  );
-}
-
-/**
- * Upload a file to a Supabase bucket
- */
-export async function uploadFile(
-  file: File,
-  bucketName: string,
-  path: string,
-  options: {
-    optimize?: boolean;
-    maxWidth?: number;
-    maxHeight?: number;
-    quality?: number;
-  } = {}
-): Promise<{ url: string | null; error: Error | null }> {
+export async function listFiles(bucket: string, prefix = ''): Promise<{ data: any[] | null, error: StorageError | null }> {
   try {
     // Ensure bucket exists
-    const bucketExists = await ensureBucketExists(bucketName);
+    const bucketExists = await checkIfBucketExists(bucket);
+    
     if (!bucketExists) {
-      return { url: null, error: new Error(`Bucket ${bucketName} doesn't exist and couldn't be created`) };
+      logger.error(`Bucket ${bucket} does not exist`);
+      return { data: null, error: { name: 'BucketNotFound', message: `Bucket ${bucket} not found`, statusCode: '404' } };
     }
     
-    // Process file if needed
-    let fileToUpload: File | Blob = file;
+    // List files
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .list(prefix);
     
-    if (options.optimize && file.type.startsWith('image/')) {
-      try {
-        const optimized = await optimizeImage(file, {
-          maxWidth: options.maxWidth,
-          maxHeight: options.maxHeight,
-          quality: options.quality || 0.8,
-          format: 'image/jpeg'
-        });
-        
-        if (optimized) {
-          fileToUpload = optimized;
-          logger.info('Image optimized for upload', { 
-            module: 'storage',
-            originalSize: file.size, 
-            optimizedSize: fileToUpload.size 
-          });
-        }
-      } catch (error) {
-        logger.warn('Failed to optimize image, using original:', error, { module: 'storage' });
-        // Continue with original file if optimization fails
-      }
+    if (error) {
+      logger.error(`Error listing files in bucket ${bucket} with prefix ${prefix}:`, error);
+      return { data: null, error };
     }
     
-    // Upload file using the correct method
-    const { data, error } = await supabase
-      .storage
-      .from(bucketName)
-      .upload(path, fileToUpload, {
+    return { data, error: null };
+  } catch (error: any) {
+    logger.error(`Unexpected error listing files in bucket ${bucket}:`, error);
+    return { data: null, error: { name: 'UnexpectedError', message: error.message || 'Unexpected error', statusCode: '500' } };
+  }
+}
+
+/**
+ * Extract file info
+ */
+export function extractFileInfo(file: File): FileInfo {
+  return {
+    name: file.name,
+    size: file.size,
+    type: file.type,
+    lastModified: file.lastModified
+  };
+}
+
+/**
+ * Upload a file to storage
+ */
+export async function uploadFile(
+  bucket: string,
+  path: string,
+  file: File | Blob,
+  makePublic = true
+): Promise<{ publicUrl: string | null; error: StorageError | null }> {
+  try {
+    // Ensure bucket exists
+    await createBucketIfNotExists(bucket, makePublic);
+    
+    // Upload file
+    const { error } = await supabase.storage
+      .from(bucket)
+      .upload(path, file, {
         upsert: true
       });
     
     if (error) {
-      logger.error(`Error uploading file to ${bucketName}/${path}:`, error, { module: 'storage' });
-      return { url: null, error };
+      logger.error(`Error uploading file to ${bucket}/${path}:`, error);
+      return { publicUrl: null, error };
     }
     
-    // Get the public URL
-    const { data: { publicUrl } } = supabase
-      .storage
-      .from(bucketName)
-      .getPublicUrl(data.path);
+    // Get public URL
+    const { data } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(path);
     
-    logger.info(`File uploaded successfully to ${bucketName}/${path}`, { 
-      module: 'storage'
-    });
-    
-    return { url: publicUrl, error: null };
-  } catch (error) {
-    logger.error(`Unexpected error uploading file to ${bucketName}/${path}:`, error, { module: 'storage' });
-    return { url: null, error: error as Error };
+    return { publicUrl: data.publicUrl, error: null };
+  } catch (error: any) {
+    logger.error(`Unexpected error uploading file to ${bucket}/${path}:`, error);
+    return { publicUrl: null, error: { name: 'UnexpectedError', message: error.message || 'Unexpected error', statusCode: '500' } };
   }
 }
 
 /**
- * Delete a file from a Supabase bucket
+ * Upload a base64 image to storage
  */
-export async function deleteFile(bucketName: string, path: string): Promise<boolean> {
+export async function uploadBase64Image(
+  bucket: string,
+  path: string,
+  base64Data: string,
+  makePublic = true
+): Promise<{ publicUrl: string | null; error: StorageError | null }> {
   try {
-    const { error } = await supabase
-      .storage
-      .from(bucketName)
+    // Remove data URL prefix if present
+    const base64String = base64Data.includes('base64,') 
+      ? base64Data.split('base64,')[1] 
+      : base64Data;
+    
+    // Determine the content type from the data URL
+    let contentType = 'image/png'; // Default
+    if (base64Data.includes('data:')) {
+      contentType = base64Data.split(';')[0].split(':')[1];
+    }
+    
+    // Convert base64 to blob
+    const byteCharacters = atob(base64String);
+    const byteArrays = [];
+    for (let offset = 0; offset < byteCharacters.length; offset += 1024) {
+      const slice = byteCharacters.slice(offset, offset + 1024);
+      const byteNumbers = new Array(slice.length);
+      for (let i = 0; i < slice.length; i++) {
+        byteNumbers[i] = slice.charCodeAt(i);
+      }
+      byteArrays.push(new Uint8Array(byteNumbers));
+    }
+    const blob = new Blob(byteArrays, { type: contentType });
+    
+    // Upload the blob
+    return await uploadFile(bucket, path, blob, makePublic);
+  } catch (error: any) {
+    logger.error(`Unexpected error uploading base64 image to ${bucket}/${path}:`, error);
+    return { publicUrl: null, error: { name: 'UnexpectedError', message: error.message || 'Unexpected error', statusCode: '500' } };
+  }
+}
+
+/**
+ * Delete a file from storage
+ */
+export async function deleteFile(bucket: string, path: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.storage
+      .from(bucket)
       .remove([path]);
     
     if (error) {
-      logger.error(`Error deleting file ${bucketName}/${path}:`, error, { module: 'storage' });
+      logger.error(`Error deleting file ${bucket}/${path}:`, error);
       return false;
     }
     
-    logger.info(`File deleted successfully: ${bucketName}/${path}`, { module: 'storage' });
     return true;
   } catch (error) {
-    logger.error(`Unexpected error deleting file ${bucketName}/${path}:`, error, { module: 'storage' });
+    logger.error(`Unexpected error deleting file ${bucket}/${path}:`, error);
     return false;
   }
 }

@@ -2,33 +2,31 @@
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
 
-// Define the AppSettings type
-export interface AppSettings {
-  avatar_url?: string;
-  default_theme?: string;
+interface AppSettings {
+  app_name?: string;
+  site_title?: string;
   default_theme_settings?: string;
-  [key: string]: any;
+  [key: string]: string | undefined;
 }
 
-/**
- * Fetch application settings from the database
- */
 export async function fetchAppSettings(): Promise<AppSettings> {
   try {
-    const { data, error } = await supabase
+    // Optimized query to avoid deep type issues
+    const result = await supabase
       .from('app_settings')
       .select('key, value');
-    
-    if (error) {
-      logger.error('Error fetching app settings:', error);
+      
+    // Handle errors
+    if (result.error) {
+      logger.error('Error fetching app settings:', result.error);
       return {};
     }
     
-    // Convert array of key-value pairs to object
+    // Transform into an object
     const settings: AppSettings = {};
-    if (data && Array.isArray(data)) {
-      data.forEach((item: { key: string; value: string }) => {
-        settings[item.key] = item.value;
+    if (result.data) {
+      result.data.forEach(row => {
+        settings[row.key] = row.value;
       });
     }
     
@@ -39,59 +37,32 @@ export async function fetchAppSettings(): Promise<AppSettings> {
   }
 }
 
-/**
- * Force reload settings from the database
- * Used when settings were possibly updated elsewhere or during app initialization
- */
-export async function forceReloadSettings(): Promise<AppSettings> {
+export async function updateAppSetting(key: string, value: string): Promise<boolean> {
   try {
-    logger.info('Forcing reload of app settings', { module: 'settings' });
-    
-    const settings = await fetchAppSettings();
-    return settings;
-  } catch (error) {
-    logger.error('Error in forceReloadSettings:', error);
-    return {};
-  }
-}
-
-/**
- * Update an application setting
- */
-export async function updateAppSetting(
-  key: string, 
-  value: string
-): Promise<boolean> {
-  try {
-    // Check if setting exists using a simpler query pattern
-    const { data: existingData, error: checkError } = await supabase
+    // Check if setting exists
+    const getResult = await supabase
       .from('app_settings')
       .select('id')
       .eq('key', key)
-      .single();
-    
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned" error
-      logger.error(`Error checking if setting ${key} exists:`, checkError);
-      return false;
-    }
-    
+      .maybeSingle();
+      
     let result;
     
-    if (existingData?.id) {
-      // Update existing setting
+    if (getResult.data) {
+      // Update
       result = await supabase
         .from('app_settings')
         .update({ value })
         .eq('key', key);
     } else {
-      // Insert new setting
+      // Insert
       result = await supabase
         .from('app_settings')
         .insert({ key, value });
     }
     
     if (result.error) {
-      logger.error(`Error updating app setting ${key}:`, result.error);
+      logger.error(`Error updating setting ${key}:`, result.error);
       return false;
     }
     
@@ -103,24 +74,29 @@ export async function updateAppSetting(
 }
 
 /**
- * Delete an application setting
+ * Get all app settings as a key-value map
  */
-export async function deleteAppSetting(key: string): Promise<boolean> {
+export async function getAppSettingsMap(): Promise<Record<string, string>> {
   try {
-    const { error } = await supabase
+    const result = await supabase
       .from('app_settings')
-      .delete()
-      .eq('key', key);
-    
-    if (error) {
-      logger.error(`Error deleting app setting ${key}:`, error);
-      return false;
+      .select('key, value');
+      
+    if (result.error) {
+      logger.error('Error fetching app settings map:', result.error);
+      return {};
     }
     
-    logger.info(`File deleted successfully: ${key}`, { module: 'settings' });
-    return true;
+    const settingsMap: Record<string, string> = {};
+    if (result.data) {
+      result.data.forEach(row => {
+        settingsMap[row.key] = row.value;
+      });
+    }
+    
+    return settingsMap;
   } catch (error) {
-    logger.error(`Unexpected error deleting setting ${key}:`, error);
-    return false;
+    logger.error('Unexpected error in getAppSettingsMap:', error);
+    return {};
   }
 }

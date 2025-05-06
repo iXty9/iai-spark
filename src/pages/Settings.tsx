@@ -69,6 +69,15 @@ const Settings = () => {
     setTheme
   });
   
+  // Helper functions to adapt colorKey/value to event format
+  const adaptLightThemeChange = (colorKey: string, value: string) => {
+    handleLightThemeChange({ name: colorKey, value });
+  };
+  
+  const adaptDarkThemeChange = (colorKey: string, value: string) => {
+    handleDarkThemeChange({ name: colorKey, value });
+  };
+  
   const handleResetTheme = () => {
     // Reset themes to defaults
     setLightTheme(null as any);
@@ -140,8 +149,8 @@ const Settings = () => {
                 theme={theme as 'light' | 'dark'}
                 lightTheme={lightTheme as ThemeColors}
                 darkTheme={darkTheme as ThemeColors}
-                onLightThemeChange={handleLightThemeChange}
-                onDarkThemeChange={handleDarkThemeChange}
+                onLightThemeChange={adaptLightThemeChange}
+                onDarkThemeChange={adaptDarkThemeChange}
                 onResetTheme={handleResetTheme}
               />
             </TabsContent>
