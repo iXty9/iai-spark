@@ -46,13 +46,11 @@ export async function updateProfile(
   updates: Partial<ProfileData>
 ) {
   try {
-    // Use async/await properly with the PostgrestFilterBuilder
     const result = await supabase
       .from('profiles')
       .update(updates)
       .eq('id', userId);
       
-    // Now we can check the error property
     if (result.error) {
       logger.error('Error updating profile:', result.error);
       return { success: false, error: result.error };

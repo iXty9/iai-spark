@@ -160,19 +160,27 @@ export async function hasRole(
  */
 export async function getAllRoles(): Promise<{ roles: string[]; error?: PostgrestError }> {
   try {
-    // Use pg_enum to get all values of the app_role enum
+    // The original query used PostgreSQL-specific syntax that doesn't work in TypeScript
+    // Instead, we'll query for distinct roles from the user_roles table
     const { data, error } = await supabase
-      .from('pg_enum')
-      .select('enumlabel')
-      .eq('enumtypid', 'app_role'::regtype);
+      .from('user_roles')
+      .select('role')
+      .order('role');
     
     if (error) {
       logger.error('Error fetching all roles:', error, { module: 'userRoles' });
       return { roles: [], error };
     }
     
-    const roles = data ? data.map(item => item.enumlabel) : [];
-    return { roles };
+    // Extract unique role values
+    const uniqueRoles = [...new Set(data?.map(item => item.role) || [])];
+    
+    // If no roles found in the database, return default roles
+    if (uniqueRoles.length === 0) {
+      return { roles: ['admin', 'user'] };
+    }
+    
+    return { roles: uniqueRoles };
   } catch (err) {
     logger.error('Unexpected error in getAllRoles:', err, { module: 'userRoles' });
     return { 
