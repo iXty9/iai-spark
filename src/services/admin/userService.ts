@@ -28,7 +28,7 @@ export async function fetchUsers(options: UsersFetchOptions = {}): Promise<Users
     
     // Placeholder implementation to fetch users
     const { data, error, count } = await supabase
-      .from('auth.users')
+      .from('profiles')
       .select('*', { count: 'exact' });
     
     if (error) {
@@ -39,7 +39,7 @@ export async function fetchUsers(options: UsersFetchOptions = {}): Promise<Users
     // Mock implementation - replace with actual user fetching logic
     const users: UserWithRole[] = data?.map(user => ({
       id: user.id,
-      email: user.email,
+      email: user.email || '',
       created_at: user.created_at,
       role: 'user' as UserRole
     })) || [];

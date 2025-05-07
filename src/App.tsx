@@ -10,24 +10,27 @@ import SupabaseAuth from "./pages/SupabaseAuth";
 import Initialize from "./pages/Initialize";
 import { Toaster } from "@/components/ui/toaster";
 import { BootstrapProvider } from "@/components/supabase/BootstrapProvider";
+import { ThemeProvider } from "@/hooks/use-theme";
 import "./App.css";
 
 function App() {
   return (
     <Router>
       <BootstrapProvider>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/supabase-auth" element={<SupabaseAuth />} />
-          <Route path="/initialize" element={<Initialize />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <ThemeProvider>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/supabase-auth" element={<SupabaseAuth />} />
+            <Route path="/initialize" element={<Initialize />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          <Toaster />
+        </ThemeProvider>
       </BootstrapProvider>
-      <Toaster />
     </Router>
   );
 }

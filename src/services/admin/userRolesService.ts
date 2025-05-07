@@ -2,28 +2,10 @@
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
 import { PostgrestError } from '@supabase/supabase-js';
-import { UserRole, UserWithRole, UsersFetchOptions, UsersSearchOptions, UsersFetchResult } from './types/userTypes';
+import { UserRole } from './types/userTypes';
 
-/**
- * Check if a user has admin role
- * @param userId The user ID to check
- * @returns Promise<boolean> True if user has admin role
- */
-export async function checkIsAdmin(userId: string): Promise<boolean> {
-  try {
-    const { hasRole, error } = await hasRole(userId, 'admin');
-    
-    if (error) {
-      logger.error('Error checking admin status:', error, { module: 'userRoles' });
-      return false;
-    }
-    
-    return hasRole;
-  } catch (err) {
-    logger.error('Unexpected error in checkIsAdmin:', err, { module: 'userRoles' });
-    return false;
-  }
-}
+// Export the types so they can be used by components
+export type { UserRole, UserWithRole } from './types/userTypes';
 
 /**
  * Assign a role to a user
@@ -32,7 +14,7 @@ export async function checkIsAdmin(userId: string): Promise<boolean> {
  */
 export async function assignRole(
   userId: string, 
-  role: UserRole
+  role: string
 ): Promise<{ success: boolean; error?: PostgrestError }> {
   try {
     const { error } = await supabase
@@ -50,15 +32,15 @@ export async function assignRole(
     logger.info(`Role ${role} assigned to user ${userId}`, { module: 'userRoles' });
     return { success: true };
   } catch (err) {
-    logger.error('Unexpected error in assignRole:', err, { module: 'userRoles' });
+    const error = err as PostgrestError;
+    logger.error('Unexpected error in assignRole:', error, { module: 'userRoles' });
     return { 
       success: false, 
       error: {
         message: 'Unexpected error assigning role',
         details: '',
         hint: '',
-        code: 'UNKNOWN',
-        name: 'UnexpectedError'
+        code: 'UNKNOWN'
       } 
     };
   }
@@ -71,7 +53,7 @@ export async function assignRole(
  */
 export async function removeRole(
   userId: string, 
-  role: UserRole
+  role: string
 ): Promise<{ success: boolean; error?: PostgrestError }> {
   try {
     const { error } = await supabase
@@ -90,15 +72,15 @@ export async function removeRole(
     logger.info(`Role ${role} removed from user ${userId}`, { module: 'userRoles' });
     return { success: true };
   } catch (err) {
-    logger.error('Unexpected error in removeRole:', err, { module: 'userRoles' });
+    const error = err as PostgrestError;
+    logger.error('Unexpected error in removeRole:', error, { module: 'userRoles' });
     return { 
       success: false, 
       error: {
         message: 'Unexpected error removing role',
         details: '',
         hint: '',
-        code: 'UNKNOWN',
-        name: 'UnexpectedError'
+        code: 'UNKNOWN'
       }
     };
   }
@@ -126,17 +108,17 @@ export async function getUserRoles(
       return { roles: [], error };
     }
     
-    return { roles: data || [] };
+    return { roles: data as UserRole[] || [] };
   } catch (err) {
-    logger.error('Unexpected error in getUserRoles:', err, { module: 'userRoles' });
+    const error = err as PostgrestError;
+    logger.error('Unexpected error in getUserRoles:', error, { module: 'userRoles' });
     return { 
       roles: [], 
       error: {
         message: 'Unexpected error fetching roles',
         details: '',
         hint: '',
-        code: 'UNKNOWN',
-        name: 'UnexpectedError'
+        code: 'UNKNOWN'
       }
     };
   }
@@ -149,32 +131,31 @@ export async function getUserRoles(
  */
 export async function hasRole(
   userId: string, 
-  role: UserRole
+  role: string
 ): Promise<{ hasRole: boolean; error?: PostgrestError }> {
   try {
-    // Use from().select() instead of rpc() which might not be available
     const { data, error } = await supabase
-      .from('user_roles')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('role', role);
+      .rpc('has_role', {
+        _user_id: userId,
+        _role: role
+      });
     
     if (error) {
       logger.error('Error checking user role:', error, { module: 'userRoles' });
       return { hasRole: false, error };
     }
     
-    return { hasRole: (data && data.length > 0) || false };
+    return { hasRole: data || false };
   } catch (err) {
-    logger.error('Unexpected error in hasRole:', err, { module: 'userRoles' });
+    const error = err as PostgrestError;
+    logger.error('Unexpected error in hasRole:', error, { module: 'userRoles' });
     return { 
       hasRole: false, 
       error: {
         message: 'Unexpected error checking role',
         details: '',
         hint: '',
-        code: 'UNKNOWN',
-        name: 'UnexpectedError'
+        code: 'UNKNOWN'
       }
     };
   }
@@ -185,11 +166,11 @@ export async function hasRole(
  */
 export async function getAllRoles(): Promise<{ roles: string[]; error?: PostgrestError }> {
   try {
-    // Query for distinct roles from the user_roles table
+    // Query distinct roles from user_roles table
     const { data, error } = await supabase
       .from('user_roles')
       .select('role')
-      .order('role');
+      .limit(100);
     
     if (error) {
       logger.error('Error fetching all roles:', error, { module: 'userRoles' });
@@ -197,33 +178,33 @@ export async function getAllRoles(): Promise<{ roles: string[]; error?: Postgres
     }
     
     // Extract unique role values
-    const uniqueRoles = [...new Set(data?.map(item => item.role as string) || [])];
-    
-    // If no roles found in the database, return default roles
-    if (uniqueRoles.length === 0) {
-      return { roles: ['admin', 'user'] };
-    }
-    
+    const uniqueRoles = Array.from(new Set(data?.map(item => item.role as string) || []));
     return { roles: uniqueRoles };
   } catch (err) {
-    logger.error('Unexpected error in getAllRoles:', err, { module: 'userRoles' });
+    const error = err as PostgrestError;
+    logger.error('Unexpected error in getAllRoles:', error, { module: 'userRoles' });
     return { 
       roles: [], 
       error: {
         message: 'Unexpected error fetching roles',
         details: '',
         hint: '',
-        code: 'UNKNOWN',
-        name: 'UnexpectedError'
+        code: 'UNKNOWN'
       }
     };
   }
 }
 
-// Re-export functions for user management
-export { 
-  fetchUsers,
-  searchUsers,
-  updateUserRole,
-  checkAdminConnectionStatus
-} from './userService';
+/**
+ * Check if a user is an admin
+ * @param userId The user's ID
+ */
+export async function checkIsAdmin(userId: string): Promise<boolean> {
+  try {
+    const { hasRole: isAdmin } = await hasRole(userId, 'admin');
+    return isAdmin;
+  } catch (error) {
+    logger.error('Error checking admin status:', error, { module: 'userRoles' });
+    return false;
+  }
+}
