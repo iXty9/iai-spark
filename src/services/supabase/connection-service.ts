@@ -207,7 +207,7 @@ async function tryBootstrapFromDefault() {
   if (retryCount >= MAX_BOOTSTRAP_RETRIES) {
     logger.warn('Max bootstrap retry count reached, aborting', {
       module: 'supabase-bootstrap',
-      retries: retryCount
+      // Removed retryCount property from log options
     });
     return;
   }
@@ -264,8 +264,7 @@ async function tryBootstrapFromDefault() {
     }
   } catch (error) {
     logger.error('Error during bootstrap attempt', error, {
-      module: 'supabase-bootstrap',
-      retryCount: retryCount + 1
+      module: 'supabase-bootstrap'
     });
   }
 }
