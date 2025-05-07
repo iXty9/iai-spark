@@ -1,14 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, Info, Database, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SupabaseConnectionForm } from '@/components/supabase/SupabaseConnectionForm';
-import { getConnectionInfo, resetSupabaseClient } from '@/services/supabase/connection-service';
+import { getConnectionInfo, resetSupabaseClient, testSupabaseConnection } from '@/services/supabase/connection-service';
 import { saveConfig } from '@/config/supabase-config';
 import { fetchConnectionConfig } from '@/services/admin/settingsService';
+import { ShareConfigDialog } from '@/components/supabase/ShareConfigDialog';
 
 export default function SupabaseAuth() {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ export default function SupabaseAuth() {
   const [isLoadingDbConfig, setIsLoadingDbConfig] = useState(true);
   const [dbConfigFound, setDbConfigFound] = useState(false);
   const [dbConfig, setDbConfig] = useState<any>(null);
+  const [testingConnection, setTestingConnection] = useState(false);
   
   // Check if there's a saved configuration in the database
   useEffect(() => {
@@ -55,22 +57,37 @@ export default function SupabaseAuth() {
     navigate('/');
   };
   
-  const handleUseDbConfig = () => {
+  const handleUseDbConfig = async () => {
     if (!dbConfig) return;
     
-    // Save the config from the database to localStorage
-    saveConfig({
-      url: dbConfig.url,
-      anonKey: dbConfig.anonKey,
-      serviceKey: dbConfig.serviceKey,
-      isInitialized: dbConfig.isInitialized,
-    });
+    setTestingConnection(true);
     
-    // Reset the Supabase client to use the new config
-    resetSupabaseClient();
-    
-    // Navigate back to previous page or home
-    navigate('/');
+    try {
+      // Test the connection before using it
+      const connectionValid = await testSupabaseConnection(dbConfig.url, dbConfig.anonKey);
+      
+      if (connectionValid) {
+        // Save the config from the database to localStorage
+        saveConfig({
+          url: dbConfig.url,
+          anonKey: dbConfig.anonKey,
+          serviceKey: dbConfig.serviceKey,
+          isInitialized: dbConfig.isInitialized,
+        });
+        
+        // Reset the Supabase client to use the new config
+        resetSupabaseClient();
+        
+        // Navigate back to previous page or home
+        navigate('/');
+      } else {
+        throw new Error("Connection failed with saved credentials");
+      }
+    } catch (error) {
+      console.error("Error using saved configuration:", error);
+    } finally {
+      setTestingConnection(false);
+    }
   };
 
   return (
@@ -103,7 +120,7 @@ export default function SupabaseAuth() {
             </div>
           ) : dbConfigFound ? (
             <div className="space-y-6">
-              <Alert variant="success" className="bg-green-50 border-green-200">
+              <Alert>
                 <Info className="h-4 w-4 text-green-500" />
                 <AlertTitle>Saved Configuration Found</AlertTitle>
                 <AlertDescription className="text-sm">
@@ -112,12 +129,26 @@ export default function SupabaseAuth() {
                 </AlertDescription>
               </Alert>
               
-              <Button 
-                onClick={handleUseDbConfig} 
-                className="w-full"
-              >
-                Use Saved Configuration
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handleUseDbConfig} 
+                  className="flex-1"
+                  disabled={testingConnection}
+                >
+                  {testingConnection ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Testing...
+                    </>
+                  ) : (
+                    'Use Saved Configuration'
+                  )}
+                </Button>
+                
+                {dbConfig && (
+                  <ShareConfigDialog url={dbConfig.url} anonKey={dbConfig.anonKey} />
+                )}
+              </div>
               
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
@@ -135,7 +166,7 @@ export default function SupabaseAuth() {
           ) : (
             <>
               {connectionInfo && (
-                <Alert className="mb-6" variant="warning">
+                <Alert className="mb-6">
                   <Info className="h-4 w-4" />
                   <AlertTitle>Current Environment</AlertTitle>
                   <AlertDescription className="text-sm text-muted-foreground">
@@ -153,6 +184,12 @@ export default function SupabaseAuth() {
             </>
           )}
         </CardContent>
+        
+        <CardFooter className="flex justify-center border-t pt-4 mt-4">
+          <p className="text-xs text-center text-muted-foreground">
+            After connecting, you can share the connection URL with your team to allow access from other devices.
+          </p>
+        </CardFooter>
       </Card>
     </div>
   );

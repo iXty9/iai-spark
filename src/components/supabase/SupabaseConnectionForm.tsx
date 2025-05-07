@@ -52,7 +52,7 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
             toast({
               title: "Warning",
               description: "Connected successfully, but couldn't save configuration to database for persistence. Settings will only be available in this browser.",
-              variant: "warning"
+              variant: "default"
             });
           }
         } catch (err) {

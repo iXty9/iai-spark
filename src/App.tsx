@@ -1,49 +1,34 @@
 
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider } from '@/hooks/use-theme';
-import { Toaster } from '@/components/ui/toaster';
-import { AuthProvider } from '@/contexts/AuthContext';
-import Index from '@/pages/Index';
-import Auth from '@/pages/Auth';
-import Admin from '@/pages/Admin';
-import Settings from '@/pages/Settings';
-import Profile from '@/pages/Profile';
-import NotFound from '@/pages/NotFound';
-import Initialize from '@/pages/Initialize';
-import SupabaseAuth from '@/pages/SupabaseAuth';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { SystemSelfHealer } from '@/components/system/SystemSelfHealer';
-
-import './App.css';
-import './styles/theme.css';
-import './styles/chat-theme.css';
-
-const queryClient = new QueryClient();
+import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import Index from "./pages/Index";
+import Auth from "./pages/Auth";
+import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
+import Admin from "./pages/Admin";
+import NotFound from "./pages/NotFound";
+import SupabaseAuth from "./pages/SupabaseAuth";
+import Initialize from "./pages/Initialize";
+import { Toaster } from "@/components/ui/toaster";
+import { BootstrapProvider } from "@/components/supabase/BootstrapProvider";
+import "./App.css";
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ThemeProvider>
-          {/* Self-healing system component */}
-          <SystemSelfHealer />
-          
-          <Router>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/initialize" element={<Initialize />} />
-              <Route path="/supabase-auth" element={<SupabaseAuth />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Router>
-          <Toaster />
-        </ThemeProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <Router>
+      <BootstrapProvider>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="/supabase-auth" element={<SupabaseAuth />} />
+          <Route path="/initialize" element={<Initialize />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BootstrapProvider>
+      <Toaster />
+    </Router>
   );
 }
 

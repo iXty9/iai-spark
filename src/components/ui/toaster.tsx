@@ -9,6 +9,7 @@ import {
   ToastViewport,
   ToastAction,
 } from "@/components/ui/toast"
+import { ReactNode } from "react"
 
 export function Toaster() {
   const { toasts } = useToast()
@@ -29,7 +30,7 @@ export function Toaster() {
                 {action.altText}
               </ToastAction>
             ) : (
-              action
+              action as ReactNode
             )}
             <ToastClose />
           </Toast>
