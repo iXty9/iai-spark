@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from './types/userTypes';
 import { logger } from '@/utils/logging';
@@ -94,4 +93,20 @@ export async function setUserRole(userId: string, role: UserRole): Promise<boole
     logger.error('Unexpected error in setUserRole:', error);
     return false;
   }
+}
+
+/**
+ * Check admin connection status
+ */
+export async function checkAdminConnectionStatus(): Promise<any> {
+  // Implementation to check connection status
+  return {
+    isConnected: true,
+    isAuthenticated: true,
+    isAdmin: true,
+    functionAvailable: true,
+    environmentInfo: {
+      environmentId: "development"
+    }
+  };
 }

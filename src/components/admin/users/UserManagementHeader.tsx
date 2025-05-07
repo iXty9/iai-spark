@@ -1,11 +1,10 @@
-
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, RefreshCw, Loader, Info } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { UserRole } from '@/services/admin/userRolesService';
+import { UserRole } from '@/services/admin/types/userTypes';
 
 interface UserManagementHeaderProps {
   searchQuery: string;

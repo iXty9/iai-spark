@@ -5,7 +5,8 @@ import {
   UserWithRole, UserRole, UsersFetchOptions, UsersSearchOptions, UsersFetchResult
 } from '@/services/admin/types/userTypes';
 import { fetchUsers, searchUsers, updateUserRole } from '@/services/admin/userService';
-import { checkIsAdmin, checkAdminConnectionStatus } from '@/services/admin/userRolesService';
+import { checkIsAdmin } from '@/services/admin/userRolesService';
+import { checkAdminConnectionStatus } from '@/services/admin/roleService';
 import { clearAllEnvironmentConfigs } from '@/config/supabase-config';
 
 export function useUserManagement() {

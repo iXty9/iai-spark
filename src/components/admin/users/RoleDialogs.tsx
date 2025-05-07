@@ -1,5 +1,5 @@
 
-import { UserWithRole } from '@/services/admin/userRolesService';
+import { UserWithRole } from '@/services/admin/types/userTypes';
 import {
   AlertDialog,
   AlertDialogAction,
