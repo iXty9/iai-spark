@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { UserRole } from './userRolesService';
+import { UserRole } from './types/userTypes';
 import { logger } from '@/utils/logging';
 
 /**
