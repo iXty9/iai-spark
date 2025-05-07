@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CardContent, CardFooter } from '@/components/ui/card';
-import { Mail, Lock, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Mail, Lock, ArrowLeft, AlertCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Form, FormField, FormItem, FormMessage, FormControl } from '@/components/ui/form';
@@ -13,7 +13,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import DOMPurify from 'dompurify';
-import { getStoredConfig } from '@/config/supabase-config';
+import { getConnectionInfo } from '@/services/supabase/connection-service';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -28,6 +28,7 @@ export const LoginForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [showDebug, setShowDebug] = useState(false);
+  const [isResettingConfig, setIsResettingConfig] = useState(false);
   
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -49,29 +50,68 @@ export const LoginForm = () => {
       navigate('/');
     } catch (error: any) {
       console.error('Login error:', error);
-      setServerError(error.message || 'Invalid email or password');
+      
+      // Improve error messaging to help debug connection issues
+      let errorMessage = 'Authentication failed';
+      
+      if (error.message) {
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Invalid email or password';
+        } else if (error.message.includes('network')) {
+          errorMessage = 'Network error - cannot connect to authentication service';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'Connection timed out - check your network and try again';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setServerError(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Get connection info for debugging
-  const getConnectionInfo = () => {
+  // Reset connection config and reload the page
+  const handleResetConfig = () => {
     try {
-      const storedConfig = getStoredConfig();
-      const connectionId = localStorage.getItem('supabase_connection_id') || 'unknown';
-      const hostname = window.location.hostname;
+      setIsResettingConfig(true);
       
-      return {
-        url: storedConfig?.url ? storedConfig.url.split('//')[1] : 'No stored config',
-        connectionId,
-        hostname,
-        isDev: process.env.NODE_ENV === 'development',
-      };
+      // Clear authentication data
+      localStorage.removeItem('spark_supabase_config');
+      
+      // Clear any auth tokens
+      ['sb-refresh-token', 'sb-access-token', 'supabase.auth.expires_at', 'supabase.auth.token'].forEach(key => {
+        try {
+          localStorage.removeItem(key);
+        } catch (e) {
+          console.warn(`Failed to remove ${key} from localStorage:`, e);
+        }
+      });
+      
+      // Also clean up any keys with supabase in them
+      Object.keys(localStorage).forEach(key => {
+        if (key.includes('supabase') || key.startsWith('sb-')) {
+          try {
+            localStorage.removeItem(key);
+          } catch (e) {
+            console.warn(`Failed to remove ${key} from localStorage:`, e);
+          }
+        }
+      });
+      
+      // Force reload to reinitialize
+      setTimeout(() => {
+        window.location.href = window.location.pathname + '?reset_config=true';
+      }, 500);
     } catch (e) {
-      return { error: 'Could not retrieve connection info' };
+      console.error('Error resetting config:', e);
+      setIsResettingConfig(false);
     }
   };
+
+  // Get connection info for debugging
+  const connectionInfo = getConnectionInfo();
 
   return (
     <Form {...form}>
@@ -91,9 +131,31 @@ export const LoginForm = () => {
                   {showDebug ? 'Hide debug info' : 'Show debug info'}
                 </button>
                 {showDebug && (
-                  <pre className="mt-2 overflow-auto max-h-32 p-2 bg-slate-900 text-white rounded text-xs">
-                    {JSON.stringify(getConnectionInfo(), null, 2)}
-                  </pre>
+                  <div className="mt-2">
+                    <pre className="overflow-auto max-h-32 p-2 bg-slate-900 text-white rounded text-xs">
+                      {JSON.stringify(connectionInfo, null, 2)}
+                    </pre>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-2 text-xs"
+                      onClick={handleResetConfig}
+                      disabled={isResettingConfig}
+                    >
+                      {isResettingConfig ? (
+                        <>
+                          <RefreshCw className="mr-1 h-3 w-3 animate-spin" />
+                          Resetting...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="mr-1 h-3 w-3" />
+                          Reset Connection Config
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 )}
               </div>
             </Alert>

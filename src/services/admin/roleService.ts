@@ -11,7 +11,6 @@ import { logger } from '@/utils/logging';
  */
 export async function hasRole(userId: string, role: UserRole): Promise<boolean> {
   try {
-    // Using a simpler query pattern with proper awaiting to avoid type errors
     const { data, error } = await supabase
       .from('user_roles')
       .select('id')

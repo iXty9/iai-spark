@@ -42,7 +42,6 @@ export const useAuthState = () => {
         console.log('Fetching profile attempt', fetchAttempts.current, 'for user:', userId);
       }
       
-      // Execute the query and await the response properly
       const { data, error } = await supabase
         .from('profiles')
         .select('*')

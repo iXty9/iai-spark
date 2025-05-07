@@ -7,17 +7,23 @@ export interface SupabaseConfig {
   anonKey: string;
   serviceKey?: string; // Added for self-healing operations
   isInitialized: boolean;
+  savedAt?: string; // Timestamp when config was saved
+  environment?: string; // Which environment this config was saved from
 }
 
 // Storage key for Supabase configuration
 const STORAGE_KEY = 'spark_supabase_config';
+const ENV_KEY = 'spark_supabase_env';
 
 // Environment detection - now more precise
 export const isDevelopment = () => {
   const hostname = window.location.hostname;
   
+  // For debugging environment detection
+  localStorage.setItem(ENV_KEY, hostname);
+  
   // Log the hostname for debugging only once
-  logger.info(`Checking isDevelopment for hostname: ${hostname}`, {
+  logger.info(`Running environment detection for hostname: ${hostname}`, {
     module: 'supabase-config',
     once: true
   });
@@ -25,14 +31,16 @@ export const isDevelopment = () => {
   // Direct check for localhost and 127.0.0.1 which are definitely development
   if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.local')) {
     logger.info(`Hostname ${hostname} is a local development environment`, {
-      module: 'supabase-config'
+      module: 'supabase-config',
+      once: true
     });
     return true;
   }
 
   // Everything else is considered production
   logger.info(`Hostname ${hostname} is considered a production environment`, {
-    module: 'supabase-config'
+    module: 'supabase-config',
+    once: true
   });
   return false;
 };
@@ -59,7 +67,8 @@ export function hasStoredConfig(): boolean {
     const hasConfig = !!storedConfig;
     
     // Log detailed information about the stored config state
-    logger.info(`Stored config exists = ${hasConfig}`, {
+    const hostname = window.location.hostname;
+    logger.info(`Stored config exists = ${hasConfig} for ${hostname}`, {
       module: 'supabase-config'
     });
     
@@ -76,16 +85,31 @@ export function hasStoredConfig(): boolean {
 export function getStoredConfig(): SupabaseConfig | null {
   try {
     const storedConfig = localStorage.getItem(STORAGE_KEY);
+    const hostname = window.location.hostname;
     
     // If stored config exists, return it
     if (storedConfig) {
-      const config = JSON.parse(storedConfig) as SupabaseConfig;
-      logger.info('Using stored Supabase configuration', {
-        module: 'supabase-config',
-        url: config.url.split('//')[1], // Log domain only for security
-        once: true
-      });
-      return config;
+      try {
+        const config = JSON.parse(storedConfig) as SupabaseConfig;
+        
+        // Add environment information if not already present
+        if (!config.environment) {
+          config.environment = hostname;
+        }
+        
+        logger.info('Using stored Supabase configuration', {
+          module: 'supabase-config',
+          url: config.url.split('//')[1], // Log domain only for security
+          environment: config.environment,
+          thisEnvironment: hostname,
+          once: true
+        });
+        return config;
+      } catch (parseError) {
+        logger.error('Error parsing stored config, clearing invalid config', parseError);
+        localStorage.removeItem(STORAGE_KEY);
+        return null;
+      }
     }
     
     // Check for force_init parameter - don't use default if forcing init
@@ -112,16 +136,18 @@ export function getStoredConfig(): SupabaseConfig | null {
  */
 export function saveConfig(config: SupabaseConfig): boolean {
   try {
-    // Add a timestamp to the saved config
-    const configWithTimestamp = {
+    // Add a timestamp and environment info to the saved config
+    const configWithMeta = {
       ...config,
-      savedAt: new Date().toISOString()
+      savedAt: new Date().toISOString(),
+      environment: window.location.hostname
     };
     
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(configWithTimestamp));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(configWithMeta));
     logger.info('Supabase configuration saved to storage', {
       module: 'supabase-config',
-      url: config.url.split('//')[1] // Log domain only for security
+      url: config.url.split('//')[1], // Log domain only for security
+      environment: configWithMeta.environment
     });
     return true;
   } catch (e) {
@@ -175,6 +201,7 @@ export function getDefaultConfig(): SupabaseConfig {
   return {
     url: "https://ymtdtzkskjdqlzhjuesk.supabase.co",
     anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltdGR0emtza2pkcWx6aGp1ZXNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5MjUyNDYsImV4cCI6MjA2MDUwMTI0Nn0.sOQdxH63edhcIgjx6mxjHkeam4IQGViaWYLdFDepIaE",
-    isInitialized: true
+    isInitialized: true,
+    environment: 'default'
   };
 }

@@ -1,13 +1,14 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "@/hooks/use-toast";
+import { getConnectionInfo } from '@/services/supabase/connection-service';
 
-const API_TIMEOUT = 180000; // 3 minutes (180 seconds)
+const API_TIMEOUT = 30000; // 30 seconds
 
 export const signIn = async (email: string, password: string) => {
   try {
-    const connectionId = localStorage.getItem('supabase_connection_id') || 'unknown';
-    console.log(`Attempting login with connection ID: ${connectionId}`);
+    const connectionInfo = getConnectionInfo();
+    console.log(`Attempting login with connection ID: ${connectionInfo.connectionId}`);
+    console.log('Connection details:', connectionInfo);
     
     const authPromise = supabase.auth.signInWithPassword({
       email,
@@ -15,7 +16,7 @@ export const signIn = async (email: string, password: string) => {
     });
     
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("Login request timed out after 3 minutes")), API_TIMEOUT);
+      setTimeout(() => reject(new Error("Login request timed out after 30 seconds")), API_TIMEOUT);
     });
     
     const { data, error } = await Promise.race([authPromise, timeoutPromise]) as any;
@@ -25,7 +26,8 @@ export const signIn = async (email: string, password: string) => {
         message: error.message,
         code: error.code,
         status: error.status,
-        connectionId
+        connectionId: connectionInfo.connectionId,
+        environment: connectionInfo.environment
       });
       
       toast({
@@ -36,21 +38,14 @@ export const signIn = async (email: string, password: string) => {
       throw error;
     }
     
-    console.log(`Login successful with connection ID: ${connectionId}`);
+    console.log(`Login successful with connection ID: ${connectionInfo.connectionId}`);
     return data;
   } catch (error: any) {
     console.error('Error during sign in:', error);
     
-    // Try to get underlying connection info
-    try {
-      const storedConfig = localStorage.getItem('spark_supabase_config');
-      if (storedConfig) {
-        const config = JSON.parse(storedConfig);
-        console.log('Current connection URL:', config.url.split('//')[1]);
-      }
-    } catch (e) {
-      console.error('Could not retrieve connection info:', e);
-    }
+    // Get connection information for debug purposes
+    const connectionInfo = getConnectionInfo();
+    console.error('Connection details during error:', connectionInfo);
     
     const errorMessage = error.message || "Login failed. Please try again later.";
     toast({

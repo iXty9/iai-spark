@@ -4,48 +4,18 @@
 
 import { getSupabaseClient } from '@/services/supabase/connection-service';
 import { toast } from '@/hooks/use-toast';
+import { PostgrestResponse, PostgrestSingleResponse, PostgrestFilterBuilder } from '@supabase/supabase-js';
 
 // Get the Supabase client
 const client = getSupabaseClient();
 
-// Define a type for PostgrestResponse that includes common properties
-interface PostgrestResponse {
-  data: any | null;
-  error: Error | null;
-  status: number;
-  count: number | null;
-}
-
-// Define a PostgrestFilterBuilder type for the fallback client
-interface PostgrestFilterBuilder {
-  eq: (column: string, value: any) => Promise<PostgrestResponse>;
-  neq: (column: string, value: any) => Promise<PostgrestResponse>;
-  gt: (column: string, value: any) => Promise<PostgrestResponse>;
-  lt: (column: string, value: any) => Promise<PostgrestResponse>;
-  gte: (column: string, value: any) => Promise<PostgrestResponse>;
-  lte: (column: string, value: any) => Promise<PostgrestResponse>;
-  like: (column: string, pattern: string) => Promise<PostgrestResponse>;
-  ilike: (column: string, pattern: string) => Promise<PostgrestResponse>;
-  is: (column: string, value: any) => Promise<PostgrestResponse>;
-  in: (column: string, values: any[]) => Promise<PostgrestResponse>;
-  contains: (column: string, value: any) => Promise<PostgrestResponse>;
-  containedBy: (column: string, values: any[]) => Promise<PostgrestResponse>;
-  filter: (column: string, operator: string, value: any) => Promise<PostgrestResponse>;
-  match: (query: object) => Promise<PostgrestResponse>;
-  single: () => Promise<PostgrestResponse>;
-  maybeSingle: () => Promise<PostgrestResponse>;
-  order: (column: string, options?: object) => PostgrestFilterBuilder;
-  limit: (limit: number) => Promise<PostgrestResponse>;
-  range: (from: number, to: number) => Promise<PostgrestResponse>;
-}
-
-// Define a simplified fallback client that ensures consistent typing
+// Fallback client for handling cases when the Supabase client isn't available
 const fallbackClient = {
   auth: {
     getSession: () => {
       toast({
         title: 'Connection Error',
-        description: 'Supabase client is not available. Please initialize the application.',
+        description: 'Supabase client is not available. Please check configuration.',
         variant: 'destructive'
       });
       return Promise.resolve({ data: { session: null }, error: new Error('Client not initialized') });
@@ -56,72 +26,90 @@ const fallbackClient = {
     signUp: () => Promise.resolve({ data: { user: null, session: null }, error: new Error('Client not initialized') }),
     getUser: () => Promise.resolve({ data: { user: null }, error: new Error('Client not initialized') })
   },
-  from: (table: string) => {
-    // Create a standardized response
-    const standardResponse = (): Promise<PostgrestResponse> => 
-      Promise.resolve({
-        data: null,
-        error: new Error('Client not initialized'),
-        status: 500,
-        count: null
-      });
-    
-    // Create a filter builder that returns standard responses
-    const createFilterBuilder = (): PostgrestFilterBuilder => {
-      const filterBuilder: PostgrestFilterBuilder = {
-        eq: () => standardResponse(),
-        neq: () => standardResponse(),
-        gt: () => standardResponse(),
-        lt: () => standardResponse(),
-        gte: () => standardResponse(),
-        lte: () => standardResponse(),
-        like: () => standardResponse(),
-        ilike: () => standardResponse(),
-        is: () => standardResponse(),
-        in: () => standardResponse(),
-        contains: () => standardResponse(),
-        containedBy: () => standardResponse(),
-        filter: () => standardResponse(),
-        match: () => standardResponse(),
-        single: () => standardResponse(),
-        maybeSingle: () => standardResponse(),
-        order: () => filterBuilder,
-        limit: () => standardResponse(),
-        range: () => standardResponse()
+  from: (table: string) => ({
+    select: (columns?: string) => {
+      // Create properly typed return object
+      const responseObj = {
+        eq: (column: string, value: any) => Promise.resolve({ 
+          data: null, 
+          error: new Error('Client not initialized'),
+          count: null
+        }),
+        neq: () => responseObj,
+        gt: () => responseObj,
+        lt: () => responseObj,
+        gte: () => responseObj,
+        lte: () => responseObj,
+        like: () => responseObj,
+        ilike: () => responseObj,
+        is: () => responseObj,
+        in: () => responseObj,
+        contains: () => responseObj,
+        containedBy: () => responseObj,
+        filter: () => responseObj,
+        match: () => responseObj,
+        single: () => Promise.resolve({ 
+          data: null, 
+          error: new Error('Client not initialized'),
+          count: null
+        }),
+        maybeSingle: () => Promise.resolve({ 
+          data: null, 
+          error: new Error('Client not initialized'),
+          count: null
+        }),
+        order: () => responseObj,
+        limit: () => responseObj,
+        range: () => responseObj,
       };
-      
-      return filterBuilder;
-    };
-    
-    // Base query builder for PostgreSQL table operations
-    return {
-      select: () => createFilterBuilder(),
-      insert: () => standardResponse(),
-      update: () => ({
-        eq: () => standardResponse(),
-        match: () => standardResponse()
+      return responseObj;
+    },
+    insert: () => Promise.resolve({
+      data: null,
+      error: new Error('Client not initialized')
+    }),
+    update: () => ({
+      eq: () => Promise.resolve({
+        data: null,
+        error: new Error('Client not initialized')
       }),
-      delete: () => ({
-        eq: () => standardResponse(),
-        match: () => standardResponse()
+      match: () => Promise.resolve({
+        data: null,
+        error: new Error('Client not initialized')
+      })
+    }),
+    delete: () => ({
+      eq: () => Promise.resolve({
+        data: null,
+        error: new Error('Client not initialized')
       }),
-      rpc: (procedureName: string, params?: object) => standardResponse()
-    };
-  },
+      match: () => Promise.resolve({
+        data: null,
+        error: new Error('Client not initialized')
+      })
+    }),
+    rpc: () => Promise.resolve({
+      data: null,
+      error: new Error('Client not initialized')
+    })
+  }),
   storage: {
     from: (bucket: string) => ({
-      upload: (path: string, file: any) => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
-      getPublicUrl: (path: string) => ({ data: { publicUrl: '' } })
-    })
+      upload: () => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
+      getPublicUrl: () => ({ data: { publicUrl: '' } }),
+      list: () => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
+      remove: () => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
+    }),
+    getBucket: () => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
+    createBucket: () => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
   },
   functions: {
-    invoke: (functionName: string, options?: { body?: any; headers?: any }) => 
-      Promise.resolve({
-        data: null,
-        error: new Error('Client not initialized'),
-        status: 500,
-        count: null
-      })
+    invoke: () => Promise.resolve({
+      data: null,
+      error: new Error('Client not initialized'),
+      status: 500,
+      count: null
+    })
   }
 };
 
