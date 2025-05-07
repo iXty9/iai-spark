@@ -1,11 +1,12 @@
+
 /**
  * SQL scripts for initializing a Supabase database
  */
 const avatarsPolicies = [
-  { name: 'Avatar Select Policy',    action: 'SELECT', cond: 'auth.role() = \'authenticated\' OR storage.foldername(name)[1] = auth.uid()', kind: 'USING' },
-  { name: 'Avatar Insert Policy',    action: 'INSERT', cond: 'auth.role() = \'authenticated\' AND storage.foldername(name)[1] = auth.uid()', kind: 'WITH CHECK' },
-  { name: 'Avatar Update Policy',    action: 'UPDATE', cond: 'auth.role() = \'authenticated\' AND storage.foldername(name)[1] = auth.uid()', kind: 'USING' },
-  { name: 'Avatar Delete Policy',    action: 'DELETE', cond: 'auth.role() = \'authenticated\' AND storage.foldername(name)[1] = auth.uid()', kind: 'USING' },
+  { name: 'Avatar Select Policy',    action: 'SELECT', cond: 'auth.role() = \'authenticated\' OR (storage.foldername(name))[1] = auth.uid()', kind: 'USING' },
+  { name: 'Avatar Insert Policy',    action: 'INSERT', cond: 'auth.role() = \'authenticated\' AND (storage.foldername(name))[1] = auth.uid()', kind: 'WITH CHECK' },
+  { name: 'Avatar Update Policy',    action: 'UPDATE', cond: 'auth.role() = \'authenticated\' AND (storage.foldername(name))[1] = auth.uid()', kind: 'USING' },
+  { name: 'Avatar Delete Policy',    action: 'DELETE', cond: 'auth.role() = \'authenticated\' AND (storage.foldername(name))[1] = auth.uid()', kind: 'USING' },
 ];
 
 // One DO block for avatars RLS policy creation

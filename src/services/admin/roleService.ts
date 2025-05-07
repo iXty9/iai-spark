@@ -56,6 +56,8 @@ export async function getUserRole(userId: string): Promise<UserRole | null> {
  */
 export async function setUserRole(userId: string, role: UserRole): Promise<boolean> {
   try {
+    if (!userId) throw new Error('No user logged in');
+
     // Check if role entry exists
     const { data, error } = await supabase
       .from('user_roles')

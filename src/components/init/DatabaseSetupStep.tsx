@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { initializeSupabaseDb } from '@/services/supabase/init-service';
-import { Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, AlertTriangle, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Link } from 'react-router-dom';
 
@@ -26,18 +26,29 @@ export function DatabaseSetupStep({
   const [error, setError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
   const [showExecSqlHelp, setShowExecSqlHelp] = useState(false);
+  const [isReconnection, setIsReconnection] = useState(false);
+  const [reconnectionMessage, setReconnectionMessage] = useState<string | null>(null);
   
   // Handle the initialize database button
   const handleInitialize = async () => {
     setIsInitializing(true);
     setError(null);
     setShowExecSqlHelp(false);
+    setIsReconnection(false);
+    setReconnectionMessage(null);
     
     try {
       const result = await initializeSupabaseDb(supabaseUrl, serviceKey, anonKey);
       
       if (result.success) {
         setInitialized(true);
+        
+        // Check if this was a reconnection to existing database
+        if (result.message && result.message.includes('existing')) {
+          setIsReconnection(true);
+          setReconnectionMessage('Connected to existing database structure successfully.');
+        }
+        
         // Configuration is saved in the init service
         setTimeout(onSuccess, 1500); // Show success state before continuing
       } else {
@@ -80,11 +91,21 @@ export function DatabaseSetupStep({
             </ul>
           </div>
           
-          {initialized && (
+          {initialized && !isReconnection && (
             <div className="flex items-center gap-2 text-green-500 mt-4">
               <CheckCircle className="h-5 w-5" />
               <span>Database initialized successfully!</span>
             </div>
+          )}
+          
+          {initialized && isReconnection && (
+            <Alert className="mt-4 bg-green-50 border-green-200">
+              <Info className="h-5 w-5 text-green-500" />
+              <AlertTitle className="text-green-700">Reconnection Successful</AlertTitle>
+              <AlertDescription className="text-green-600">
+                {reconnectionMessage || 'Connected to existing database. Your data remains intact.'}
+              </AlertDescription>
+            </Alert>
           )}
           
           {error && (
@@ -138,7 +159,7 @@ $$;`}
           {isInitializing ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Initializing Database...
+              {isReconnection ? 'Reconnecting...' : 'Initializing Database...'}
             </>
           ) : initialized ? (
             <>

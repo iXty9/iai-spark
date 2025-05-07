@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/utils/logging';
 
@@ -45,7 +46,7 @@ export async function createExecSqlFunction(
     } catch {
       logger.info('The exec_sql function does not exist, creating it now', { module: 'init' });
     }
-    // Create the function via SQL (your original logic -- may depend on setup)
+    // Create the function via SQL
     const result = await adminClient.auth.getSession();
     if (!result.data.session) return { success: false, error: 'No session available to execute SQL' };
     const resp = await fetch(`${url}/rest/v1/`, {
@@ -84,9 +85,30 @@ export async function execSql(
     for (let i = 0; i < statements.length; i++) {
       const stmt = statements[i].trim();
       if (!stmt) continue;
+      
+      // Skip statements that are likely to fail on reconnection
+      if (stmt.includes('storage.foldername(name)[1]')) {
+        logger.warn(`Skipping potentially problematic statement ${i+1}/${statements.length} with array syntax`, {
+          module: 'init',
+          statement: stmt.substring(0, 100) + (stmt.length > 100 ? '...' : '')
+        });
+        continue;
+      }
+      
       try {
         const { error } = await adminClient.rpc('exec_sql', { sql: stmt });
         if (error) {
+          // For certain errors during reconnection, we can continue
+          if (error.message.includes('already exists') || 
+              error.message.includes('duplicate key value')) {
+            logger.warn(`Non-critical SQL error in statement ${i+1}/${statements.length}, continuing`, {
+              module: 'init',
+              error: error.message,
+              detail: error.details
+            });
+            continue;
+          }
+          
           logger.error(`SQL execution failed at statement ${i + 1}/${statements.length}`, {
             module: 'init',
             error: error.message, details: error.details, hint: error.hint,
@@ -95,6 +117,16 @@ export async function execSql(
           return { success: false, error: `SQL execution failed at statement ${i + 1}: ${error.message}` };
         }
       } catch (err: any) {
+        // Skip certain errors during reconnection
+        if (err.message && (err.message.includes('already exists') || 
+            err.message.includes('duplicate key value'))) {
+          logger.warn(`Caught non-critical SQL error in statement ${i+1}/${statements.length}, continuing`, {
+            module: 'init',
+            error: err.message
+          });
+          continue;
+        }
+        
         logger.error(`Exception executing SQL statement ${i+1}/${statements.length}`, {
           module: 'init',
           error: err.message,

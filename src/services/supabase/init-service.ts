@@ -20,20 +20,62 @@ export async function initializeSupabaseDb(
   try {
     logger.info('Starting Supabase database initialization', { module: 'init' });
     
-    // First, ensure the exec_sql function exists
+    // Create admin client with the service key
+    const adminClient = createClient(url, serviceKey);
+    
+    // First, check if database is already initialized with required structures
+    const checkResult = await checkIfDatabaseInitialized(adminClient);
+    
+    if (checkResult.isInitialized) {
+      logger.info('Database already appears to be initialized, performing connection only', { 
+        module: 'init',
+        tables: checkResult.existingTables
+      });
+      
+      // Skip initialization scripts but still save the configuration
+      const config: SupabaseConfig = { 
+        url, 
+        anonKey, 
+        serviceKey, // Store service key for self-healing operations
+        isInitialized: true 
+      };
+      
+      const saved = saveConfig(config);
+      
+      if (!saved) {
+        return {
+          success: false,
+          error: "Configuration couldn't be saved locally, but database appears to be already initialized"
+        };
+      }
+      
+      // Reset client to use new configuration
+      resetSupabaseClient();
+      
+      logger.info('Connected successfully to existing initialized database', { module: 'init' });
+      return { success: true, message: 'Connected to existing database' };
+    }
+    
+    // If not initialized, create the exec_sql function
     const funcResult = await createExecSqlFunction(url, serviceKey);
     if (!funcResult.success) {
       return funcResult;
     }
-    
-    // Create admin client with the service key
-    const adminClient = createClient(url, serviceKey);
     
     // Get all initialization scripts
     const scripts = getAllInitScripts();
     
     // Execute each script sequentially
     for (const script of scripts) {
+      // Skip problematic scripts if database appears partially initialized
+      if (checkResult.partialInit && containsProblemSyntax(script)) {
+        logger.info('Skipping potentially conflicting script during reconnection', { 
+          module: 'init',
+          scriptPreview: script.substring(0, 100)
+        });
+        continue;
+      }
+      
       const result = await execSql(url, serviceKey, script);
       if (!result.success) {
         return result;
@@ -69,6 +111,64 @@ export async function initializeSupabaseDb(
       error: `Initialization failed: ${error.message || 'Unknown error'}` 
     };
   }
+}
+
+/**
+ * Check if the database is already initialized by checking for key tables
+ */
+async function checkIfDatabaseInitialized(client: any): Promise<{
+  isInitialized: boolean;
+  partialInit: boolean;
+  existingTables: string[];
+}> {
+  try {
+    // Tables to check for initialization status
+    const requiredTables = ['profiles', 'user_roles', 'app_settings'];
+    const existingTables: string[] = [];
+    
+    // Check each table
+    for (const table of requiredTables) {
+      try {
+        const { error } = await client.from(table).select('id').limit(1);
+        
+        // If no error or error is not a "table doesn't exist" error, consider table exists
+        if (!error || error.code !== '42P01') {
+          existingTables.push(table);
+        }
+      } catch (err) {
+        logger.debug(`Error checking table ${table}:`, err);
+      }
+    }
+    
+    const isInitialized = existingTables.length === requiredTables.length;
+    const partialInit = existingTables.length > 0 && !isInitialized;
+    
+    logger.info('Database initialization check:', { 
+      isInitialized, 
+      partialInit,
+      existingTables,
+      module: 'init' 
+    });
+    
+    return { isInitialized, partialInit, existingTables };
+  } catch (err) {
+    logger.error('Error checking database initialization status:', err);
+    return { isInitialized: false, partialInit: false, existingTables: [] };
+  }
+}
+
+/**
+ * Check if SQL script contains problematic syntax that might cause errors 
+ * when executed against an existing database
+ */
+function containsProblemSyntax(sql: string): boolean {
+  // Check for array indexing syntax that caused the error
+  if (sql.includes('storage.foldername(name)[1]')) {
+    return true;
+  }
+  
+  // Add more checks as needed for other problematic syntax
+  return false;
 }
 
 /**

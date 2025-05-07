@@ -4,7 +4,7 @@
 
 import { getSupabaseClient } from '@/services/supabase/connection-service';
 import { toast } from '@/hooks/use-toast';
-import { PostgrestResponse, PostgrestSingleResponse, PostgrestFilterBuilder } from '@supabase/supabase-js';
+import { PostgrestResponse, PostgrestSingleResponse, PostgrestBuilder } from '@supabase/supabase-js';
 
 // Get the Supabase client
 const client = getSupabaseClient();
@@ -29,7 +29,7 @@ const fallbackClient = {
   from: (table: string) => ({
     select: (columns?: string) => {
       // Create properly typed return object
-      const responseObj = {
+      const responseObj: any = {
         eq: (column: string, value: any) => Promise.resolve({ 
           data: null, 
           error: new Error('Client not initialized'),

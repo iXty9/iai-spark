@@ -46,7 +46,7 @@ export const useAuthState = () => {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .maybeSingle();
+        .single();
       
       // Handle error case
       if (error) {
