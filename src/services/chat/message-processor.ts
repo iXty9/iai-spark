@@ -1,4 +1,3 @@
-
 import { Message } from '@/types/chat';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { parseWebhookResponse } from '@/utils/debug';
@@ -8,33 +7,24 @@ import { SendMessageParams } from '../types/messageTypes';
 import { processResponseMetadata, createErrorResponse } from './utils/response-processing';
 import { handleStreamingResponse } from './utils/streaming';
 
-/**
- * Process a message and return the AI response
- */
 export async function processMessage({
   message,
   onMessageStart,
   onMessageStream,
   onMessageComplete,
   onError,
-  isAuthenticated = false
+  isAuthenticated = false,
 }: SendMessageParams): Promise<Message & { cancel?: () => void }> {
   let canceled = false;
-  let controller: AbortController | null = new AbortController();
-  
+  let controller = new AbortController();
+
+  const debug = (payload: any) => emitDebugEvent({ isLoading: false, ...payload });
+
   try {
     logger.info('Processing message', { isAuthenticated }, { module: 'chat' });
-    
-    // Development/Debug only code
-    emitDebugEvent({
-      lastAction: 'API: Starting to process message',
-      isLoading: true
-    });
-    
-    // Generate a unique ID for this message - core business logic
+    emitDebugEvent({ lastAction: 'API: Starting to process message', isLoading: true });
+
     const messageId = `msg_${Date.now()}`;
-    
-    // Create the initial assistant message - core business logic
     const assistantMessage: Message = {
       id: messageId,
       sender: 'ai',
@@ -42,107 +32,59 @@ export async function processMessage({
       timestamp: new Date(),
       pending: true,
     };
-    
-    // Notify that the message has started - core business logic
-    if (onMessageStart) {
-      onMessageStart(assistantMessage);
-    }
 
-    // Check if request was canceled - core business logic
+    onMessageStart?.(assistantMessage);
+
     if (canceled) {
-      // Debug only
-      emitDebugEvent({
-        lastAction: 'API: Message sending was canceled',
-        isLoading: false
-      });
+      debug({ lastAction: 'API: Message sending was canceled' });
       throw new Error('Message sending was canceled');
     }
-    
-    // Send message to webhook and get response - core business logic
-    const data = await sendWebhookMessage(message, isAuthenticated);
-    
-    // Parse the response text
-    let responseText;
+
+    let data, responseText;
     try {
+      data = await sendWebhookMessage(message, isAuthenticated);
       responseText = parseWebhookResponse(data);
-      
-      // Debug only
-      emitDebugEvent({
-        lastAction: `API: Successfully parsed webhook response`,
-        isLoading: false
-      });
+      debug({ lastAction: 'API: Successfully parsed webhook response' });
     } catch (error) {
       logger.error('Failed to parse webhook response', error, { module: 'chat' });
-      
-      // Debug only
-      emitDebugEvent({
-        lastError: `API: Failed to parse webhook response: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        isLoading: false
-      });
-      
+      debug({ lastError: `API: Failed to parse webhook response: ${error instanceof Error ? error.message : error}` });
       throw error;
     }
-    
-    // Process the actual webhook response for streaming - core business logic
+
     const accumulatedContent = await handleStreamingResponse(
-      responseText, 
-      onMessageStream, 
-      canceled, 
-      controller
+      responseText,
+      onMessageStream,
+      canceled,
+      controller,
     );
-    
-    // Update the assistant message with the full content from the webhook - core business logic
-    assistantMessage.content = accumulatedContent.trim() || responseText;
-    assistantMessage.pending = false;
-    
-    // Process metadata and debug information
-    processResponseMetadata(assistantMessage, data);
-    
-    // Debug only
-    emitDebugEvent({
-      lastAction: 'API: Message from webhook completed successfully',
-      isLoading: false
+
+    Object.assign(assistantMessage, {
+      content: (accumulatedContent.trim() || responseText),
+      pending: false,
     });
-    
-    // Notify that the message is complete - core business logic
-    if (onMessageComplete) {
-      onMessageComplete(assistantMessage);
-    }
-    
-    // Add cancel method to response
-    const responseWithCancel = {
+
+    processResponseMetadata(assistantMessage, data);
+    debug({ lastAction: 'API: Message from webhook completed successfully' });
+
+    onMessageComplete?.(assistantMessage);
+
+    // Add a .cancel method to response
+    return {
       ...assistantMessage,
       cancel: () => {
         canceled = true;
-        if (controller) {
-          controller.abort();
-          controller = null;
-        }
-        
-        // Debug only
-        emitDebugEvent({
-          lastAction: 'API: Message streaming was canceled by user',
-          isLoading: false
-        });
-      }
+        controller.abort();
+        controller = null as any;
+        debug({ lastAction: 'API: Message streaming was canceled by user' });
+      },
     };
-    
-    return responseWithCancel;
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error in processMessage', error, { module: 'chat' });
-    
-    // Debug only
     emitDebugEvent({
       lastError: error instanceof Error ? `API Error: ${error.message}` : 'Unknown API error',
-      isLoading: false
+      isLoading: false,
     });
-    
-    if (onError && error instanceof Error) {
-      onError(error);
-    } else if (onError) {
-      onError(new Error('Unknown error occurred'));
-    }
-    
+    onError?.(error instanceof Error ? error : new Error('Unknown error occurred'));
     return createErrorResponse(error, canceled, controller);
   }
 }
