@@ -11,7 +11,7 @@ import { logger } from '@/utils/logging';
  */
 export async function hasRole(userId: string, role: UserRole): Promise<boolean> {
   try {
-    // Using a simpler query pattern to avoid type errors
+    // Using a simpler query pattern with proper awaiting to avoid type errors
     const result = await supabase
       .from('user_roles')
       .select('id')
@@ -35,7 +35,7 @@ export async function hasRole(userId: string, role: UserRole): Promise<boolean> 
  */
 export async function getUserRole(userId: string): Promise<UserRole | null> {
   try {
-    // Using a simpler query pattern to avoid type errors
+    // Using proper awaiting to avoid type errors
     const result = await supabase
       .from('user_roles')
       .select('role')
@@ -58,7 +58,7 @@ export async function getUserRole(userId: string): Promise<UserRole | null> {
  */
 export async function setUserRole(userId: string, role: UserRole): Promise<boolean> {
   try {
-    // Check if role entry exists without complex chains
+    // Check if role entry exists with proper awaiting
     const result = await supabase
       .from('user_roles')
       .select('id')

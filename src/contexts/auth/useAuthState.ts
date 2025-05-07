@@ -42,11 +42,12 @@ export const useAuthState = () => {
         console.log('Fetching profile attempt', fetchAttempts.current, 'for user:', userId);
       }
       
-      // Using a simpler query approach to avoid deep type instantiation errors
+      // Properly await the query to avoid type issues
       const result = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId);
+        .eq('id', userId)
+        .single();
       
       const { data, error } = result;
         
@@ -75,7 +76,7 @@ export const useAuthState = () => {
       }
 
       // Process the data if it exists
-      if (data && data.length > 0) {
+      if (data) {
         if (process.env.NODE_ENV === 'development') {
           console.log('Profile fetched successfully:', {
             userId,
@@ -83,7 +84,7 @@ export const useAuthState = () => {
             timestamp: new Date().toISOString()
           });
         }
-        setProfile(data[0] as ProfileData);
+        setProfile(data as ProfileData);
         setLastError(null);
       } else if (process.env.NODE_ENV === 'development') {
         console.warn('No profile data found for user:', userId);

@@ -13,7 +13,7 @@ import { PromoteDialog, DemoteDialog } from './users/RoleDialogs';
 import { Input } from '@/components/ui/input';
 import { Pagination } from '@/components/ui/pagination';
 import { Button } from '@/components/ui/button';
-import { Search, Filter, AlertTriangle, Loader } from 'lucide-react';
+import { Search, Filter, AlertTriangle, Loader, RefreshCw } from 'lucide-react';
 import { PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
@@ -24,6 +24,7 @@ export function UserManagement() {
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
   const [showPromoteDialog, setShowPromoteDialog] = useState(false);
   const [showDemoteDialog, setShowDemoteDialog] = useState(false);
@@ -45,6 +46,8 @@ export function UserManagement() {
   const loadUsers = async () => {
     setIsLoading(true);
     setIsError(false);
+    setErrorMessage(null);
+    
     try {
       console.log(`Loading users: page=${currentPage}, size=${pageSize}, role=${roleFilter}`);
       const { users: usersData, totalCount } = await fetchUsers({
@@ -56,13 +59,15 @@ export function UserManagement() {
       console.log(`Loaded ${usersData.length} users out of ${totalCount} total`);
       setUsers(usersData);
       setTotalPages(Math.ceil(totalCount / pageSize) || 1);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading users:', error);
       setIsError(true);
+      setErrorMessage(error?.message || 'Failed to load users. Please try again later.');
+      
       toast({
         variant: "destructive",
         title: "Failed to load users",
-        description: "There was an error loading user data. Please try again later.",
+        description: "There was an error loading user data. Please check your connection and try again.",
       });
     } finally {
       setIsLoading(false);
@@ -72,6 +77,8 @@ export function UserManagement() {
   const handleSearch = async () => {
     setIsLoading(true);
     setIsError(false);
+    setErrorMessage(null);
+    
     try {
       console.log(`Searching users: query=${searchQuery}, page=1, size=${pageSize}, role=${roleFilter}`);
       const { users: searchResults, totalCount } = await searchUsers({
@@ -85,13 +92,15 @@ export function UserManagement() {
       setUsers(searchResults);
       setTotalPages(Math.ceil(totalCount / pageSize) || 1);
       setCurrentPage(1); // Reset to first page
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error searching users:', error);
       setIsError(true);
+      setErrorMessage(error?.message || 'Search failed. Please try again later.');
+      
       toast({
         variant: "destructive",
         title: "Search failed",
-        description: "There was an error searching for users. Please try again later.",
+        description: "There was an error searching for users. Please check your connection and try again.",
       });
     } finally {
       setIsLoading(false);
@@ -127,12 +136,12 @@ export function UserManagement() {
         title: "User role updated",
         description: `${selectedUser.email} is now a${role === 'admin' ? 'n' : ''} ${role}.`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating user role:', error);
       toast({
         variant: "destructive",
         title: "Failed to update user role",
-        description: "There was an error updating the user role. Please try again.",
+        description: error?.message || "There was an error updating the user role. Please try again.",
       });
     } finally {
       setIsUpdatingRole(false);
@@ -263,8 +272,15 @@ export function UserManagement() {
         <div className="flex flex-col items-center justify-center py-8 text-center">
           <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
           <h3 className="text-xl font-semibold mb-2">Failed to load users</h3>
-          <p className="mb-6 text-muted-foreground">There was a problem loading the user data.</p>
-          <Button onClick={handleRetry}>Retry</Button>
+          <p className="mb-6 text-muted-foreground">
+            {errorMessage || 'There was a problem loading the user data.'}
+          </p>
+          <div className="flex gap-4">
+            <Button onClick={handleRetry} className="flex items-center gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Retry
+            </Button>
+          </div>
         </div>
       </Card>
     );
@@ -284,8 +300,8 @@ export function UserManagement() {
             />
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           </div>
-          <Button variant="outline" size="sm" onClick={handleSearch}>
-            Search
+          <Button variant="outline" size="sm" onClick={handleSearch} disabled={isLoading}>
+            {isLoading ? <Loader className="h-4 w-4 animate-spin mr-1" /> : null} Search
           </Button>
         </div>
         
@@ -312,6 +328,16 @@ export function UserManagement() {
               <SelectItem value="50">50 per page</SelectItem>
             </SelectContent>
           </Select>
+          
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={handleRetry} 
+            disabled={isLoading}
+            title="Refresh users"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
         </div>
       </div>
       

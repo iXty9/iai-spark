@@ -45,19 +45,19 @@ export async function checkIsAdmin(userId?: string): Promise<boolean> {
       }
     }
 
-    // Query the user_roles table
-    const result = await supabase
+    // Query the user_roles table with proper error handling
+    const { data, error } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
       .eq('role', 'admin');
     
-    if (result.error) {
-      logger.error('Error checking admin role:', result.error);
+    if (error) {
+      logger.error('Error checking admin role:', error);
       return false;
     }
     
-    return result.data && result.data.length > 0;
+    return data && data.length > 0;
   } catch (error) {
     logger.error('Unexpected error in checkIsAdmin:', error);
     return false;
@@ -75,23 +75,29 @@ export async function fetchUsers(options: UsersFetchOptions = {}): Promise<Users
       roleFilter
     } = options;
     
-    const offset = (page - 1) * pageSize;
+    logger.info('Fetching users with options:', { page, pageSize, roleFilter }, { module: 'user-roles' });
     
-    // Instead of using RPC, we'll use a simpler approach for the fallback client
-    // In a real implementation, you'd use a stored procedure for this
-    logger.warn('Using simplified user fetching without RPC', {
-      module: 'user-roles',
-      once: true
-    });
+    // Get current auth session for authentication
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
     
-    // This is a simplified version that won't hit the type errors
-    // In a real implementation with a valid Supabase connection, the RPC would work
+    if (!token) {
+      logger.error('No authentication token available for admin-users function');
+      return { users: [], totalCount: 0 };
+    }
+    
+    // Use the Supabase Functions API with proper authentication
     const result = await supabase.functions.invoke('admin-users', {
       body: {
-        action: 'list',
-        page,
-        pageSize,
-        roleFilter
+        action: 'listUsers',
+        params: {
+          page,
+          pageSize,
+          roleFilter
+        }
+      },
+      headers: {
+        Authorization: `Bearer ${token}`
       }
     });
     
@@ -100,8 +106,9 @@ export async function fetchUsers(options: UsersFetchOptions = {}): Promise<Users
       return { users: [], totalCount: 0 };
     }
     
-    // If we have data, use it
+    // Check for proper response structure
     if (result.data && Array.isArray(result.data.users)) {
+      logger.info(`Fetched ${result.data.users.length} users`, { module: 'user-roles' });
       return {
         users: result.data.users as UserWithRole[],
         totalCount: result.data.totalCount || result.data.users.length
@@ -128,15 +135,32 @@ export async function searchUsers(options: UsersSearchOptions): Promise<UsersFet
       roleFilter
     } = options;
     
-    // Using the admin-users function as a workaround for type issues
-    // This would normally use an RPC call to a database function
+    logger.info('Searching users with query:', { 
+      searchQuery, page, pageSize, roleFilter 
+    }, { module: 'user-roles' });
+    
+    // Get current auth session for authentication
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    
+    if (!token) {
+      logger.error('No authentication token available for admin-users function');
+      return { users: [], totalCount: 0 };
+    }
+    
+    // Using the admin-users function with proper authentication
     const result = await supabase.functions.invoke('admin-users', {
       body: {
-        action: 'search',
-        searchQuery,
-        page,
-        pageSize,
-        roleFilter
+        action: 'searchUsers',
+        params: {
+          searchQuery,
+          page,
+          pageSize,
+          roleFilter
+        }
+      },
+      headers: {
+        Authorization: `Bearer ${token}`
       }
     });
     
@@ -164,31 +188,30 @@ export async function searchUsers(options: UsersSearchOptions): Promise<UsersFet
  */
 export async function updateUserRole(userId: string, newRole: UserRole): Promise<boolean> {
   try {
-    // First check if the user already has a role entry
-    const existingResult = await supabase
-      .from('user_roles')
-      .select('id')
-      .eq('user_id', userId);
+    logger.info(`Updating user ${userId} role to ${newRole}`, { module: 'user-roles' });
     
-    if (existingResult.error) {
-      logger.error('Error checking existing role:', existingResult.error);
+    // Get current auth session for authentication
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    
+    if (!token) {
+      logger.error('No authentication token available for admin-users function');
       return false;
     }
     
-    let result;
-    
-    if (existingResult.data && existingResult.data.length > 0) {
-      // Update existing role
-      result = await supabase
-        .from('user_roles')
-        .update({ role: newRole })
-        .eq('user_id', userId);
-    } else {
-      // Insert new role
-      result = await supabase
-        .from('user_roles')
-        .insert({ user_id: userId, role: newRole });
-    }
+    // Call the admin-users function to update the user role
+    const result = await supabase.functions.invoke('admin-users', {
+      body: {
+        action: 'updateUserRole',
+        params: {
+          userId,
+          role: newRole
+        }
+      },
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
     
     if (result.error) {
       logger.error('Error updating user role:', result.error);

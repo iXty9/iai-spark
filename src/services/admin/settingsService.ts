@@ -11,7 +11,7 @@ interface AppSettings {
 
 export async function fetchAppSettings(): Promise<AppSettings> {
   try {
-    // Use a simpler query to avoid type issues
+    // Properly await the response to avoid type errors
     const result = await supabase
       .from('app_settings')
       .select('key, value');
@@ -39,7 +39,7 @@ export async function fetchAppSettings(): Promise<AppSettings> {
 
 export async function updateAppSetting(key: string, value: string): Promise<boolean> {
   try {
-    // Check if setting exists using a simpler query pattern
+    // Check if setting exists with proper awaiting
     const existingResult = await supabase
       .from('app_settings')
       .select('id')
@@ -82,6 +82,7 @@ export async function updateAppSetting(key: string, value: string): Promise<bool
  */
 export async function getAppSettingsMap(): Promise<Record<string, string>> {
   try {
+    // Properly await the response to avoid type errors
     const result = await supabase
       .from('app_settings')
       .select('key, value');

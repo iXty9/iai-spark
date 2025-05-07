@@ -1,4 +1,3 @@
-
 import { logger } from '@/utils/logging';
 import { resetSupabaseClient } from '@/services/supabase/connection-service';
 
@@ -18,16 +17,17 @@ const KNOWN_PRODUCTION_DOMAINS = [
   'iai-spark.lovable.app' // Include the production Lovable app domain
 ];
 
-// Environment detection - improved to be more specific
+// Environment detection - now more precise
 export const isDevelopment = () => {
   const hostname = window.location.hostname;
+  
   // Log the hostname for debugging
   logger.info(`Checking isDevelopment for hostname: ${hostname}`, {
     module: 'supabase-config',
     once: true
   });
 
-  // Check if this is one of our known production domains
+  // Production domains are explicitly listed
   const isKnownProductionDomain = KNOWN_PRODUCTION_DOMAINS.some(domain => 
     hostname === domain || hostname.endsWith('.' + domain)
   );
@@ -40,20 +40,21 @@ export const isDevelopment = () => {
     return false;
   }
   
-  // Check for local development environments
-  const isDev = hostname === 'localhost' || hostname === '127.0.0.1';
+  // More specific check for local development environments
+  const isLocalDev = hostname === 'localhost' || 
+                    hostname === '127.0.0.1' || 
+                    hostname.endsWith('.local');
   
   // Log additional information to help diagnose issues
-  logger.info(`Hostname ${hostname} isDevelopment check result: ${isDev}`, {
+  logger.info(`Hostname ${hostname} isDevelopment check result: ${isLocalDev}`, {
     module: 'supabase-config'
   });
   
-  return isDev;
+  return isLocalDev;
 };
 
 /**
  * Check if Supabase configuration exists in local storage
- * In development mode, will return true even if no config is stored
  */
 export function hasStoredConfig(): boolean {
   try {
@@ -61,18 +62,15 @@ export function hasStoredConfig(): boolean {
     const urlParams = new URLSearchParams(window.location.search);
     const forceInit = urlParams.get('force_init') === 'true';
     
-    // If forcing initialization, don't use or create default config
+    // If forcing initialization, don't use stored config
     if (forceInit) {
-      logger.info('Force init parameter detected, bypassing default config', {
+      logger.info('Force init parameter detected, bypassing stored config', {
         module: 'supabase-config'
       });
-      
-      // Check if there's actually a stored config despite force_init
-      const storedConfig = localStorage.getItem(STORAGE_KEY);
-      return !!storedConfig && !forceInit;
+      return false;
     }
     
-    // Check if there's already a stored configuration
+    // Check if there's a stored configuration
     const storedConfig = localStorage.getItem(STORAGE_KEY);
     const hasConfig = !!storedConfig;
     
@@ -81,21 +79,7 @@ export function hasStoredConfig(): boolean {
       module: 'supabase-config'
     });
     
-    if (hasConfig) {
-      // If config exists, always use it
-      return true;
-    }
-    
-    // In development without a stored config, we can use hardcoded defaults only as a fallback
-    if (isDevelopment()) {
-      logger.warn('No stored config found in development. Default config will be used as fallback.', {
-        module: 'supabase-config'
-      });
-      return false;
-    }
-    
-    // In production without config, return false
-    return false;
+    return hasConfig;
   } catch (e) {
     logger.error('Error checking for stored Supabase config', e);
     return false;
@@ -104,7 +88,6 @@ export function hasStoredConfig(): boolean {
 
 /**
  * Get Supabase configuration from local storage
- * In development, will return default config if none is stored
  */
 export function getStoredConfig(): SupabaseConfig | null {
   try {
@@ -131,7 +114,7 @@ export function getStoredConfig(): SupabaseConfig | null {
       return null;
     }
     
-    // No stored config and not forcing init
+    // No stored config
     return null;
   } catch (e) {
     logger.error('Error retrieving Supabase config from storage', e);

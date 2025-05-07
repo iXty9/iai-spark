@@ -30,19 +30,24 @@ serve(async (req) => {
     { auth: { persistSession: false } }
   );
 
-  // Verify the user calling the function has admin rights
+  console.log("Request received to admin-users function");
+
   try {
     // Get token from Authorization header
     const token = authHeader.replace('Bearer ', '');
     
     // Verify JWT and check user
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+    
     if (userError || !user) {
+      console.error("Authentication error:", userError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized: Invalid user token' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log(`Authenticated user: ${user.id}, checking admin role`);
 
     // Check if the user is an admin
     const { data: roleData, error: roleError } = await supabaseAdmin
@@ -52,7 +57,16 @@ serve(async (req) => {
       .eq('role', 'admin')
       .maybeSingle();
 
-    if (roleError || !roleData) {
+    if (roleError) {
+      console.error("Role check error:", roleError);
+      return new Response(
+        JSON.stringify({ error: 'Error checking user permissions' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    if (!roleData) {
+      console.log(`User ${user.id} does not have admin role`);
       return new Response(
         JSON.stringify({ error: 'Forbidden: Admin access required' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -60,7 +74,10 @@ serve(async (req) => {
     }
 
     // Parse request JSON
-    const { action, params } = await req.json();
+    const requestBody = await req.json();
+    const { action, params = {} } = requestBody;
+
+    console.log(`Processing action: ${action} with params:`, params);
 
     // Handle different actions
     switch (action) {
@@ -72,7 +89,7 @@ serve(async (req) => {
         return await handleUpdateUserRole(supabaseAdmin, params, corsHeaders);
       default:
         return new Response(
-          JSON.stringify({ error: 'Invalid action' }),
+          JSON.stringify({ error: 'Invalid action', supportedActions: ['listUsers', 'searchUsers', 'updateUserRole'] }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
     }

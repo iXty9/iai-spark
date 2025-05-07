@@ -25,36 +25,49 @@ export function getSupabaseClient() {
       return null;
     }
     
-    // First try to use stored configuration - always prioritize this
-    let config = getStoredConfig();
+    // ALWAYS prioritize stored configuration if it exists
+    const storedConfig = getStoredConfig();
     
-    // If no stored config is available, use default config as fallback in development
-    if (!config && process.env.NODE_ENV === 'development') {
-      config = getDefaultConfig();
+    if (storedConfig) {
+      // Use stored configuration (this should work across different development environments)
+      logger.info('Using stored Supabase configuration', {
+        module: 'supabase',
+        custom: true
+      });
+      
+      // Create and initialize the Supabase client with stored config
+      supabaseInstance = createClient<Database>(storedConfig.url, storedConfig.anonKey, {
+        auth: {
+          storage: localStorage,
+          persistSession: true,
+          autoRefreshToken: true,
+        }
+      });
+      
+      return supabaseInstance;
+    }
+    
+    // If no stored config is available, only use default config as fallback in development
+    if (process.env.NODE_ENV === 'development') {
+      const defaultConfig = getDefaultConfig();
       logger.warn('No stored config found, using default config as fallback', {
         module: 'supabase'
       });
+      
+      // Create client with default config, but only in development
+      supabaseInstance = createClient<Database>(defaultConfig.url, defaultConfig.anonKey, {
+        auth: {
+          storage: localStorage,
+          persistSession: true,
+          autoRefreshToken: true,
+        }
+      });
+      
+      return supabaseInstance;
     }
     
-    if (!config) {
-      throw new Error('No Supabase configuration available');
-    }
-    
-    // Create and initialize the Supabase client
-    supabaseInstance = createClient<Database>(config.url, config.anonKey, {
-      auth: {
-        storage: localStorage,
-        persistSession: true,
-        autoRefreshToken: true,
-      }
-    });
-    
-    logger.info('Supabase client initialized successfully', { 
-      module: 'supabase',
-      custom: true
-    });
-    
-    return supabaseInstance;
+    // In production with no config, show error
+    throw new Error('No Supabase configuration available');
   } catch (error) {
     logger.error('Failed to initialize Supabase client', error);
     toast({
