@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Share, Check, Copy, Globe } from 'lucide-react';
+import { Share, Check, Copy, Globe, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { saveSiteEnvironmentConfig } from '@/services/supabase/site-config-service';
 
@@ -26,6 +26,7 @@ export function ShareConfigDialog({ url, anonKey }: ShareConfigDialogProps) {
   const [copied, setCopied] = useState(false);
   const [savingSiteConfig, setSavingSiteConfig] = useState(false);
   const [siteConfigSaved, setSiteConfigSaved] = useState(false);
+  const [activeTab, setActiveTab] = useState("shareable-link");
   
   // Generate the shareable URL
   const generateShareableUrl = () => {
@@ -109,7 +110,7 @@ export function ShareConfigDialog({ url, anonKey }: ShareConfigDialogProps) {
           </DialogDescription>
         </DialogHeader>
         
-        <Tabs defaultValue="shareable-link" className="mt-4">
+        <Tabs defaultValue="shareable-link" value={activeTab} onValueChange={setActiveTab} className="mt-4">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="shareable-link">Shareable Link</TabsTrigger>
             <TabsTrigger value="site-config">Site Configuration</TabsTrigger>
@@ -170,55 +171,13 @@ export function ShareConfigDialog({ url, anonKey }: ShareConfigDialogProps) {
           </div>
           
           <div className="flex justify-end space-x-2">
-            <Tabs defaultValue="shareable-link" className="hidden">
-              <TabsContent value="shareable-link">
-                <Button size="sm" onClick={copyToClipboard}>
-                  {copied ? (
-                    <>
-                      <Check className="h-4 w-4 mr-1" />
-                      Copied
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4 mr-1" />
-                      Copy Link
-                    </>
-                  )}
-                </Button>
-              </TabsContent>
-              <TabsContent value="site-config">
-                <Button 
-                  size="sm" 
-                  onClick={handleSaveToSiteEnvironment}
-                  disabled={savingSiteConfig || siteConfigSaved}
-                >
-                  {savingSiteConfig ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                      Saving...
-                    </>
-                  ) : siteConfigSaved ? (
-                    <>
-                      <Check className="h-4 w-4 mr-1" />
-                      Saved
-                    </>
-                  ) : (
-                    <>
-                      <Globe className="h-4 w-4 mr-1" />
-                      Save to Site
-                    </>
-                  )}
-                </Button>
-              </TabsContent>
-            </Tabs>
-            
-            {/* Always show the active button based on the active tab */}
+            {/* Active action button based on current tab */}
             <Button 
               size="sm"
-              onClick={Tabs.value === "shareable-link" ? copyToClipboard : handleSaveToSiteEnvironment}
-              disabled={Tabs.value === "site-config" && (savingSiteConfig || siteConfigSaved)}
+              onClick={activeTab === "shareable-link" ? copyToClipboard : handleSaveToSiteEnvironment}
+              disabled={activeTab === "site-config" && (savingSiteConfig || siteConfigSaved)}
             >
-              {Tabs.value === "shareable-link" ? (
+              {activeTab === "shareable-link" ? (
                 copied ? (
                   <>
                     <Check className="h-4 w-4 mr-1" />

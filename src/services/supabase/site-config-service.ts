@@ -38,16 +38,37 @@ export async function saveSiteEnvironmentConfig(
     // Convert to JSON string for storage
     const configString = JSON.stringify(config);
     
-    // Store in app_settings table
-    const { error } = await supabase
+    // First check if the record already exists
+    const { data: existingRecord, error: selectError } = await supabase
       .from('app_settings')
-      .upsert({
-        key: 'site_environment_config',
-        value: configString
-      });
+      .select('*')
+      .eq('key', 'site_environment_config')
+      .maybeSingle();
     
-    if (error) {
-      logger.error('Failed to save site environment config', error, {
+    if (selectError) {
+      logger.error('Error checking for existing site environment config', selectError, {
+        module: 'site-config'
+      });
+      return false;
+    }
+    
+    let result;
+    
+    if (existingRecord) {
+      // Update the existing record
+      result = await supabase
+        .from('app_settings')
+        .update({ value: configString })
+        .eq('key', 'site_environment_config');
+    } else {
+      // Insert a new record
+      result = await supabase
+        .from('app_settings')
+        .insert({ key: 'site_environment_config', value: configString });
+    }
+    
+    if (result.error) {
+      logger.error('Failed to save site environment config', result.error, {
         module: 'site-config'
       });
       return false;

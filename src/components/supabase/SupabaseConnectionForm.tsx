@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { testSupabaseConnection } from '@/services/supabase/connection-service';
-import { Loader2, Save, CloudCheck } from 'lucide-react';
+import { Loader2, Save, Cloud } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { saveConnectionConfig } from '@/services/admin/settingsService';
 import { saveSiteEnvironmentConfig } from '@/services/supabase/site-config-service';
@@ -146,7 +146,7 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
       
       {saveToSiteEnv && (
         <div className="bg-blue-50 border border-blue-100 p-3 rounded-md text-sm text-blue-700">
-          <CloudCheck className="h-4 w-4 inline-block mr-1 text-blue-500" />
+          <Cloud className="h-4 w-4 inline-block mr-1 text-blue-500" />
           This will save connection details to enable automatic connection for other users and browsers.
         </div>
       )}
