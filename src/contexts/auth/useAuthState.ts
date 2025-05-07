@@ -1,8 +1,9 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
+import { debounce } from '@/utils/functions';
 
 // Define explicit types for Supabase responses 
 export interface ProfileData {
@@ -21,26 +22,42 @@ export const useAuthState = () => {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [lastError, setLastError] = useState<Error | null>(null);
-  const isFetchingProfile = useRef<boolean>(false);
-  const fetchAttempts = useRef<number>(0);
+  
+  // Use refs to prevent excessive state updates and race conditions
+  const isFetchingProfileRef = useRef<boolean>(false);
+  const currentUserIdRef = useRef<string | null>(null);
+  const fetchAttemptsRef = useRef<number>(0);
   const maxRetries = 3;
 
+  // Debounced fetch profile function to prevent multiple rapid calls
+  const debouncedFetchProfile = useCallback(
+    debounce((userId: string) => {
+      fetchProfile(userId);
+    }, 300), 
+    []
+  );
+
   const fetchProfile = async (userId: string) => {
-    // Prevent concurrent fetch requests for the same profile
-    if (isFetchingProfile.current || !userId) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Profile fetch skipped:', !userId ? 'No userId provided' : 'Already fetching');
-      }
+    // Prevent concurrent fetch requests for the same profile or duplicate fetches
+    if (isFetchingProfileRef.current || !userId || currentUserIdRef.current !== userId) {
+      logger.debug('Profile fetch skipped', {
+        reason: !userId ? 'No userId provided' : 
+                isFetchingProfileRef.current ? 'Already fetching' : 
+                'User ID changed',
+        requestedId: userId,
+        currentId: currentUserIdRef.current
+      });
       return;
     }
     
     try {
-      isFetchingProfile.current = true;
-      fetchAttempts.current++;
+      isFetchingProfileRef.current = true;
+      fetchAttemptsRef.current++;
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Fetching profile attempt', fetchAttempts.current, 'for user:', userId);
-      }
+      logger.info('Fetching profile', { 
+        attempt: fetchAttemptsRef.current, 
+        userId 
+      }, { module: 'auth', throttle: true });
       
       const { data, error } = await supabase
         .from('profiles')
@@ -50,51 +67,62 @@ export const useAuthState = () => {
       
       // Handle error case
       if (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Profile fetch error:', {
-            error,
-            attempt: fetchAttempts.current,
-            userId
-          });
-        }
+        logger.error('Profile fetch error:', {
+          error,
+          attempt: fetchAttemptsRef.current,
+          userId
+        }, { module: 'auth' });
         
         setLastError(error);
 
-        // Retry logic for specific errors
-        if (fetchAttempts.current < maxRetries) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Scheduling retry...');
-          }
+        // Retry logic for specific errors, only if user ID hasn't changed
+        if (fetchAttemptsRef.current < maxRetries && currentUserIdRef.current === userId) {
+          logger.info('Scheduling profile fetch retry', { 
+            attempt: fetchAttemptsRef.current,
+            userId
+          }, { module: 'auth' });
+          
           setTimeout(() => {
-            fetchProfile(userId);
-          }, Math.pow(2, fetchAttempts.current) * 1000); // Exponential backoff
+            // Only retry if the user ID is still the same
+            if (currentUserIdRef.current === userId) {
+              fetchProfile(userId);
+            }
+          }, Math.pow(2, fetchAttemptsRef.current) * 1000); // Exponential backoff
           return;
         }
       }
 
       // Process the data if it exists
       if (data) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Profile fetched successfully:', {
-            userId,
-            hasData: !!data,
-            timestamp: new Date().toISOString()
-          });
-        }
+        logger.info('Profile fetched successfully', {
+          userId,
+          timestamp: new Date().toISOString()
+        }, { module: 'auth', throttle: true });
+        
         setProfile(data as ProfileData);
         setLastError(null);
-      } else if (process.env.NODE_ENV === 'development') {
-        console.warn('No profile data found for user:', userId);
+        // Reset fetch attempts on success
+        fetchAttemptsRef.current = 0;
+      } else {
+        logger.warn('No profile data found for user', { userId }, { module: 'auth' });
       }
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Unexpected error in fetchProfile:', error);
-      }
+      logger.error('Unexpected error in fetchProfile:', error);
       setLastError(error as Error);
     } finally {
-      isFetchingProfile.current = false;
+      isFetchingProfileRef.current = false;
     }
   };
+
+  const resetAuthState = useCallback(() => {
+    setSession(null);
+    setUser(null);
+    setProfile(null);
+    setLastError(null);
+    currentUserIdRef.current = null;
+    fetchAttemptsRef.current = 0;
+    isFetchingProfileRef.current = false;
+  }, []);
 
   return {
     session,
@@ -105,7 +133,9 @@ export const useAuthState = () => {
     setProfile,
     isLoading,
     setIsLoading,
-    fetchProfile,
+    fetchProfile: debouncedFetchProfile,
     lastError,
+    resetAuthState,
+    currentUserId: currentUserIdRef,
   };
 };

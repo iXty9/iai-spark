@@ -30,8 +30,7 @@ export async function updateUserProfile(userId: string, data: Record<string, any
       .from('profiles')
       .update(cleanData)
       .eq('id', userId)
-      .select()
-      .single();
+      .select();
     
     if (error) {
       logger.error('Error updating user profile:', error, { module: 'profile' });

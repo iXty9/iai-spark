@@ -16,7 +16,7 @@ export async function initializeSupabaseDb(
   url: string,
   serviceKey: string,
   anonKey: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; reconnected?: boolean; detail?: string }> {
   try {
     logger.info('Starting Supabase database initialization', { module: 'init' });
     
@@ -53,7 +53,11 @@ export async function initializeSupabaseDb(
       resetSupabaseClient();
       
       logger.info('Connected successfully to existing initialized database', { module: 'init' });
-      return { success: true, message: 'Connected to existing database' };
+      return { 
+        success: true, 
+        reconnected: true,
+        detail: 'Connected to existing database. Your configuration has been updated.' 
+      };
     }
     
     // If not initialized, create the exec_sql function

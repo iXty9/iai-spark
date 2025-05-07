@@ -180,7 +180,12 @@ export function clearConfig(): void {
  */
 export function forceDefaultConfig(): boolean {
   try {
-    const defaultConfig = getDefaultConfig();
+    const defaultConfig = {
+      url: '',
+      anonKey: '',
+      isInitialized: false,
+      environment: 'default'
+    };
     return saveConfig(defaultConfig);
   } catch (e) {
     logger.error('Error forcing default config', e);
@@ -189,19 +194,17 @@ export function forceDefaultConfig(): boolean {
 }
 
 /**
- * Get hardcoded default Supabase configuration for development
- * This is used as a fallback when no configuration is available
+ * Safely get configuration URL, never returning hardcoded values
  */
-export function getDefaultConfig(): SupabaseConfig {
-  logger.warn('⚠️ Using hardcoded Supabase credentials - FOR DEVELOPMENT ONLY ⚠️', {
-    module: 'supabase-config',
-    once: true
-  });
-  
-  return {
-    url: "https://ymtdtzkskjdqlzhjuesk.supabase.co",
-    anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltdGR0emtza2pkcWx6aGp1ZXNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5MjUyNDYsImV4cCI6MjA2MDUwMTI0Nn0.sOQdxH63edhcIgjx6mxjHkeam4IQGViaWYLdFDepIaE",
-    isInitialized: true,
-    environment: 'default'
-  };
+export function getSafeConfigUrl(): string | null {
+  const config = getStoredConfig();
+  return config?.url || null;
+}
+
+/**
+ * Safely get configuration anon key, never returning hardcoded values
+ */
+export function getSafeConfigAnonKey(): string | null {
+  const config = getStoredConfig();
+  return config?.anonKey || null;
 }

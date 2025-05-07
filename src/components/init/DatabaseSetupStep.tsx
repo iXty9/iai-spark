@@ -44,9 +44,9 @@ export function DatabaseSetupStep({
         setInitialized(true);
         
         // Check if this was a reconnection to existing database
-        if (result.message && result.message.includes('existing')) {
+        if (result.reconnected) {
           setIsReconnection(true);
-          setReconnectionMessage('Connected to existing database structure successfully.');
+          setReconnectionMessage(result.detail || 'Connected to existing database structure successfully.');
         }
         
         // Configuration is saved in the init service

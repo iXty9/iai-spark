@@ -4,7 +4,7 @@
 
 import { getSupabaseClient } from '@/services/supabase/connection-service';
 import { toast } from '@/hooks/use-toast';
-import { PostgrestResponse, PostgrestSingleResponse, PostgrestBuilder } from '@supabase/supabase-js';
+import { PostgrestResponse, PostgrestSingleResponse } from '@supabase/supabase-js';
 
 // Get the Supabase client
 const client = getSupabaseClient();

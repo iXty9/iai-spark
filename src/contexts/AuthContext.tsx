@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { AuthContextType } from './auth/types';
 import { useAuthState } from './auth/useAuthState';
 import { signIn, signUp, signOut, updateProfile } from './auth/authOperations';
+import { logger } from '@/utils/logging';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -19,46 +20,52 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading,
     fetchProfile,
     lastError,
+    resetAuthState,
+    currentUserId
   } = useAuthState();
 
-  const currentUserIdRef = useRef<string | null>(null);
   const authStateChanges = useRef<number>(0);
   const initialSessionCheckRef = useRef(false);
+  const authSubscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
   
   // Limit logging for production
   const shouldLog = process.env.NODE_ENV === 'development';
   
+  // Set up auth state listener and cleanup on unmount
   useEffect(() => {
+    // Create connection ID for debugging if it doesn't exist
+    if (!localStorage.getItem('supabase_connection_id')) {
+      localStorage.setItem('supabase_connection_id', `conn_${Date.now().toString(36)}`);
+    }
+    
     // Get connection ID to log along with auth events
     const connectionId = localStorage.getItem('supabase_connection_id') || 'unknown';
     
-    // Only log in development and limit frequency
-    if (shouldLog && authStateChanges.current === 0) {
-      console.log(`AuthProvider mounted, initializing auth state management (connection: ${connectionId})`);
+    // Only log in development 
+    if (shouldLog) {
+      logger.info('AuthProvider mounted', { 
+        connectionId 
+      }, { module: 'auth' });
     }
     
+    // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
         authStateChanges.current++;
         
-        // Only log in development and severely limit frequency
-        if (shouldLog && authStateChanges.current <= 2) {
-          console.log('Auth state changed:', {
+        if (shouldLog) {
+          logger.info('Auth state changed', {
             event,
             changeCount: authStateChanges.current,
             hasSession: !!newSession,
+            userId: newSession?.user?.id,
             connectionId
-          });
+          }, { module: 'auth', throttle: true });
         }
         
         if (event === 'SIGNED_OUT') {
-          if (shouldLog && authStateChanges.current <= 3) {
-            console.log('User signed out, clearing auth state');
-          }
-          setSession(null);
-          setUser(null);
-          setProfile(null);
-          currentUserIdRef.current = null;
+          logger.info('User signed out, clearing auth state', null, { module: 'auth' });
+          resetAuthState();
         } else {
           const sessionChanged = JSON.stringify(newSession) !== JSON.stringify(session);
           
@@ -66,8 +73,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setSession(newSession);
             setUser(newSession?.user ?? null);
             
-            if (newSession?.user && currentUserIdRef.current !== newSession.user.id) {
-              currentUserIdRef.current = newSession.user.id;
+            if (newSession?.user && currentUserId.current !== newSession.user.id) {
+              currentUserId.current = newSession.user.id;
               
               // Use setTimeout to avoid auth recursion issues
               setTimeout(() => {
@@ -79,27 +86,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    // Initial session check - without console.time/timeEnd
+    // Store subscription for cleanup
+    authSubscriptionRef.current = subscription;
+
+    // Initial session check - only once
     if (!initialSessionCheckRef.current) {
       initialSessionCheckRef.current = true;
       
       supabase.auth.getSession().then(({ data: { session: initialSession }, error }) => {
-        if (error && shouldLog) {
-          console.error('Error during initial session check:', error);
+        if (error) {
+          logger.error('Error during initial session check:', error);
         }
         
-        if (shouldLog && authStateChanges.current <= 2) {
-          console.log('Initial session check:', {
+        if (shouldLog) {
+          logger.info('Initial session check', {
             hasSession: !!initialSession,
+            userId: initialSession?.user?.id,
             connectionId
-          });
+          }, { module: 'auth' });
         }
         
         setSession(initialSession);
         setUser(initialSession?.user ?? null);
         
         if (initialSession?.user) {
-          currentUserIdRef.current = initialSession.user.id;
+          currentUserId.current = initialSession.user.id;
+          // Use setTimeout to avoid auth recursion issues
           setTimeout(() => {
             fetchProfile(initialSession.user.id);
           }, 0);
@@ -108,41 +120,56 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
     }
 
+    // Cleanup subscription on unmount
     return () => {
-      if (shouldLog && authStateChanges.current <= 3) {
-        console.log('AuthProvider unmounting, cleaning up subscription');
+      if (shouldLog) {
+        logger.info('AuthProvider unmounting, cleaning up subscription', 
+          null, { module: 'auth' });
       }
-      subscription.unsubscribe();
+      
+      if (authSubscriptionRef.current) {
+        authSubscriptionRef.current.unsubscribe();
+        authSubscriptionRef.current = null;
+      }
     };
-  }, [setSession, setUser, setProfile, setIsLoading, fetchProfile, session, shouldLog]);
+  }, [
+    setSession, 
+    setUser, 
+    setProfile, 
+    setIsLoading, 
+    fetchProfile, 
+    session, 
+    shouldLog,
+    resetAuthState, 
+    currentUserId
+  ]);
 
-  // Debug Effect: Severely limit logging frequency
+  // Debug log for initial auth state
   useEffect(() => {
-    // Only log once at startup in development
-    if (shouldLog && !user && !isLoading && authStateChanges.current <= 2) {
-      console.log('Auth state initialized:', {
+    if (shouldLog && !isLoading) {
+      const connectionId = localStorage.getItem('supabase_connection_id') || 'unknown';
+      logger.info('Auth state initialized', {
         isLoading,
-        hasUser: false,
-        connectionId: localStorage.getItem('supabase_connection_id') || 'unknown'
-      });
+        hasUser: !!user,
+        userId: user?.id,
+        connectionId
+      }, { module: 'auth', once: true });
     }
   }, [isLoading, user, shouldLog]);
 
+  // Handle profile updates
   const handleUpdateProfile = async (data: Partial<any>) => {
     if (!user) {
-      if (shouldLog) {
-        console.warn('Attempted to update profile without authenticated user');
-      }
+      logger.warn('Attempted to update profile without authenticated user', null, { module: 'auth' });
       return;
     }
     
     try {
       await updateProfile(supabase, user.id, data);
-      setProfile(prev => ({ ...prev, ...data }));
+      // Update local state with new profile data
+      setProfile(prev => prev ? { ...prev, ...data } : null);
     } catch (error) {
-      if (shouldLog) {
-        console.error('Profile update failed:', error);
-      }
+      logger.error('Profile update failed:', error);
       throw error;
     }
   };
@@ -164,9 +191,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('useAuth hook used outside of AuthProvider context');
-    }
+    logger.error('useAuth hook used outside of AuthProvider context', null, { module: 'auth' });
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
