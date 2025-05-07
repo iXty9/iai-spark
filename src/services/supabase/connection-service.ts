@@ -5,7 +5,7 @@ import type { Database } from '@/integrations/supabase/types';
 import { getStoredConfig, getDefaultConfig, hasStoredConfig, clearConfig, getEnvironmentId } from '@/config/supabase-config';
 import { logger } from '@/utils/logging';
 import { fetchConnectionConfig } from '@/services/admin/settingsService';
-import { fetchBootstrapConfig, parseUrlBootstrapParams, testBootstrapConnection } from '@/services/supabase/bootstrap-service';
+import { fetchBootstrapConfig } from '@/services/supabase/bootstrap-service';
 
 let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
 const CONNECTION_ID_KEY = 'supabase_connection_id';
@@ -25,15 +25,17 @@ function getConnectionKey(key: string): string {
  * This is used in server-side rendered environments to avoid infinite loops
  */
 export async function checkPublicBootstrapConfig() {
-  try {
-    // Check URL parameters for public bootstrap configs
-    const { url: publicUrl, anonKey: publicKey } = parseUrlBootstrapParams();
+  // Check URL parameters for public bootstrap configs
+  const urlParams = new URLSearchParams(window.location.search);
+  const publicUrl = urlParams.get('public_url');
+  const publicKey = urlParams.get('public_key');
+  
+  if (publicUrl && publicKey) {
+    logger.info('Found public bootstrap config in URL parameters', {
+      module: 'supabase-connection'
+    });
     
-    if (publicUrl && publicKey) {
-      logger.info('Found public bootstrap config in URL parameters', {
-        module: 'supabase-connection'
-      });
-      
+    try {
       // Attempt to use these credentials to bootstrap the connection
       const bootstrapConfig = await fetchBootstrapConfig(publicUrl, publicKey);
       
@@ -54,33 +56,15 @@ export async function checkPublicBootstrapConfig() {
         resetSupabaseClient();
         
         return true;
-      } else {
-        // Even if we couldn't get the full config, we might still have a valid connection
-        const connectionValid = await testBootstrapConnection(publicUrl, publicKey);
-        
-        if (connectionValid) {
-          // Save what we know to localStorage
-          saveConfig({
-            url: publicUrl,
-            anonKey: publicKey,
-            isInitialized: true
-          });
-          
-          // Reset the client to use the new config
-          resetSupabaseClient();
-          
-          return true;
-        }
       }
+    } catch (error) {
+      logger.error('Failed to bootstrap connection from URL parameters', error, {
+        module: 'supabase-connection'
+      });
     }
-    
-    return false;
-  } catch (error) {
-    logger.error('Failed to bootstrap connection from URL parameters', error, {
-      module: 'supabase-connection'
-    });
-    return false;
   }
+  
+  return false;
 }
 
 /**
@@ -126,38 +110,6 @@ export function getSupabaseClient() {
         module: 'supabase'
       });
       return null;
-    }
-    
-    // Check URL parameters first for bootstrap configuration
-    const { url: publicUrl, anonKey: publicKey } = parseUrlBootstrapParams();
-    
-    if (publicUrl && publicKey) {
-      logger.info('Using URL parameters for bootstrap configuration', {
-        module: 'supabase',
-        url: publicUrl.split('//')[1],
-      });
-      
-      // Create and initialize a client using URL parameters
-      supabaseInstance = createClient<Database>(publicUrl, publicKey, {
-        auth: {
-          storage: localStorage,
-          persistSession: true,
-          autoRefreshToken: true,
-          debug: process.env.NODE_ENV === 'development'
-        }
-      });
-      
-      // Record last connection time
-      localStorage.setItem(getConnectionKey(LAST_CONNECTION_TIME_KEY), new Date().toISOString());
-      
-      // Continue with post-initialization
-      tryBootstrapFromUrl(publicUrl, publicKey).catch(error => {
-        logger.error('Failed to complete bootstrap from URL parameters', error, {
-          module: 'supabase'
-        });
-      });
-      
-      return supabaseInstance;
     }
     
     // ALWAYS prioritize stored configuration if it exists
@@ -225,18 +177,7 @@ export function getSupabaseClient() {
     }
     
     // In production with no config, show error
-    toast({
-      title: 'Connection Error',
-      description: 'No Supabase configuration available. Please connect to a database.',
-      variant: 'destructive',
-      action: {
-        altText: "Connect",
-        onClick: () => window.location.href = '/supabase-auth'
-      }
-    });
-    
-    // Return null instead of potentially invalid instance
-    return null;
+    throw new Error(`No Supabase configuration available for ${environment} (env: ${getEnvironmentId()})`);
   } catch (error) {
     logger.error('Failed to initialize Supabase client', error);
     toast({
@@ -245,65 +186,12 @@ export function getSupabaseClient() {
       variant: 'destructive',
       action: {
         altText: "Reconnect",
-        onClick: () => window.location.href = '/supabase-auth?reset_config=true'
+        onClick: () => window.location.href = '/supabase-auth'
       }
     });
     
     // Return null instead of potentially invalid instance
     return null;
-  }
-}
-
-/**
- * Try to bootstrap from URL parameters
- * This is done after initializing the client to avoid circular dependencies
- */
-async function tryBootstrapFromUrl(url: string, anonKey: string) {
-  try {
-    logger.info('Completing bootstrap from URL parameters', {
-      module: 'supabase-bootstrap',
-    });
-    
-    // Fetch the full configuration from the database
-    const bootstrapConfig = await fetchBootstrapConfig(url, anonKey);
-    
-    // If we found a stored config, save it to localStorage
-    if (bootstrapConfig) {
-      logger.info('Successfully completed bootstrap from URL parameters', {
-        module: 'supabase-bootstrap',
-        url: bootstrapConfig.url.split('//')[1]
-      });
-      
-      // Save to localStorage for future use
-      saveConfig({
-        url: bootstrapConfig.url,
-        anonKey: bootstrapConfig.anonKey,
-        serviceKey: bootstrapConfig.serviceKey,
-        isInitialized: bootstrapConfig.isInitialized
-      });
-      
-      // Reset client to use new config
-      resetSupabaseClient();
-      
-      // Clean up URL parameters to avoid repeated bootstrapping
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete('public_url');
-      newUrl.searchParams.delete('public_key');
-      
-      // Use history.replaceState to update the URL without causing a page refresh
-      window.history.replaceState({}, document.title, newUrl.toString());
-      
-      // Success toast
-      toast({
-        title: 'Connection Restored',
-        description: 'Your connection has been successfully restored from shared parameters.',
-        duration: 5000,
-      });
-    }
-  } catch (error) {
-    logger.error('Error during bootstrap completion', error, {
-      module: 'supabase-bootstrap'
-    });
   }
 }
 

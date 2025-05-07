@@ -4,10 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { testSupabaseConnection } from '@/services/supabase/connection-service';
-import { Loader2, Share2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { saveConnectionConfig } from '@/services/admin/settingsService';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface SupabaseConnectionFormProps {
   onSuccess: (url: string, anonKey: string) => void;
@@ -20,7 +19,6 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
   const [isTesting, setIsTesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSavingToDb, setIsSavingToDb] = useState(false);
-  const [showShareOption, setShowShareOption] = useState(false);
   
   // Form validation
   const isValid = url.trim() !== '' && anonKey.trim() !== '';
@@ -50,9 +48,6 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
               title: "Configuration saved",
               description: "Your connection settings have been saved to the database and will be available across all browsers.",
             });
-            
-            // Show share option after successful save
-            setShowShareOption(true);
           } else {
             toast({
               title: "Warning",
@@ -113,15 +108,6 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
         <div className="bg-destructive/10 text-destructive p-3 rounded-md text-sm">
           {error}
         </div>
-      )}
-      
-      {showShareOption && (
-        <Alert className="bg-primary/5 border-primary/20">
-          <Share2 className="h-4 w-4 text-primary" />
-          <AlertDescription className="text-sm">
-            You can now share this connection with others using the "Share" button in your settings.
-          </AlertDescription>
-        </Alert>
       )}
       
       <Button 

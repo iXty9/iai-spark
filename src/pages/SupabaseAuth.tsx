@@ -3,38 +3,21 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Info, Database, Loader2, CheckCircle2, Share } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { ArrowLeft, Info, Database, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { SupabaseConnectionForm } from '@/components/supabase/SupabaseConnectionForm';
 import { getConnectionInfo, resetSupabaseClient, testSupabaseConnection } from '@/services/supabase/connection-service';
 import { saveConfig } from '@/config/supabase-config';
 import { fetchConnectionConfig } from '@/services/admin/settingsService';
 import { ShareConfigDialog } from '@/components/supabase/ShareConfigDialog';
-import { parseUrlBootstrapParams } from '@/services/supabase/bootstrap-service';
 
 export default function SupabaseAuth() {
   const navigate = useNavigate();
-  const location = useLocation();
   const connectionInfo = getConnectionInfo();
   const [isLoadingDbConfig, setIsLoadingDbConfig] = useState(true);
   const [dbConfigFound, setDbConfigFound] = useState(false);
   const [dbConfig, setDbConfig] = useState<any>(null);
   const [testingConnection, setTestingConnection] = useState(false);
-  const [fromBootstrap, setFromBootstrap] = useState(false);
-  const [sharedConfig, setSharedConfig] = useState<{url: string, anonKey: string} | null>(null);
-  
-  // Check URL parameters for bootstrap configs
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const fromBootstrap = searchParams.get('from_bootstrap') === 'true';
-    setFromBootstrap(fromBootstrap);
-    
-    // Check for shared configuration in URL parameters
-    const { url, anonKey } = parseUrlBootstrapParams();
-    if (url && anonKey) {
-      setSharedConfig({ url, anonKey });
-    }
-  }, [location]);
   
   // Check if there's a saved configuration in the database
   useEffect(() => {
@@ -107,38 +90,6 @@ export default function SupabaseAuth() {
     }
   };
 
-  const handleUseSharedConfig = async () => {
-    if (!sharedConfig) return;
-    
-    setTestingConnection(true);
-    
-    try {
-      // Test the connection before using it
-      const connectionValid = await testSupabaseConnection(sharedConfig.url, sharedConfig.anonKey);
-      
-      if (connectionValid) {
-        // Save the shared config to localStorage
-        saveConfig({
-          url: sharedConfig.url,
-          anonKey: sharedConfig.anonKey,
-          isInitialized: true
-        });
-        
-        // Reset the Supabase client to use the new config
-        resetSupabaseClient();
-        
-        // Navigate back to previous page or home with a success indicator
-        navigate('/?shared_config=success');
-      } else {
-        throw new Error("Connection failed with shared credentials");
-      }
-    } catch (error) {
-      console.error("Error using shared configuration:", error);
-    } finally {
-      setTestingConnection(false);
-    }
-  };
-
   return (
     <div className="container max-w-lg py-10">
       <Button 
@@ -162,44 +113,6 @@ export default function SupabaseAuth() {
         </CardHeader>
         
         <CardContent>
-          {fromBootstrap && (
-            <Alert className="mb-6 bg-amber-50 border-amber-200">
-              <Info className="h-4 w-4 text-amber-600" />
-              <AlertTitle className="text-amber-800">Connection Required</AlertTitle>
-              <AlertDescription className="text-amber-700">
-                Your connection to Supabase could not be automatically established. Please reconnect using one of the methods below.
-              </AlertDescription>
-            </Alert>
-          )}
-          
-          {sharedConfig && (
-            <Alert className="mb-6 bg-green-50 border-green-200">
-              <Share className="h-4 w-4 text-green-600" />
-              <AlertTitle className="text-green-800">Shared Configuration Found</AlertTitle>
-              <AlertDescription className="text-green-700">
-                <p>A shared configuration was found in the URL:</p>
-                <p className="font-mono text-xs mt-1 truncate">{sharedConfig.url.split('//')[1]}</p>
-                <Button 
-                  onClick={handleUseSharedConfig} 
-                  className="mt-2 bg-green-600 hover:bg-green-700 text-white"
-                  disabled={testingConnection}
-                >
-                  {testingConnection ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Connecting...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Use Shared Configuration
-                    </>
-                  )}
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
-          
           {isLoadingDbConfig ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
