@@ -8,6 +8,7 @@ import { LoginForm } from '@/components/auth/LoginForm';
 import { RegisterForm } from '@/components/auth/RegisterForm';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield } from 'lucide-react';
+import { getStoredConfig } from '@/config/supabase-config';
 
 // Brute force protection - track failed login attempts
 const loginAttempts = {
@@ -32,6 +33,22 @@ const Auth = () => {
     
     // Reset login attempts counter when component mounts
     loginAttempts.reset();
+    
+    // Log connection info for debugging
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        const storedConfig = getStoredConfig();
+        const connectionId = localStorage.getItem('supabase_connection_id') || 'unknown';
+        
+        console.log('Auth page connection info:', { 
+          connectionId,
+          url: storedConfig?.url ? storedConfig.url.split('//')[1] : 'No stored config',
+          hostname: window.location.hostname
+        });
+      } catch (e) {
+        console.error('Error retrieving connection info:', e);
+      }
+    }
     
     // Optional: Get approximate user location based on IP for logging
     const fetchClientInfo = async () => {

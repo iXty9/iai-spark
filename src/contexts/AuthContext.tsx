@@ -29,9 +29,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const shouldLog = process.env.NODE_ENV === 'development';
   
   useEffect(() => {
+    // Get connection ID to log along with auth events
+    const connectionId = localStorage.getItem('supabase_connection_id') || 'unknown';
+    
     // Only log in development and limit frequency
     if (shouldLog && authStateChanges.current === 0) {
-      console.log('AuthProvider mounted, initializing auth state management');
+      console.log(`AuthProvider mounted, initializing auth state management (connection: ${connectionId})`);
     }
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -43,7 +46,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.log('Auth state changed:', {
             event,
             changeCount: authStateChanges.current,
-            hasSession: !!newSession
+            hasSession: !!newSession,
+            connectionId
           });
         }
         
@@ -86,7 +90,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         if (shouldLog && authStateChanges.current <= 2) {
           console.log('Initial session check:', {
-            hasSession: !!initialSession
+            hasSession: !!initialSession,
+            connectionId
           });
         }
         
@@ -117,7 +122,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (shouldLog && !user && !isLoading && authStateChanges.current <= 2) {
       console.log('Auth state initialized:', {
         isLoading,
-        hasUser: false
+        hasUser: false,
+        connectionId: localStorage.getItem('supabase_connection_id') || 'unknown'
       });
     }
   }, [isLoading, user, shouldLog]);

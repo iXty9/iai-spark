@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ensureStorageBucketsExist } from '@/services/supabase/storage-service';
 import { logger } from '@/utils/logging';
 import { toast } from '@/hooks/use-toast';
+import { getStoredConfig } from '@/config/supabase-config';
 
 /**
  * Silent system component that performs automated self-healing operations
@@ -12,6 +13,24 @@ import { toast } from '@/hooks/use-toast';
 export function SystemSelfHealer() {
   const { user } = useAuth();
   const [healingPerformed, setHealingPerformed] = useState(false);
+
+  // Display connection info in development mode
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        const storedConfig = getStoredConfig();
+        const connectionId = localStorage.getItem('supabase_connection_id') || 'unknown';
+        
+        logger.info('Supabase connection information:', { 
+          connectionId,
+          url: storedConfig?.url ? storedConfig.url.split('//')[1] : 'No stored config',
+          module: 'system'
+        });
+      } catch (e) {
+        logger.error('Error retrieving connection info', e);
+      }
+    }
+  }, []);
 
   // Perform self-healing operations when the user is authenticated
   useEffect(() => {
@@ -54,7 +73,7 @@ export function SystemSelfHealer() {
         if (process.env.NODE_ENV === 'development') {
           toast({
             title: "System Check Issues",
-            description: "Some system repairs could not be completed.",
+            description: "Some system repairs could not be completed. Check console logs for details.",
             variant: "destructive",
             duration: 5000,
           });

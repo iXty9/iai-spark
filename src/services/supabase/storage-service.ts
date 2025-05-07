@@ -2,226 +2,201 @@
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
 import { StorageError } from '@supabase/storage-js';
+import { getStoredConfig } from '@/config/supabase-config';
 
-// Define constants for bucket names
+// Define bucket names as constants
 export const AVATARS_BUCKET = 'avatars';
 export const DOCUMENTS_BUCKET = 'documents';
 export const MEDIA_BUCKET = 'media';
 
-// Required buckets for the application to function
-const REQUIRED_BUCKETS = [AVATARS_BUCKET, DOCUMENTS_BUCKET, MEDIA_BUCKET];
+const BUCKETS = [AVATARS_BUCKET, DOCUMENTS_BUCKET, MEDIA_BUCKET];
 
 /**
- * Check if all required storage buckets exist and create them if missing
- * This is part of the self-healing process
+ * Ensure storage buckets exist for the application
+ * This is a self-healing function that will create buckets if they don't exist
  */
 export async function ensureStorageBucketsExist(): Promise<boolean> {
   try {
-    logger.info('Checking storage buckets...', { module: 'storage' });
+    // Get the stored config to check connection details
+    const storedConfig = getStoredConfig();
+    logger.info('Checking storage buckets for connection with URL: ' + 
+      (storedConfig?.url ? storedConfig.url.split('//')[1] : 'No stored config'),
+      { module: 'storage', once: true }
+    );
+
+    let allSucceeded = true;
     
-    // Get list of existing buckets
-    // Access storage.listBuckets safely
-    const storage = supabase.storage as any;
-    
-    if (!storage || typeof storage.listBuckets !== 'function') {
-      logger.error('Storage API not available or missing listBuckets method', { module: 'storage' });
-      return false;
-    }
-    
-    const { data: buckets, error } = await storage.listBuckets();
-    
-    if (error) {
-      logger.error('Failed to list storage buckets:', error, { module: 'storage' });
-      return false;
-    }
-    
-    // Check for missing buckets
-    const existingBucketNames = buckets?.map(b => b.name) || [];
-    const missingBuckets = REQUIRED_BUCKETS.filter(b => !existingBucketNames.includes(b));
-    
-    logger.info(`Found ${existingBucketNames.length} buckets, ${missingBuckets.length} missing`, { 
-      module: 'storage',
-      existing: existingBucketNames,
-      missing: missingBuckets
-    });
-    
-    // Create any missing buckets
-    for (const bucketName of missingBuckets) {
-      logger.info(`Creating missing bucket: ${bucketName}`, { module: 'storage' });
-      
+    for (const bucket of BUCKETS) {
       try {
-        const createResult = await storage.createBucket(bucketName, {
-          public: true
-        });
+        // Check if the bucket exists
+        const { data, error } = await supabase.storage.getBucket(bucket);
         
-        if (createResult.error) {
-          logger.error(`Failed to create bucket ${bucketName}:`, createResult.error, { module: 'storage' });
+        if (error) {
+          // If the bucket doesn't exist, create it
+          if (error.message.includes('not found')) {
+            logger.info(`Bucket ${bucket} not found, creating it...`, { module: 'storage' });
+            
+            const createResult = await supabase.storage.createBucket(bucket, {
+              public: false, // Set to public: true if the bucket should be publicly accessible
+            });
+            
+            if (createResult.error) {
+              // Custom error handling with proper TypeScript typing
+              const customError = createResult.error as Error;
+              logger.error(`[storage] Failed to create bucket ${bucket}:`, {
+                message: customError.message,
+                name: customError.name,
+                // Only add status if it exists
+                ...(customError instanceof Error && 'status' in customError
+                  ? { status: (customError as any).status }
+                  : {})
+              }, { module: 'storage' });
+              
+              allSucceeded = false;
+              continue;
+            }
+            
+            logger.info(`Successfully created bucket: ${bucket}`, { module: 'storage' });
+          } else {
+            logger.error(`[storage] Error checking bucket ${bucket}:`, error, { module: 'storage' });
+            allSucceeded = false;
+          }
         } else {
-          logger.info(`Successfully created bucket: ${bucketName}`, { module: 'storage' });
+          logger.info(`Bucket ${bucket} already exists`, { module: 'storage', once: true });
         }
-      } catch (createError: any) {
-        logger.error(`Error creating bucket ${bucketName}:`, createError, { module: 'storage' });
+      } catch (error) {
+        logger.error(`[storage] Unexpected error with bucket ${bucket}:`, error, { module: 'storage' });
+        allSucceeded = false;
       }
     }
     
-    return true;
+    return allSucceeded;
   } catch (error) {
-    logger.error('Error ensuring storage buckets exist:', error, { module: 'storage' });
+    logger.error('[storage] Failed to check/create storage buckets:', error);
     return false;
   }
 }
 
 /**
- * Safely upload a file to a Supabase storage bucket with error handling and retry
+ * Upload a file to a bucket
+ * @param bucket Bucket name
+ * @param path Path within the bucket
+ * @param file File to upload
  */
 export async function uploadFile(
-  bucketName: string, 
-  filePath: string, 
-  file: File,
-  options = { upsert: true },
-  retries = 1
+  bucket: string,
+  path: string,
+  file: File
 ): Promise<{ url: string | null; error: Error | null }> {
   try {
-    logger.info(`Uploading file to ${bucketName}/${filePath}`, { module: 'storage' });
-    
-    // Upload the file
+    // Perform upload
     const { error } = await supabase.storage
-      .from(bucketName)
-      .upload(filePath, file, options);
-      
+      .from(bucket)
+      .upload(path, file, { upsert: true });
+    
     if (error) {
-      // Format StorageError with statusCode for better error handling
-      const formattedError: StorageError = {
-        ...error,
-        name: error.name || 'StorageError',
+      // Handle error properly with TypeScript
+      logger.error(`[storage] Error uploading file to ${bucket}/${path}:`, {
         message: error.message,
-        __isStorageError: true,
-        statusCode: typeof error.status === 'number' ? error.status : 500
-      };
-      
-      logger.error(`Error uploading to ${bucketName}/${filePath}:`, formattedError, { module: 'storage' });
-      
-      // Retry logic for specific errors
-      if (retries > 0 && error.status !== 400) { // Don't retry validation errors
-        logger.info(`Retrying upload to ${bucketName}/${filePath} (${retries} attempts left)`, { module: 'storage' });
-        return uploadFile(bucketName, filePath, file, options, retries - 1);
-      }
-      
-      return { url: null, error: formattedError };
+        name: error.name
+      });
+      return { url: null, error };
     }
     
-    // Get the public URL
-    const { data: { publicUrl } } = supabase.storage.from(bucketName).getPublicUrl(filePath);
+    // Get public URL
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
     
-    return { url: publicUrl, error: null };
+    return { url: data.publicUrl, error: null };
   } catch (error: any) {
-    logger.error(`Unexpected error uploading file to ${bucketName}/${filePath}:`, error, { module: 'storage' });
-    
-    // Format generic error to match StorageError
-    const formattedError: StorageError = {
-      name: error.name || 'StorageError',
-      message: error.message || 'Unknown error during file upload',
-      __isStorageError: true,
-      statusCode: 500
-    };
-    
-    return { url: null, error: formattedError };
+    logger.error('[storage] Unexpected error uploading file:', error);
+    return { url: null, error: new Error(error.message || 'Upload failed') };
   }
 }
 
 /**
- * List files in a Supabase storage bucket
+ * List files in a bucket/folder
+ * @param bucket Bucket name
+ * @param folder Folder path (optional)
  */
-export async function listFiles(bucketName: string, path?: string): Promise<{ files: string[]; error: Error | null }> {
+export async function listFiles(bucket: string, folder?: string): Promise<{
+  files: string[] | null;
+  error: Error | null;
+}> {
   try {
-    logger.info(`Listing files in ${bucketName}${path ? '/' + path : ''}`, { module: 'storage' });
-    
-    // List files
-    const storage = supabase.storage.from(bucketName) as any;
-    
-    if (!storage || typeof storage.list !== 'function') {
-      logger.error('Storage API not available or missing list method', { module: 'storage' });
-      return { files: [], error: new Error('Storage API not available') };
-    }
-    
-    const { data, error } = await storage.list(path);
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .list(folder || '');
     
     if (error) {
-      // Format StorageError with statusCode for better error handling
-      const formattedError: StorageError = {
-        ...error,
-        name: error.name || 'StorageError',
+      logger.error(`[storage] Error listing files in ${bucket}/${folder || ''}:`, {
         message: error.message,
-        __isStorageError: true,
-        statusCode: typeof error.status === 'number' ? error.status : 500
-      };
-      
-      logger.error(`Error listing files in ${bucketName}${path ? '/' + path : ''}:`, formattedError, { module: 'storage' });
-      return { files: [], error: formattedError };
+        name: error.name
+      });
+      return { files: null, error };
     }
     
-    // Extract file names
-    const files = data?.map(item => item.name) || [];
-    
+    // Extract file paths from the data
+    const files = data.map(item => item.name);
     return { files, error: null };
   } catch (error: any) {
-    logger.error(`Unexpected error listing files in ${bucketName}${path ? '/' + path : ''}:`, error, { module: 'storage' });
-    
-    // Format generic error to match StorageError
-    const formattedError: StorageError = {
-      name: error.name || 'StorageError',
-      message: error.message || 'Unknown error listing files',
-      __isStorageError: true,
-      statusCode: 500
-    };
-    
-    return { files: [], error: formattedError };
+    logger.error('[storage] Unexpected error listing files:', error);
+    return { files: null, error: new Error(error.message || 'List operation failed') };
   }
 }
 
 /**
- * Delete a file from a Supabase storage bucket
+ * Delete a file from a bucket
+ * @param bucket Bucket name
+ * @param path Path within the bucket
  */
-export async function deleteFile(bucketName: string, filePath: string): Promise<{ success: boolean; error: Error | null }> {
+export async function deleteFile(bucket: string, path: string): Promise<{ success: boolean; error: Error | null }> {
   try {
-    logger.info(`Deleting file ${bucketName}/${filePath}`, { module: 'storage' });
-    
-    // Delete the file
-    const storage = supabase.storage.from(bucketName) as any;
-    
-    if (!storage || typeof storage.remove !== 'function') {
-      logger.error('Storage API not available or missing remove method', { module: 'storage' });
-      return { success: false, error: new Error('Storage API not available') };
-    }
-    
-    const { error } = await storage.remove([filePath]);
+    const { error } = await supabase.storage
+      .from(bucket)
+      .remove([path]);
     
     if (error) {
-      // Format StorageError with statusCode for better error handling
-      const formattedError: StorageError = {
-        ...error,
-        name: error.name || 'StorageError',
+      logger.error(`[storage] Error deleting file ${bucket}/${path}:`, {
         message: error.message,
-        __isStorageError: true,
-        statusCode: typeof error.status === 'number' ? error.status : 500
-      };
-      
-      logger.error(`Error deleting file ${bucketName}/${filePath}:`, formattedError, { module: 'storage' });
-      return { success: false, error: formattedError };
+        name: error.name
+      });
+      return { success: false, error };
     }
     
     return { success: true, error: null };
   } catch (error: any) {
-    logger.error(`Unexpected error deleting file ${bucketName}/${filePath}:`, error, { module: 'storage' });
+    logger.error('[storage] Unexpected error deleting file:', error);
+    return { success: false, error: new Error(error.message || 'Delete operation failed') };
+  }
+}
+
+/**
+ * Check if a file exists in a bucket
+ * @param bucket Bucket name
+ * @param path Path within the bucket
+ */
+export async function fileExists(bucket: string, path: string): Promise<{ exists: boolean; error: Error | null }> {
+  try {
+    // Try to get the metadata of the file
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .list(path.split('/').slice(0, -1).join('/'), {
+        search: path.split('/').pop() || '',
+      });
     
-    // Format generic error to match StorageError
-    const formattedError: StorageError = {
-      name: error.name || 'StorageError',
-      message: error.message || 'Unknown error deleting file',
-      __isStorageError: true,
-      statusCode: 500
-    };
+    if (error) {
+      logger.error(`[storage] Error checking if file ${bucket}/${path} exists:`, {
+        message: error.message,
+        name: error.name
+      });
+      return { exists: false, error };
+    }
     
-    return { success: false, error: formattedError };
+    // Check if the file was found in the results
+    const exists = data.some(item => item.name === path.split('/').pop());
+    return { exists, error: null };
+  } catch (error: any) {
+    logger.error('[storage] Unexpected error checking file existence:', error);
+    return { exists: false, error: new Error(error.message || 'File check failed') };
   }
 }

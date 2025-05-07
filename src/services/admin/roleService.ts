@@ -12,18 +12,18 @@ import { logger } from '@/utils/logging';
 export async function hasRole(userId: string, role: UserRole): Promise<boolean> {
   try {
     // Using a simpler query pattern with proper awaiting to avoid type errors
-    const result = await supabase
+    const { data, error } = await supabase
       .from('user_roles')
       .select('id')
       .eq('user_id', userId)
       .eq('role', role);
     
-    if (result.error) {
-      logger.error('Error checking user role:', result.error);
+    if (error) {
+      logger.error('Error checking user role:', error);
       return false;
     }
     
-    return result.data && result.data.length > 0;
+    return data && data.length > 0;
   } catch (error) {
     logger.error('Unexpected error in hasRole:', error);
     return false;
@@ -35,18 +35,17 @@ export async function hasRole(userId: string, role: UserRole): Promise<boolean> 
  */
 export async function getUserRole(userId: string): Promise<UserRole | null> {
   try {
-    // Using proper awaiting to avoid type errors
-    const result = await supabase
+    const { data, error } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', userId);
     
-    if (result.error) {
-      logger.error('Error fetching user role:', result.error);
+    if (error) {
+      logger.error('Error fetching user role:', error);
       return null;
     }
 
-    return result.data && result.data.length > 0 ? result.data[0].role : null;
+    return data && data.length > 0 ? data[0].role : null;
   } catch (error) {
     logger.error('Unexpected error in getUserRole:', error);
     return null;
@@ -58,20 +57,20 @@ export async function getUserRole(userId: string): Promise<UserRole | null> {
  */
 export async function setUserRole(userId: string, role: UserRole): Promise<boolean> {
   try {
-    // Check if role entry exists with proper awaiting
-    const result = await supabase
+    // Check if role entry exists
+    const { data, error } = await supabase
       .from('user_roles')
       .select('id')
       .eq('user_id', userId);
     
-    if (result.error) {
-      logger.error('Error checking existing user role:', result.error);
+    if (error) {
+      logger.error('Error checking existing user role:', error);
       return false;
     }
 
     let updateResult;
     
-    if (result.data && result.data.length > 0) {
+    if (data && data.length > 0) {
       // Update
       updateResult = await supabase
         .from('user_roles')

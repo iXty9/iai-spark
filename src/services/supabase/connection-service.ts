@@ -6,6 +6,7 @@ import { getStoredConfig, getDefaultConfig, hasStoredConfig } from '@/config/sup
 import { logger } from '@/utils/logging';
 
 let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
+const CONNECTION_ID_KEY = 'supabase_connection_id';
 
 /**
  * Get the Supabase client instance, creating it if needed
@@ -14,6 +15,17 @@ export function getSupabaseClient() {
   if (supabaseInstance) return supabaseInstance;
   
   try {
+    // Generate a unique connection ID for this instance if one doesn't exist
+    if (!localStorage.getItem(CONNECTION_ID_KEY)) {
+      const connectionId = `conn_${Math.random().toString(36).substring(2, 10)}`;
+      localStorage.setItem(CONNECTION_ID_KEY, connectionId);
+      logger.info(`Generating new connection ID: ${connectionId}`, {
+        module: 'supabase-connection'
+      });
+    }
+    
+    const connectionId = localStorage.getItem(CONNECTION_ID_KEY);
+    
     // Check for force_init parameter - don't initialize client if forcing init
     const urlParams = new URLSearchParams(window.location.search);
     const forceInit = urlParams.get('force_init') === 'true';
@@ -30,9 +42,10 @@ export function getSupabaseClient() {
     
     if (storedConfig) {
       // Use stored configuration (this should work across different development environments)
-      logger.info('Using stored Supabase configuration', {
+      logger.info(`Using stored Supabase configuration for connection ${connectionId}`, {
         module: 'supabase',
-        custom: true
+        custom: true,
+        url: storedConfig.url
       });
       
       // Create and initialize the Supabase client with stored config
@@ -41,6 +54,7 @@ export function getSupabaseClient() {
           storage: localStorage,
           persistSession: true,
           autoRefreshToken: true,
+          debug: process.env.NODE_ENV === 'development'
         }
       });
       
@@ -50,7 +64,7 @@ export function getSupabaseClient() {
     // If no stored config is available, only use default config as fallback in development
     if (process.env.NODE_ENV === 'development') {
       const defaultConfig = getDefaultConfig();
-      logger.warn('No stored config found, using default config as fallback', {
+      logger.warn(`No stored config found, using default config as fallback for connection ${connectionId}`, {
         module: 'supabase'
       });
       
@@ -60,6 +74,7 @@ export function getSupabaseClient() {
           storage: localStorage,
           persistSession: true,
           autoRefreshToken: true,
+          debug: true
         }
       });
       

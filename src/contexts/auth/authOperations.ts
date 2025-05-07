@@ -6,6 +6,9 @@ const API_TIMEOUT = 180000; // 3 minutes (180 seconds)
 
 export const signIn = async (email: string, password: string) => {
   try {
+    const connectionId = localStorage.getItem('supabase_connection_id') || 'unknown';
+    console.log(`Attempting login with connection ID: ${connectionId}`);
+    
     const authPromise = supabase.auth.signInWithPassword({
       email,
       password,
@@ -15,9 +18,16 @@ export const signIn = async (email: string, password: string) => {
       setTimeout(() => reject(new Error("Login request timed out after 3 minutes")), API_TIMEOUT);
     });
     
-    const { error } = await Promise.race([authPromise, timeoutPromise]) as any;
+    const { data, error } = await Promise.race([authPromise, timeoutPromise]) as any;
 
     if (error) {
+      console.error('Login error details:', { 
+        message: error.message,
+        code: error.code,
+        status: error.status,
+        connectionId
+      });
+      
       toast({
         variant: "destructive",
         title: "Login failed",
@@ -25,8 +35,22 @@ export const signIn = async (email: string, password: string) => {
       });
       throw error;
     }
+    
+    console.log(`Login successful with connection ID: ${connectionId}`);
+    return data;
   } catch (error: any) {
     console.error('Error during sign in:', error);
+    
+    // Try to get underlying connection info
+    try {
+      const storedConfig = localStorage.getItem('spark_supabase_config');
+      if (storedConfig) {
+        const config = JSON.parse(storedConfig);
+        console.log('Current connection URL:', config.url.split('//')[1]);
+      }
+    } catch (e) {
+      console.error('Could not retrieve connection info:', e);
+    }
     
     const errorMessage = error.message || "Login failed. Please try again later.";
     toast({

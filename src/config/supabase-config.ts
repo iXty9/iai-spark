@@ -1,3 +1,4 @@
+
 import { logger } from '@/utils/logging';
 import { resetSupabaseClient } from '@/services/supabase/connection-service';
 
@@ -11,46 +12,29 @@ export interface SupabaseConfig {
 // Storage key for Supabase configuration
 const STORAGE_KEY = 'spark_supabase_config';
 
-// List of known custom production domains 
-const KNOWN_PRODUCTION_DOMAINS = [
-  'ixty.ai',
-  'iai-spark.lovable.app' // Include the production Lovable app domain
-];
-
 // Environment detection - now more precise
 export const isDevelopment = () => {
   const hostname = window.location.hostname;
   
-  // Log the hostname for debugging
+  // Log the hostname for debugging only once
   logger.info(`Checking isDevelopment for hostname: ${hostname}`, {
     module: 'supabase-config',
     once: true
   });
 
-  // Production domains are explicitly listed
-  const isKnownProductionDomain = KNOWN_PRODUCTION_DOMAINS.some(domain => 
-    hostname === domain || hostname.endsWith('.' + domain)
-  );
-  
-  // If it's a known production domain, it's definitely not development
-  if (isKnownProductionDomain) {
-    logger.info(`Hostname ${hostname} matched known production domain`, {
+  // Direct check for localhost and 127.0.0.1 which are definitely development
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.local')) {
+    logger.info(`Hostname ${hostname} is a local development environment`, {
       module: 'supabase-config'
     });
-    return false;
+    return true;
   }
-  
-  // More specific check for local development environments
-  const isLocalDev = hostname === 'localhost' || 
-                    hostname === '127.0.0.1' || 
-                    hostname.endsWith('.local');
-  
-  // Log additional information to help diagnose issues
-  logger.info(`Hostname ${hostname} isDevelopment check result: ${isLocalDev}`, {
+
+  // Everything else is considered production
+  logger.info(`Hostname ${hostname} is considered a production environment`, {
     module: 'supabase-config'
   });
-  
-  return isLocalDev;
+  return false;
 };
 
 /**
@@ -98,6 +82,7 @@ export function getStoredConfig(): SupabaseConfig | null {
       const config = JSON.parse(storedConfig) as SupabaseConfig;
       logger.info('Using stored Supabase configuration', {
         module: 'supabase-config',
+        url: config.url.split('//')[1], // Log domain only for security
         once: true
       });
       return config;
@@ -127,9 +112,16 @@ export function getStoredConfig(): SupabaseConfig | null {
  */
 export function saveConfig(config: SupabaseConfig): boolean {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    // Add a timestamp to the saved config
+    const configWithTimestamp = {
+      ...config,
+      savedAt: new Date().toISOString()
+    };
+    
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(configWithTimestamp));
     logger.info('Supabase configuration saved to storage', {
-      module: 'supabase-config'
+      module: 'supabase-config',
+      url: config.url.split('//')[1] // Log domain only for security
     });
     return true;
   } catch (e) {
@@ -173,12 +165,6 @@ export function forceDefaultConfig(): boolean {
 /**
  * Get hardcoded default Supabase configuration for development
  * This is used as a fallback when no configuration is available
- * 
- * ⚠️ SECURITY WARNING ⚠️
- * These credentials should be replaced before production deployment.
- * They are only meant for development and testing purposes.
- * In a production environment, proper configuration must be done
- * during the initialization process.
  */
 export function getDefaultConfig(): SupabaseConfig {
   logger.warn('⚠️ Using hardcoded Supabase credentials - FOR DEVELOPMENT ONLY ⚠️', {
