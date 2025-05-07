@@ -1,235 +1,112 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/utils/logging';
 
-/**
- * Create the exec_sql function if it doesn't exist
- * 
- * @param url Supabase URL
- * @param serviceKey Service Role Key with admin privileges
- */
+const createFunctionSql = `
+  CREATE OR REPLACE FUNCTION exec_sql(sql text)
+  RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+  BEGIN EXECUTE sql; END; $$;
+`;
+
+function splitSqlIntoStatements(sql: string): string[] {
+  // Basic (imperfect, but same as original!) semicolon splitter, handles $$ and '
+  const statements: string[] = [];
+  let state = { inFunc: false, inStr: false, esc: false }, stmt = '';
+  for (let i = 0; i < sql.length; i++) {
+    let c = sql[i], n = sql[i + 1] || '';
+    if (c === "'" && !state.esc) state.inStr = !state.inStr;
+    state.esc = c === '\\' && state.inStr ? !state.esc : false;
+    if (!state.inStr && c === '$' && n === '$') state.inFunc = !state.inFunc;
+    stmt += c;
+    if (c === ';' && !state.inStr && !state.inFunc) {
+      statements.push(stmt);
+      stmt = '';
+    }
+  }
+  if (stmt.trim()) statements.push(stmt);
+  return statements;
+}
+
 export async function createExecSqlFunction(
-  url: string, 
-  serviceKey: string
+  url: string, serviceKey: string
 ): Promise<{ success: boolean; error?: string; }> {
   try {
     logger.info('Checking and creating exec_sql function', { module: 'init' });
-    
-    // Create admin client with service key
     const adminClient = createClient(url, serviceKey);
-    
-    // SQL to create the exec_sql function if it doesn't exist
-    const createFunctionSql = `
-      CREATE OR REPLACE FUNCTION exec_sql(sql text)
-      RETURNS void
-      LANGUAGE plpgsql
-      SECURITY DEFINER
-      AS $$
-      BEGIN
-        EXECUTE sql;
-      END;
-      $$;
-    `;
-    
+    // Try calling it
+    let exists = false;
     try {
-      // First try to use the function to see if it exists
-      try {
-        // Try to call the function if it exists
-        const { error } = await adminClient.rpc('exec_sql', { sql: 'SELECT 1' });
-        
-        if (!error) {
-          // Function exists and works
-          logger.info('Exec_sql function is available', { module: 'init' });
-          return { success: true };
-        }
-        
-        // If we get here, function might exist but has an issue
-        logger.warn('Exec_sql function exists but may have issues, attempting to recreate', { module: 'init' });
-      } catch (error: any) {
-        // Function doesn't exist, we'll create it
-        logger.info('The exec_sql function does not exist, creating it now', { module: 'init' });
+      const { error } = await adminClient.rpc('exec_sql', { sql: 'SELECT 1' });
+      exists = !error;
+      if (exists) {
+        logger.info('Exec_sql function is available', { module: 'init' });
+        return { success: true };
       }
-      
-      // Execute raw SQL using REST API to create the function
-      const result = await adminClient.auth.getSession();
-      
-      if (!result.data.session) {
-        return {
-          success: false,
-          error: 'No session available to execute SQL'
-        };
-      }
-      
-      // Use direct SQL execution through the REST API
-      const response = await fetch(`${url}/rest/v1/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${result.data.session.access_token}`,
-          'apikey': serviceKey,
-          'X-Client-Info': 'supabase-js'
-        },
-        body: JSON.stringify({
-          query: createFunctionSql
-        })
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        logger.error('Error creating exec_sql function:', errorText, { module: 'init' });
-        return {
-          success: false,
-          error: `Failed to create exec_sql function: ${errorText}`
-        };
-      }
-      
-      logger.info('Successfully created exec_sql function', { module: 'init' });
-      return { success: true };
-      
-    } catch (error: any) {
-      logger.error('Unexpected error checking/creating exec_sql function:', error, { module: 'init' });
-      return {
-        success: false,
-        error: `Error creating exec_sql function: ${error.message || 'Unknown error'}`
-      };
+      logger.warn('Exec_sql function exists but may have issues, attempting to recreate', { module: 'init' });
+    } catch {
+      logger.info('The exec_sql function does not exist, creating it now', { module: 'init' });
     }
+    // Create the function via SQL (your original logic -- may depend on setup)
+    const result = await adminClient.auth.getSession();
+    if (!result.data.session) return { success: false, error: 'No session available to execute SQL' };
+    const resp = await fetch(`${url}/rest/v1/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${result.data.session.access_token}`,
+        apikey: serviceKey,
+        'X-Client-Info': 'supabase-js'
+      },
+      body: JSON.stringify({ query: createFunctionSql })
+    });
+    if (!resp.ok) {
+      const errorText = await resp.text();
+      logger.error('Error creating exec_sql function:', errorText, { module: 'init' });
+      return { success: false, error: `Failed to create exec_sql function: ${errorText}` };
+    }
+    logger.info('Successfully created exec_sql function', { module: 'init' });
+    return { success: true };
   } catch (error: any) {
-    logger.error('Failed to connect to Supabase to check/create exec_sql function:', error);
-    return { 
-      success: false, 
-      error: `Connection error: ${error.message || 'Unknown error'}` 
-    };
+    logger.error('Failed to check/create exec_sql function:', error, { module: 'init' });
+    return { success: false, error: error.message || 'Unknown error' };
   }
 }
 
-/**
- * Execute SQL script on a Supabase database
- * Split SQL into separate statements to avoid issues with complex scripts
- * 
- * @param url Supabase URL
- * @param serviceKey Service Role Key with admin privileges
- * @param sql SQL script to execute
- */
 export async function execSql(
-  url: string, 
-  serviceKey: string, 
-  sql: string
+  url: string, serviceKey: string, sql: string
 ): Promise<{ success: boolean; error?: string; }> {
   try {
     logger.info('Executing SQL query', { module: 'init', sqlLength: sql.length });
-    
-    // Create admin client with service key
     const adminClient = createClient(url, serviceKey);
-    
-    // First check/create the exec_sql function
-    const functionResult = await createExecSqlFunction(url, serviceKey);
-    if (!functionResult.success) {
-      return functionResult;
-    }
-    
-    // Split the SQL script into separate statements
-    // This helps avoid syntax errors in complex scripts
+    const res = await createExecSqlFunction(url, serviceKey);
+    if (!res.success) return res;
     const statements = splitSqlIntoStatements(sql);
     logger.info(`Split SQL into ${statements.length} statements`, { module: 'init' });
-    
-    // Execute each statement separately
     for (let i = 0; i < statements.length; i++) {
-      const statement = statements[i].trim();
-      if (!statement) continue; // Skip empty statements
-      
+      const stmt = statements[i].trim();
+      if (!stmt) continue;
       try {
-        // Execute the SQL statement using RPC
-        const { error } = await adminClient.rpc('exec_sql', { sql: statement });
-        
+        const { error } = await adminClient.rpc('exec_sql', { sql: stmt });
         if (error) {
-          logger.error(`SQL execution failed at statement ${i+1}/${statements.length}`, { 
+          logger.error(`SQL execution failed at statement ${i + 1}/${statements.length}`, {
             module: 'init',
-            error: error.message,
-            details: error.details,
-            hint: error.hint,
-            statement: statement.substring(0, 100) + (statement.length > 100 ? '...' : '')
+            error: error.message, details: error.details, hint: error.hint,
+            statement: stmt.substring(0, 100) + (stmt.length > 100 ? '...' : '')
           });
-          
-          return { 
-            success: false, 
-            error: `SQL execution failed at statement ${i+1}: ${error.message}` 
-          };
+          return { success: false, error: `SQL execution failed at statement ${i + 1}: ${error.message}` };
         }
-      } catch (stmtError: any) {
+      } catch (err: any) {
         logger.error(`Exception executing SQL statement ${i+1}/${statements.length}`, {
           module: 'init',
-          error: stmtError.message,
-          statement: statement.substring(0, 100) + (statement.length > 100 ? '...' : '')
+          error: err.message,
+          statement: stmt.substring(0, 100) + (stmt.length > 100 ? '...' : '')
         });
-        
-        return {
-          success: false,
-          error: `SQL execution error at statement ${i+1}: ${stmtError.message || 'Unknown error'}`
-        };
+        return { success: false, error: `SQL execution error at statement ${i+1}: ${err.message || 'Unknown error'}` };
       }
     }
-    
     logger.info('All SQL statements executed successfully', { module: 'init' });
     return { success: true };
-    
   } catch (error: any) {
     logger.error('Error during SQL execution', error);
-    return {
-      success: false,
-      error: `SQL execution error: ${error.message || 'Unknown error'}`
-    };
+    return { success: false, error: `SQL execution error: ${error.message || 'Unknown error'}` };
   }
-}
-
-/**
- * Split a SQL script into separate statements
- * This handles statements terminated by semicolons, but preserves 
- * semicolons within functions, strings, etc.
- */
-function splitSqlIntoStatements(sql: string): string[] {
-  const statements: string[] = [];
-  let currentStatement = '';
-  let inFunction = 0;
-  let inString = false;
-  let escaped = false;
-  
-  for (let i = 0; i < sql.length; i++) {
-    const char = sql[i];
-    const nextChar = sql[i + 1] || '';
-    
-    // Handle string literals
-    if (char === "'" && !escaped) {
-      inString = !inString;
-    }
-    
-    // Handle escape characters within strings
-    if (char === '\\' && inString) {
-      escaped = !escaped;
-    } else {
-      escaped = false;
-    }
-    
-    // Handle function bodies
-    if (!inString) {
-      if (char === '$' && nextChar === '$') {
-        inFunction = inFunction ? 0 : 1;
-      }
-    }
-    
-    // Add character to current statement
-    currentStatement += char;
-    
-    // Check for statement end
-    if (char === ';' && !inString && !inFunction) {
-      statements.push(currentStatement);
-      currentStatement = '';
-    }
-  }
-  
-  // Add the last statement if it doesn't end with a semicolon
-  if (currentStatement.trim()) {
-    statements.push(currentStatement);
-  }
-  
-  return statements;
 }
