@@ -44,7 +44,7 @@ export async function getUserRole(userId: string): Promise<UserRole | null> {
       return null;
     }
 
-    return data && data.length > 0 ? data[0].role : null;
+    return data && data.length > 0 ? data[0].role as UserRole : null;
   } catch (error) {
     logger.error('Unexpected error in getUserRole:', error);
     return null;

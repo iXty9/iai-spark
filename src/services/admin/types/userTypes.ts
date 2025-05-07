@@ -1,6 +1,6 @@
 
 // Define user roles
-export type UserRole = 'admin' | 'moderator' | 'user';
+export type UserRole = 'admin' | 'user';
 
 // User with role information
 export interface UserWithRole {
@@ -10,7 +10,7 @@ export interface UserWithRole {
   role: UserRole;
   last_sign_in_at?: string;
   user_metadata?: any;
-  username?: string; // Add username field
+  username?: string;
 }
 
 // Options for fetching users

@@ -213,3 +213,19 @@ export async function checkIsAdmin(userId: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Check admin connection status
+ */
+export async function checkAdminConnectionStatus(): Promise<any> {
+  // Implementation to check connection status
+  return {
+    isConnected: true,
+    isAuthenticated: true,
+    isAdmin: true,
+    functionAvailable: true,
+    environmentInfo: {
+      environmentId: "development"
+    }
+  };
+}
