@@ -132,6 +132,19 @@ export function getStoredConfig(): SupabaseConfig | null {
 }
 
 /**
+ * Get default configuration for development environments only
+ * This is only used as a fallback when no stored configuration exists
+ */
+export function getDefaultConfig(): SupabaseConfig {
+  return {
+    url: '',
+    anonKey: '',
+    isInitialized: false,
+    environment: 'default'
+  };
+}
+
+/**
  * Save Supabase configuration to local storage
  */
 export function saveConfig(config: SupabaseConfig): boolean {

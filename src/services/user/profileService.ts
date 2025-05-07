@@ -26,11 +26,14 @@ export async function updateUserProfile(userId: string, data: Record<string, any
     
     logger.info('Updating user profile', { userId, fields: Object.keys(cleanData) }, { module: 'profile' });
     
-    const { error, data: updatedData } = await supabase
+    // Explicitly handle the supabase response using await to avoid type errors
+    const response = await supabase
       .from('profiles')
       .update(cleanData)
       .eq('id', userId)
       .select();
+    
+    const { error, data: updatedData } = response;
     
     if (error) {
       logger.error('Error updating user profile:', error, { module: 'profile' });
@@ -95,11 +98,13 @@ export async function getProfile(userId: string) {
     
     logger.info('Fetching user profile', { userId }, { module: 'profile' });
     
-    const { data, error } = await supabase
+    const response = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
+    
+    const { data, error } = response;
     
     if (error) {
       logger.error('Error fetching user profile:', error, { module: 'profile' });
