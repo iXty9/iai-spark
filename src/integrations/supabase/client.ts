@@ -18,7 +18,7 @@ const fallbackClient = {
         description: 'Supabase client is not available. Please check configuration or reconnect.',
         variant: 'destructive',
         action: {
-          label: 'Reconnect',
+          altText: "Reconnect",
           onClick: () => window.location.href = '/supabase-auth'
         }
       });

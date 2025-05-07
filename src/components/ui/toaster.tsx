@@ -1,3 +1,4 @@
+
 import { useToast } from "@/hooks/use-toast"
 import {
   Toast,
@@ -6,6 +7,7 @@ import {
   ToastProvider,
   ToastTitle,
   ToastViewport,
+  ToastAction,
 } from "@/components/ui/toast"
 
 export function Toaster() {
@@ -22,7 +24,13 @@ export function Toaster() {
                 <ToastDescription>{description}</ToastDescription>
               )}
             </div>
-            {action}
+            {action && 'altText' in action ? (
+              <ToastAction altText={action.altText} onClick={action.onClick}>
+                {action.altText}
+              </ToastAction>
+            ) : (
+              action
+            )}
             <ToastClose />
           </Toast>
         )
