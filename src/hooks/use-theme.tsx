@@ -1,8 +1,10 @@
+
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeColors } from '@/types/theme';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { logger } from '@/utils/logging';
+import { applyThemeChanges, applyBackgroundImage } from '@/utils/theme-utils';
 
 type Theme = 'light' | 'dark';
 
@@ -41,10 +43,25 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         if (profile?.theme_settings) {
           try {
             const themeSettings = JSON.parse(profile.theme_settings);
+            logger.info('Loaded theme settings from profile', { themeSettings });
             
             // Check if we should update the theme mode from profile
             if (themeSettings.mode && !storedTheme) {
               setTheme(themeSettings.mode);
+            }
+            
+            // Load and apply theme colors
+            if (themeSettings.lightTheme && themeSettings.darkTheme) {
+              // Apply colors for current theme immediately
+              const currentThemeColors = themeSettings.mode === 'dark' ? 
+                themeSettings.darkTheme : themeSettings.lightTheme;
+              
+              applyThemeChanges(currentThemeColors);
+              
+              logger.info('Applied theme colors from profile', { 
+                mode: themeSettings.mode,
+                applied: true
+              });
             }
             
             // Load background if available
@@ -71,6 +88,15 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
               // Apply default theme mode if no stored theme
               if (defaultTheme.mode && !storedTheme) {
                 setTheme(defaultTheme.mode);
+              }
+              
+              // Apply default theme colors
+              if (defaultTheme.lightTheme && defaultTheme.darkTheme) {
+                // Apply colors for current theme immediately
+                const currentThemeColors = defaultTheme.mode === 'dark' ? 
+                  defaultTheme.darkTheme : defaultTheme.lightTheme;
+                  
+                applyThemeChanges(currentThemeColors);
               }
               
               // Apply default background if available and no background from profile
@@ -110,30 +136,15 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.setItem('theme', theme);
     
     // Log theme change for debugging
-    const debugEvent = {
-      type: 'theme_change',
+    logger.info('Theme changed', {
       theme,
-      timestamp: new Date().toISOString(),
-      // Remove the problematic property that caused TS2353 error
-      // themeMode was not defined in the DebugEvent type
-    };
-    
-    logger.info('Theme changed', debugEvent);
+      timestamp: new Date().toISOString()
+    });
   }, [theme]);
   
   // Apply background to document
   useEffect(() => {
-    const root = window.document.documentElement;
-    
-    if (backgroundImage) {
-      root.style.setProperty('--bg-image-url', `url(${backgroundImage})`);
-      root.style.setProperty('--bg-opacity', backgroundOpacity.toString());
-      root.classList.add('has-bg-image');
-    } else {
-      root.style.removeProperty('--bg-image-url');
-      root.style.removeProperty('--bg-opacity');
-      root.classList.remove('has-bg-image');
-    }
+    applyBackgroundImage(backgroundImage, backgroundOpacity);
   }, [backgroundImage, backgroundOpacity]);
   
   // Handle theme change
@@ -158,16 +169,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   
   // Apply theme colors from theme settings (for custom colors)
   const applyThemeColors = (colors: ThemeColors) => {
-    // Apply theme colors to CSS variables
-    const root = window.document.documentElement;
-    
-    Object.entries(colors).forEach(([key, value]) => {
-      if (value) {
-        // Convert camelCase to kebab-case for CSS variables
-        const cssVar = key.replace(/([A-Z])/g, '-$1').toLowerCase();
-        root.style.setProperty(`--${cssVar}`, value.toString());
-      }
-    });
+    applyThemeChanges(colors);
   };
   
   // Apply background

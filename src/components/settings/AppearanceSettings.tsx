@@ -1,9 +1,11 @@
 
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { ThemeControls } from '@/components/settings/ThemeControls';
 import { ThemeColors } from '@/types/theme';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 
 export interface AppearanceSettingsProps {
   theme: 'light' | 'dark';
@@ -33,52 +35,39 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
   
   return (
     <div className="space-y-6">
-      <Card className="bg-card/80 backdrop-blur-sm">
+      <Card className="bg-card/90 backdrop-blur-sm border shadow-md">
         <CardContent className="pt-6">
-          <div className="mb-6">
-            <h3 className="text-lg font-medium mb-2">Theme Colors</h3>
-            <p className="text-sm text-muted-foreground">
-              Customize the appearance of your chat interface
-            </p>
-          </div>
+          <Tabs defaultValue={theme === 'light' ? 'light' : 'dark'}>
+            <TabsList className="mb-4 grid grid-cols-2">
+              <TabsTrigger value="light">Light Mode</TabsTrigger>
+              <TabsTrigger value="dark">Dark Mode</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="light" className="space-y-4">
+              <ThemeControls 
+                colors={lightTheme}
+                onColorChange={handleLightThemeChange}
+                isActive={theme === 'light'}
+              />
+            </TabsContent>
+            
+            <TabsContent value="dark" className="space-y-4">
+              <ThemeControls 
+                colors={darkTheme}
+                onColorChange={handleDarkThemeChange}
+                isActive={theme === 'dark'}
+              />
+            </TabsContent>
+          </Tabs>
           
-          <div className="space-y-8">
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <Label className="text-base font-medium">Light Mode</Label>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <ThemeControls 
-                  colors={lightTheme}
-                  onColorChange={handleLightThemeChange}
-                  isActive={theme === 'light'}
-                />
-              </div>
-            </div>
-            
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <Label className="text-base font-medium">Dark Mode</Label>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <ThemeControls 
-                  colors={darkTheme}
-                  onColorChange={handleDarkThemeChange}
-                  isActive={theme === 'dark'}
-                />
-              </div>
-            </div>
-            
-            <div className="flex justify-end">
-              <button
-                onClick={onResetTheme}
-                className="text-sm text-muted-foreground hover:text-foreground"
-              >
-                Reset to defaults
-              </button>
-            </div>
+          <div className="flex justify-end mt-6">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onResetTheme}
+            >
+              Reset to defaults
+            </Button>
           </div>
         </CardContent>
       </Card>

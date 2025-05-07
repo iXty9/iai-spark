@@ -1,4 +1,3 @@
-
 import { ThemeColors } from "@/types/theme";
 
 /**
@@ -30,6 +29,9 @@ export const applyThemeChanges = (themeColors: ThemeColors) => {
   
   // Also update the body background color for immediate feedback
   document.body.style.backgroundColor = themeColors.backgroundColor;
+
+  // Log what we're applying
+  console.log('Applied theme colors:', themeColors);
 };
 
 /**
@@ -124,11 +126,15 @@ export const applyBackgroundImage = (image: string | null, opacity: number) => {
   if (image) {
     // Apply background image to body
     document.body.style.backgroundImage = `url(${image})`;
+    root.style.setProperty('--bg-image-url', `url(${image})`);
     document.body.classList.add('with-bg-image');
+    console.log('Applied background image with opacity:', opacity);
   } else {
     // Remove background image
     document.body.style.backgroundImage = 'none';
+    root.style.removeProperty('--bg-image-url');
     document.body.classList.remove('with-bg-image');
+    console.log('Removed background image');
   }
 };
 

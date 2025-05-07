@@ -1,11 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { SettingsTabs } from '@/components/settings/SettingsTabs';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
 import { BackgroundSettings } from '@/components/settings/BackgroundSettings';
 import { ThemeImportExport } from '@/components/settings/ThemeImportExport';
-import { SettingsHeader } from '@/components/settings/SettingsHeader';
-import { SettingsFooter } from '@/components/settings/SettingsFooter';
 import { useTheme } from '@/hooks/use-theme';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
@@ -13,9 +11,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useSettingsState } from '@/hooks/settings/use-settings-state';
 import { useSettingsActions } from '@/hooks/settings/use-settings-actions';
 import { ThemeColors } from '@/types/theme';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -119,10 +118,14 @@ const Settings = () => {
     });
   };
 
+  const handleGoBack = () => {
+    navigate('/');
+  };
+
   if (isLoading) {
     return (
-      <div className="flex flex-col min-h-screen bg-background items-center justify-center">
-        <Card className="w-full max-w-4xl p-8 bg-card/80 backdrop-blur-sm">
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 max-w-6xl mx-auto">
+        <Card className="w-full max-w-4xl p-4 bg-card/90 backdrop-blur-md border shadow-lg">
           <div className="flex flex-col items-center justify-center p-8 text-center">
             <Loader2 className="h-8 w-8 animate-spin mb-4" />
             <h2 className="text-xl font-medium">Loading settings...</h2>
@@ -133,59 +136,95 @@ const Settings = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      <SettingsHeader />
-      
-      <main className="flex-1 container max-w-4xl mx-auto p-4 pt-0">
-        <Card className="bg-card/80 backdrop-blur-sm border shadow-md">
-          <SettingsTabs>
-            <TabsContent value="appearance" className="space-y-6 mt-4 p-6">
-              <h3 className="text-lg font-medium">Theme Appearance</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Customize the colors and appearance of the application
-              </p>
-              
-              <AppearanceSettings
-                theme={theme as 'light' | 'dark'}
-                lightTheme={lightTheme as ThemeColors}
-                darkTheme={darkTheme as ThemeColors}
-                onLightThemeChange={adaptLightThemeChange}
-                onDarkThemeChange={adaptDarkThemeChange}
-                onResetTheme={handleResetTheme}
-              />
-            </TabsContent>
-            
-            <TabsContent value="background" className="space-y-6 mt-4 p-6">
-              <h3 className="text-lg font-medium mb-3">Background Image</h3>
-              <BackgroundSettings
-                backgroundImage={backgroundImage}
-                backgroundOpacity={backgroundOpacity}
-                onBackgroundImageUpload={handleBackgroundImageUpload}
-                onOpacityChange={handleOpacityChange}
-                onRemoveBackground={handleRemoveBackground}
-                isLoading={isBackgroundLoading}
-                imageInfo={imageInfo}
-              />
-            </TabsContent>
-            
-            <TabsContent value="import-export" className="space-y-6 mt-4 p-6">
-              <ThemeImportExport 
-                theme={theme as any}
-                onImport={handleImportTheme}
-              />
-            </TabsContent>
-          </SettingsTabs>
+    <div className="flex flex-col min-h-screen p-4">
+      <div className="container max-w-6xl mx-auto flex-1">
+        <div className="mb-6 flex items-center">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={handleGoBack}
+            className="mr-2"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-semibold">Settings</h1>
+            <p className="text-muted-foreground">Customize your app experience</p>
+          </div>
+        </div>
+        
+        <div className="grid gap-6">
+          <Card className="bg-card/90 backdrop-blur-md border shadow-lg">
+            <CardHeader className="pb-2">
+              <CardTitle>Appearance</CardTitle>
+              <CardDescription>
+                Customize the look and feel of your application
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SettingsTabs>
+                <TabsContent value="appearance" className="space-y-6 mt-4">
+                  <AppearanceSettings
+                    theme={theme as 'light' | 'dark'}
+                    lightTheme={lightTheme as ThemeColors}
+                    darkTheme={darkTheme as ThemeColors}
+                    onLightThemeChange={adaptLightThemeChange}
+                    onDarkThemeChange={adaptDarkThemeChange}
+                    onResetTheme={handleResetTheme}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="background" className="space-y-6 mt-4">
+                  <BackgroundSettings
+                    backgroundImage={backgroundImage}
+                    backgroundOpacity={backgroundOpacity}
+                    onBackgroundImageUpload={handleBackgroundImageUpload}
+                    onOpacityChange={handleOpacityChange}
+                    onRemoveBackground={handleRemoveBackground}
+                    isLoading={isBackgroundLoading}
+                    imageInfo={imageInfo}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="import-export" className="space-y-6 mt-4">
+                  <ThemeImportExport 
+                    theme={theme as any}
+                    onImport={handleImportTheme}
+                  />
+                </TabsContent>
+              </SettingsTabs>
+            </CardContent>
+          </Card>
           
-          <SettingsFooter
-            onSave={handleSave}
-            onReset={handleReset}
-            onCancel={handleCancel}
-            onSetDefault={handleSetDefault}
-            isSubmitting={isSubmitting}
-            hasChanges={hasChanges}
-          />
-        </Card>
-      </main>
+          <div className="flex justify-end space-x-4 mt-4">
+            {hasChanges && (
+              <>
+                <Button 
+                  variant="outline" 
+                  onClick={handleReset}
+                  disabled={isSubmitting}
+                >
+                  Reset Changes
+                </Button>
+                <Button 
+                  onClick={handleSave}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Saving..." : "Save Changes"}
+                </Button>
+              </>
+            )}
+            {!hasChanges && (
+              <Button 
+                variant="outline" 
+                onClick={handleSetDefault}
+              >
+                Set as Default
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

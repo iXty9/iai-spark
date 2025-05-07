@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Upload, X, Loader2, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 interface ImageInfo {
   originalSize?: string;
@@ -34,16 +34,21 @@ export function BackgroundSettings({
   imageInfo = {}
 }: BackgroundSettingsProps) {
   return (
-    <Card className="bg-card/80 backdrop-blur-sm">
-      <CardContent className="pt-6 space-y-4">
+    <Card className="bg-card/90 backdrop-blur-sm border shadow-md">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg">Background Image</CardTitle>
+        <CardDescription>Add a custom background to your interface</CardDescription>
+      </CardHeader>
+      
+      <CardContent className="pt-4 space-y-4">
         <div className="flex justify-center">
           {backgroundImage ? (
-            <div className="relative w-full h-48 rounded-lg overflow-hidden bg-checkerboard">
+            <div className="relative w-full h-48 rounded-lg overflow-hidden bg-checkerboard border">
               <img
                 src={backgroundImage}
                 alt="Background preview"
                 className="w-full h-full object-cover"
-                style={{ opacity: backgroundOpacity }} // Preview with the current opacity
+                style={{ opacity: backgroundOpacity }}
               />
               <Button
                 variant="destructive"
@@ -123,7 +128,7 @@ export function BackgroundSettings({
           />
         </div>
         
-        <div className="text-sm text-muted-foreground">
+        <div className="text-sm text-muted-foreground border-t pt-4 mt-4">
           <p>A lower opacity will make the background color more visible through the image.</p>
           <p className="mt-1">For best results, use images sized at least 1920×1080px.</p>
         </div>
