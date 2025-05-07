@@ -3,13 +3,14 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Info, Database, Loader2 } from 'lucide-react';
+import { ArrowLeft, Info, Database, Loader2, Cloud } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SupabaseConnectionForm } from '@/components/supabase/SupabaseConnectionForm';
 import { getConnectionInfo, resetSupabaseClient, testSupabaseConnection } from '@/services/supabase/connection-service';
 import { saveConfig } from '@/config/supabase-config';
 import { fetchConnectionConfig } from '@/services/admin/settingsService';
 import { ShareConfigDialog } from '@/components/supabase/ShareConfigDialog';
+import { loadSiteEnvironmentConfig } from '@/services/supabase/site-config-service';
 
 export default function SupabaseAuth() {
   const navigate = useNavigate();
@@ -18,24 +19,45 @@ export default function SupabaseAuth() {
   const [dbConfigFound, setDbConfigFound] = useState(false);
   const [dbConfig, setDbConfig] = useState<any>(null);
   const [testingConnection, setTestingConnection] = useState(false);
+  const [siteEnvConfig, setSiteEnvConfig] = useState<any>(null);
+  const [isLoadingSiteEnv, setIsLoadingSiteEnv] = useState(true);
   
-  // Check if there's a saved configuration in the database
+  // Check if there's a saved configuration in the database and site environment
   useEffect(() => {
-    const checkDbConfig = async () => {
+    const checkConfigs = async () => {
       try {
+        // Check for database config
         const config = await fetchConnectionConfig();
         if (config) {
           setDbConfig(config);
           setDbConfigFound(true);
         }
+        
+        // Check for site environment config
+        const defaultConfig = {
+          url: config?.url || connectionInfo.url || '',
+          anonKey: config?.anonKey || ''
+        };
+        
+        if (defaultConfig.url && defaultConfig.anonKey) {
+          const siteConfig = await loadSiteEnvironmentConfig(
+            defaultConfig.url,
+            defaultConfig.anonKey
+          );
+          
+          if (siteConfig) {
+            setSiteEnvConfig(siteConfig);
+          }
+        }
       } catch (error) {
-        console.error("Error checking for database config:", error);
+        console.error("Error checking for configurations:", error);
       } finally {
         setIsLoadingDbConfig(false);
+        setIsLoadingSiteEnv(false);
       }
     };
     
-    checkDbConfig();
+    checkConfigs();
   }, []);
   
   const handleGoBack = () => {
@@ -113,10 +135,10 @@ export default function SupabaseAuth() {
         </CardHeader>
         
         <CardContent>
-          {isLoadingDbConfig ? (
+          {isLoadingDbConfig || isLoadingSiteEnv ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-2">Checking for saved configuration...</span>
+              <span className="ml-2">Checking for saved configurations...</span>
             </div>
           ) : dbConfigFound ? (
             <div className="space-y-6">
@@ -128,6 +150,17 @@ export default function SupabaseAuth() {
                   <p>Last connection: {dbConfig.lastConnection ? new Date(dbConfig.lastConnection).toLocaleString() : 'Unknown'}</p>
                 </AlertDescription>
               </Alert>
+              
+              {siteEnvConfig && (
+                <Alert className="bg-blue-50 border-blue-100">
+                  <Cloud className="h-4 w-4 text-blue-500" />
+                  <AlertTitle className="text-blue-700">Site Environment Config Available</AlertTitle>
+                  <AlertDescription className="text-blue-600 text-sm">
+                    <p>Site environment configuration is enabled for automatic connection.</p>
+                    <p>Last updated: {siteEnvConfig.lastUpdated ? new Date(siteEnvConfig.lastUpdated).toLocaleString() : 'Unknown'}</p>
+                  </AlertDescription>
+                </Alert>
+              )}
               
               <div className="flex gap-2">
                 <Button 
@@ -187,7 +220,7 @@ export default function SupabaseAuth() {
         
         <CardFooter className="flex justify-center border-t pt-4 mt-4">
           <p className="text-xs text-center text-muted-foreground">
-            After connecting, you can share the connection URL with your team to allow access from other devices.
+            After connecting, you can share the connection URL or save site environment config to allow access from other devices.
           </p>
         </CardFooter>
       </Card>

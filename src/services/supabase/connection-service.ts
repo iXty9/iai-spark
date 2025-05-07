@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { toast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
@@ -6,6 +5,7 @@ import { getStoredConfig, getDefaultConfig, hasStoredConfig, clearConfig, getEnv
 import { logger } from '@/utils/logging';
 import { fetchConnectionConfig } from '@/services/admin/settingsService';
 import { fetchBootstrapConfig } from '@/services/supabase/bootstrap-service';
+import { loadSiteEnvironmentConfig } from '@/services/supabase/site-config-service';
 
 let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
 const CONNECTION_ID_KEY = 'supabase_connection_id';
@@ -62,6 +62,46 @@ export async function checkPublicBootstrapConfig() {
         module: 'supabase-connection'
       });
     }
+  }
+
+  // Next, try to load from site environment config if no URL parameters are found
+  try {
+    const defaultConfig = getDefaultConfig();
+    
+    // Only try to load site config if we have a default config to use temporarily
+    if (defaultConfig.url && defaultConfig.anonKey) {
+      logger.info('Attempting to load site environment config', {
+        module: 'supabase-connection'
+      });
+      
+      const siteConfig = await loadSiteEnvironmentConfig(
+        defaultConfig.url, 
+        defaultConfig.anonKey
+      );
+      
+      if (siteConfig) {
+        logger.info('Successfully loaded site environment config', {
+          module: 'supabase-connection',
+          host: siteConfig.siteHost
+        });
+        
+        // Save the site config to localStorage
+        saveConfig({
+          url: siteConfig.supabaseUrl,
+          anonKey: siteConfig.supabaseAnonKey,
+          isInitialized: true
+        });
+        
+        // Reset the Supabase client to use the new config
+        resetSupabaseClient();
+        
+        return true;
+      }
+    }
+  } catch (error) {
+    logger.error('Error loading site environment config', error, {
+      module: 'supabase-connection'
+    });
   }
   
   return false;
@@ -198,6 +238,7 @@ export function getSupabaseClient() {
 /**
  * Try to bootstrap from default config stored in the database
  * This runs as a background operation to avoid blocking the UI
+ * Now enhanced to also check site environment configuration
  */
 async function tryBootstrapFromDefault() {
   // Check if we've already tried too many times this session
@@ -230,6 +271,40 @@ async function tryBootstrapFromDefault() {
     logger.info('Attempting to bootstrap from default config', {
       module: 'supabase-bootstrap'
     });
+    
+    // NEW: First try loading from site environment config
+    try {
+      const siteConfig = await loadSiteEnvironmentConfig(
+        defaultConfig.url,
+        defaultConfig.anonKey
+      );
+      
+      if (siteConfig) {
+        logger.info('Successfully bootstrapped from site environment config', {
+          module: 'supabase-bootstrap',
+          host: siteConfig.siteHost
+        });
+        
+        // Save to localStorage for future use
+        saveConfig({
+          url: siteConfig.supabaseUrl,
+          anonKey: siteConfig.supabaseAnonKey,
+          isInitialized: true
+        });
+        
+        // Reset client to use new config
+        resetSupabaseClient();
+        
+        // Reload the page to use the new config
+        window.location.reload();
+        return;
+      }
+    } catch (error) {
+      logger.error('Error loading from site environment config', error, {
+        module: 'supabase-bootstrap'
+      });
+      // Continue to try other bootstrap methods
+    }
     
     // Try to use the default config to fetch stored settings from the database
     const bootstrapConfig = await fetchBootstrapConfig(

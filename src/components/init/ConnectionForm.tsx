@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { testSupabaseConnection } from '@/services/supabase/connection-service';
 import { Loader2 } from 'lucide-react';
 import { saveConnectionConfig } from '@/services/admin/settingsService';
+import { saveSiteEnvironmentConfig } from '@/services/supabase/site-config-service';
+import { Switch } from '@/components/ui/switch';
 
 interface ConnectionFormProps {
   onSuccess: (url: string, anonKey: string, serviceKey: string) => void;
@@ -19,6 +21,8 @@ export function ConnectionForm({ onSuccess }: ConnectionFormProps) {
   const [isTesting, setIsTesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSavingToDb, setIsSavingToDb] = useState(false);
+  const [isSavingToSiteEnv, setIsSavingToSiteEnv] = useState(false);
+  const [saveToSiteEnv, setSaveToSiteEnv] = useState(true);
   
   // Form validation
   const isValid = url.trim() !== '' && 
@@ -45,6 +49,18 @@ export function ConnectionForm({ onSuccess }: ConnectionFormProps) {
           // Save the config to the database, including the service key
           // During initialization, we can save the service key as it's needed for setup
           await saveConnectionConfig(url, anonKey, serviceKey);
+          
+          // If requested, also save to site environment
+          if (saveToSiteEnv) {
+            setIsSavingToSiteEnv(true);
+            try {
+              await saveSiteEnvironmentConfig(url, anonKey);
+            } catch (err) {
+              console.error("Failed to save to site environment during initialization:", err);
+            } finally {
+              setIsSavingToSiteEnv(false);
+            }
+          }
         } catch (err) {
           console.error("Failed to save connection config to database during initialization:", err);
           // Continue with initialization even if database save fails
@@ -110,6 +126,23 @@ export function ConnectionForm({ onSuccess }: ConnectionFormProps) {
           </p>
         </div>
         
+        <div className="flex items-center space-x-2">
+          <Switch 
+            id="save-site-env" 
+            checked={saveToSiteEnv}
+            onCheckedChange={setSaveToSiteEnv}
+          />
+          <Label htmlFor="save-site-env" className="text-sm">
+            Save as site environment configuration
+          </Label>
+        </div>
+        
+        {saveToSiteEnv && (
+          <div className="bg-blue-50 border border-blue-100 p-3 rounded-md text-sm text-blue-700">
+            This will enable automatic connection for future users and browsers.
+          </div>
+        )}
+        
         {error && (
           <div className="bg-destructive/10 text-destructive p-3 rounded-md text-sm">
             {error}
@@ -119,7 +152,7 @@ export function ConnectionForm({ onSuccess }: ConnectionFormProps) {
       <CardFooter>
         <Button 
           onClick={handleTestConnection} 
-          disabled={!isValid || isTesting || isSavingToDb} 
+          disabled={!isValid || isTesting || isSavingToDb || isSavingToSiteEnv} 
           className="w-full"
         >
           {isTesting ? (
@@ -131,6 +164,11 @@ export function ConnectionForm({ onSuccess }: ConnectionFormProps) {
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Saving Configuration...
+            </>
+          ) : isSavingToSiteEnv ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Saving Site Environment...
             </>
           ) : (
             'Connect to Supabase'
