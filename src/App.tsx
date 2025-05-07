@@ -11,25 +11,28 @@ import Initialize from "./pages/Initialize";
 import { Toaster } from "@/components/ui/toaster";
 import { BootstrapProvider } from "@/components/supabase/BootstrapProvider";
 import { ThemeProvider } from "@/hooks/use-theme";
+import { AuthProvider } from "@/contexts/AuthContext";
 import "./App.css";
 
 function App() {
   return (
     <Router>
       <BootstrapProvider>
-        <ThemeProvider>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/admin" element={<Admin />} />
-            <Route path="/supabase-auth" element={<SupabaseAuth />} />
-            <Route path="/initialize" element={<Initialize />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <Toaster />
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/supabase-auth" element={<SupabaseAuth />} />
+              <Route path="/initialize" element={<Initialize />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <Toaster />
+          </ThemeProvider>
+        </AuthProvider>
       </BootstrapProvider>
     </Router>
   );
