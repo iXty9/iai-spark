@@ -6,6 +6,7 @@ import { logger } from '@/utils/logging';
 import { fetchConnectionConfig } from '@/services/admin/settingsService';
 import { fetchBootstrapConfig } from '@/services/supabase/bootstrap-service';
 import { loadSiteEnvironmentConfig } from '@/services/supabase/site-config-service';
+import { fetchStaticSiteConfig } from '@/services/site-config/site-config-file-service';
 
 let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
 const CONNECTION_ID_KEY = 'supabase_connection_id';
@@ -25,7 +26,7 @@ function getConnectionKey(key: string): string {
  * This is used in server-side rendered environments to avoid infinite loops
  */
 export async function checkPublicBootstrapConfig() {
-  // Check URL parameters for public bootstrap configs
+  // STEP 1: Check URL parameters for public bootstrap configs
   const urlParams = new URLSearchParams(window.location.search);
   const publicUrl = urlParams.get('public_url');
   const publicKey = urlParams.get('public_key');
@@ -64,7 +65,40 @@ export async function checkPublicBootstrapConfig() {
     }
   }
 
-  // Next, try to load from site environment config if no URL parameters are found
+  // STEP 2: Try to fetch from static site config file
+  // This is a key improvement to solve the cold-start problem
+  try {
+    logger.info('Attempting to load static site config file', {
+      module: 'supabase-connection'
+    });
+    
+    const staticConfig = await fetchStaticSiteConfig();
+    
+    if (staticConfig) {
+      logger.info('Successfully loaded static site config file', {
+        module: 'supabase-connection',
+        host: staticConfig.siteHost
+      });
+      
+      // Save the site config to localStorage
+      saveConfig({
+        url: staticConfig.supabaseUrl,
+        anonKey: staticConfig.supabaseAnonKey,
+        isInitialized: true
+      });
+      
+      // Reset the Supabase client to use the new config
+      resetSupabaseClient();
+      
+      return true;
+    }
+  } catch (error) {
+    logger.error('Error loading static site config file', error, {
+      module: 'supabase-connection'
+    });
+  }
+
+  // STEP 3: Try to load from site environment config if no URL parameters or static file are found
   try {
     const defaultConfig = getDefaultConfig();
     
@@ -238,7 +272,7 @@ export function getSupabaseClient() {
 /**
  * Try to bootstrap from default config stored in the database
  * This runs as a background operation to avoid blocking the UI
- * Now enhanced to also check site environment configuration
+ * Enhanced to check static site config file first
  */
 async function tryBootstrapFromDefault() {
   // Check if we've already tried too many times this session
@@ -268,27 +302,24 @@ async function tryBootstrapFromDefault() {
   }
   
   try {
-    logger.info('Attempting to bootstrap from default config', {
+    logger.info('Attempting to bootstrap from multiple sources', {
       module: 'supabase-bootstrap'
     });
     
-    // NEW: First try loading from site environment config
+    // NEW: First try loading from static site config file
     try {
-      const siteConfig = await loadSiteEnvironmentConfig(
-        defaultConfig.url,
-        defaultConfig.anonKey
-      );
+      const staticConfig = await fetchStaticSiteConfig();
       
-      if (siteConfig) {
-        logger.info('Successfully bootstrapped from site environment config', {
+      if (staticConfig) {
+        logger.info('Successfully bootstrapped from static site config file', {
           module: 'supabase-bootstrap',
-          host: siteConfig.siteHost
+          host: staticConfig.siteHost
         });
         
         // Save to localStorage for future use
         saveConfig({
-          url: siteConfig.supabaseUrl,
-          anonKey: siteConfig.supabaseAnonKey,
+          url: staticConfig.supabaseUrl,
+          anonKey: staticConfig.supabaseAnonKey,
           isInitialized: true
         });
         
@@ -300,13 +331,51 @@ async function tryBootstrapFromDefault() {
         return;
       }
     } catch (error) {
+      logger.error('Error loading from static site config file', error, {
+        module: 'supabase-bootstrap'
+      });
+      // Continue to try other bootstrap methods
+    }
+    
+    // NEW: Next try loading from site environment config
+    try {
+      const defaultConfig = getDefaultConfig();
+      
+      if (defaultConfig.url && defaultConfig.anonKey) {
+        const siteConfig = await loadSiteEnvironmentConfig(
+          defaultConfig.url,
+          defaultConfig.anonKey
+        );
+        
+        if (siteConfig) {
+          logger.info('Successfully bootstrapped from site environment config', {
+            module: 'supabase-bootstrap',
+            host: siteConfig.siteHost
+          });
+          
+          // Save to localStorage for future use
+          saveConfig({
+            url: siteConfig.supabaseUrl,
+            anonKey: siteConfig.supabaseAnonKey,
+            isInitialized: true
+          });
+          
+          // Reset client to use new config
+          resetSupabaseClient();
+          
+          // Reload the page to use the new config
+          window.location.reload();
+          return;
+        }
+      }
+    } catch (error) {
       logger.error('Error loading from site environment config', error, {
         module: 'supabase-bootstrap'
       });
       // Continue to try other bootstrap methods
     }
     
-    // Try to use the default config to fetch stored settings from the database
+    // Original fallback method: Try to use the default config to fetch stored settings from the database
     const bootstrapConfig = await fetchBootstrapConfig(
       defaultConfig.url,
       defaultConfig.anonKey

@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCcw, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { logger } from '@/utils/logging';
+import { fetchStaticSiteConfig } from '@/services/site-config/site-config-file-service';
+import { saveConfig, clearConfig } from '@/config/supabase-config';
 
 interface BootstrapProviderProps {
   children: React.ReactNode;
@@ -15,24 +17,61 @@ export function BootstrapProvider({ children }: BootstrapProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [bootstrapFailed, setBootstrapFailed] = useState(false);
   const [isBootstrappedFromSiteConfig, setIsBootstrappedFromSiteConfig] = useState(false);
+  const [bootstrapSource, setBootstrapSource] = useState<string>('');
   const navigate = useNavigate();
   
   useEffect(() => {
-    // Try to bootstrap connection from URL params, site config, or defaults
+    // Try to bootstrap connection using multiple methods, in order of preference
     const bootstrapConnection = async () => {
       try {
-        // This checks for bootstrap config and applies it if found
+        // STEP 1: Try the static site config file (fastest, requires no prior connection)
+        // This is the key solution to the cold start problem
+        const staticConfig = await fetchStaticSiteConfig();
+        if (staticConfig) {
+          logger.info('Bootstrap succeeded from static site config file', {
+            module: 'bootstrap-provider',
+            host: staticConfig.siteHost
+          });
+          
+          // Save to localStorage for future use
+          saveConfig({
+            url: staticConfig.supabaseUrl,
+            anonKey: staticConfig.supabaseAnonKey,
+            isInitialized: true
+          });
+          
+          setBootstrapSource('static-file');
+          setIsBootstrappedFromSiteConfig(true);
+          setIsLoading(false);
+          return;
+        }
+        
+        // STEP 2: Try to bootstrap from URL params or database
+        // This is the fallback method if static file isn't available
         const success = await checkPublicBootstrapConfig();
         
         if (success) {
-          logger.info('Bootstrap succeeded from shared config or site environment', {
+          logger.info('Bootstrap succeeded from URL parameters or database', {
             module: 'bootstrap-provider'
           });
+          
+          setBootstrapSource('url-or-database');
           setIsBootstrappedFromSiteConfig(true);
         } else {
           logger.info('No bootstrap configuration found, proceeding with normal flow', {
             module: 'bootstrap-provider'
           });
+          
+          // If URL has force_init=true, immediately navigate to setup
+          const urlParams = new URLSearchParams(window.location.search);
+          if (urlParams.get('force_init') === 'true') {
+            logger.info('Force initialization parameter detected, redirecting to setup', {
+              module: 'bootstrap-provider'
+            });
+            clearConfig(); // Clear any existing config
+            navigate('/supabase-auth');
+            return;
+          }
         }
       } catch (error) {
         logger.error('Error during bootstrap:', error, {
@@ -45,7 +84,7 @@ export function BootstrapProvider({ children }: BootstrapProviderProps) {
     };
     
     bootstrapConnection();
-  }, []);
+  }, [navigate]);
   
   // Handle reconnect action
   const handleReconnect = () => {
@@ -102,7 +141,7 @@ export function BootstrapProvider({ children }: BootstrapProviderProps) {
           <Info className="h-4 w-4 text-green-500" />
           <AlertTitle>Auto-connected</AlertTitle>
           <AlertDescription>
-            Successfully connected using site configuration
+            Successfully connected using {bootstrapSource === 'static-file' ? 'site configuration file' : 'database settings'}
           </AlertDescription>
         </Alert>
         <div className="mt-2">

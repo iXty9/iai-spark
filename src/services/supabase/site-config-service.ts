@@ -3,15 +3,52 @@ import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
 import { fetchConnectionConfig } from '@/services/admin/settingsService';
 import { testBootstrapConnection } from './bootstrap-service';
+import { fetchStaticSiteConfig, updateStaticSiteConfig } from '@/services/site-config/site-config-file-service';
 
 /**
  * Configuration for server-side environment
  */
-interface SiteConfigEnv {
+export interface SiteConfigEnv {
   siteHost: string;
   supabaseUrl: string;
   supabaseAnonKey: string;
   lastUpdated: string;
+}
+
+/**
+ * Update all site configuration sources to ensure consistency
+ * This updates both the static file and the database record
+ */
+export async function updateAllSiteConfigurations(
+  supabaseUrl: string,
+  supabaseAnonKey: string
+): Promise<boolean> {
+  try {
+    logger.info('Updating all site configuration sources', {
+      module: 'site-config'
+    });
+    
+    const siteHost = window.location.hostname;
+    const config: SiteConfigEnv = {
+      siteHost,
+      supabaseUrl,
+      supabaseAnonKey,
+      lastUpdated: new Date().toISOString()
+    };
+    
+    // Update the database configuration
+    const dbUpdateResult = await saveSiteEnvironmentConfig(supabaseUrl, supabaseAnonKey);
+    
+    // Also try to update the static file configuration
+    const fileUpdateResult = await updateStaticSiteConfig(config);
+    
+    return dbUpdateResult || fileUpdateResult;
+  } catch (error) {
+    logger.error('Error updating all site configurations', error, {
+      module: 'site-config'
+    });
+    return false;
+  }
 }
 
 /**
@@ -89,13 +126,28 @@ export async function saveSiteEnvironmentConfig(
 }
 
 /**
- * Load site environment configuration from app_settings
+ * Load site environment configuration from multiple sources
+ * Tries static file first, then app_settings in database as fallback
  */
 export async function loadSiteEnvironmentConfig(
   temporaryUrl: string,
   temporaryKey: string
 ): Promise<SiteConfigEnv | null> {
   try {
+    // FIRST: Try to load from the static site configuration file
+    // This avoids the need for an initial database connection
+    const staticConfig = await fetchStaticSiteConfig();
+    
+    if (staticConfig) {
+      logger.info('Loaded site environment config from static file', {
+        module: 'site-config',
+        host: staticConfig.siteHost,
+        lastUpdated: staticConfig.lastUpdated
+      });
+      return staticConfig;
+    }
+    
+    // FALLBACK: Try to load from database if static file isn't available
     // Create a temporary client to fetch the site config
     const tempClient = supabase || createTemporaryClient(temporaryUrl, temporaryKey);
     
@@ -114,7 +166,7 @@ export async function loadSiteEnvironmentConfig(
       .single();
     
     if (error || !data) {
-      logger.info('No site environment config found', {
+      logger.info('No site environment config found in database', {
         module: 'site-config',
         error: error?.message
       });
@@ -144,7 +196,7 @@ export async function loadSiteEnvironmentConfig(
         // Still return the config - it could be a different environment but still valid
       }
       
-      logger.info('Loaded site environment config', {
+      logger.info('Loaded site environment config from database', {
         module: 'site-config',
         host: config.siteHost,
         lastUpdated: config.lastUpdated
@@ -216,8 +268,8 @@ export async function testSiteEnvironmentConfig(): Promise<boolean> {
       return false;
     }
     
-    // Save the valid config to site environment
-    const saved = await saveSiteEnvironmentConfig(
+    // Save the valid config to all storage locations
+    const saved = await updateAllSiteConfigurations(
       dbConfig.url,
       dbConfig.anonKey
     );

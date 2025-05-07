@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { testSupabaseConnection } from '@/services/supabase/connection-service';
-import { Loader2, Save, Cloud } from 'lucide-react';
+import { Loader2, Save, Cloud, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { saveConnectionConfig } from '@/services/admin/settingsService';
-import { saveSiteEnvironmentConfig } from '@/services/supabase/site-config-service';
+import { updateAllSiteConfigurations } from '@/services/supabase/site-config-service';
 import { Switch } from '@/components/ui/switch';
+import { updateStaticSiteConfig } from '@/services/site-config/site-config-file-service';
 
 interface SupabaseConnectionFormProps {
   onSuccess: (url: string, anonKey: string) => void;
@@ -22,7 +23,9 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
   const [error, setError] = useState<string | null>(null);
   const [isSavingToDb, setIsSavingToDb] = useState(false);
   const [isSavingToSiteEnv, setIsSavingToSiteEnv] = useState(false);
+  const [isSavingToStaticFile, setIsSavingToStaticFile] = useState(false);
   const [saveToSiteEnv, setSaveToSiteEnv] = useState(true);
+  const [saveToStaticFile, setSaveToStaticFile] = useState(true);
   
   // Form validation
   const isValid = url.trim() !== '' && anonKey.trim() !== '';
@@ -57,9 +60,10 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
             if (saveToSiteEnv) {
               setIsSavingToSiteEnv(true);
               try {
-                const siteEnvSaved = await saveSiteEnvironmentConfig(url, anonKey);
+                // Use the new updateAllSiteConfigurations function to ensure consistency
+                const allSaved = await updateAllSiteConfigurations(url, anonKey);
                 
-                if (siteEnvSaved) {
+                if (allSaved) {
                   toast({
                     title: "Site configuration saved",
                     description: "Connection settings have been saved to the site environment for automatic connection.",
@@ -75,6 +79,36 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
                 console.error("Failed to save to site environment:", err);
               } finally {
                 setIsSavingToSiteEnv(false);
+              }
+            }
+            
+            // If requested, also save to static file
+            if (saveToStaticFile) {
+              setIsSavingToStaticFile(true);
+              try {
+                const staticFileSaved = await updateStaticSiteConfig({
+                  supabaseUrl: url,
+                  supabaseAnonKey: anonKey,
+                  siteHost: window.location.hostname,
+                  lastUpdated: new Date().toISOString()
+                });
+                
+                if (staticFileSaved) {
+                  toast({
+                    title: "Static configuration saved",
+                    description: "Connection settings have been saved to a static file for truly stateless bootstrapping.",
+                  });
+                } else {
+                  toast({
+                    title: "Warning",
+                    description: "Could not save configuration to static file. This feature requires server-side API support.",
+                    variant: "default"
+                  });
+                }
+              } catch (err) {
+                console.error("Failed to save to static file:", err);
+              } finally {
+                setIsSavingToStaticFile(false);
               }
             }
           } else {
@@ -144,10 +178,28 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
         </Label>
       </div>
       
+      <div className="flex items-center space-x-2">
+        <Switch 
+          id="save-static-file" 
+          checked={saveToStaticFile}
+          onCheckedChange={setSaveToStaticFile}
+        />
+        <Label htmlFor="save-static-file" className="text-sm">
+          Generate static configuration file for stateless bootstrapping
+        </Label>
+      </div>
+      
       {saveToSiteEnv && (
         <div className="bg-blue-50 border border-blue-100 p-3 rounded-md text-sm text-blue-700">
           <Cloud className="h-4 w-4 inline-block mr-1 text-blue-500" />
           This will save connection details to enable automatic connection for other users and browsers.
+        </div>
+      )}
+      
+      {saveToStaticFile && (
+        <div className="bg-green-50 border border-green-100 p-3 rounded-md text-sm text-green-700">
+          <FileText className="h-4 w-4 inline-block mr-1 text-green-500" />
+          This will generate a static file to enable truly stateless bootstrapping without requiring an initial connection.
         </div>
       )}
       
@@ -159,7 +211,7 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
       
       <Button 
         onClick={handleTestConnection} 
-        disabled={!isValid || isTesting || isSavingToDb || isSavingToSiteEnv} 
+        disabled={!isValid || isTesting || isSavingToDb || isSavingToSiteEnv || isSavingToStaticFile} 
         className="w-full mt-2"
       >
         {isTesting ? (
@@ -176,6 +228,11 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Saving Site Environment...
+          </>
+        ) : isSavingToStaticFile ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Generating Static Config File...
           </>
         ) : (
           <>
