@@ -12,20 +12,20 @@ interface AppSettings {
 export async function fetchAppSettings(): Promise<AppSettings> {
   try {
     // Use a simpler query to avoid type issues
-    const { data, error } = await supabase
+    const result = await supabase
       .from('app_settings')
       .select('key, value');
       
     // Handle errors
-    if (error) {
-      logger.error('Error fetching app settings:', error);
+    if (result.error) {
+      logger.error('Error fetching app settings:', result.error);
       return {};
     }
     
     // Transform into an object
     const settings: AppSettings = {};
-    if (data) {
-      data.forEach(row => {
+    if (result.data) {
+      result.data.forEach(row => {
         settings[row.key] = row.value;
       });
     }
@@ -40,20 +40,19 @@ export async function fetchAppSettings(): Promise<AppSettings> {
 export async function updateAppSetting(key: string, value: string): Promise<boolean> {
   try {
     // Check if setting exists using a simpler query pattern
-    const { data: existingSetting, error: getError } = await supabase
+    const existingResult = await supabase
       .from('app_settings')
       .select('id')
-      .eq('key', key)
-      .maybeSingle();
+      .eq('key', key);
       
-    if (getError) {
-      logger.error(`Error checking if setting ${key} exists:`, getError);
+    if (existingResult.error) {
+      logger.error(`Error checking if setting ${key} exists:`, existingResult.error);
       return false;
     }
     
     let result;
     
-    if (existingSetting) {
+    if (existingResult.data && existingResult.data.length > 0) {
       // Update existing setting
       result = await supabase
         .from('app_settings')
@@ -83,18 +82,18 @@ export async function updateAppSetting(key: string, value: string): Promise<bool
  */
 export async function getAppSettingsMap(): Promise<Record<string, string>> {
   try {
-    const { data, error } = await supabase
+    const result = await supabase
       .from('app_settings')
       .select('key, value');
       
-    if (error) {
-      logger.error('Error fetching app settings map:', error);
+    if (result.error) {
+      logger.error('Error fetching app settings map:', result.error);
       return {};
     }
     
     const settingsMap: Record<string, string> = {};
-    if (data) {
-      data.forEach(row => {
+    if (result.data) {
+      result.data.forEach(row => {
         settingsMap[row.key] = row.value;
       });
     }

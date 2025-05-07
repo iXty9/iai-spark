@@ -25,8 +25,16 @@ export function getSupabaseClient() {
       return null;
     }
     
-    // Get config from storage or use default
-    const config = hasStoredConfig() ? getStoredConfig() : getDefaultConfig();
+    // First try to use stored configuration - always prioritize this
+    let config = getStoredConfig();
+    
+    // If no stored config is available, use default config as fallback in development
+    if (!config && process.env.NODE_ENV === 'development') {
+      config = getDefaultConfig();
+      logger.warn('No stored config found, using default config as fallback', {
+        module: 'supabase'
+      });
+    }
     
     if (!config) {
       throw new Error('No Supabase configuration available');

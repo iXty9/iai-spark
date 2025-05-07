@@ -16,6 +16,29 @@ interface PostgrestResponse {
   count: number | null;
 }
 
+// Define a PostgrestFilterBuilder type for the fallback client
+interface PostgrestFilterBuilder {
+  eq: (column: string, value: any) => Promise<PostgrestResponse>;
+  neq: (column: string, value: any) => Promise<PostgrestResponse>;
+  gt: (column: string, value: any) => Promise<PostgrestResponse>;
+  lt: (column: string, value: any) => Promise<PostgrestResponse>;
+  gte: (column: string, value: any) => Promise<PostgrestResponse>;
+  lte: (column: string, value: any) => Promise<PostgrestResponse>;
+  like: (column: string, pattern: string) => Promise<PostgrestResponse>;
+  ilike: (column: string, pattern: string) => Promise<PostgrestResponse>;
+  is: (column: string, value: any) => Promise<PostgrestResponse>;
+  in: (column: string, values: any[]) => Promise<PostgrestResponse>;
+  contains: (column: string, value: any) => Promise<PostgrestResponse>;
+  containedBy: (column: string, values: any[]) => Promise<PostgrestResponse>;
+  filter: (column: string, operator: string, value: any) => Promise<PostgrestResponse>;
+  match: (query: object) => Promise<PostgrestResponse>;
+  single: () => Promise<PostgrestResponse>;
+  maybeSingle: () => Promise<PostgrestResponse>;
+  order: (column: string, options?: object) => PostgrestFilterBuilder;
+  limit: (limit: number) => Promise<PostgrestResponse>;
+  range: (from: number, to: number) => Promise<PostgrestResponse>;
+}
+
 // Define a simplified fallback client that ensures consistent typing
 const fallbackClient = {
   auth: {
@@ -43,45 +66,46 @@ const fallbackClient = {
         count: null
       });
     
-    // Base query builder for PostgreSQL table operations
-    return {
-      select: (columns?: string) => ({
-        eq: (column: string, value: any) => standardResponse(),
-        neq: (column: string, value: any) => standardResponse(),
-        gt: (column: string, value: any) => standardResponse(),
-        gte: (column: string, value: any) => standardResponse(),
-        lt: (column: string, value: any) => standardResponse(),
-        lte: (column: string, value: any) => standardResponse(),
-        like: (column: string, pattern: string) => standardResponse(),
-        ilike: (column: string, pattern: string) => standardResponse(),
-        is: (column: string, value: any) => standardResponse(),
-        in: (column: string, values: any[]) => standardResponse(),
-        contains: (column: string, value: any) => standardResponse(),
-        containedBy: (column: string, values: any[]) => standardResponse(),
-        filter: (column: string, operator: string, value: any) => standardResponse(),
-        match: (query: object) => standardResponse(),
-        order: (column: string, options?: object) => ({
-          limit: (limit: number) => standardResponse(),
-          single: () => standardResponse(),
-          maybeSingle: () => standardResponse(),
-          range: (from: number, to: number) => standardResponse(),
-          eq: (column: string, value: any) => standardResponse(),
-          neq: (column: string, value: any) => standardResponse(),
-        }),
-        limit: (limit: number) => standardResponse(),
+    // Create a filter builder that returns standard responses
+    const createFilterBuilder = (): PostgrestFilterBuilder => {
+      const filterBuilder: PostgrestFilterBuilder = {
+        eq: () => standardResponse(),
+        neq: () => standardResponse(),
+        gt: () => standardResponse(),
+        lt: () => standardResponse(),
+        gte: () => standardResponse(),
+        lte: () => standardResponse(),
+        like: () => standardResponse(),
+        ilike: () => standardResponse(),
+        is: () => standardResponse(),
+        in: () => standardResponse(),
+        contains: () => standardResponse(),
+        containedBy: () => standardResponse(),
+        filter: () => standardResponse(),
+        match: () => standardResponse(),
         single: () => standardResponse(),
         maybeSingle: () => standardResponse(),
-        range: (from: number, to: number) => standardResponse()
-      }),
-      insert: (data: any) => standardResponse(),
-      update: (data: any) => ({
-        eq: (column: string, value: any) => standardResponse(),
-        match: (query: object) => standardResponse()
+        order: () => filterBuilder,
+        limit: () => standardResponse(),
+        range: () => standardResponse()
+      };
+      
+      return filterBuilder;
+    };
+    
+    // Base query builder for PostgreSQL table operations
+    return {
+      select: () => createFilterBuilder(),
+      insert: () => standardResponse(),
+      update: () => ({
+        eq: () => standardResponse(),
+        match: () => standardResponse()
       }),
       delete: () => ({
-        eq: (column: string, value: any) => standardResponse(),
-        match: (query: object) => standardResponse()
-      })
+        eq: () => standardResponse(),
+        match: () => standardResponse()
+      }),
+      rpc: (procedureName: string, params?: object) => standardResponse()
     };
   },
   storage: {

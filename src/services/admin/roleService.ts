@@ -11,20 +11,19 @@ import { logger } from '@/utils/logging';
  */
 export async function hasRole(userId: string, role: UserRole): Promise<boolean> {
   try {
-    // Use a simpler query to avoid deep type instantiation
-    const { data, error } = await supabase
+    // Using a simpler query pattern to avoid type errors
+    const result = await supabase
       .from('user_roles')
       .select('id')
       .eq('user_id', userId)
-      .eq('role', role)
-      .maybeSingle();
+      .eq('role', role);
     
-    if (error) {
-      logger.error('Error checking user role:', error);
+    if (result.error) {
+      logger.error('Error checking user role:', result.error);
       return false;
     }
     
-    return !!data;
+    return result.data && result.data.length > 0;
   } catch (error) {
     logger.error('Unexpected error in hasRole:', error);
     return false;
@@ -36,19 +35,18 @@ export async function hasRole(userId: string, role: UserRole): Promise<boolean> 
  */
 export async function getUserRole(userId: string): Promise<UserRole | null> {
   try {
-    // Break down the query steps to avoid deep type instantiation
-    const { data, error } = await supabase
+    // Using a simpler query pattern to avoid type errors
+    const result = await supabase
       .from('user_roles')
       .select('role')
-      .eq('user_id', userId)
-      .maybeSingle();
+      .eq('user_id', userId);
     
-    if (error) {
-      logger.error('Error fetching user role:', error);
+    if (result.error) {
+      logger.error('Error fetching user role:', result.error);
       return null;
     }
 
-    return data?.role || null;
+    return result.data && result.data.length > 0 ? result.data[0].role : null;
   } catch (error) {
     logger.error('Unexpected error in getUserRole:', error);
     return null;
@@ -61,34 +59,33 @@ export async function getUserRole(userId: string): Promise<UserRole | null> {
 export async function setUserRole(userId: string, role: UserRole): Promise<boolean> {
   try {
     // Check if role entry exists without complex chains
-    const { data, error } = await supabase
+    const result = await supabase
       .from('user_roles')
       .select('id')
-      .eq('user_id', userId)
-      .maybeSingle();
+      .eq('user_id', userId);
     
-    if (error) {
-      logger.error('Error checking existing user role:', error);
+    if (result.error) {
+      logger.error('Error checking existing user role:', result.error);
       return false;
     }
 
-    let result;
+    let updateResult;
     
-    if (data) {
+    if (result.data && result.data.length > 0) {
       // Update
-      result = await supabase
+      updateResult = await supabase
         .from('user_roles')
         .update({ role })
         .eq('user_id', userId);
     } else {
       // Insert
-      result = await supabase
+      updateResult = await supabase
         .from('user_roles')
         .insert({ user_id: userId, role });
     }
 
-    if (result.error) {
-      logger.error('Error setting user role:', result.error);
+    if (updateResult.error) {
+      logger.error('Error setting user role:', updateResult.error);
       return false;
     }
 

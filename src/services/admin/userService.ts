@@ -1,3 +1,4 @@
+
 import { logger } from '@/utils/logging';
 // This file is being replaced by userRolesService.ts functionality
 // Keeping it for backward compatibility
@@ -6,7 +7,11 @@ import { logger } from '@/utils/logging';
 export { 
   fetchUsers, 
   searchUsers, 
-  updateUserRole,
+  updateUserRole
+} from './userRolesService';
+
+// Re-export types
+export type { 
   UserWithRole,
   UserRole,
   UsersFetchOptions,
