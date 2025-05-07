@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
-// CORS headers for browser requests
+// CORS headers for browser requests - now more flexible to support multiple environments
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -24,15 +24,35 @@ serve(async (req) => {
   }
 
   // Create Supabase client with service role
-  const supabaseAdmin = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    { auth: { persistSession: false } }
-  );
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.error("Missing required environment variables: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+    return new Response(
+      JSON.stringify({ error: 'Server configuration error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+  
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, { 
+    auth: { persistSession: false }
+  });
 
   console.log("Request received to admin-users function");
 
   try {
+    // Simple ping action for connection testing
+    const requestBody = await req.json();
+    const { action, params = {} } = requestBody;
+    
+    if (action === 'ping') {
+      return new Response(
+        JSON.stringify({ success: true, message: 'admin-users function is available' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     // Get token from Authorization header
     const token = authHeader.replace('Bearer ', '');
     
@@ -40,9 +60,15 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     
     if (userError || !user) {
-      console.error("Authentication error:", userError);
+      const errorDetails = userError ? `: ${userError.message}` : '';
+      console.error(`Authentication error${errorDetails}`);
+      
       return new Response(
-        JSON.stringify({ error: 'Unauthorized: Invalid user token' }),
+        JSON.stringify({ 
+          error: 'Unauthorized: Invalid user token', 
+          message: userError?.message || "Authentication failed",
+          code: "auth_error"
+        }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -60,7 +86,11 @@ serve(async (req) => {
     if (roleError) {
       console.error("Role check error:", roleError);
       return new Response(
-        JSON.stringify({ error: 'Error checking user permissions' }),
+        JSON.stringify({ 
+          error: 'Error checking user permissions',
+          message: roleError.message,
+          code: "permission_error"
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -68,14 +98,14 @@ serve(async (req) => {
     if (!roleData) {
       console.log(`User ${user.id} does not have admin role`);
       return new Response(
-        JSON.stringify({ error: 'Forbidden: Admin access required' }),
+        JSON.stringify({ 
+          error: 'Forbidden: Admin access required',
+          message: "The authenticated user does not have admin privileges",
+          code: "access_denied"
+        }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Parse request JSON
-    const requestBody = await req.json();
-    const { action, params = {} } = requestBody;
 
     console.log(`Processing action: ${action} with params:`, params);
 
@@ -89,14 +119,22 @@ serve(async (req) => {
         return await handleUpdateUserRole(supabaseAdmin, params, corsHeaders);
       default:
         return new Response(
-          JSON.stringify({ error: 'Invalid action', supportedActions: ['listUsers', 'searchUsers', 'updateUserRole'] }),
+          JSON.stringify({ 
+            error: 'Invalid action', 
+            supportedActions: ['ping', 'listUsers', 'searchUsers', 'updateUserRole'],
+            code: "invalid_action"
+          }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
     }
   } catch (error) {
     console.error('Error processing request:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        code: "server_error",
+        details: error.stack ? error.stack.split('\n').slice(0, 3).join('\n') : 'No details available'
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

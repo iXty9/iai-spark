@@ -2,13 +2,19 @@
 import { createClient } from '@supabase/supabase-js';
 import { toast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
-import { getStoredConfig, getDefaultConfig, hasStoredConfig, clearConfig } from '@/config/supabase-config';
+import { getStoredConfig, getDefaultConfig, hasStoredConfig, clearConfig, getEnvironmentId } from '@/config/supabase-config';
 import { logger } from '@/utils/logging';
 
 let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
 const CONNECTION_ID_KEY = 'supabase_connection_id';
 const LAST_CONNECTION_TIME_KEY = 'supabase_last_connection';
 const ENVIRONMENT_KEY = 'supabase_environment';
+
+// Store current environment with connection
+function getConnectionKey(key: string): string {
+  const envId = getEnvironmentId();
+  return `${key}_${envId}`;
+}
 
 /**
  * Get the Supabase client instance, creating it if needed
@@ -18,21 +24,23 @@ export function getSupabaseClient() {
   
   try {
     // Generate a unique connection ID for this instance if one doesn't exist
-    if (!localStorage.getItem(CONNECTION_ID_KEY)) {
+    const connIdKey = getConnectionKey(CONNECTION_ID_KEY);
+    if (!localStorage.getItem(connIdKey)) {
       const connectionId = `conn_${Math.random().toString(36).substring(2, 10)}`;
-      localStorage.setItem(CONNECTION_ID_KEY, connectionId);
+      localStorage.setItem(connIdKey, connectionId);
       
       // Store environment info for debugging
       const hostname = window.location.hostname;
-      localStorage.setItem(ENVIRONMENT_KEY, hostname);
+      localStorage.setItem(getConnectionKey(ENVIRONMENT_KEY), hostname);
       
       logger.info(`Generating new connection ID: ${connectionId} for ${hostname}`, {
-        module: 'supabase-connection'
+        module: 'supabase-connection',
+        environmentId: getEnvironmentId()
       });
     }
     
-    const connectionId = localStorage.getItem(CONNECTION_ID_KEY);
-    const environment = localStorage.getItem(ENVIRONMENT_KEY) || window.location.hostname;
+    const connectionId = localStorage.getItem(connIdKey);
+    const environment = localStorage.getItem(getConnectionKey(ENVIRONMENT_KEY)) || window.location.hostname;
     
     // Check for force_init parameter - don't initialize client if forcing init
     const urlParams = new URLSearchParams(window.location.search);
@@ -62,7 +70,8 @@ export function getSupabaseClient() {
       logger.info(`Using stored Supabase configuration for connection ${connectionId} on ${environment}`, {
         module: 'supabase',
         custom: true,
-        url: storedConfig.url
+        url: storedConfig.url ? storedConfig.url.split('//')[1] : 'undefined',
+        environmentId: getEnvironmentId()
       });
       
       // Create and initialize the Supabase client with stored config
@@ -76,7 +85,7 @@ export function getSupabaseClient() {
       });
       
       // Record last connection time
-      localStorage.setItem(LAST_CONNECTION_TIME_KEY, new Date().toISOString());
+      localStorage.setItem(getConnectionKey(LAST_CONNECTION_TIME_KEY), new Date().toISOString());
       
       return supabaseInstance;
     }
@@ -85,27 +94,35 @@ export function getSupabaseClient() {
     if (process.env.NODE_ENV === 'development') {
       const defaultConfig = getDefaultConfig();
       logger.warn(`No stored config found for ${environment}, using default config as fallback for connection ${connectionId}`, {
-        module: 'supabase'
+        module: 'supabase',
+        environmentId: getEnvironmentId()
       });
       
       // Create client with default config, but only in development
-      supabaseInstance = createClient<Database>(defaultConfig.url, defaultConfig.anonKey, {
-        auth: {
-          storage: localStorage,
-          persistSession: true,
-          autoRefreshToken: true,
-          debug: true
-        }
-      });
-      
-      // Record last connection time
-      localStorage.setItem(LAST_CONNECTION_TIME_KEY, new Date().toISOString());
-      
-      return supabaseInstance;
+      if (defaultConfig.url && defaultConfig.anonKey) {
+        supabaseInstance = createClient<Database>(defaultConfig.url, defaultConfig.anonKey, {
+          auth: {
+            storage: localStorage,
+            persistSession: true,
+            autoRefreshToken: true,
+            debug: true
+          }
+        });
+        
+        // Record last connection time
+        localStorage.setItem(getConnectionKey(LAST_CONNECTION_TIME_KEY), new Date().toISOString());
+        
+        return supabaseInstance;
+      } else {
+        logger.warn('Default config is incomplete (missing URL or anonKey)', { 
+          module: 'supabase',
+          environmentId: getEnvironmentId()
+        });
+      }
     }
     
     // In production with no config, show error
-    throw new Error(`No Supabase configuration available for ${environment}`);
+    throw new Error(`No Supabase configuration available for ${environment} (env: ${getEnvironmentId()})`);
   } catch (error) {
     logger.error('Failed to initialize Supabase client', error);
     toast({
@@ -151,7 +168,8 @@ export async function testSupabaseConnection(url: string, anonKey: string): Prom
  */
 export function resetSupabaseClient() {
   logger.info('Resetting Supabase client instance', {
-    module: 'supabase'
+    module: 'supabase',
+    environmentId: getEnvironmentId()
   });
   
   supabaseInstance = null;
@@ -161,14 +179,19 @@ export function resetSupabaseClient() {
  * Get current connection information for debugging
  */
 export function getConnectionInfo() {
-  const connectionId = localStorage.getItem(CONNECTION_ID_KEY) || 'not_set';
-  const environment = localStorage.getItem(ENVIRONMENT_KEY) || window.location.hostname;
-  const lastConnection = localStorage.getItem(LAST_CONNECTION_TIME_KEY) || 'never';
+  const connIdKey = getConnectionKey(CONNECTION_ID_KEY);
+  const envKey = getConnectionKey(ENVIRONMENT_KEY);
+  const lastConnKey = getConnectionKey(LAST_CONNECTION_TIME_KEY);
+  
+  const connectionId = localStorage.getItem(connIdKey) || 'not_set';
+  const environment = localStorage.getItem(envKey) || window.location.hostname;
+  const lastConnection = localStorage.getItem(lastConnKey) || 'never';
   const storedConfig = getStoredConfig();
   
   return {
     connectionId,
     environment,
+    environmentId: getEnvironmentId(),
     lastConnection,
     hasStoredConfig: !!storedConfig,
     url: storedConfig?.url ? storedConfig.url.split('//')[1] : 'No stored config'
