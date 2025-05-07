@@ -26,14 +26,15 @@ export async function updateUserProfile(userId: string, data: Record<string, any
     
     logger.info('Updating user profile', { userId, fields: Object.keys(cleanData) }, { module: 'profile' });
     
-    // Explicitly handle the supabase response using await to avoid type errors
-    const response = await supabase
+    // Create query builder first, then await the result to fix the TypeScript error
+    const query = supabase
       .from('profiles')
       .update(cleanData)
       .eq('id', userId)
       .select();
-    
-    const { error, data: updatedData } = response;
+      
+    // Now await the result
+    const { error, data: updatedData } = await query;
     
     if (error) {
       logger.error('Error updating user profile:', error, { module: 'profile' });

@@ -34,6 +34,7 @@ interface LogOptions {
   throttle?: boolean;
   once?: boolean;
   module?: string;
+  connectionInfo?: Record<string, any>; // Added connectionInfo property for environment diagnostics
 }
 
 /**

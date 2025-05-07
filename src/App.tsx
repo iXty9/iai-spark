@@ -10,6 +10,7 @@ import Settings from '@/pages/Settings';
 import Profile from '@/pages/Profile';
 import NotFound from '@/pages/NotFound';
 import Initialize from '@/pages/Initialize';
+import SupabaseAuth from '@/pages/SupabaseAuth';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SystemSelfHealer } from '@/components/system/SystemSelfHealer';
 
@@ -35,6 +36,7 @@ function App() {
               <Route path="/settings" element={<Settings />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/initialize" element={<Initialize />} />
+              <Route path="/supabase-auth" element={<SupabaseAuth />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Router>

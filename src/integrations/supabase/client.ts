@@ -15,8 +15,13 @@ const fallbackClient = {
     getSession: () => {
       toast({
         title: 'Connection Error',
-        description: 'Supabase client is not available. Please check configuration.',
-        variant: 'destructive'
+        description: 'Supabase client is not available. Please check configuration or reconnect.',
+        variant: 'destructive',
+        action: (
+          <a href="/supabase-auth" className="bg-destructive/10 hover:bg-destructive/20 text-destructive px-3 py-1 rounded-md text-xs">
+            Reconnect
+          </a>
+        )
       });
       return Promise.resolve({ data: { session: null }, error: new Error('Client not initialized') });
     },
