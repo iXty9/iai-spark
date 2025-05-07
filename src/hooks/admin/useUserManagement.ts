@@ -2,9 +2,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import {
-  UserWithRole, UserRole,
-  fetchUsers, searchUsers, updateUserRole, checkAdminConnectionStatus
-} from '@/services/admin/userRolesService';
+  UserWithRole, UserRole, UsersFetchOptions, UsersSearchOptions, UsersFetchResult
+} from '@/services/admin/types/userTypes';
+import { fetchUsers, searchUsers, updateUserRole, checkAdminConnectionStatus } from '@/services/admin/userService';
+import { checkIsAdmin } from '@/services/admin/userRolesService';
 import { clearAllEnvironmentConfigs } from '@/config/supabase-config';
 
 export function useUserManagement() {

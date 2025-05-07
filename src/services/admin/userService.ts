@@ -41,7 +41,8 @@ export async function fetchUsers(options: UsersFetchOptions = {}): Promise<Users
       id: user.id,
       email: user.email || '',
       created_at: user.created_at,
-      role: 'user' as UserRole
+      role: 'user' as UserRole,
+      username: user.username
     })) || [];
     
     return { 

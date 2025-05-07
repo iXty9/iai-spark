@@ -14,7 +14,7 @@ export type { UserRole, UserWithRole } from './types/userTypes';
  */
 export async function assignRole(
   userId: string, 
-  role: string
+  role: UserRole
 ): Promise<{ success: boolean; error?: PostgrestError }> {
   try {
     const { error } = await supabase
@@ -32,15 +32,16 @@ export async function assignRole(
     logger.info(`Role ${role} assigned to user ${userId}`, { module: 'userRoles' });
     return { success: true };
   } catch (err) {
-    const error = err as PostgrestError;
-    logger.error('Unexpected error in assignRole:', error, { module: 'userRoles' });
+    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+    logger.error('Unexpected error in assignRole:', errorMsg, { module: 'userRoles' });
     return { 
       success: false, 
       error: {
         message: 'Unexpected error assigning role',
         details: '',
         hint: '',
-        code: 'UNKNOWN'
+        code: 'UNKNOWN',
+        name: 'PostgrestError'
       } 
     };
   }
@@ -53,7 +54,7 @@ export async function assignRole(
  */
 export async function removeRole(
   userId: string, 
-  role: string
+  role: UserRole
 ): Promise<{ success: boolean; error?: PostgrestError }> {
   try {
     const { error } = await supabase
@@ -72,15 +73,16 @@ export async function removeRole(
     logger.info(`Role ${role} removed from user ${userId}`, { module: 'userRoles' });
     return { success: true };
   } catch (err) {
-    const error = err as PostgrestError;
-    logger.error('Unexpected error in removeRole:', error, { module: 'userRoles' });
+    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+    logger.error('Unexpected error in removeRole:', errorMsg, { module: 'userRoles' });
     return { 
       success: false, 
       error: {
         message: 'Unexpected error removing role',
         details: '',
         hint: '',
-        code: 'UNKNOWN'
+        code: 'UNKNOWN',
+        name: 'PostgrestError'
       }
     };
   }
@@ -108,17 +110,19 @@ export async function getUserRoles(
       return { roles: [], error };
     }
     
-    return { roles: data as UserRole[] || [] };
+    const rolesList = data?.map(item => item.role as UserRole) || [];
+    return { roles: rolesList };
   } catch (err) {
-    const error = err as PostgrestError;
-    logger.error('Unexpected error in getUserRoles:', error, { module: 'userRoles' });
+    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+    logger.error('Unexpected error in getUserRoles:', errorMsg, { module: 'userRoles' });
     return { 
       roles: [], 
       error: {
         message: 'Unexpected error fetching roles',
         details: '',
         hint: '',
-        code: 'UNKNOWN'
+        code: 'UNKNOWN',
+        name: 'PostgrestError'
       }
     };
   }
@@ -131,31 +135,33 @@ export async function getUserRoles(
  */
 export async function hasRole(
   userId: string, 
-  role: string
+  role: UserRole
 ): Promise<{ hasRole: boolean; error?: PostgrestError }> {
   try {
+    // Using a direct query instead of RPC since RPC isn't available in the client
     const { data, error } = await supabase
-      .rpc('has_role', {
-        _user_id: userId,
-        _role: role
-      });
+      .from('user_roles')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('role', role);
     
     if (error) {
       logger.error('Error checking user role:', error, { module: 'userRoles' });
       return { hasRole: false, error };
     }
     
-    return { hasRole: data || false };
+    return { hasRole: (data && data.length > 0) || false };
   } catch (err) {
-    const error = err as PostgrestError;
-    logger.error('Unexpected error in hasRole:', error, { module: 'userRoles' });
+    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+    logger.error('Unexpected error in hasRole:', errorMsg, { module: 'userRoles' });
     return { 
       hasRole: false, 
       error: {
         message: 'Unexpected error checking role',
         details: '',
         hint: '',
-        code: 'UNKNOWN'
+        code: 'UNKNOWN',
+        name: 'PostgrestError'
       }
     };
   }
@@ -166,30 +172,29 @@ export async function hasRole(
  */
 export async function getAllRoles(): Promise<{ roles: string[]; error?: PostgrestError }> {
   try {
-    // Query distinct roles from user_roles table
+    // Get distinct roles from user_roles table
     const { data, error } = await supabase
       .from('user_roles')
-      .select('role')
-      .limit(100);
+      .select('role');
     
     if (error) {
       logger.error('Error fetching all roles:', error, { module: 'userRoles' });
       return { roles: [], error };
     }
     
-    // Extract unique role values
     const uniqueRoles = Array.from(new Set(data?.map(item => item.role as string) || []));
     return { roles: uniqueRoles };
   } catch (err) {
-    const error = err as PostgrestError;
-    logger.error('Unexpected error in getAllRoles:', error, { module: 'userRoles' });
+    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+    logger.error('Unexpected error in getAllRoles:', errorMsg, { module: 'userRoles' });
     return { 
       roles: [], 
       error: {
         message: 'Unexpected error fetching roles',
         details: '',
         hint: '',
-        code: 'UNKNOWN'
+        code: 'UNKNOWN',
+        name: 'PostgrestError'
       }
     };
   }

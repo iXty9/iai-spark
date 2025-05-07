@@ -10,6 +10,7 @@ export interface UserWithRole {
   role: UserRole;
   last_sign_in_at?: string;
   user_metadata?: any;
+  username?: string; // Add username field
 }
 
 // Options for fetching users
