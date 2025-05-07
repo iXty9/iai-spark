@@ -1,89 +1,121 @@
 
 import React, { useEffect, useState } from 'react';
-import { Chat } from '@/components/chat/Chat';
-import { useIOSSafari } from '@/hooks/use-ios-safari';
-import { IOSFallbackInput } from '@/components/chat/IOSFallbackInput';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link } from "react-router-dom";
 import { useLocation } from 'react-router-dom';
-import { useTheme } from '@/hooks/use-theme';
-import { logger } from '@/utils/logging';
-import { fetchAppSettings } from '@/services/admin/settingsService';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { CheckCircle2 } from 'lucide-react';
 
-const Index = () => {
-  const { isIOSSafari, showFallbackInput } = useIOSSafari();
+export default function Index() {
   const location = useLocation();
-  const { isThemeLoaded, theme } = useTheme();
-  const [attemptedThemeLoad, setAttemptedThemeLoad] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   
-  // Apply iOS viewport fixes
   useEffect(() => {
-    if (isIOSSafari) {
-      // Fix viewport height issues on iOS
-      const setIOSViewportHeight = () => {
-        const vh = window.innerHeight * 0.01;
-        document.documentElement.style.setProperty('--vh', `${vh}px`);
-      };
+    // Check if we have a success message from shared config
+    const searchParams = new URLSearchParams(location.search);
+    if (searchParams.get('shared_config') === 'success') {
+      setShowSuccessMessage(true);
       
-      setIOSViewportHeight();
-      window.addEventListener('resize', setIOSViewportHeight);
-      window.addEventListener('orientationchange', () => {
-        setTimeout(setIOSViewportHeight, 100);
-      });
+      // Clear the parameter from the URL without page refresh
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('shared_config');
+      window.history.replaceState({}, document.title, newUrl.toString());
       
-      return () => {
-        window.removeEventListener('resize', setIOSViewportHeight);
-        window.removeEventListener('orientationchange', () => {});
-      };
+      // Hide the success message after 5 seconds
+      const timer = setTimeout(() => {
+        setShowSuccessMessage(false);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
     }
-  }, [isIOSSafari]);
-  
-  // Check if theme loaded properly, and if not, attempt to force load it once
-  useEffect(() => {
-    const loadThemeIfNeeded = async () => {
-      // Only attempt to force load theme once
-      if (!isThemeLoaded && !attemptedThemeLoad) {
-        logger.info('Attempting to force load theme on Index component mount', { module: 'index' });
-        setAttemptedThemeLoad(true);
-        
-        try {
-          // Wait 1 second to allow normal theme loading to complete first
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // If theme is still not loaded, force reload settings
-          if (!isThemeLoaded) {
-            logger.info('Force loading theme settings', { module: 'index' });
-            await fetchAppSettings();
-          }
-        } catch (error) {
-          logger.error('Error during automatic theme loading', error, { module: 'index' });
-        }
-      }
-    };
-    
-    loadThemeIfNeeded();
-  }, [isThemeLoaded, attemptedThemeLoad]);
-  
-  // Log when theme is loaded to help with debugging
-  useEffect(() => {
-    if (isThemeLoaded) {
-      logger.info('Theme loaded in Index component', { 
-        module: 'index',
-        theme,
-        attemptedForceLoad: attemptedThemeLoad
-      });
-    }
-  }, [isThemeLoaded, theme, attemptedThemeLoad]);
-  
+  }, [location]);
+
   return (
-    <div 
-      className={`h-screen w-full bg-transparent ${isIOSSafari ? 'ios-safari-page' : ''}`}
-      style={{ height: isIOSSafari ? 'calc(var(--vh, 1vh) * 100)' : '100vh' }}
-    >
-      <div className={`h-full w-full ${isIOSSafari ? 'ios-viewport-fix' : ''}`}>
-        <Chat />
+    <div className="container py-10">
+      {showSuccessMessage && (
+        <Alert className="mb-6 bg-green-50 border-green-200">
+          <CheckCircle2 className="h-4 w-4 text-green-600" />
+          <AlertTitle className="text-green-800">Connection Successful</AlertTitle>
+          <AlertDescription className="text-green-700">
+            Your shared Supabase configuration has been applied successfully.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <h1 className="text-3xl font-bold mb-6">Welcome</h1>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Authentication</CardTitle>
+            <CardDescription>
+              Sign in or create a new account
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link to="/auth">
+              <Button className="w-full">Go to Auth</Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Profile</CardTitle>
+            <CardDescription>
+              View and edit your profile
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link to="/profile">
+              <Button className="w-full" variant="outline">View Profile</Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Admin</CardTitle>
+            <CardDescription>
+              Access admin dashboard
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link to="/admin">
+              <Button className="w-full" variant="secondary">Admin Panel</Button>
+            </Link>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Settings</CardTitle>
+            <CardDescription>
+              Configure application settings
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link to="/settings">
+              <Button className="w-full" variant="outline">Settings</Button>
+            </Link>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Database Setup</CardTitle>
+            <CardDescription>
+              Configure Supabase database
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link to="/supabase-auth">
+              <Button className="w-full" variant="default">Configure Database</Button>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
-      <IOSFallbackInput show={isIOSSafari && showFallbackInput} />
     </div>
   );
-};
-
-export default Index;
+}
