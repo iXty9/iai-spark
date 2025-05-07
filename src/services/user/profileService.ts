@@ -1,119 +1,115 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
-import { uploadFile, AVATARS_BUCKET, ensureStorageBucketsExist } from '@/services/supabase/storage-service';
+import { toast } from '@/hooks/use-toast';
+import { AVATARS_BUCKET, uploadFile } from '@/services/supabase/storage-service';
 
-export interface ProfileUpdateData {
-  username?: string;
-  first_name?: string;
-  last_name?: string;
-  avatar_url?: string;
-  phone_number?: string;
-  phone_country_code?: string;
-  theme_settings?: string;
-}
-
-/**
- * Update a user's profile
- */
-export async function updateProfile(userId: string, data: ProfileUpdateData): Promise<{
-  success: boolean;
-  error: Error | null;
-}> {
-  if (!userId) {
-    return {
-      success: false,
-      error: new Error('User ID is required'),
-    };
-  }
-
+export async function updateUserProfile(userId: string, data: Record<string, any>) {
   try {
-    const { error } = await supabase
-      .from('profiles')
-      .update(data)
-      .eq('id', userId);
-
-    if (error) {
-      logger.error('Error updating profile:', error);
-      return {
-        success: false,
-        error,
-      };
+    if (!userId) {
+      logger.error('Attempted to update profile without userId', { module: 'profile' });
+      return { data: null, error: 'No user ID provided' };
     }
-
-    return {
-      success: true,
-      error: null,
-    };
-  } catch (error: any) {
-    logger.error('Unexpected error updating profile:', error);
-    return {
-      success: false,
-      error,
-    };
-  }
-}
-
-/**
- * Upload a profile avatar
- */
-export async function uploadProfileAvatar(
-  userId: string,
-  file: File
-): Promise<{
-  success: boolean;
-  url?: string;
-  error: Error | null;
-}> {
-  try {
-    // Ensure storage is properly configured
-    await ensureStorageBucketsExist();
     
-    // Upload the avatar using the generic file upload function
-    const { url, error } = await uploadFile(
-      file,
-      AVATARS_BUCKET,
-      `${userId}/${crypto.randomUUID()}`,
-      { optimize: true, maxWidth: 400, maxHeight: 400 }
-    );
-
+    // Remove null/undefined values to avoid overwriting with nulls
+    const cleanData = Object.entries(data).reduce((acc, [key, value]) => {
+      if (value !== null && value !== undefined) {
+        acc[key] = value;
+      }
+      return acc;
+    }, {} as Record<string, any>);
+    
+    // No data to update
+    if (Object.keys(cleanData).length === 0) {
+      return { data: null, error: null };
+    }
+    
+    logger.info('Updating user profile', { userId, fields: Object.keys(cleanData) }, { module: 'profile' });
+    
+    const { error, data: updatedData } = await supabase
+      .from('profiles')
+      .update(cleanData)
+      .eq('id', userId)
+      .select()
+      .single();
+    
     if (error) {
-      return {
-        success: false,
-        error,
-      };
+      logger.error('Error updating user profile:', error, { module: 'profile' });
+      return { data: null, error };
     }
+    
+    return { data: updatedData, error: null };
+  } catch (error) {
+    logger.error('Unexpected error updating profile:', error);
+    return { data: null, error };
+  }
+}
 
-    if (!url) {
-      return {
-        success: false,
-        error: new Error('Upload succeeded but no URL was returned'),
-      };
+export async function uploadAvatar(userId: string, file: File) {
+  try {
+    if (!userId || !file) {
+      logger.error('Missing userId or file for avatar upload', { module: 'profile' });
+      return { url: null, error: 'Missing data for upload' };
     }
-
-    // Update the profile with the new avatar URL
-    const { success: updateSuccess, error: updateError } = await updateProfile(userId, {
-      avatar_url: url,
-    });
-
-    if (!updateSuccess) {
-      return {
-        success: false,
-        url,
-        error: updateError,
-      };
+    
+    // Create a unique filename for the avatar
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+    const filePath = `${userId}/${fileName}`;
+    
+    // Upload the file
+    const { url, error } = await uploadFile(AVATARS_BUCKET, filePath, file);
+    
+    if (error) {
+      toast({
+        title: 'Avatar upload failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return { url: null, error };
     }
+    
+    // Update the user profile with the new avatar_url
+    if (url) {
+      const { error: updateError } = await updateUserProfile(userId, {
+        avatar_url: url
+      });
+      
+      if (updateError) {
+        logger.error('Error updating profile with new avatar:', updateError, { module: 'profile' });
+      }
+    }
+    
+    return { url, error: null };
+  } catch (error) {
+    logger.error('Unexpected error uploading avatar:', error);
+    return { url: null, error };
+  }
+}
 
-    return {
-      success: true,
-      url,
-      error: null,
-    };
-  } catch (error: any) {
-    logger.error('Error uploading profile avatar:', error);
-    return {
-      success: false,
-      error,
-    };
+export async function getProfile(userId: string) {
+  try {
+    if (!userId) {
+      logger.error('Attempted to get profile without userId', { module: 'profile' });
+      return { data: null, error: 'No user ID provided' };
+    }
+    
+    logger.info('Fetching user profile', { userId }, { module: 'profile' });
+    
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    if (error) {
+      logger.error('Error fetching user profile:', error, { module: 'profile' });
+      return { data: null, error };
+    }
+    
+    return { data, error: null };
+  } catch (error) {
+    logger.error('Unexpected error getting profile:', error);
+    return { data: null, error };
   }
 }
