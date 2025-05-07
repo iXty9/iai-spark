@@ -4,6 +4,7 @@ import { toast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 import { getStoredConfig, getDefaultConfig, hasStoredConfig, clearConfig, getEnvironmentId } from '@/config/supabase-config';
 import { logger } from '@/utils/logging';
+import { fetchConnectionConfig } from '@/services/admin/settingsService';
 
 let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
 const CONNECTION_ID_KEY = 'supabase_connection_id';
@@ -90,6 +91,44 @@ export function getSupabaseClient() {
       return supabaseInstance;
     }
     
+    // If no stored config is available in localStorage, try to fetch from database
+    // This is an async operation but should be fast
+    fetchConnectionConfig().then(dbConfig => {
+      if (dbConfig) {
+        logger.info(`Found connection configuration in database for ${environment}`, {
+          module: 'supabase',
+          url: dbConfig.url.split('//')[1], // Log domain only for security
+          lastConnection: dbConfig.lastConnection || 'unknown',
+          environmentId: getEnvironmentId()
+        });
+        
+        // Store config in localStorage for future use
+        const config = {
+          url: dbConfig.url,
+          anonKey: dbConfig.anonKey,
+          serviceKey: dbConfig.serviceKey,
+          isInitialized: dbConfig.isInitialized,
+          savedAt: new Date().toISOString(),
+          environment: window.location.hostname
+        };
+        
+        // Save to localStorage
+        const configKey = getConnectionKey('spark_supabase_config');
+        localStorage.setItem(configKey, JSON.stringify(config));
+        
+        // Reset supabase client to use new config
+        resetSupabaseClient();
+        
+        // Reload the page to use the new config
+        window.location.reload();
+      }
+    }).catch(error => {
+      logger.error('Error fetching connection config from database:', error, { 
+        module: 'supabase',
+        environmentId: getEnvironmentId()
+      });
+    });
+    
     // If no stored config is available, only use default config as fallback in development
     if (process.env.NODE_ENV === 'development') {
       const defaultConfig = getDefaultConfig();
@@ -128,7 +167,11 @@ export function getSupabaseClient() {
     toast({
       title: 'Connection Error',
       description: 'Could not connect to database. Please check configuration.',
-      variant: 'destructive'
+      variant: 'destructive',
+      action: {
+        altText: "Reconnect",
+        onClick: () => window.location.href = '/supabase-auth'
+      }
     });
     
     // Return null instead of potentially invalid instance

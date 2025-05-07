@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { testSupabaseConnection } from '@/services/supabase/connection-service';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { saveConnectionConfig } from '@/services/admin/settingsService';
 
 interface SupabaseConnectionFormProps {
   onSuccess: (url: string, anonKey: string) => void;
@@ -17,6 +18,7 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
   const [anonKey, setAnonKey] = useState('');
   const [isTesting, setIsTesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSavingToDb, setIsSavingToDb] = useState(false);
   
   // Form validation
   const isValid = url.trim() !== '' && anonKey.trim() !== '';
@@ -32,11 +34,38 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
       const connectionValid = await testSupabaseConnection(url, anonKey);
       
       if (connectionValid) {
+        // First save config to localStorage via the onSuccess callback
+        onSuccess(url, anonKey);
+        
+        // Then try to save to database (this will only work if we have established a connection)
+        setIsSavingToDb(true);
+        
+        try {
+          const dbSaved = await saveConnectionConfig(url, anonKey);
+          
+          if (dbSaved) {
+            toast({
+              title: "Configuration saved",
+              description: "Your connection settings have been saved to the database and will be available across all browsers.",
+            });
+          } else {
+            toast({
+              title: "Warning",
+              description: "Connected successfully, but couldn't save configuration to database for persistence. Settings will only be available in this browser.",
+              variant: "warning"
+            });
+          }
+        } catch (err) {
+          // Don't block the user flow if this fails - they'll have localStorage config which should work fine
+          console.error("Failed to save connection config to database:", err);
+        } finally {
+          setIsSavingToDb(false);
+        }
+        
         toast({
           title: "Connection successful",
           description: "Successfully connected to Supabase.",
         });
-        onSuccess(url, anonKey);
       } else {
         setError('Could not connect to Supabase with the provided credentials. Please check your URL and keys.');
       }
@@ -83,13 +112,18 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
       
       <Button 
         onClick={handleTestConnection} 
-        disabled={!isValid || isTesting} 
+        disabled={!isValid || isTesting || isSavingToDb} 
         className="w-full mt-2"
       >
         {isTesting ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Testing Connection...
+          </>
+        ) : isSavingToDb ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Saving Configuration...
           </>
         ) : (
           'Connect to Supabase'

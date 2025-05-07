@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { testSupabaseConnection } from '@/services/supabase/connection-service';
 import { Loader2 } from 'lucide-react';
+import { saveConnectionConfig } from '@/services/admin/settingsService';
 
 interface ConnectionFormProps {
   onSuccess: (url: string, anonKey: string, serviceKey: string) => void;
@@ -17,6 +18,7 @@ export function ConnectionForm({ onSuccess }: ConnectionFormProps) {
   const [serviceKey, setServiceKey] = useState('');
   const [isTesting, setIsTesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSavingToDb, setIsSavingToDb] = useState(false);
   
   // Form validation
   const isValid = url.trim() !== '' && 
@@ -34,7 +36,21 @@ export function ConnectionForm({ onSuccess }: ConnectionFormProps) {
       const connectionValid = await testSupabaseConnection(url, anonKey);
       
       if (connectionValid) {
+        // First call the onSuccess callback to handle localStorage storage
         onSuccess(url, anonKey, serviceKey);
+        
+        // Then try to save to database
+        setIsSavingToDb(true);
+        try {
+          // Save the config to the database, including the service key
+          // During initialization, we can save the service key as it's needed for setup
+          await saveConnectionConfig(url, anonKey, serviceKey);
+        } catch (err) {
+          console.error("Failed to save connection config to database during initialization:", err);
+          // Continue with initialization even if database save fails
+        } finally {
+          setIsSavingToDb(false);
+        }
       } else {
         setError('Could not connect to Supabase with the provided credentials. Please check your URL and keys.');
       }
@@ -103,13 +119,18 @@ export function ConnectionForm({ onSuccess }: ConnectionFormProps) {
       <CardFooter>
         <Button 
           onClick={handleTestConnection} 
-          disabled={!isValid || isTesting} 
+          disabled={!isValid || isTesting || isSavingToDb} 
           className="w-full"
         >
           {isTesting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Testing Connection...
+            </>
+          ) : isSavingToDb ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Saving Configuration...
             </>
           ) : (
             'Connect to Supabase'
