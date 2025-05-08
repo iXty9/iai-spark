@@ -7,7 +7,7 @@
 import { logger } from '@/utils/logging';
 import { configLoader } from './config-loader';
 import { ConfigSource } from './config-loader-types';
-import { resetSupabaseClient } from './connection-service';
+import { resetSupabaseClient, getSupabaseClient } from './connection-service';
 import { getEnvironmentInfo } from '@/config/supabase/environment';
 
 // Bootstrap state machine states
@@ -256,6 +256,8 @@ export async function executeBootstrap(
       // Use multiple retries with increasing delays
       const retryClientInit = (attempt = 1, maxAttempts = 3) => {
         setTimeout(() => {
+          // Import the function directly from connection-service to avoid reference errors
+          const { getSupabaseClient } = require('./connection-service');
           const client = getSupabaseClient();
           
           if (client) {
