@@ -1,117 +1,105 @@
-import { createClient } from '@supabase/supabase-js';
-import { toast } from '@/hooks/use-toast';
-import type { Database } from '@/integrations/supabase/types';
-import { getStoredConfig, clearConfig, getEnvironmentId, getEnvironmentInfo } from '@/config/supabase-config';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { getStoredConfig, saveConfig, clearConfig } from '@/config/supabase-config';
+import { fetchStaticSiteConfig } from '@/services/site-config/site-config-file-service';
 import { logger } from '@/utils/logging';
-import { configLoader } from '@/services/supabase/config-loader';
-import { ConfigSource } from '@/services/supabase/config-loader-types';
 
-// Client instance and connection tracking
-let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
-const CONNECTION_ID_KEY = 'supabase_connection_id';
-const LAST_CONNECTION_TIME_KEY = 'supabase_last_connection';
-const ENVIRONMENT_KEY = 'supabase_environment';
-const CONNECTION_STATE_KEY = 'supabase_connection_state';
+// Store the Supabase client instance
+let supabaseInstance: SupabaseClient | null = null;
 
-// Connection state tracking
-interface ConnectionState {
-  lastAttempt: string;
-  lastSuccess: string | null;
-  attemptCount: number;
-  source: string;
+// Connection test result type
+export interface ConnectionTestResult {
+  isConnected: boolean;
   error?: string;
-}
-
-// Store current environment with connection
-function getConnectionKey(key: string): string {
-  const envId = getEnvironmentId();
-  return `${key}_${envId}`;
+  errorCode?: string;
 }
 
 /**
- * Public endpoint to check if default bootstrap config should be tried
- * This is used in server-side rendered environments to avoid infinite loops
- * Now uses the unified configuration loader
+ * Test a Supabase connection with given credentials
+ * Returns a result object or boolean depending on the implementation
  */
-export async function checkPublicBootstrapConfig() {
+export async function testSupabaseConnection(
+  url: string,
+  anonKey: string
+): Promise<ConnectionTestResult | boolean> {
   try {
-    logger.info('Checking for bootstrap configuration', {
-      module: 'supabase-connection'
-    });
-    
-    // Check if this is a first-time user (no previous connection attempts)
-    const isFirstTimeUser = !localStorage.getItem(getConnectionKey(LAST_CONNECTION_TIME_KEY));
-    
-    // For first-time users, we'll be more aggressive with retries
-    const maxAttempts = isFirstTimeUser ? 3 : 1;
-    
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      if (attempt > 0) {
-        // Add a small delay between attempts
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        logger.info(`Retry attempt ${attempt} for bootstrap configuration`, {
-          module: 'supabase-connection'
-        });
-      }
+    // Input validation - return early if values are empty
+    if (!url || !url.trim() || !anonKey || !anonKey.trim()) {
+      logger.warn('Empty credentials provided to testSupabaseConnection', {
+        module: 'connection-service',
+        hasUrl: !!url,
+        hasAnonKey: !!anonKey
+      });
       
-      // Use the unified configuration loader
-      const result = await configLoader.loadConfiguration();
-      
-      if (result.config) {
-        logger.info(`Successfully loaded configuration from ${result.source}`, {
-          module: 'supabase-connection'
-        });
-        
-        // Save the configuration
-        configLoader.saveConfiguration(result.config);
-        
-        // Reset the Supabase client to use the new config
-        resetSupabaseClient();
-        
-        // Update connection state
-        updateConnectionState({
-          lastAttempt: new Date().toISOString(),
-          lastSuccess: new Date().toISOString(),
-          attemptCount: 1,
-          source: result.source
-        });
-        
-        return true;
-      }
+      return {
+        isConnected: false,
+        error: 'Empty credentials provided',
+        errorCode: 'EMPTY_CREDENTIALS'
+      };
     }
     
-    logger.info('No bootstrap configuration found after attempts', {
-      module: 'supabase-connection',
-      error: 'Configuration not found'
+    logger.info('Testing Supabase connection', {
+      module: 'connection-service',
+      urlPreview: url.substring(0, 12) + '...'
     });
     
-    // Update connection state
-    updateConnectionState({
-      lastAttempt: new Date().toISOString(),
-      lastSuccess: null,
-      attemptCount: getConnectionState().attemptCount + 1,
-      source: ConfigSource.NONE,
-      error: 'Configuration not found after multiple attempts'
+    // Create a temporary client for testing
+    const tempClient = createClient(url.trim(), anonKey.trim(), {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
+      }
     });
     
-    return false;
+    // Verify the connection works by making a simple query
+    const { data, error } = await tempClient.from('app_settings').select('count(*)', { count: 'exact' });
+    
+    if (error) {
+      logger.error('Connection test failed', {
+        module: 'connection-service',
+        error: error.message,
+        code: error.code
+      });
+      
+      return {
+        isConnected: false,
+        error: error.message,
+        errorCode: error.code
+      };
+    }
+    
+    // Also check auth is working
+    const { data: authData, error: authError } = await tempClient.auth.getSession();
+    
+    if (authError) {
+      logger.error('Connection auth test failed', {
+        module: 'connection-service',
+        error: authError.message
+      });
+      
+      return {
+        isConnected: false,
+        error: `Auth check failed: ${authError.message}`,
+        errorCode: 'AUTH_ERROR'
+      };
+    }
+    
+    logger.info('Supabase connection test successful', {
+      module: 'connection-service'
+    });
+    
+    return {
+      isConnected: true
+    };
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    logger.error('Error checking bootstrap configuration', error, {
-      module: 'supabase-connection'
+    logger.error('Error testing Supabase connection', error instanceof Error ? error : String(error), {
+      module: 'connection-service'
     });
     
-    // Update connection state
-    updateConnectionState({
-      lastAttempt: new Date().toISOString(),
-      lastSuccess: null,
-      attemptCount: getConnectionState().attemptCount + 1,
-      source: ConfigSource.NONE,
-      error: errorMsg
-    });
-    
-    return false;
+    return {
+      isConnected: false,
+      error: error instanceof Error ? error.message : String(error),
+      errorCode: 'UNKNOWN_ERROR'
+    };
   }
 }
 
@@ -315,74 +303,6 @@ export function getSupabaseClient() {
     
     // Return null instead of potentially invalid instance
     return null;
-  }
-}
-
-/**
- * Test a Supabase connection with the given URL and key
- * Enhanced with better error handling
- */
-export async function testSupabaseConnection(url: string, anonKey: string): Promise<boolean> {
-  try {
-    if (!url || !anonKey) {
-      logger.warn('Invalid connection parameters for test', {
-        module: 'supabase-connection',
-        hasUrl: !!url,
-        hasKey: !!anonKey
-      });
-      return false;
-    }
-    
-    logger.info('Testing Supabase connection', {
-      module: 'supabase-connection',
-      url: url.split('//')[1]
-    });
-    
-    const testClient = createClient(url, anonKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false
-      }
-    });
-    
-    // Try to make a simple query to test the connection
-    const { error } = await testClient
-      .from('profiles')
-      .select('id')
-      .limit(1);
-    
-    // Connection is good if there's no error or if it's just a "table not found" error
-    const isConnected = !error || error.code === '42P01';
-    
-    if (isConnected) {
-      logger.info('Supabase connection test successful', {
-        module: 'supabase-connection',
-        url: url.split('//')[1]
-      });
-    } else {
-      logger.warn('Supabase connection test failed', {
-        module: 'supabase-connection',
-        url: url.split('//')[1],
-        errorCode: error.code,
-        errorMessage: error.message
-      });
-    }
-    
-    return isConnected;
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    logger.error('Error testing Supabase connection', error, {
-      module: 'supabase-connection'
-    });
-    
-    // Check for specific error types
-    if (errorMsg.includes('fetch') || errorMsg.includes('network')) {
-      logger.warn('Network error during connection test - possible offline or CORS issue', {
-        module: 'supabase-connection'
-      });
-    }
-    
-    return false;
   }
 }
 
@@ -770,5 +690,92 @@ export async function attemptConnectionRepair(): Promise<boolean> {
       module: 'supabase-connection'
     });
     return false;
+  }
+}
+
+/**
+ * Check if the current configuration is invalid or empty
+ * This helps detect when we should redirect to initialization
+ */
+export function isConfigEmpty(): boolean {
+  const config = getStoredConfig();
+  
+  // Check if we have no config at all
+  if (!config) {
+    return true;
+  }
+  
+  // Check if the config has empty values
+  if (!config.url || !config.url.trim() || !config.anonKey || !config.anonKey.trim()) {
+    // Clear the invalid config to prevent auto-connection attempts
+    clearConfig();
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Check if the current route should bypass the normal redirect behavior
+ * This prevents redirect loops for specific pages like /initialize and /supabase-auth
+ */
+export function shouldBypassRedirect(pathname: string): boolean {
+  // These routes should never be redirected away from
+  const bypassRoutes = [
+    '/initialize',
+    '/supabase-auth',
+    '/auth/error',
+    '/api/',
+    '/debug'
+  ];
+  
+  return bypassRoutes.some(route => pathname.startsWith(route));
+}
+
+/**
+ * Get the appropriate redirect path based on the current config state
+ * Returns null if no redirect is needed
+ */
+export async function getRedirectPath(): Promise<string | null> {
+  try {
+    // Check if we're on a bypass route
+    const pathname = window.location.pathname;
+    if (shouldBypassRedirect(pathname)) {
+      return null;
+    }
+    
+    // Check for static config file first
+    const staticConfig = await fetchStaticSiteConfig();
+    
+    // If static config is missing or empty, redirect to initialization
+    if (!staticConfig || !staticConfig.supabaseUrl || !staticConfig.supabaseUrl.trim() || 
+        !staticConfig.supabaseAnonKey || !staticConfig.supabaseAnonKey.trim()) {
+      
+      // Clear any stored config since we're missing static config
+      clearConfig();
+      
+      logger.info('Missing or empty static site config, redirecting to initialization', {
+        module: 'connection-service'
+      });
+      
+      return '/initialize';
+    }
+    
+    // If stored config is empty or invalid but static config exists, 
+    // redirect to reconnect page
+    if (isConfigEmpty() && staticConfig) {
+      logger.info('Valid static site config exists but stored config is empty, redirecting to reconnect', {
+        module: 'connection-service'
+      });
+      return '/supabase-auth';
+    }
+    
+    // No redirect needed
+    return null;
+  } catch (error) {
+    logger.error('Error determining redirect path', error, {
+      module: 'connection-service'
+    });
+    return null;
   }
 }

@@ -50,6 +50,9 @@ const Initialize = () => {
     return `init_${Math.random().toString(36).substring(2, 10)}`;
   });
   
+  // State to prevent auth errors with the null client
+  const [hasValidClient, setHasValidClient] = useState<boolean>(false);
+  
   // Check if initialization was interrupted
   const [wasInterrupted, setWasInterrupted] = useState<boolean>(() => {
     try {
@@ -165,6 +168,33 @@ const Initialize = () => {
   const resetConfig = urlParams.get('reset_config') === 'true';
   const resumeInit = urlParams.get('resume') === 'true';
   
+  // Safely get connection info without causing auth errors
+  const safeGetConnectionInfo = () => {
+    try {
+      if (hasValidClient) {
+        return getConnectionInfo();
+      }
+      return { 
+        environment: { 
+          id: getEnvironmentInfo().id 
+        },
+        url: 'not_connected',
+        lastConnection: 'never'
+      };
+    } catch (error) {
+      logger.error('Error getting connection info', error, {
+        module: 'initialize'
+      });
+      return { 
+        environment: { 
+          id: 'unknown' 
+        },
+        url: 'error',
+        lastConnection: 'never'
+      };
+    }
+  };
+  
   // Save state whenever it changes
   const saveState = useCallback(() => {
     try {
@@ -229,55 +259,77 @@ const Initialize = () => {
   
   // Check if already initialized
   useEffect(() => {
-    if (resetConfig) {
-      // Clear config, reset Supabase client, and reload with force_init parameter
-      clearConfig();
-      toast({
-        title: 'Configuration Reset',
-        description: 'The stored configuration has been cleared.',
-      });
-      
-      // Use a slight delay before redirecting to ensure localStorage is updated
-      setTimeout(() => {
-        // Reload the page with force_init parameter
-        navigate('/initialize?force_init=true', { replace: true });
-      }, 100);
-      return;
-    }
-    
-    // Check for resume parameter
-    if (resumeInit) {
-      try {
-        const savedState = localStorage.getItem(INIT_STATE_KEY);
-        if (savedState) {
-          const parsedState = JSON.parse(savedState) as InitializationState;
-          // Only resume if state is less than 24 hours old
-          const savedTime = new Date(parsedState.timestamp).getTime();
-          const now = new Date().getTime();
-          const hoursSinceSaved = (now - savedTime) / (1000 * 60 * 60);
-          
-          if (hoursSinceSaved < 24) {
-            toast({
-              title: 'Resuming Setup',
-              description: `Continuing from step ${parsedState.step + 1} of 4.`,
-            });
-            return;
-          }
-        }
-      } catch (e) {
-        logger.error('Error resuming initialization', e, {
-          module: 'initialize'
+    // Ensure we handle initialization safely even if there's no valid client
+    try {
+      if (resetConfig) {
+        // Clear config, reset Supabase client, and reload with force_init parameter
+        clearConfig();
+        toast({
+          title: 'Configuration Reset',
+          description: 'The stored configuration has been cleared.',
         });
+        
+        // Use a slight delay before redirecting to ensure localStorage is updated
+        setTimeout(() => {
+          // Reload the page with force_init parameter
+          navigate('/initialize?force_init=true', { replace: true });
+        }, 100);
+        return;
       }
-    }
-    
-    // Allow forcing the initialize page with force_init parameter
-    if (!forceInit && !resumeInit && hasStoredConfig()) {
-      toast({
-        title: 'Already Configured',
-        description: 'Supabase connection is already configured.',
+      
+      // Check for resume parameter
+      if (resumeInit) {
+        try {
+          const savedState = localStorage.getItem(INIT_STATE_KEY);
+          if (savedState) {
+            const parsedState = JSON.parse(savedState) as InitializationState;
+            // Only resume if state is less than 24 hours old
+            const savedTime = new Date(parsedState.timestamp).getTime();
+            const now = new Date().getTime();
+            const hoursSinceSaved = (now - savedTime) / (1000 * 60 * 60);
+            
+            if (hoursSinceSaved < 24) {
+              toast({
+                title: 'Resuming Setup',
+                description: `Continuing from step ${parsedState.step + 1} of 4.`,
+              });
+              return;
+            }
+          }
+        } catch (e) {
+          logger.error('Error resuming initialization', e, {
+            module: 'initialize'
+          });
+        }
+      }
+      
+      // Check if client is valid before trying to access stored configs
+      setTimeout(() => {
+        try {
+          // This simple check will detect if client is initialized properly
+          const hasConfig = hasStoredConfig();
+          setHasValidClient(true);
+          
+          // Allow forcing the initialize page with force_init parameter
+          if (!forceInit && !resumeInit && hasConfig) {
+            toast({
+              title: 'Already Configured',
+              description: 'Supabase connection is already configured.',
+            });
+            navigate('/');
+          }
+        } catch (error) {
+          logger.error('Error checking Supabase configuration', error, {
+            module: 'initialize'
+          });
+          // Keep going - we're already on the initialize page
+        }
+      }, 200);
+    } catch (error) {
+      logger.error('Error in initialization check', error, {
+        module: 'initialize'
       });
-      navigate('/');
+      // Continue with initialization since there was an error
     }
   }, [navigate, forceInit, resetConfig, resumeInit]);
   
@@ -437,10 +489,10 @@ const Initialize = () => {
     }
   };
   
-  // Render the developer info alert
+  // Render the developer info alert safely
   const renderDevAlert = () => {
     if (isDevelopment()) {
-      const connectionInfo = getConnectionInfo();
+      const connectionInfo = safeGetConnectionInfo();
       
       return (
         <Alert className="mb-6">

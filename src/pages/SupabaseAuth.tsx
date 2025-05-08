@@ -59,10 +59,11 @@ export default function SupabaseAuth() {
             config.anonKey
           );
           
-          if (!connectionTest || connectionTest === false) {
+          // Fix: Handle connectionTest properly based on its type
+          if (connectionTest === false || (typeof connectionTest === 'object' && !connectionTest.isConnected)) {
             logger.warn('Saved database config exists but connection failed', {
               module: 'supabase-auth',
-              error: 'Connection test failed'
+              error: typeof connectionTest === 'object' ? connectionTest.error : 'Connection test failed'
             });
           }
         }
@@ -129,7 +130,11 @@ export default function SupabaseAuth() {
       // Test the connection before using it
       const connectionTest = await testSupabaseConnection(dbConfig.url, dbConfig.anonKey);
       
-      if (connectionTest && connectionTest !== false) {
+      // Fix: Handle connectionTest properly based on its type
+      const isConnected = connectionTest === true || 
+                         (typeof connectionTest === 'object' && connectionTest.isConnected);
+      
+      if (isConnected) {
         // Save the config from the database to localStorage
         saveConfig({
           url: dbConfig.url,
@@ -144,7 +149,10 @@ export default function SupabaseAuth() {
         // Navigate back to previous page or home
         navigate('/');
       } else {
-        throw new Error("Connection failed with saved credentials");
+        const errorMessage = typeof connectionTest === 'object' && connectionTest.error 
+                           ? connectionTest.error 
+                           : "Connection failed with saved credentials";
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error("Error using saved configuration:", error);

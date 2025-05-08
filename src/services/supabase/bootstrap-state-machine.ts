@@ -1,3 +1,4 @@
+
 /**
  * Bootstrap state machine for managing Supabase connection bootstrap process
  * This provides a more robust approach to handling the bootstrap process
@@ -7,8 +8,9 @@
 import { logger } from '@/utils/logging';
 import { configLoader } from './config-loader';
 import { ConfigSource } from './config-loader-types';
-import { resetSupabaseClient, getSupabaseClient } from './connection-service';
+import { resetSupabaseClient, getSupabaseClient, shouldBypassRedirect } from './connection-service';
 import { getEnvironmentInfo } from '@/config/supabase/environment';
+import { clearConfig } from '@/config/supabase-config';
 
 // Bootstrap state machine states
 export enum BootstrapState {
@@ -57,6 +59,15 @@ export function initBootstrapContext(): BootstrapContext {
     } catch (e) {
       // If localStorage isn't available, return a memory-only context
       logger.warn('localStorage not available for bootstrap context', {
+        module: 'bootstrap-state-machine'
+      });
+      return createDefaultContext();
+    }
+    
+    // Check if we're on a page that should bypass normal bootstrap behavior
+    const pathname = window.location.pathname;
+    if (shouldBypassRedirect(pathname)) {
+      logger.info(`Bootstrap on bypass route ${pathname}, using default context`, {
         module: 'bootstrap-state-machine'
       });
       return createDefaultContext();
@@ -216,6 +227,27 @@ export async function executeBootstrap(
   onStateChange: (newContext: BootstrapContext) => void
 ): Promise<BootstrapContext> {
   try {
+    // Check if we're on a route that should bypass the bootstrap process
+    const pathname = window.location.pathname;
+    if (shouldBypassRedirect(pathname)) {
+      logger.info(`Bypassing bootstrap on route ${pathname}`, {
+        module: 'bootstrap-state-machine'
+      });
+      
+      // Return in CONFIG_MISSING state but don't trigger redirect
+      const bypassContext = transitionTo(
+        context,
+        BootstrapState.CONFIG_MISSING,
+        onStateChange,
+        {
+          error: `Bootstrap bypassed on route ${pathname}`,
+          errorType: ErrorType.CONFIG
+        }
+      );
+      
+      return bypassContext;
+    }
+    
     // Update context with current state - transition to LOADING
     const loadingContext = transitionTo(
       context, 
@@ -242,6 +274,9 @@ export async function executeBootstrap(
           hasUrl: !!result.config.url,
           hasAnonKey: !!result.config.anonKey
         });
+        
+        // Clear config to prevent auto-connection with invalid values
+        clearConfig();
         
         // Handle as CONFIG_MISSING case when values are empty
         const errorContext = transitionTo(
@@ -282,23 +317,46 @@ export async function executeBootstrap(
         try {
           await new Promise(resolve => setTimeout(resolve, 500 * attempt));
           
-          // Use dynamic import instead of require
-          const { getSupabaseClient } = await import('./connection-service');
-          const client = getSupabaseClient();
-          
-          if (client) {
-            logger.info(`Bootstrap forced client initialization: success on attempt ${attempt}`, {
+          // Create client with explicit error handling
+          try {
+            const client = getSupabaseClient();
+            
+            if (client) {
+              // Test if auth is working
+              const { data, error } = await client.auth.getSession();
+              
+              if (error) {
+                logger.warn(`Bootstrap client initialization auth check failed on attempt ${attempt}`, {
+                  module: 'bootstrap-state-machine',
+                  error: error.message
+                });
+                
+                if (attempt < maxAttempts) {
+                  return await retryClientInit(attempt + 1, maxAttempts);
+                }
+              } else {
+                logger.info(`Bootstrap forced client initialization: success on attempt ${attempt}`, {
+                  module: 'bootstrap-state-machine'
+                });
+              }
+            } else if (attempt < maxAttempts) {
+              logger.warn(`Bootstrap forced client initialization failed, retry ${attempt}/${maxAttempts}`, {
+                module: 'bootstrap-state-machine'
+              });
+              await retryClientInit(attempt + 1, maxAttempts);
+            } else {
+              logger.error(`Bootstrap forced client initialization failed after ${maxAttempts} attempts`, {
+                module: 'bootstrap-state-machine'
+              });
+            }
+          } catch (clientError) {
+            logger.error('Client initialization error', clientError, {
               module: 'bootstrap-state-machine'
             });
-          } else if (attempt < maxAttempts) {
-            logger.warn(`Bootstrap forced client initialization failed, retry ${attempt}/${maxAttempts}`, {
-              module: 'bootstrap-state-machine'
-            });
-            await retryClientInit(attempt + 1, maxAttempts);
-          } else {
-            logger.error(`Bootstrap forced client initialization failed after ${maxAttempts} attempts`, {
-              module: 'bootstrap-state-machine'
-            });
+            
+            if (attempt < maxAttempts) {
+              return await retryClientInit(attempt + 1, maxAttempts);
+            }
           }
         } catch (error) {
           logger.error('Error during client initialization retry', error, {
@@ -333,6 +391,30 @@ export async function executeBootstrap(
       
       return successContext;
     } else {
+      // Handle empty static site configuration
+      if (result.source === ConfigSource.STATIC_FILE) {
+        clearConfig();
+        
+        logger.info('Static site config is empty or invalid', {
+          module: 'bootstrap-state-machine',
+          error: result.error
+        });
+        
+        // Transition to CONFIG_MISSING with specific error
+        const errorContext = transitionTo(
+          loadingContext,
+          BootstrapState.CONFIG_MISSING,
+          onStateChange,
+          {
+            error: 'Static site configuration is missing or contains empty values',
+            errorType: ErrorType.CONFIG,
+            configSource: result.source
+          }
+        );
+        
+        return errorContext;
+      }
+      
       // No configuration found or invalid configuration - transition to appropriate error state
       logger.warn('No valid configuration found during bootstrap', {
         module: 'bootstrap-state-machine',
