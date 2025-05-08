@@ -5,7 +5,7 @@
 
 import { logger } from '@/utils/logging';
 import { getConnectionInfo } from './connection-service';
-import { getBootstrapContext, BootstrapContext, BootstrapState } from './bootstrap-state-machine';
+import { BootstrapContext, BootstrapState } from './bootstrap-state-machine';
 import { testBootstrapConnection } from './bootstrap-service';
 import { validateConfig } from './config-validation';
 import { getStoredConfig } from '@/config/supabase-config';
@@ -99,7 +99,7 @@ export async function runBootstrapDiagnostics(): Promise<DiagnosticResult> {
  * Get the bootstrap context
  * This is a wrapper to handle cases where the context might not be available
  */
-function getBootstrapContext(): BootstrapContext {
+export function getBootstrapContext(): BootstrapContext {
   try {
     // This function should be imported from bootstrap-state-machine
     // For now, we'll create a placeholder
