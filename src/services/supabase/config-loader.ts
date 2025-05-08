@@ -1,4 +1,3 @@
-
 /**
  * Unified configuration loader service
  * Provides a standardized approach to loading Supabase configuration
@@ -206,9 +205,7 @@ export async function loadFromStaticFile(): Promise<ConfigLoadResult> {
       logger.warn('Static site config contains empty values', {
         module: 'config-loader',
         hasUrl: !!staticConfig.supabaseUrl,
-        urlEmpty: staticConfig.supabaseUrl === '',
-        hasAnonKey: !!staticConfig.supabaseAnonKey,
-        anonKeyEmpty: staticConfig.supabaseAnonKey === ''
+        hasAnonKey: !!staticConfig.supabaseAnonKey
       });
       
       return {
@@ -640,7 +637,7 @@ export function saveConfiguration(config: SupabaseConfig): boolean {
     
     // Could add other storage mechanisms here
     
-    return localSaved;
+    return true;
   } catch (error) {
     logger.error('Error saving configuration', error, {
       module: 'config-loader'

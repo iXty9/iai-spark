@@ -63,7 +63,8 @@ export function ConfigurationDashboard({ onConfigSaved }) {
         siteHost: window.location.hostname,
         lastUpdated: new Date().toISOString()
       };
-      if (writeConfigToLocalStorage(config)) {
+      const saved = writeConfigToLocalStorage(config);
+      if (saved) {
         toast({
           title: "Configuration Saved",
           description: "Supabase connection details have been saved successfully.",
