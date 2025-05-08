@@ -193,6 +193,18 @@ export function getSupabaseClient() {
         source: 'stored_config'
       });
       
+      // Listen for auth state changes to check permissions
+      supabaseInstance.auth.onAuthStateChange((event) => {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          // Check permissions when user signs in or token is refreshed
+          checkAndFixUserPermissions().catch(err => {
+            logger.error('Error checking permissions after auth change', err, {
+              module: 'supabase-connection'
+            });
+          });
+        }
+      });
+      
       // Check health and start monitoring
       setTimeout(async () => {
         try {
@@ -205,6 +217,10 @@ export function getSupabaseClient() {
           
           // Start connection monitoring
           startConnectionMonitoring();
+          
+          // Check and fix user permissions
+          // This helps prevent RLS policy violations
+          await checkAndFixUserPermissions();
         } catch (e) {
           // Don't let this error affect the main flow
           logger.error('Error in connection health check', e, {
@@ -478,6 +494,76 @@ export async function checkConnectionHealth(): Promise<boolean> {
     }
   } catch (error) {
     logger.error('Error checking connection health', error, {
+      module: 'supabase-connection'
+    });
+    return false;
+  }
+}
+
+/**
+ * Check and fix row-level security policies for the current user
+ * This helps resolve permission issues with profile updates
+ */
+export async function checkAndFixUserPermissions(): Promise<boolean> {
+  try {
+    if (!supabaseInstance) {
+      logger.warn('Cannot check permissions - no Supabase instance', {
+        module: 'supabase-connection'
+      });
+      return false;
+    }
+    
+    // Get current user
+    const { data: { user }, error: userError } = await supabaseInstance.auth.getUser();
+    
+    if (userError || !user) {
+      logger.warn('Cannot check permissions - no authenticated user', {
+        module: 'supabase-connection',
+        error: userError?.message
+      });
+      return false;
+    }
+    
+    // Check if user has a profile entry
+    const { data: profile, error: profileError } = await supabaseInstance
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .single();
+    
+    // If profile doesn't exist or there's an error, try to create it
+    if (profileError || !profile) {
+      logger.info('Creating missing profile for user', {
+        module: 'supabase-connection',
+        userId: user.id
+      });
+      
+      // Insert profile with minimal data
+      const { error: insertError } = await supabaseInstance
+        .from('profiles')
+        .insert({
+          id: user.id,
+          updated_at: new Date().toISOString()
+        });
+      
+      if (insertError) {
+        logger.error('Failed to create profile for user', {
+          module: 'supabase-connection',
+          userId: user.id,
+          error: insertError.message
+        });
+        return false;
+      }
+      
+      logger.info('Successfully created profile for user', {
+        module: 'supabase-connection',
+        userId: user.id
+      });
+    }
+    
+    return true;
+  } catch (error) {
+    logger.error('Error checking user permissions', error, {
       module: 'supabase-connection'
     });
     return false;
