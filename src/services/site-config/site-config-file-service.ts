@@ -49,78 +49,130 @@ export async function fetchStaticSiteConfig(): Promise<SiteConfigEnv | null> {
       configUrl
     });
     
-    // Attempt to fetch the config file
-    const response = await fetch(configUrl, {
-      method: 'GET',
-      headers: {
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
-      },
-      cache: 'no-store'
-    });
-    
-    if (!response.ok) {
-      logger.warn('No static site configuration found', {
-        module: 'site-config',
-        status: response.status,
-        statusText: response.statusText,
-        message: 'This is expected for new installations. Create a site-config.json file based on the example template.'
-      });
-      return null;
-    }
-    
-    let config: StaticSiteConfig;
+    // Use AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
     
     try {
-      config = await response.json();
-    } catch (parseError) {
-      logger.error('Failed to parse static site configuration JSON', {
+      // Attempt to fetch the config file with cache busting
+      const timestamp = new Date().getTime();
+      const response = await fetch(`${configUrl}?t=${timestamp}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
+        cache: 'no-store',
+        signal: controller.signal
+      });
+      
+      // Clear timeout since request completed
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        logger.warn('No static site configuration found', {
+          module: 'site-config',
+          status: response.status,
+          statusText: response.statusText,
+          message: 'This is expected for new installations. Create a site-config.json file based on the example template.'
+        });
+        return null;
+      }
+      
+      // Check content type
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        logger.warn('Site config response is not JSON', {
+          module: 'site-config',
+          contentType
+        });
+      }
+      
+      const responseText = await response.text();
+      
+      // Log the raw response for debugging
+      logger.debug('Raw site config response', {
         module: 'site-config',
-        error: parseError instanceof Error ? parseError.message : String(parseError)
+        responseLength: responseText.length,
+        responsePreview: responseText.substring(0, 50) + '...'
       });
-      return null;
-    }
-    
-    // Perform thorough validation of the config
-    const validationErrors = [];
-    
-    if (!config) {
-      logger.error('Empty static site configuration', {
-        module: 'site-config'
-      });
-      return null;
-    }
-    
-    if (!config.supabaseUrl) {
-      validationErrors.push('Missing supabaseUrl');
-    } else if (!config.supabaseUrl.trim()) {
-      validationErrors.push('Empty supabaseUrl');
-    } else if (!config.supabaseUrl.startsWith('http')) {
-      validationErrors.push('Invalid supabaseUrl format (must start with http:// or https://)');
-    }
-    
-    if (!config.supabaseAnonKey) {
-      validationErrors.push('Missing supabaseAnonKey');
-    } else if (!config.supabaseAnonKey.trim()) {
-      validationErrors.push('Empty supabaseAnonKey');
-    }
-    
-    if (validationErrors.length > 0) {
-      logger.warn('Invalid static site configuration', {
+      
+      let config: StaticSiteConfig;
+      
+      try {
+        config = JSON.parse(responseText);
+      } catch (parseError) {
+        logger.error('Failed to parse static site configuration JSON', {
+          module: 'site-config',
+          error: parseError instanceof Error ? parseError.message : String(parseError),
+          responseText: responseText.substring(0, 100) + '...'
+        });
+        return null;
+      }
+      
+      // Perform thorough validation of the config
+      const validationErrors = [];
+      
+      if (!config) {
+        logger.error('Empty static site configuration', {
+          module: 'site-config'
+        });
+        return null;
+      }
+      
+      if (!config.supabaseUrl) {
+        validationErrors.push('Missing supabaseUrl');
+      } else if (!config.supabaseUrl.trim()) {
+        validationErrors.push('Empty supabaseUrl');
+      } else if (!config.supabaseUrl.startsWith('http')) {
+        validationErrors.push('Invalid supabaseUrl format (must start with http:// or https://)');
+      }
+      
+      if (!config.supabaseAnonKey) {
+        validationErrors.push('Missing supabaseAnonKey');
+      } else if (!config.supabaseAnonKey.trim()) {
+        validationErrors.push('Empty supabaseAnonKey');
+      }
+      
+      if (validationErrors.length > 0) {
+        logger.warn('Invalid static site configuration', {
+          module: 'site-config',
+          errors: validationErrors,
+          hasUrl: !!config.supabaseUrl,
+          hasAnonKey: !!config.supabaseAnonKey
+        });
+        return null;
+      }
+      
+      logger.info('Successfully parsed static site configuration', {
         module: 'site-config',
-        errors: validationErrors,
-        config
+        host: config.siteHost || window.location.hostname,
+        lastUpdated: config.lastUpdated || 'not set'
       });
-      return null;
+      
+      // Convert to the expected format
+      return {
+        supabaseUrl: config.supabaseUrl.trim(),
+        supabaseAnonKey: config.supabaseAnonKey.trim(),
+        siteHost: (config.siteHost || window.location.hostname).trim(),
+        lastUpdated: config.lastUpdated || new Date().toISOString()
+      };
+    } catch (innerError) {
+      // Clear timeout
+      clearTimeout(timeoutId);
+      
+      // Check for timeout
+      if (innerError.name === 'AbortError') {
+        logger.warn('Static site config fetch timed out', {
+          module: 'site-config'
+        });
+        throw new Error('Timeout fetching site config');
+      }
+      
+      throw innerError;
     }
-    
-    // Convert to the expected format
-    return {
-      supabaseUrl: config.supabaseUrl.trim(),
-      supabaseAnonKey: config.supabaseAnonKey.trim(),
-      siteHost: (config.siteHost || window.location.hostname).trim(),
-      lastUpdated: config.lastUpdated || new Date().toISOString()
-    };
   } catch (error) {
     logger.error('Error fetching static site configuration', {
       module: 'site-config',

@@ -253,12 +253,29 @@ export async function executeBootstrap(
       resetSupabaseClient();
       
       // Force a new client initialization after a short delay
-      setTimeout(() => {
-        const client = getSupabaseClient();
-        logger.info(`Bootstrap forced client initialization: ${client ? 'success' : 'failed'}`, {
-          module: 'bootstrap-state-machine'
-        });
-      }, 500);
+      // Use multiple retries with increasing delays
+      const retryClientInit = (attempt = 1, maxAttempts = 3) => {
+        setTimeout(() => {
+          const client = getSupabaseClient();
+          
+          if (client) {
+            logger.info(`Bootstrap forced client initialization: success on attempt ${attempt}`, {
+              module: 'bootstrap-state-machine'
+            });
+          } else if (attempt < maxAttempts) {
+            logger.warn(`Bootstrap forced client initialization failed, retry ${attempt}/${maxAttempts}`, {
+              module: 'bootstrap-state-machine'
+            });
+            retryClientInit(attempt + 1, maxAttempts);
+          } else {
+            logger.error(`Bootstrap forced client initialization failed after ${maxAttempts} attempts`, {
+              module: 'bootstrap-state-machine'
+            });
+          }
+        }, 500 * attempt); // Increasing delay for each retry
+      };
+      
+      retryClientInit();
       
       // Transition to CONNECTION_SUCCESS
       const successContext = transitionTo(

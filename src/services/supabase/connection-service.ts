@@ -170,7 +170,17 @@ export function getSupabaseClient() {
       logger.info(`Using stored Supabase configuration for connection ${connectionId}`, {
         module: 'supabase-connection',
         url: storedConfig.url.split('//')[1],
-        environment: storedConfig.environment || getEnvironmentId()
+        environment: storedConfig.environment || getEnvironmentId(),
+        configTimestamp: storedConfig.savedAt || 'unknown'
+      });
+      
+      // Log more details about the configuration for debugging
+      logger.debug('Supabase configuration details', {
+        module: 'supabase-connection',
+        urlPrefix: storedConfig.url.substring(0, 12) + '...',
+        anonKeyPrefix: storedConfig.anonKey.substring(0, 10) + '...',
+        hasServiceKey: !!storedConfig.serviceKey,
+        isInitialized: storedConfig.isInitialized
       });
       
       // Create and initialize the Supabase client with stored config

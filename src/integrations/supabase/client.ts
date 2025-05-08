@@ -4,8 +4,8 @@
 
 import { getSupabaseClient } from '@/services/supabase/connection-service';
 import { toast } from '@/hooks/use-toast';
-import { PostgrestResponse, PostgrestSingleResponse } from '@supabase/supabase-js';
 import { emitSupabaseConnectionEvent } from '@/utils/debug';
+import { logger } from '@/utils/logging';
 
 // Initialize client as null, will be set properly after bootstrap
 let client = null;
@@ -15,147 +15,84 @@ client = getSupabaseClient();
 
 // If client isn't available, try again after a delay to allow bootstrap to complete
 if (!client) {
+  logger.info('Supabase client not available immediately, scheduling retry', {
+    module: 'supabase-client'
+  });
+  
+  // First retry after 2.5 seconds
   setTimeout(() => {
     client = getSupabaseClient();
     
     // Emit connection status after delayed initialization
     if (client) {
+      logger.info('Supabase client initialized on first retry', {
+        module: 'supabase-client'
+      });
       emitSupabaseConnectionEvent('connected', null);
     } else {
-      emitSupabaseConnectionEvent('disconnected', 'Client not initialized after retry');
+      logger.warn('Supabase client still not available after first retry', {
+        module: 'supabase-client'
+      });
+      emitSupabaseConnectionEvent('disconnected', 'Client not initialized after first retry');
+      
+      // Second retry after another 2 seconds
+      setTimeout(() => {
+        client = getSupabaseClient();
+        
+        if (client) {
+          logger.info('Supabase client initialized on second retry', {
+            module: 'supabase-client'
+          });
+          emitSupabaseConnectionEvent('connected', null);
+        } else {
+          logger.error('Supabase client initialization failed after multiple retries', {
+            module: 'supabase-client'
+          });
+          emitSupabaseConnectionEvent('disconnected', 'Client not initialized after multiple retries');
+          
+          // Show error toast after all retries failed
+          toast({
+            title: 'Connection Error',
+            description: 'Could not connect to database. Please check configuration or reload the page.',
+            variant: 'destructive',
+            action: {
+              altText: "Reconnect",
+              onClick: () => window.location.reload()
+            }
+          });
+        }
+      }, 2000);
     }
-  }, 1500); // Give bootstrap enough time to complete
+  }, 2500);
 } else {
   // Emit connection status for debugging if client is available immediately
+  logger.info('Supabase client initialized immediately', {
+    module: 'supabase-client'
+  });
   emitSupabaseConnectionEvent('connected', null);
 }
 
-// Fallback client for handling cases when the Supabase client isn't available
-const fallbackClient = {
-  auth: {
-    getSession: () => {
-      // Track connection error for debugging
-      emitSupabaseConnectionEvent('auth_error', 'Client not initialized');
-      
-      toast({
-        title: 'Connection Error',
-        description: 'Supabase client is not available. Please check configuration or reconnect.',
-        variant: 'destructive',
-        action: {
-          altText: "Reconnect",
-          onClick: () => window.location.href = '/supabase-auth'
-        }
-      });
-      return Promise.resolve({ data: { session: null }, error: new Error('Client not initialized') });
-    },
-    signOut: () => Promise.resolve({ error: new Error('Client not initialized') }),
-    signInWithPassword: () => Promise.resolve({ data: { user: null, session: null }, error: new Error('Client not initialized') }),
-    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-    signUp: () => Promise.resolve({ data: { user: null, session: null }, error: new Error('Client not initialized') }),
-    getUser: () => Promise.resolve({ data: { user: null }, error: new Error('Client not initialized') })
-  },
-  from: (table: string) => ({
-    select: (columns?: string) => {
-      // Create properly typed return object
-      const responseObj: any = {
-        eq: (column: string, value: any) => Promise.resolve({ 
-          data: null, 
-          error: new Error('Client not initialized'),
-          count: null
-        }),
-        neq: () => responseObj,
-        gt: () => responseObj,
-        lt: () => responseObj,
-        gte: () => responseObj,
-        lte: () => responseObj,
-        like: () => responseObj,
-        ilike: () => responseObj,
-        is: () => responseObj,
-        in: () => responseObj,
-        contains: () => responseObj,
-        containedBy: () => responseObj,
-        filter: () => responseObj,
-        match: () => responseObj,
-        single: () => Promise.resolve({ 
-          data: null, 
-          error: new Error('Client not initialized'),
-          count: null
-        }),
-        maybeSingle: () => Promise.resolve({ 
-          data: null, 
-          error: new Error('Client not initialized'),
-          count: null
-        }),
-        order: () => responseObj,
-        limit: () => responseObj,
-        range: () => responseObj,
-      };
-      return responseObj;
-    },
-    insert: () => Promise.resolve({
-      data: null,
-      error: new Error('Client not initialized')
-    }),
-    update: () => ({
-      eq: () => Promise.resolve({
-        data: null,
-        error: new Error('Client not initialized')
-      }),
-      match: () => Promise.resolve({
-        data: null,
-        error: new Error('Client not initialized')
-      })
-    }),
-    delete: () => ({
-      eq: () => Promise.resolve({
-        data: null,
-        error: new Error('Client not initialized')
-      }),
-      match: () => Promise.resolve({
-        data: null,
-        error: new Error('Client not initialized')
-      })
-    }),
-    rpc: () => Promise.resolve({
-      data: null,
-      error: new Error('Client not initialized')
-    })
-  }),
-  storage: {
-    from: (bucket: string) => ({
-      upload: () => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
-      getPublicUrl: () => ({ data: { publicUrl: '' } }),
-      list: () => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
-      remove: () => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
-    }),
-    getBucket: () => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
-    createBucket: () => Promise.resolve({ data: null, error: new Error('Client not initialized') }),
-  },
-  functions: {
-    invoke: () => Promise.resolve({
-      data: null,
-      error: new Error('Client not initialized'),
-      status: 500,
-      count: null
-    })
-  }
-};
-
-// Export a function that always returns the latest client
-// This ensures we always get the most up-to-date client instance
+// Export a function that gets the client
 export const supabase = (() => {
   return function getClient() {
-    // If client exists, return it
-    if (client) return client;
-    
-    // Try to get the client again
-    const freshClient = getSupabaseClient();
-    if (freshClient) {
-      client = freshClient;
-      return client;
+    if (!client) {
+      // If client is still not available, force a retry
+      client = getSupabaseClient();
+      
+      if (!client) {
+        logger.error('Supabase client requested but not available', {
+          module: 'supabase-client'
+        });
+        
+        // Redirect to initialization page if client is requested but not available
+        if (window.location.pathname !== '/initialize') {
+          window.location.href = '/initialize';
+        }
+        
+        throw new Error('Supabase client not initialized');
+      }
     }
     
-    // Fall back to the fallback client if still no client
-    return fallbackClient;
+    return client;
   };
 })()();

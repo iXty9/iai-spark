@@ -134,25 +134,94 @@ export async function loadFromStaticFile(): Promise<ConfigLoadResult> {
       module: 'config-loader'
     });
     
-    const staticConfig = await fetchStaticSiteConfig();
+    // Add retry mechanism for fetching the static config
+    let retries = 3;
+    let staticConfig = null;
+    let lastError = null;
+    
+    while (retries > 0 && !staticConfig) {
+      try {
+        logger.info(`Static config fetch attempt ${4-retries}/3`, {
+          module: 'config-loader'
+        });
+        
+        staticConfig = await fetchStaticSiteConfig();
+        
+        if (staticConfig) {
+          logger.info('Static config fetch successful', {
+            module: 'config-loader'
+          });
+          break;
+        } else {
+          logger.warn(`Static config fetch returned null on attempt ${4-retries}`, {
+            module: 'config-loader'
+          });
+        }
+      } catch (e) {
+        lastError = e;
+        logger.warn(`Static config fetch attempt failed, ${retries-1} retries left`, {
+          module: 'config-loader',
+          error: e instanceof Error ? e.message : String(e)
+        });
+      }
+      
+      retries--;
+      // Wait before retry with increasing delay
+      await new Promise(resolve => setTimeout(resolve, 500 * (4-retries)));
+    }
     
     if (!staticConfig) {
-      return { config: null, source: ConfigSource.STATIC_FILE };
+      logger.error('All static config fetch attempts failed', {
+        module: 'config-loader',
+        lastError: lastError instanceof Error ? lastError.message : String(lastError)
+      });
+      return { 
+        config: null, 
+        source: ConfigSource.STATIC_FILE,
+        error: lastError instanceof Error ? lastError.message : 'Failed to fetch static config'
+      };
     }
     
     logger.info('Successfully loaded static site config file', {
       module: 'config-loader',
-      host: staticConfig.siteHost
+      host: staticConfig.siteHost,
+      hasUrl: !!staticConfig.supabaseUrl,
+      hasAnonKey: !!staticConfig.supabaseAnonKey
+    });
+    
+    // Validate the config before returning
+    if (!staticConfig.supabaseUrl || !staticConfig.supabaseAnonKey) {
+      logger.error('Static config is missing required fields', {
+        module: 'config-loader',
+        hasUrl: !!staticConfig.supabaseUrl,
+        hasAnonKey: !!staticConfig.supabaseAnonKey
+      });
+      
+      return {
+        config: null,
+        source: ConfigSource.STATIC_FILE,
+        error: 'Static config is missing required fields'
+      };
+    }
+    
+    const config = {
+      url: staticConfig.supabaseUrl,
+      anonKey: staticConfig.supabaseAnonKey,
+      isInitialized: true,
+      savedAt: new Date().toISOString(),
+      environment: getEnvironmentId()
+    };
+    
+    // Log the actual values to help with debugging (partial values for security)
+    logger.info('Static config values:', {
+      module: 'config-loader',
+      urlPrefix: config.url.substring(0, 12) + '...',
+      anonKeyPrefix: config.anonKey.substring(0, 10) + '...',
+      environment: config.environment
     });
     
     return {
-      config: {
-        url: staticConfig.supabaseUrl,
-        anonKey: staticConfig.supabaseAnonKey,
-        isInitialized: true,
-        savedAt: new Date().toISOString(),
-        environment: getEnvironmentId()
-      },
+      config,
       source: ConfigSource.STATIC_FILE
     };
   } catch (error) {
