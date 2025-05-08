@@ -162,8 +162,7 @@ export function getSupabaseClient() {
     const connectionId = localStorage.getItem(connIdKey) || 'unknown';
     
     
-    // Check for URL parameters first
-    const urlParams = new URLSearchParams(window.location.search);
+    // Check for URL parameters for direct connection details
     const urlSupabaseUrl = urlParams.get('supabase_url');
     const urlSupabaseKey = urlParams.get('supabase_key');
     
