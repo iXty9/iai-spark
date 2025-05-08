@@ -116,3 +116,97 @@ export function hasValidConfiguration(): boolean {
     return false;
   }
 }
+
+/**
+ * Get detailed configuration status from all sources
+ * This is useful for displaying to users
+ */
+export async function getConfigurationStatus(): Promise<{
+  isValid: boolean;
+  sources: {
+    staticFile: boolean;
+    localStorage: boolean;
+    environment: boolean;
+  };
+  details: {
+    staticFile: string | null;
+    localStorage: string | null;
+    environment: string | null;
+  };
+}> {
+  try {
+    // Check static file
+    let staticFileConfig = null;
+    try {
+      const response = await fetch('/site-config.json', { 
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        staticFileConfig = data.supabaseUrl && data.supabaseAnonKey ? 
+          `${data.supabaseUrl.substring(0, 15)}...` : null;
+      }
+    } catch (e) {
+      // File not found or invalid
+    }
+    
+    // Check localStorage
+    let localStorageConfig = null;
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const data = localStorage.getItem('site-config');
+        if (data) {
+          const parsed = JSON.parse(data);
+          localStorageConfig = parsed.supabaseUrl && parsed.supabaseAnonKey ? 
+            `${parsed.supabaseUrl.substring(0, 15)}...` : null;
+        }
+      } catch (e) {
+        // Invalid JSON
+      }
+    }
+    
+    // Check environment variables
+    const envConfig = !!(
+      import.meta.env.VITE_SUPABASE_URL && 
+      import.meta.env.VITE_SUPABASE_ANON_KEY
+    ) ? `${import.meta.env.VITE_SUPABASE_URL.substring(0, 15)}...` : null;
+    
+    const hasStaticFile = !!staticFileConfig;
+    const hasLocalStorage = !!localStorageConfig;
+    const hasEnvVars = !!envConfig;
+    
+    return {
+      isValid: hasStaticFile || hasLocalStorage || hasEnvVars,
+      sources: {
+        staticFile: hasStaticFile,
+        localStorage: hasLocalStorage,
+        environment: hasEnvVars
+      },
+      details: {
+        staticFile: staticFileConfig,
+        localStorage: localStorageConfig,
+        environment: envConfig
+      }
+    };
+  } catch (error) {
+    logger.error('Error getting configuration status', {
+      module: 'config-generator',
+      error: error instanceof Error ? error.message : String(error)
+    });
+    
+    return {
+      isValid: false,
+      sources: {
+        staticFile: false,
+        localStorage: false,
+        environment: false
+      },
+      details: {
+        staticFile: null,
+        localStorage: null,
+        environment: null
+      }
+    };
+  }
+}
