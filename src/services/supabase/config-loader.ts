@@ -15,7 +15,8 @@ import { ConfigSource, ConfigLoadResult, ConfigLoader } from './config-loader-ty
 import { validateConfig } from './config-validation';
 
 // Re-export types for backward compatibility
-export { ConfigSource, ConfigLoadResult };
+export { ConfigSource };
+export type { ConfigLoadResult };
 
 // Implement the ConfigLoader interface
 const configLoaderImpl: ConfigLoader = {
