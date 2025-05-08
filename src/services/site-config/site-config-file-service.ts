@@ -1,3 +1,4 @@
+
 import { logger } from '@/utils/logging';
 import { SiteConfigEnv } from '@/services/supabase/site-config-service';
 
@@ -98,6 +99,14 @@ export async function fetchStaticSiteConfig(): Promise<SiteConfigEnv | null> {
         responsePreview: responseText.substring(0, 50) + '...'
       });
       
+      // Check if the response is empty or just whitespace
+      if (!responseText.trim()) {
+        logger.warn('Static site config file is empty', {
+          module: 'site-config'
+        });
+        return null;
+      }
+      
       let config: StaticSiteConfig;
       
       try {
@@ -167,342 +176,169 @@ export async function fetchStaticSiteConfig(): Promise<SiteConfigEnv | null> {
         logger.warn('Static site config fetch timed out', {
           module: 'site-config'
         });
-        throw new Error('Timeout fetching site config');
+        return null;
       }
       
-      throw innerError;
-    }
-  } catch (error) {
-    logger.error('Error fetching static site configuration', {
-      module: 'site-config',
-      error: error instanceof Error ? error.message : String(error)
-    });
-    return null;
-  }
-}
-
-/**
- * Endpoint for updating the site configuration file
- * This would typically be called by an API or during build
- */
-export async function updateStaticSiteConfig(config: SiteConfigEnv): Promise<boolean> {
-  try {
-    // Validate input configuration
-    if (!config) {
-      logger.error('Cannot update with null configuration', {
+      logger.error('Error fetching static site configuration', innerError, {
         module: 'site-config'
-      });
-      return false;
-    }
-    
-    // Validate required fields
-    if (!config.supabaseUrl || !config.supabaseUrl.trim()) {
-      logger.error('Cannot update with empty supabaseUrl', {
-        module: 'site-config'
-      });
-      return false;
-    }
-    
-    if (!config.supabaseAnonKey || !config.supabaseAnonKey.trim()) {
-      logger.error('Cannot update with empty supabaseAnonKey', {
-        module: 'site-config'
-      });
-      return false;
-    }
-    
-    const staticConfig: StaticSiteConfig = {
-      supabaseUrl: config.supabaseUrl.trim(),
-      supabaseAnonKey: config.supabaseAnonKey.trim(),
-      lastUpdated: new Date().toISOString(),
-      siteHost: (config.siteHost || window.location.hostname).trim()
-    };
-    
-    logger.info('Attempting to update static site configuration', {
-      module: 'site-config',
-      host: staticConfig.siteHost
-    });
-    
-    // For client-side updates, we'll use a simple POST request to a server endpoint
-    // In a production environment, this would be a secure API endpoint
-    const baseUrl = window.location.origin;
-    const updateUrl = `${baseUrl}/api/update-site-config`;
-    
-    try {
-      const response = await fetch(updateUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(staticConfig)
-      });
-      
-      if (!response.ok) {
-        logger.error('Failed to update static site configuration', {
-          module: 'site-config',
-          status: response.status,
-          statusText: response.statusText,
-          url: updateUrl
-        });
-        return false;
-      }
-      
-      logger.info('Static site configuration updated successfully', {
-        module: 'site-config'
-      });
-      
-      return true;
-    } catch (fetchError) {
-      logger.error('Network error updating static site configuration', {
-        module: 'site-config',
-        error: fetchError instanceof Error ? fetchError.message : String(fetchError),
-        url: updateUrl
-      });
-      
-      // Try fallback to localStorage if API fails
-      return writeConfigToLocalStorage(config);
-    }
-  } catch (error) {
-    logger.error('Error updating static site configuration', {
-      module: 'site-config',
-      error: error instanceof Error ? error.message : String(error)
-    });
-    return false;
-  }
-}
-
-/**
- * Fallback function to write configuration to localStorage
- * This is used as a fallback when the API isn't available
- */
-export function writeConfigToLocalStorage(config: SiteConfigEnv | any): boolean {
-  try {
-    // Validate input configuration
-    if (!config) {
-      logger.error('Cannot save null configuration to localStorage', {
-        module: 'site-config'
-      });
-      return false;
-    }
-    
-    // Handle both SiteConfigEnv and SupabaseConfig formats
-    const supabaseUrl = config.supabaseUrl || config.url;
-    const supabaseAnonKey = config.supabaseAnonKey || config.anonKey;
-    
-    // Validate required fields
-    if (!supabaseUrl || typeof supabaseUrl !== 'string' || !supabaseUrl.trim()) {
-      logger.error('Cannot save empty supabaseUrl to localStorage', {
-        module: 'site-config',
-        configType: typeof config,
-        hasUrl: !!config.url,
-        hasSupabaseUrl: !!config.supabaseUrl
-      });
-      return false;
-    }
-    
-    if (!supabaseAnonKey || typeof supabaseAnonKey !== 'string' || !supabaseAnonKey.trim()) {
-      logger.error('Cannot save empty supabaseAnonKey to localStorage', {
-        module: 'site-config'
-      });
-      return false;
-    }
-    
-    const staticConfig: StaticSiteConfig = {
-      supabaseUrl: config.supabaseUrl.trim(),
-      supabaseAnonKey: config.supabaseAnonKey.trim(),
-      lastUpdated: new Date().toISOString(),
-      siteHost: (config.siteHost || window.location.hostname).trim()
-    };
-    
-    // Check if localStorage is available
-    if (typeof localStorage === 'undefined') {
-      logger.error('localStorage is not available in this environment', {
-        module: 'site-config'
-      });
-      return false;
-    }
-    
-    try {
-      localStorage.setItem(LS_CONFIG_KEY, JSON.stringify(staticConfig));
-      localStorage.setItem(LS_CONFIG_TIMESTAMP, new Date().toISOString());
-      
-      logger.info('Static site configuration saved to localStorage', {
-        module: 'site-config',
-        host: staticConfig.siteHost,
-        timestamp: new Date().toISOString()
-      });
-      
-      return true;
-    } catch (storageError) {
-      // This can happen if localStorage is full or disabled
-      logger.error('Failed to write to localStorage', {
-        module: 'site-config',
-        error: storageError instanceof Error ? storageError.message : String(storageError)
-      });
-      return false;
-    }
-  } catch (error) {
-    logger.error('Error saving static site configuration to localStorage', {
-      module: 'site-config',
-      error: error instanceof Error ? error.message : String(error)
-    });
-    return false;
-  }
-}
-
-/**
- * Try to get configuration from environment variables
- * This is used during development or in environments where env vars are available
- */
-export function getConfigFromEnvironment(): SiteConfigEnv | null {
-  try {
-    // Check if we're in a browser environment
-    if (typeof window === 'undefined' || !window.location) {
-      return null;
-    }
-    
-    // Access environment variables (these are injected by Vite during build)
-    const supabaseUrl = import.meta.env[ENV_SUPABASE_URL] || '';
-    const supabaseAnonKey = import.meta.env[ENV_SUPABASE_ANON_KEY] || '';
-    const siteHost = import.meta.env[ENV_SITE_HOST] || window.location.hostname;
-    
-    // Validate the environment variables
-    if (!supabaseUrl || !supabaseAnonKey) {
-      logger.info('No valid configuration found in environment variables', {
-        module: 'site-config',
-        hasUrl: !!supabaseUrl,
-        hasKey: !!supabaseAnonKey
       });
       return null;
     }
-    
-    logger.info('Using configuration from environment variables', {
-      module: 'site-config',
-      siteHost
-    });
-    
-    return {
-      supabaseUrl: supabaseUrl.trim(),
-      supabaseAnonKey: supabaseAnonKey.trim(),
-      siteHost: siteHost.trim(),
-      lastUpdated: new Date().toISOString()
-    };
   } catch (error) {
-    logger.error('Error reading configuration from environment', {
-      module: 'site-config',
-      error: error instanceof Error ? error.message : String(error)
+    logger.error('Error in fetchStaticSiteConfig', error, {
+      module: 'site-config'
     });
     return null;
   }
-}
-
-/**
- * Generate a template configuration file
- * This can be used to create a default site-config.json
- */
-export function generateTemplateConfig(): StaticSiteConfig {
-  return {
-    supabaseUrl: "https://your-project-id.supabase.co",
-    supabaseAnonKey: "your-anon-key-here",
-    siteHost: window.location.hostname,
-    lastUpdated: new Date().toISOString()
-  };
-}
-
-/**
- * Try all available configuration sources in order of preference
- * This is the main entry point for getting configuration
- */
-export async function getConfigFromAllSources(): Promise<SiteConfigEnv | null> {
-  // Try sources in order of preference
-  
-  // 1. Try static site config file (fastest and most reliable when available)
-  const staticConfig = await fetchStaticSiteConfig();
-  if (staticConfig) {
-    logger.info('Using configuration from static site config file', {
-      module: 'site-config'
-    });
-    return staticConfig;
-  }
-  
-  // 2. Try environment variables (good for development)
-  const envConfig = getConfigFromEnvironment();
-  if (envConfig) {
-    logger.info('Using configuration from environment variables', {
-      module: 'site-config'
-    });
-    return envConfig;
-  }
-  
-  // 3. Try localStorage (fallback for returning users)
-  const localConfig = readConfigFromLocalStorage();
-  if (localConfig) {
-    logger.info('Using configuration from localStorage', {
-      module: 'site-config'
-    });
-    return localConfig;
-  }
-  
-  // 4. No configuration found
-  logger.warn('No configuration found from any source', {
-    module: 'site-config'
-  });
-  return null;
 }
 
 /**
  * Read configuration from localStorage
- * This is used as a fallback when the static file isn't available
  */
 export function readConfigFromLocalStorage(): SiteConfigEnv | null {
   try {
-    // Check if localStorage is available
-    if (typeof localStorage === 'undefined') {
-      logger.info('localStorage is not available in this environment', {
-        module: 'site-config'
-      });
+    const siteConfig = localStorage.getItem(LS_CONFIG_KEY);
+    if (!siteConfig) {
       return null;
     }
     
-    const configJson = localStorage.getItem(LS_CONFIG_KEY);
-    
-    if (!configJson) {
-      logger.info('No configuration found in localStorage', {
-        module: 'site-config'
-      });
-      return null;
-    }
-    
-    try {
-      const config: StaticSiteConfig = JSON.parse(configJson);
-      
-      // Validate the parsed config
-      if (!config.supabaseUrl || !config.supabaseUrl.trim() || 
-          !config.supabaseAnonKey || !config.supabaseAnonKey.trim()) {
-        logger.warn('Invalid configuration found in localStorage', {
-          module: 'site-config',
-          config
-        });
-        return null;
-      }
-      
-      return {
-        supabaseUrl: config.supabaseUrl.trim(),
-        supabaseAnonKey: config.supabaseAnonKey.trim(),
-        siteHost: (config.siteHost || window.location.hostname).trim(),
-        lastUpdated: config.lastUpdated || new Date().toISOString()
-      };
-    } catch (parseError) {
-      logger.error('Failed to parse configuration from localStorage', {
-        module: 'site-config',
-        error: parseError instanceof Error ? parseError.message : String(parseError)
-      });
-      return null;
-    }
+    const config = JSON.parse(siteConfig);
+    return config;
   } catch (error) {
-    logger.error('Error reading configuration from localStorage', {
-      module: 'site-config',
-      error: error instanceof Error ? error.message : String(error)
+    logger.error('Error reading configuration from localStorage', error, {
+      module: 'site-config'
     });
     return null;
+  }
+}
+
+/**
+ * Clear configuration from localStorage
+ */
+export function clearLocalStorageConfig(): boolean {
+  try {
+    localStorage.removeItem(LS_CONFIG_KEY);
+    localStorage.removeItem(LS_CONFIG_TIMESTAMP);
+    
+    logger.info('Cleared configuration from localStorage', {
+      module: 'site-config'
+    });
+    
+    return true;
+  } catch (error) {
+    logger.error('Error clearing configuration from localStorage', error, {
+      module: 'site-config'
+    });
+    return false;
+  }
+}
+
+/**
+ * Write configuration to localStorage
+ */
+export function writeConfigToLocalStorage(config: SiteConfigEnv | any): boolean {
+  try {
+    if (!config) {
+      return false;
+    }
+    
+    // Check for empty values
+    if (
+      (config.supabaseUrl !== undefined && (!config.supabaseUrl || !config.supabaseUrl.trim())) ||
+      (config.supabaseAnonKey !== undefined && (!config.supabaseAnonKey || !config.supabaseAnonKey.trim()))
+    ) {
+      logger.warn('Attempted to write empty config values to localStorage', {
+        module: 'site-config',
+        hasUrl: !!config.supabaseUrl,
+        hasKey: !!config.supabaseAnonKey
+      });
+      return false;
+    }
+    
+    // Normalize config format
+    const siteConfig: SiteConfigEnv = {
+      supabaseUrl: config.url || config.supabaseUrl,
+      supabaseAnonKey: config.anonKey || config.supabaseAnonKey,
+      siteHost: config.siteHost || window.location.hostname,
+      lastUpdated: config.lastUpdated || new Date().toISOString()
+    };
+    
+    localStorage.setItem(LS_CONFIG_KEY, JSON.stringify(siteConfig));
+    localStorage.setItem(LS_CONFIG_TIMESTAMP, new Date().toISOString());
+    
+    logger.info('Wrote configuration to localStorage', {
+      module: 'site-config',
+      hasUrl: !!siteConfig.supabaseUrl,
+      hasKey: !!siteConfig.supabaseAnonKey
+    });
+    
+    return true;
+  } catch (error) {
+    logger.error('Error writing configuration to localStorage', error, {
+      module: 'site-config'
+    });
+    return false;
+  }
+}
+
+/**
+ * Get configuration from environment variables
+ * This is useful for development and testing
+ */
+export function getConfigFromEnvironment(): SiteConfigEnv | null {
+  try {
+    const supabaseUrl = import.meta.env[ENV_SUPABASE_URL];
+    const supabaseAnonKey = import.meta.env[ENV_SUPABASE_ANON_KEY];
+    const siteHost = import.meta.env[ENV_SITE_HOST];
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return null;
+    }
+    
+    return {
+      supabaseUrl,
+      supabaseAnonKey,
+      siteHost: siteHost || window.location.hostname,
+      lastUpdated: new Date().toISOString()
+    };
+  } catch (error) {
+    logger.error('Error reading configuration from environment', error, {
+      module: 'site-config'
+    });
+    return null;
+  }
+}
+
+/**
+ * Update the static site configuration file
+ * This requires server-side permissions and might not work in all environments
+ */
+export async function updateStaticSiteConfig(config: SiteConfigEnv): Promise<boolean> {
+  try {
+    // First validate that we have valid config values
+    if (!config.supabaseUrl || !config.supabaseUrl.trim() || 
+        !config.supabaseAnonKey || !config.supabaseAnonKey.trim()) {
+      logger.warn('Cannot update site config with empty values', {
+        module: 'site-config',
+        hasUrl: !!config.supabaseUrl,
+        hasKey: !!config.supabaseAnonKey
+      });
+      return false;
+    }
+    
+    // For now, this is a client-side application so we can't update the config file
+    // We'll return false here, but in a real application with server-side code,
+    // we'd update the file here
+    logger.warn('Static site config update not implemented', {
+      module: 'site-config',
+      message: 'This would require server-side code to update the file'
+    });
+    
+    return false;
+  } catch (error) {
+    logger.error('Error updating static site configuration', error, {
+      module: 'site-config'
+    });
+    return false;
   }
 }

@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCcw, Info, AlertTriangle, CheckCircle, Settings } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { logger } from '@/utils/logging';
 import { clearConfigAndResetClient } from '@/config/supabase-config';
 import { ConfigSource } from '@/services/supabase/config-loader-types';
@@ -21,6 +21,13 @@ interface BootstrapProviderProps {
   children: React.ReactNode;
 }
 
+// Routes that should never be redirected from, even if configuration is missing
+const NON_REDIRECTABLE_ROUTES = [
+  '/supabase-auth',
+  '/initialize',
+  '/admin/connection'
+];
+
 export function BootstrapProvider({ children }: BootstrapProviderProps) {
   // State machine context
   const [context, setContext] = useState<BootstrapContext>(initBootstrapContext);
@@ -29,6 +36,12 @@ export function BootstrapProvider({ children }: BootstrapProviderProps) {
   const [showSuccessMessage, setShowSuccessMessage] = useState<boolean>(false);
   
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Check if current route should prevent redirects
+  const isNonRedirectablePath = useCallback(() => {
+    return NON_REDIRECTABLE_ROUTES.some(route => location.pathname.startsWith(route));
+  }, [location.pathname]);
   
   // Handle URL parameters
   const handleUrlParameters = useCallback(() => {
@@ -100,6 +113,15 @@ export function BootstrapProvider({ children }: BootstrapProviderProps) {
   
   // Redirect to initialize page for empty or invalid config
   useEffect(() => {
+    // Don't redirect if we're on a non-redirectable path
+    if (isNonRedirectablePath()) {
+      logger.info('Preventing redirect from protected path', {
+        module: 'bootstrap-provider',
+        currentPath: location.pathname
+      });
+      return;
+    }
+    
     // Automatically redirect to initialization page if we're in CONFIG_MISSING state
     // and we're not already on the initialize page
     if (context.state === BootstrapState.CONFIG_MISSING && 
@@ -110,7 +132,19 @@ export function BootstrapProvider({ children }: BootstrapProviderProps) {
       });
       navigate('/initialize');
     }
-  }, [context.state, navigate]);
+    
+    // For connection errors, redirect to Supabase auth if we're not on a protected path
+    if (context.state === BootstrapState.CONNECTION_ERROR && 
+        !window.location.pathname.includes('/supabase-auth') &&
+        !window.location.pathname.includes('/initialize')) {
+      logger.info('Auto-redirecting to supabase-auth page due to connection error', {
+        module: 'bootstrap-provider',
+        currentPath: window.location.pathname,
+        errorType: context.errorType
+      });
+      navigate('/supabase-auth');
+    }
+  }, [context.state, context.errorType, navigate, isNonRedirectablePath, location.pathname]);
   
   // Effect for state transitions
   useEffect(() => {
@@ -133,6 +167,11 @@ export function BootstrapProvider({ children }: BootstrapProviderProps) {
         return () => clearTimeout(timer);
     }
   }, [context.state, startBootstrap]);
+  
+  // If on a non-redirectable path, bypass loading and error states
+  if (isNonRedirectablePath()) {
+    return <>{children}</>;
+  }
   
   // Render based on current state
   switch (context.state) {

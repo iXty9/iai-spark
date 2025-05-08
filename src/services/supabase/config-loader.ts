@@ -1,3 +1,4 @@
+
 /**
  * Unified configuration loader service
  * Provides a standardized approach to loading Supabase configuration
@@ -7,7 +8,7 @@
 import { logger } from '@/utils/logging';
 import { fetchStaticSiteConfig } from '@/services/site-config/site-config-file-service';
 import { getConfigFromEnvironment } from '@/services/site-config/site-config-file-service';
-import { readConfigFromLocalStorage, writeConfigToLocalStorage } from '@/services/site-config/site-config-file-service';
+import { readConfigFromLocalStorage, writeConfigToLocalStorage, clearLocalStorageConfig } from '@/services/site-config/site-config-file-service';
 import { fetchBootstrapConfig, testBootstrapConnection } from '@/services/supabase/bootstrap-service';
 import { SupabaseConfig } from '@/config/supabase/types';
 import { getEnvironmentId } from '@/config/supabase/environment';
@@ -41,6 +42,21 @@ export async function loadFromUrlParameters(): Promise<ConfigLoadResult> {
     
     if (!publicUrl || !publicKey) {
       return { config: null, source: ConfigSource.URL_PARAMETERS };
+    }
+    
+    // Check if values are empty strings
+    if (!publicUrl.trim() || !publicKey.trim()) {
+      logger.warn('URL parameters contain empty values', {
+        module: 'config-loader',
+        hasUrlParam: !!publicUrl,
+        hasKeyParam: !!publicKey
+      });
+      
+      return { 
+        config: null, 
+        source: ConfigSource.URL_PARAMETERS,
+        error: 'URL parameters contain empty values'
+      };
     }
     
     logger.info('Found potential configuration in URL parameters', {
@@ -184,6 +200,24 @@ export async function loadFromStaticFile(): Promise<ConfigLoadResult> {
       };
     }
     
+    // Check for empty string values in the config
+    if (!staticConfig.supabaseUrl || !staticConfig.supabaseUrl.trim() || 
+        !staticConfig.supabaseAnonKey || !staticConfig.supabaseAnonKey.trim()) {
+      logger.warn('Static site config contains empty values', {
+        module: 'config-loader',
+        hasUrl: !!staticConfig.supabaseUrl,
+        urlEmpty: staticConfig.supabaseUrl === '',
+        hasAnonKey: !!staticConfig.supabaseAnonKey,
+        anonKeyEmpty: staticConfig.supabaseAnonKey === ''
+      });
+      
+      return {
+        config: null,
+        source: ConfigSource.STATIC_FILE,
+        error: 'Static site config contains empty or invalid values'
+      };
+    }
+    
     logger.info('Successfully loaded static site config file', {
       module: 'config-loader',
       host: staticConfig.siteHost,
@@ -207,8 +241,8 @@ export async function loadFromStaticFile(): Promise<ConfigLoadResult> {
     }
     
     const config = {
-      url: staticConfig.supabaseUrl,
-      anonKey: staticConfig.supabaseAnonKey,
+      url: staticConfig.supabaseUrl.trim(),
+      anonKey: staticConfig.supabaseAnonKey.trim(),
       isInitialized: true,
       savedAt: new Date().toISOString(),
       environment: getEnvironmentId()
@@ -254,14 +288,33 @@ export function loadFromLocalStorage(): ConfigLoadResult {
       return { config: null, source: ConfigSource.LOCAL_STORAGE };
     }
     
+    // Check for empty string values in the config
+    if (!localConfig.supabaseUrl || !localConfig.supabaseUrl.trim() || 
+        !localConfig.supabaseAnonKey || !localConfig.supabaseAnonKey.trim()) {
+      logger.warn('localStorage config contains empty values', {
+        module: 'config-loader',
+        hasUrl: !!localConfig.supabaseUrl,
+        hasAnonKey: !!localConfig.supabaseAnonKey
+      });
+      
+      // Clear the invalid local storage config
+      clearLocalStorageConfig();
+      
+      return { 
+        config: null, 
+        source: ConfigSource.LOCAL_STORAGE,
+        error: 'Local storage config contains empty values'
+      };
+    }
+    
     logger.info('Successfully loaded configuration from localStorage', {
       module: 'config-loader'
     });
     
     return {
       config: {
-        url: localConfig.supabaseUrl,
-        anonKey: localConfig.supabaseAnonKey,
+        url: localConfig.supabaseUrl.trim(),
+        anonKey: localConfig.supabaseAnonKey.trim(),
         isInitialized: true,
         savedAt: new Date().toISOString(),
         environment: getEnvironmentId()
@@ -296,14 +349,30 @@ export function loadFromEnvironment(): ConfigLoadResult {
       return { config: null, source: ConfigSource.ENVIRONMENT };
     }
     
+    // Check for empty string values in the config
+    if (!envConfig.supabaseUrl || !envConfig.supabaseUrl.trim() || 
+        !envConfig.supabaseAnonKey || !envConfig.supabaseAnonKey.trim()) {
+      logger.warn('Environment variables contain empty values', {
+        module: 'config-loader',
+        hasUrl: !!envConfig.supabaseUrl,
+        hasAnonKey: !!envConfig.supabaseAnonKey
+      });
+      
+      return { 
+        config: null, 
+        source: ConfigSource.ENVIRONMENT,
+        error: 'Environment variables contain empty values'
+      };
+    }
+    
     logger.info('Successfully loaded configuration from environment variables', {
       module: 'config-loader'
     });
     
     return {
       config: {
-        url: envConfig.supabaseUrl,
-        anonKey: envConfig.supabaseAnonKey,
+        url: envConfig.supabaseUrl.trim(),
+        anonKey: envConfig.supabaseAnonKey.trim(),
         isInitialized: true,
         savedAt: new Date().toISOString(),
         environment: getEnvironmentId()
@@ -328,9 +397,11 @@ export function loadFromEnvironment(): ConfigLoadResult {
  */
 export async function loadFromDatabase(defaultUrl?: string, defaultKey?: string): Promise<ConfigLoadResult> {
   try {
-    if (!defaultUrl || !defaultKey) {
+    if (!defaultUrl || !defaultKey || !defaultUrl.trim() || !defaultKey.trim()) {
       logger.warn('No default credentials available for database bootstrap', {
-        module: 'config-loader'
+        module: 'config-loader',
+        hasUrl: !!defaultUrl,
+        hasKey: !!defaultKey
       });
       return { config: null, source: ConfigSource.DATABASE };
     }
@@ -339,8 +410,8 @@ export async function loadFromDatabase(defaultUrl?: string, defaultKey?: string)
       module: 'config-loader'
     });
     
-    const databaseUrl = defaultUrl;
-    const databaseKey = defaultKey;
+    const databaseUrl = defaultUrl.trim();
+    const databaseKey = defaultKey.trim();
     
     // Fetch bootstrap config from database
     const bootstrapConfigResult = await fetchBootstrapConfig(databaseUrl, databaseKey);
@@ -359,7 +430,7 @@ export async function loadFromDatabase(defaultUrl?: string, defaultKey?: string)
     const { url, anonKey, serviceKey, isInitialized } = bootstrapConfigResult;
     
     // Validate returned config
-    if (!url || !anonKey) {
+    if (!url || !url.trim() || !anonKey || !anonKey.trim()) {
       logger.warn('Database returned incomplete config', {
         module: 'config-loader',
         hasUrl: !!url,
@@ -379,9 +450,9 @@ export async function loadFromDatabase(defaultUrl?: string, defaultKey?: string)
     
     return {
       config: {
-        url: bootstrapConfigResult.url,
-        anonKey: bootstrapConfigResult.anonKey,
-        serviceKey: bootstrapConfigResult.serviceKey,
+        url: bootstrapConfigResult.url.trim(),
+        anonKey: bootstrapConfigResult.anonKey.trim(),
+        serviceKey: bootstrapConfigResult.serviceKey ? bootstrapConfigResult.serviceKey.trim() : undefined,
         isInitialized: bootstrapConfigResult.isInitialized || true,
         savedAt: new Date().toISOString(),
         environment: getEnvironmentId()
@@ -410,14 +481,14 @@ export function getDefaultConfig(): ConfigLoadResult {
     const defaultUrl = import.meta.env.VITE_DEFAULT_SUPABASE_URL || '';
     const defaultKey = import.meta.env.VITE_DEFAULT_SUPABASE_ANON_KEY || '';
     
-    if (!defaultUrl || !defaultKey) {
+    if (!defaultUrl || !defaultKey || !defaultUrl.trim() || !defaultKey.trim()) {
       return { config: null, source: ConfigSource.DEFAULT };
     }
     
     return {
       config: {
-        url: defaultUrl,
-        anonKey: defaultKey,
+        url: defaultUrl.trim(),
+        anonKey: defaultKey.trim(),
         isInitialized: false,
         savedAt: new Date().toISOString(),
         environment: getEnvironmentId()
@@ -513,6 +584,17 @@ export function saveConfiguration(config: SupabaseConfig): boolean {
     if (!config) {
       logger.error('Cannot save null configuration', {
         module: 'config-loader'
+      });
+      return false;
+    }
+    
+    // Validate config before saving
+    const validation = validateConfig(config);
+    
+    if (!validation.valid) {
+      logger.error('Cannot save invalid configuration', {
+        module: 'config-loader',
+        errors: validation.errors
       });
       return false;
     }

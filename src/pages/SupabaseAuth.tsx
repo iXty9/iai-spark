@@ -1,51 +1,93 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Info, Database, Loader2, Cloud } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Info, Database, Loader2, Cloud, AlertCircle } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { SupabaseConnectionForm } from '@/components/supabase/SupabaseConnectionForm';
 import { getConnectionInfo, resetSupabaseClient, testSupabaseConnection } from '@/services/supabase/connection-service';
-import { saveConfig } from '@/config/supabase-config';
+import { saveConfig, getStoredConfig, clearConfig } from '@/config/supabase-config';
 import { fetchConnectionConfig } from '@/services/admin/settingsService';
 import { ShareConfigDialog } from '@/components/supabase/ShareConfigDialog';
 import { loadSiteEnvironmentConfig } from '@/services/supabase/site-config-service';
+import { fetchStaticSiteConfig } from '@/services/site-config/site-config-file-service';
+import { logger } from '@/utils/logging';
 
 export default function SupabaseAuth() {
   const navigate = useNavigate();
+  const location = useLocation();
   const connectionInfo = getConnectionInfo();
+  
   const [isLoadingDbConfig, setIsLoadingDbConfig] = useState(true);
   const [dbConfigFound, setDbConfigFound] = useState(false);
   const [dbConfig, setDbConfig] = useState<any>(null);
   const [testingConnection, setTestingConnection] = useState(false);
   const [siteEnvConfig, setSiteEnvConfig] = useState<any>(null);
   const [isLoadingSiteEnv, setIsLoadingSiteEnv] = useState(true);
+  const [siteConfigEmpty, setSiteConfigEmpty] = useState(false);
   
   // Check if there's a saved configuration in the database and site environment
   useEffect(() => {
     const checkConfigs = async () => {
       try {
+        // First check if site-config.json exists but is empty
+        const staticConfig = await fetchStaticSiteConfig();
+        if (!staticConfig) {
+          const emptyResponse = await fetch('/site-config.json');
+          if (emptyResponse.ok) {
+            const text = await emptyResponse.text();
+            // If the file exists but is empty or contains empty values
+            if (!text.trim() || text.includes('""')) {
+              setSiteConfigEmpty(true);
+              logger.info('site-config.json exists but contains empty values', {
+                module: 'supabase-auth'
+              });
+            }
+          }
+        }
+        
         // Check for database config
         const config = await fetchConnectionConfig();
         if (config) {
           setDbConfig(config);
           setDbConfigFound(true);
+          
+          // Test if the connection actually works with these credentials
+          const connectionWorks = await testSupabaseConnection(
+            config.url, 
+            config.anonKey
+          );
+          
+          if (!connectionWorks.isConnected) {
+            logger.warn('Saved database config exists but connection failed', {
+              module: 'supabase-auth',
+              error: connectionWorks.error
+            });
+          }
         }
         
         // Check for site environment config
+        const currentConfig = getStoredConfig();
         const defaultConfig = {
-          url: config?.url || connectionInfo.url || '',
-          anonKey: config?.anonKey || ''
+          url: config?.url || currentConfig?.url || '',
+          anonKey: config?.anonKey || currentConfig?.anonKey || ''
         };
         
         if (defaultConfig.url && defaultConfig.anonKey) {
-          const siteConfig = await loadSiteEnvironmentConfig(
-            defaultConfig.url,
-            defaultConfig.anonKey
-          );
-          
-          if (siteConfig) {
-            setSiteEnvConfig(siteConfig);
+          try {
+            const siteConfig = await loadSiteEnvironmentConfig(
+              defaultConfig.url,
+              defaultConfig.anonKey
+            );
+            
+            if (siteConfig) {
+              setSiteEnvConfig(siteConfig);
+            }
+          } catch (siteConfigError) {
+            logger.error('Error loading site environment config', siteConfigError, {
+              module: 'supabase-auth'
+            });
           }
         }
       } catch (error) {
@@ -85,9 +127,9 @@ export default function SupabaseAuth() {
     
     try {
       // Test the connection before using it
-      const connectionValid = await testSupabaseConnection(dbConfig.url, dbConfig.anonKey);
+      const connectionTest = await testSupabaseConnection(dbConfig.url, dbConfig.anonKey);
       
-      if (connectionValid) {
+      if (connectionTest.isConnected) {
         // Save the config from the database to localStorage
         saveConfig({
           url: dbConfig.url,
@@ -102,7 +144,7 @@ export default function SupabaseAuth() {
         // Navigate back to previous page or home
         navigate('/');
       } else {
-        throw new Error("Connection failed with saved credentials");
+        throw new Error(connectionTest.error || "Connection failed with saved credentials");
       }
     } catch (error) {
       console.error("Error using saved configuration:", error);
@@ -161,6 +203,17 @@ export default function SupabaseAuth() {
                 </Alert>
               )}
               
+              {siteConfigEmpty && (
+                <Alert variant="warning">
+                  <AlertCircle className="h-4 w-4 text-yellow-500" />
+                  <AlertTitle className="text-yellow-700">Site Configuration Empty</AlertTitle>
+                  <AlertDescription className="text-yellow-600 text-sm">
+                    <p>Your site-config.json file exists but contains empty values.</p>
+                    <p>After connecting, please update your site configuration to enable automatic connections.</p>
+                  </AlertDescription>
+                </Alert>
+              )}
+              
               <div className="flex gap-2">
                 <Button 
                   onClick={handleUseDbConfig} 
@@ -208,6 +261,17 @@ export default function SupabaseAuth() {
                       ? new Date(connectionInfo.lastConnection).toLocaleString() 
                       : 'Never'}
                     </p>
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              {siteConfigEmpty && (
+                <Alert variant="warning" className="mb-6">
+                  <AlertCircle className="h-4 w-4 text-yellow-500" />
+                  <AlertTitle className="text-yellow-700">Site Configuration Empty</AlertTitle>
+                  <AlertDescription className="text-yellow-600 text-sm">
+                    <p>Your site-config.json file exists but contains empty values.</p>
+                    <p>After connecting, please update your site configuration to enable automatic connections.</p>
                   </AlertDescription>
                 </Alert>
               )}

@@ -1,78 +1,79 @@
+
 /**
- * Configuration validation utilities
- * Provides schema validation for Supabase configurations
+ * Configuration validation service
+ * Ensures that Supabase configuration is valid before using it
  */
 
 import { logger } from '@/utils/logging';
 import { SupabaseConfig } from '@/config/supabase/types';
 
 /**
- * Validate a Supabase configuration
- * @param config The configuration to validate
- * @returns Validation result with errors if invalid
+ * Result of configuration validation
  */
-export function validateConfig(config: unknown): { 
-  valid: boolean; 
-  config?: SupabaseConfig; 
-  errors?: string[] 
-} {
+interface ValidationResult {
+  valid: boolean;
+  config: SupabaseConfig | null;
+  errors?: string[];
+}
+
+/**
+ * Validate Supabase configuration
+ * Ensures that required fields are present and have non-empty values
+ */
+export function validateConfig(config: any): ValidationResult {
   try {
     if (!config) {
       return {
         valid: false,
+        config: null,
         errors: ['Configuration is null or undefined']
       };
     }
     
     const errors: string[] = [];
-    const typedConfig = config as Record<string, any>;
     
     // Check required fields
-    if (!typedConfig.url) {
-      errors.push('URL is required');
-    } else if (!isValidUrl(typedConfig.url)) {
-      errors.push('URL is invalid');
+    if (!config.url) {
+      errors.push('Supabase URL is required');
+    } else if (typeof config.url !== 'string') {
+      errors.push('Supabase URL must be a string');
+    } else if (!config.url.trim()) {
+      errors.push('Supabase URL cannot be empty');
     }
     
-    if (!typedConfig.anonKey) {
-      errors.push('Anonymous key is required');
-    } else if (typeof typedConfig.anonKey !== 'string' || typedConfig.anonKey.length < 10) {
-      errors.push('Anonymous key is invalid');
+    if (!config.anonKey) {
+      errors.push('Supabase anonymous key is required');
+    } else if (typeof config.anonKey !== 'string') {
+      errors.push('Supabase anonymous key must be a string');
+    } else if (!config.anonKey.trim()) {
+      errors.push('Supabase anonymous key cannot be empty');
     }
     
-    // Check optional fields
-    if (typedConfig.serviceKey !== undefined && 
-        (typeof typedConfig.serviceKey !== 'string' || typedConfig.serviceKey.length < 10)) {
-      errors.push('Service key is invalid');
-    }
-    
-    if (typedConfig.isInitialized !== undefined && typeof typedConfig.isInitialized !== 'boolean') {
-      errors.push('isInitialized must be a boolean');
-    }
-    
-    if (typedConfig.savedAt !== undefined && !isValidISODate(typedConfig.savedAt)) {
-      errors.push('savedAt must be a valid ISO date string');
-    }
-    
-    // If there are errors, return them
+    // If there are errors, return invalid result
     if (errors.length > 0) {
+      logger.warn('Configuration validation failed', {
+        module: 'config-validation',
+        errors
+      });
+      
       return {
         valid: false,
+        config: null,
         errors
       };
     }
     
-    // All checks passed, return the validated config
+    // Ensure all string values are trimmed
+    const validatedConfig: SupabaseConfig = {
+      ...config,
+      url: config.url.trim(),
+      anonKey: config.anonKey.trim(),
+      serviceKey: config.serviceKey ? config.serviceKey.trim() : undefined
+    };
+    
     return {
       valid: true,
-      config: {
-        url: typedConfig.url,
-        anonKey: typedConfig.anonKey,
-        serviceKey: typedConfig.serviceKey,
-        isInitialized: typedConfig.isInitialized ?? false,
-        savedAt: typedConfig.savedAt || new Date().toISOString(),
-        environment: typedConfig.environment
-      }
+      config: validatedConfig
     };
   } catch (error) {
     logger.error('Error validating configuration', error, {
@@ -81,30 +82,25 @@ export function validateConfig(config: unknown): {
     
     return {
       valid: false,
-      errors: [error instanceof Error ? error.message : 'Unknown validation error']
+      config: null,
+      errors: [error instanceof Error ? error.message : String(error)]
     };
   }
 }
 
 /**
- * Check if a string is a valid URL
+ * Check if a URL is valid
  */
-function isValidUrl(url: string): boolean {
+export function isValidUrl(url: string): boolean {
   try {
+    // Check if URL is empty or just whitespace
+    if (!url || !url.trim()) {
+      return false;
+    }
+    
+    // Try to parse URL
     new URL(url);
     return true;
-  } catch (e) {
-    return false;
-  }
-}
-
-/**
- * Check if a string is a valid ISO date
- */
-function isValidISODate(dateString: string): boolean {
-  try {
-    const date = new Date(dateString);
-    return !isNaN(date.getTime()) && date.toISOString() === dateString;
   } catch (e) {
     return false;
   }
