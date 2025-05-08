@@ -141,16 +141,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <ThemeContext.Provider value={{
-      theme,
-      setTheme,
-      mode,
-      setMode: (m) => setModeState(m),
-      resetTheme,
-      importTheme,
-      exportTheme,
-      validateTheme,
-    }}>
+    <ThemeContext.Provider
+      value={{
+        theme,
+        setTheme,
+        mode,
+        setMode: (m) => setModeState(m),
+        resetTheme,
+        importTheme,
+        exportTheme,
+        validateTheme,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );
