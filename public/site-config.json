@@ -1,7 +1,7 @@
 
 {
-  "supabaseUrl": "https://pquaelpxxhaxdlkjqulk.supabase.co",
-  "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxdWFlbHB4eGhheGRsa2pxdWxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY1NTI0OTksImV4cCI6MjA2MjEyODQ5OX0.nrgYlnnkuXq0qQ5KNgcszPX2rabNvVF-PUm5IEdoNRk",
-  "siteHost": "http://localhost:8080/",
+  "supabaseUrl": "https://ymtdtzkskjdqlzhjuesk.supabase.co",
+  "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltdGR0emtza2pkcWx6aGp1ZXNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5MjUyNDYsImV4cCI6MjA2MDUwMTI0Nn0.sOQdxH63edhcIgjx6mxjHkeam4IQGViaWYLdFDepIaE",
+  "siteHost": "https://ixty.ai/",
   "lastUpdated": "2023-07-01T00:00:00.000Z"
 }
