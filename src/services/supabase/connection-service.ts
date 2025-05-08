@@ -1,19 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
 import { toast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
-import { getStoredConfig, getDefaultConfig, hasStoredConfig, clearConfig, getEnvironmentId } from '@/config/supabase-config';
+import { getStoredConfig, clearConfig, getEnvironmentId, getEnvironmentInfo } from '@/config/supabase-config';
 import { logger } from '@/utils/logging';
-import { fetchConnectionConfig } from '@/services/admin/settingsService';
-import { fetchBootstrapConfig } from '@/services/supabase/bootstrap-service';
-import { loadSiteEnvironmentConfig } from '@/services/supabase/site-config-service';
-import { fetchStaticSiteConfig } from '@/services/site-config/site-config-file-service';
+import { loadConfiguration, saveConfiguration, ConfigSource } from '@/services/supabase/config-loader';
 
+// Client instance and connection tracking
 let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
 const CONNECTION_ID_KEY = 'supabase_connection_id';
 const LAST_CONNECTION_TIME_KEY = 'supabase_last_connection';
 const ENVIRONMENT_KEY = 'supabase_environment';
-const BOOTSTRAP_RETRY_COUNT_KEY = 'supabase_bootstrap_retry_count';
-const MAX_BOOTSTRAP_RETRIES = 3;
+const CONNECTION_STATE_KEY = 'supabase_connection_state';
+
+// Connection state tracking
+interface ConnectionState {
+  lastAttempt: string;
+  lastSuccess: string | null;
+  attemptCount: number;
+  source: string;
+  error?: string;
+}
 
 // Store current environment with connection
 function getConnectionKey(key: string): string {
@@ -24,125 +30,76 @@ function getConnectionKey(key: string): string {
 /**
  * Public endpoint to check if default bootstrap config should be tried
  * This is used in server-side rendered environments to avoid infinite loops
+ * Now uses the unified configuration loader
  */
 export async function checkPublicBootstrapConfig() {
-  // STEP 1: Check URL parameters for public bootstrap configs
-  const urlParams = new URLSearchParams(window.location.search);
-  const publicUrl = urlParams.get('public_url');
-  const publicKey = urlParams.get('public_key');
-  
-  if (publicUrl && publicKey) {
-    logger.info('Found public bootstrap config in URL parameters', {
+  try {
+    logger.info('Checking for bootstrap configuration', {
       module: 'supabase-connection'
     });
     
-    try {
-      // Attempt to use these credentials to bootstrap the connection
-      const bootstrapConfig = await fetchBootstrapConfig(publicUrl, publicKey);
-      
-      if (bootstrapConfig) {
-        logger.info('Successfully bootstrapped connection from URL parameters', {
-          module: 'supabase-connection'
-        });
-        
-        // Save the bootstrapped config to localStorage
-        saveConfig({
-          url: bootstrapConfig.url,
-          anonKey: bootstrapConfig.anonKey,
-          serviceKey: bootstrapConfig.serviceKey,
-          isInitialized: bootstrapConfig.isInitialized
-        });
-        
-        // Reset the Supabase client to use the new config
-        resetSupabaseClient();
-        
-        return true;
-      }
-    } catch (error) {
-      logger.error('Failed to bootstrap connection from URL parameters', error, {
+    // Use the unified configuration loader
+    const result = await loadConfiguration();
+    
+    if (result.config) {
+      logger.info(`Successfully loaded configuration from ${result.source}`, {
         module: 'supabase-connection'
       });
-    }
-  }
-
-  // STEP 2: Try to fetch from static site config file
-  // This is a key improvement to solve the cold-start problem
-  try {
-    logger.info('Attempting to load static site config file', {
-      module: 'supabase-connection'
-    });
-    
-    const staticConfig = await fetchStaticSiteConfig();
-    
-    if (staticConfig) {
-      logger.info('Successfully loaded static site config file', {
-        module: 'supabase-connection',
-        host: staticConfig.siteHost
-      });
       
-      // Save the site config to localStorage
-      saveConfig({
-        url: staticConfig.supabaseUrl,
-        anonKey: staticConfig.supabaseAnonKey,
-        isInitialized: true
-      });
+      // Save the configuration
+      saveConfiguration(result.config);
       
       // Reset the Supabase client to use the new config
       resetSupabaseClient();
       
-      return true;
-    }
-  } catch (error) {
-    logger.error('Error loading static site config file', error, {
-      module: 'supabase-connection'
-    });
-  }
-
-  // STEP 3: Try to load from site environment config if no URL parameters or static file are found
-  try {
-    const defaultConfig = getDefaultConfig();
-    
-    // Only try to load site config if we have a default config to use temporarily
-    if (defaultConfig.url && defaultConfig.anonKey) {
-      logger.info('Attempting to load site environment config', {
-        module: 'supabase-connection'
+      // Update connection state
+      updateConnectionState({
+        lastAttempt: new Date().toISOString(),
+        lastSuccess: new Date().toISOString(),
+        attemptCount: 1,
+        source: result.source
       });
       
-      const siteConfig = await loadSiteEnvironmentConfig(
-        defaultConfig.url, 
-        defaultConfig.anonKey
-      );
-      
-      if (siteConfig) {
-        logger.info('Successfully loaded site environment config', {
-          module: 'supabase-connection',
-          host: siteConfig.siteHost
-        });
-        
-        // Save the site config to localStorage
-        saveConfig({
-          url: siteConfig.supabaseUrl,
-          anonKey: siteConfig.supabaseAnonKey,
-          isInitialized: true
-        });
-        
-        // Reset the Supabase client to use the new config
-        resetSupabaseClient();
-        
-        return true;
-      }
+      return true;
     }
+    
+    logger.info('No bootstrap configuration found', {
+      module: 'supabase-connection',
+      error: result.error
+    });
+    
+    // Update connection state
+    updateConnectionState({
+      lastAttempt: new Date().toISOString(),
+      lastSuccess: null,
+      attemptCount: getConnectionState().attemptCount + 1,
+      source: ConfigSource.NONE,
+      error: result.error
+    });
+    
+    return false;
   } catch (error) {
-    logger.error('Error loading site environment config', error, {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    logger.error('Error checking bootstrap configuration', error, {
       module: 'supabase-connection'
     });
+    
+    // Update connection state
+    updateConnectionState({
+      lastAttempt: new Date().toISOString(),
+      lastSuccess: null,
+      attemptCount: getConnectionState().attemptCount + 1,
+      source: ConfigSource.NONE,
+      error: errorMsg
+    });
+    
+    return false;
   }
-  
-  return false;
 }
 
 /**
  * Get the Supabase client instance, creating it if needed
+ * Now with improved error handling and state management
  */
 export function getSupabaseClient() {
   if (supabaseInstance) return supabaseInstance;
@@ -155,18 +112,18 @@ export function getSupabaseClient() {
       localStorage.setItem(connIdKey, connectionId);
       
       // Store environment info for debugging
-      const hostname = window.location.hostname;
-      localStorage.setItem(getConnectionKey(ENVIRONMENT_KEY), hostname);
+      const envInfo = getEnvironmentInfo();
+      localStorage.setItem(getConnectionKey(ENVIRONMENT_KEY), JSON.stringify(envInfo));
       
-      logger.info(`Generating new connection ID: ${connectionId} for ${hostname}`, {
-        module: 'supabase-connection'
+      logger.info(`Generating new connection ID: ${connectionId}`, {
+        module: 'supabase-connection',
+        environment: envInfo.id
       });
     }
     
-    const connectionId = localStorage.getItem(connIdKey);
-    const environment = localStorage.getItem(getConnectionKey(ENVIRONMENT_KEY)) || window.location.hostname;
+    const connectionId = localStorage.getItem(connIdKey) || 'unknown';
     
-    // Check for force_init parameter - don't initialize client if forcing init
+    // Check for special URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const forceInit = urlParams.get('force_init') === 'true';
     const resetConfig = urlParams.get('reset_config') === 'true';
@@ -174,27 +131,27 @@ export function getSupabaseClient() {
     if (resetConfig) {
       clearConfig();
       logger.info('Configuration reset requested via URL parameter', {
-        module: 'supabase'
+        module: 'supabase-connection'
       });
       return null;
     }
     
     if (forceInit) {
       logger.info('Force init parameter detected, not initializing Supabase client', {
-        module: 'supabase'
+        module: 'supabase-connection'
       });
       return null;
     }
     
-    // ALWAYS prioritize stored configuration if it exists
+    // Get stored configuration
     const storedConfig = getStoredConfig();
     
-    if (storedConfig) {
-      // Use stored configuration (this should work across different development environments)
-      logger.info(`Using stored Supabase configuration for connection ${connectionId} on ${environment}`, {
-        module: 'supabase',
-        custom: true,
-        url: storedConfig.url ? storedConfig.url.split('//')[1] : 'undefined'
+    if (storedConfig && storedConfig.url && storedConfig.anonKey) {
+      // Use stored configuration
+      logger.info(`Using stored Supabase configuration for connection ${connectionId}`, {
+        module: 'supabase-connection',
+        url: storedConfig.url.split('//')[1],
+        environment: storedConfig.environment || getEnvironmentId()
       });
       
       // Create and initialize the Supabase client with stored config
@@ -210,57 +167,57 @@ export function getSupabaseClient() {
       // Record last connection time
       localStorage.setItem(getConnectionKey(LAST_CONNECTION_TIME_KEY), new Date().toISOString());
       
+      // Update connection state
+      updateConnectionState({
+        lastAttempt: new Date().toISOString(),
+        lastSuccess: new Date().toISOString(),
+        attemptCount: 1,
+        source: 'stored_config'
+      });
+      
       return supabaseInstance;
     }
     
-    // If no stored config is available, try to bootstrap from default config
-    // This should happen only on the first visit from a new device
-    tryBootstrapFromDefault().catch(error => {
-      logger.error('Failed to bootstrap from default config', error, {
-        module: 'supabase'
+    // If no stored config is available, trigger bootstrap in the background
+    // This avoids blocking the UI while we try to bootstrap
+    setTimeout(() => {
+      checkPublicBootstrapConfig().catch(error => {
+        logger.error('Failed to bootstrap configuration', error, {
+          module: 'supabase-connection'
+        });
       });
+    }, 0);
+    
+    // No valid configuration available
+    logger.warn('No valid Supabase configuration available', { 
+      module: 'supabase-connection',
+      connectionId,
+      environment: getEnvironmentId()
     });
     
-    // If no stored config is available, use default config as fallback in development
-    if (process.env.NODE_ENV === 'development') {
-      const defaultConfig = getDefaultConfig();
-      logger.warn(`No stored config found for ${environment}, using default config as fallback for connection ${connectionId}`, {
-        module: 'supabase'
-      });
-      
-      // Create client with default config, but only in development
-      if (defaultConfig.url && defaultConfig.anonKey) {
-        supabaseInstance = createClient<Database>(defaultConfig.url, defaultConfig.anonKey, {
-          auth: {
-            storage: localStorage,
-            persistSession: true,
-            autoRefreshToken: true,
-            debug: true
-          }
-        });
-        
-        // Record last connection time
-        localStorage.setItem(getConnectionKey(LAST_CONNECTION_TIME_KEY), new Date().toISOString());
-        
-        return supabaseInstance;
-      } else {
-        logger.warn('Default config is incomplete (missing URL or anonKey)', { 
-          module: 'supabase'
-        });
-      }
-    }
-    
-    // In production with no config, show error
-    throw new Error(`No Supabase configuration available for ${environment} (env: ${getEnvironmentId()})`);
+    return null;
   } catch (error) {
-    logger.error('Failed to initialize Supabase client', error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    logger.error('Failed to initialize Supabase client', error, {
+      module: 'supabase-connection'
+    });
+    
+    // Update connection state
+    updateConnectionState({
+      lastAttempt: new Date().toISOString(),
+      lastSuccess: null,
+      attemptCount: getConnectionState().attemptCount + 1,
+      source: 'error',
+      error: errorMsg
+    });
+    
     toast({
       title: 'Connection Error',
       description: 'Could not connect to database. Please check configuration.',
       variant: 'destructive',
       action: {
         altText: "Reconnect",
-        onClick: () => window.location.href = '/supabase-auth'
+        onClick: () => window.location.href = '/initialize'
       }
     });
     
@@ -270,155 +227,31 @@ export function getSupabaseClient() {
 }
 
 /**
- * Try to bootstrap from default config stored in the database
- * This runs as a background operation to avoid blocking the UI
- * Enhanced to check static site config file first
- */
-async function tryBootstrapFromDefault() {
-  // Check if we've already tried too many times this session
-  const retryCountKey = getConnectionKey(BOOTSTRAP_RETRY_COUNT_KEY);
-  const retryCount = parseInt(localStorage.getItem(retryCountKey) || '0', 10);
-  
-  if (retryCount >= MAX_BOOTSTRAP_RETRIES) {
-    logger.warn('Max bootstrap retry count reached, aborting', {
-      module: 'supabase-bootstrap',
-      // Removed retryCount property from log options
-    });
-    return;
-  }
-  
-  // Increment and save the retry count
-  localStorage.setItem(retryCountKey, (retryCount + 1).toString());
-  
-  // Get default config for bootstrap attempt
-  const defaultConfig = getDefaultConfig();
-  
-  // If default config isn't available, we can't bootstrap
-  if (!defaultConfig.url || !defaultConfig.anonKey) {
-    logger.warn('Default config is incomplete, cannot bootstrap', {
-      module: 'supabase-bootstrap'
-    });
-    return;
-  }
-  
-  try {
-    logger.info('Attempting to bootstrap from multiple sources', {
-      module: 'supabase-bootstrap'
-    });
-    
-    // NEW: First try loading from static site config file
-    try {
-      const staticConfig = await fetchStaticSiteConfig();
-      
-      if (staticConfig) {
-        logger.info('Successfully bootstrapped from static site config file', {
-          module: 'supabase-bootstrap',
-          host: staticConfig.siteHost
-        });
-        
-        // Save to localStorage for future use
-        saveConfig({
-          url: staticConfig.supabaseUrl,
-          anonKey: staticConfig.supabaseAnonKey,
-          isInitialized: true
-        });
-        
-        // Reset client to use new config
-        resetSupabaseClient();
-        
-        // Reload the page to use the new config
-        window.location.reload();
-        return;
-      }
-    } catch (error) {
-      logger.error('Error loading from static site config file', error, {
-        module: 'supabase-bootstrap'
-      });
-      // Continue to try other bootstrap methods
-    }
-    
-    // NEW: Next try loading from site environment config
-    try {
-      const defaultConfig = getDefaultConfig();
-      
-      if (defaultConfig.url && defaultConfig.anonKey) {
-        const siteConfig = await loadSiteEnvironmentConfig(
-          defaultConfig.url,
-          defaultConfig.anonKey
-        );
-        
-        if (siteConfig) {
-          logger.info('Successfully bootstrapped from site environment config', {
-            module: 'supabase-bootstrap',
-            host: siteConfig.siteHost
-          });
-          
-          // Save to localStorage for future use
-          saveConfig({
-            url: siteConfig.supabaseUrl,
-            anonKey: siteConfig.supabaseAnonKey,
-            isInitialized: true
-          });
-          
-          // Reset client to use new config
-          resetSupabaseClient();
-          
-          // Reload the page to use the new config
-          window.location.reload();
-          return;
-        }
-      }
-    } catch (error) {
-      logger.error('Error loading from site environment config', error, {
-        module: 'supabase-bootstrap'
-      });
-      // Continue to try other bootstrap methods
-    }
-    
-    // Original fallback method: Try to use the default config to fetch stored settings from the database
-    const bootstrapConfig = await fetchBootstrapConfig(
-      defaultConfig.url,
-      defaultConfig.anonKey
-    );
-    
-    // If we found a stored config, save it to localStorage
-    if (bootstrapConfig) {
-      logger.info('Successfully bootstrapped from default config', {
-        module: 'supabase-bootstrap',
-        url: bootstrapConfig.url.split('//')[1]
-      });
-      
-      // Save to localStorage for future use
-      saveConfig({
-        url: bootstrapConfig.url,
-        anonKey: bootstrapConfig.anonKey,
-        serviceKey: bootstrapConfig.serviceKey,
-        isInitialized: bootstrapConfig.isInitialized
-      });
-      
-      // Reset client to use new config
-      resetSupabaseClient();
-      
-      // Reload the page to use the new config
-      window.location.reload();
-    } else {
-      logger.warn('No stored configuration found during bootstrap attempt', {
-        module: 'supabase-bootstrap'
-      });
-    }
-  } catch (error) {
-    logger.error('Error during bootstrap attempt', error, {
-      module: 'supabase-bootstrap'
-    });
-  }
-}
-
-/**
  * Test a Supabase connection with the given URL and key
+ * Enhanced with better error handling
  */
 export async function testSupabaseConnection(url: string, anonKey: string): Promise<boolean> {
   try {
-    const testClient = createClient(url, anonKey);
+    if (!url || !anonKey) {
+      logger.warn('Invalid connection parameters for test', {
+        module: 'supabase-connection',
+        hasUrl: !!url,
+        hasKey: !!anonKey
+      });
+      return false;
+    }
+    
+    logger.info('Testing Supabase connection', {
+      module: 'supabase-connection',
+      url: url.split('//')[1]
+    });
+    
+    const testClient = createClient(url, anonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
+      }
+    });
     
     // Try to make a simple query to test the connection
     const { error } = await testClient
@@ -426,15 +259,37 @@ export async function testSupabaseConnection(url: string, anonKey: string): Prom
       .select('id')
       .limit(1);
     
-    // If we got a 404, the table might not exist but the connection is fine
-    if (error && error.code !== '42P01') {
-      logger.error('Failed to test Supabase connection', error);
-      return false;
+    // Connection is good if there's no error or if it's just a "table not found" error
+    const isConnected = !error || error.code === '42P01';
+    
+    if (isConnected) {
+      logger.info('Supabase connection test successful', {
+        module: 'supabase-connection',
+        url: url.split('//')[1]
+      });
+    } else {
+      logger.warn('Supabase connection test failed', {
+        module: 'supabase-connection',
+        url: url.split('//')[1],
+        errorCode: error.code,
+        errorMessage: error.message
+      });
     }
     
-    return true;
+    return isConnected;
   } catch (error) {
-    logger.error('Error testing Supabase connection', error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    logger.error('Error testing Supabase connection', error, {
+      module: 'supabase-connection'
+    });
+    
+    // Check for specific error types
+    if (errorMsg.includes('fetch') || errorMsg.includes('network')) {
+      logger.warn('Network error during connection test - possible offline or CORS issue', {
+        module: 'supabase-connection'
+      });
+    }
+    
     return false;
   }
 }
@@ -445,7 +300,7 @@ export async function testSupabaseConnection(url: string, anonKey: string): Prom
  */
 export function resetSupabaseClient() {
   logger.info('Resetting Supabase client instance', {
-    module: 'supabase'
+    module: 'supabase-connection'
   });
   
   supabaseInstance = null;
@@ -453,6 +308,7 @@ export function resetSupabaseClient() {
 
 /**
  * Get current connection information for debugging
+ * Enhanced with more detailed information
  */
 export function getConnectionInfo() {
   const connIdKey = getConnectionKey(CONNECTION_ID_KEY);
@@ -460,47 +316,110 @@ export function getConnectionInfo() {
   const lastConnKey = getConnectionKey(LAST_CONNECTION_TIME_KEY);
   
   const connectionId = localStorage.getItem(connIdKey) || 'not_set';
-  const environment = localStorage.getItem(envKey) || window.location.hostname;
+  const environmentJson = localStorage.getItem(envKey);
+  let environment = null;
+  
+  try {
+    environment = environmentJson ? JSON.parse(environmentJson) : null;
+  } catch (e) {
+    environment = { id: window.location.hostname };
+  }
+  
   const lastConnection = localStorage.getItem(lastConnKey) || 'never';
   const storedConfig = getStoredConfig();
+  const connectionState = getConnectionState();
   
   return {
     connectionId,
-    environment,
-    environmentId: getEnvironmentId(),
+    environment: environment || getEnvironmentInfo(),
     lastConnection,
+    connectionState,
     hasStoredConfig: !!storedConfig,
-    url: storedConfig?.url ? storedConfig.url.split('//')[1] : 'No stored config'
+    url: storedConfig?.url ? storedConfig.url.split('//')[1] : 'No stored config',
+    configTimestamp: storedConfig?.savedAt || 'unknown'
   };
 }
 
 /**
- * Save configuration to localStorage
- * Added here to avoid circular dependencies
+ * Update connection state
+ * This tracks connection attempts and success/failure
  */
-function saveConfig(config: {
-  url: string;
-  anonKey: string;
-  serviceKey?: string;
-  isInitialized?: boolean;
-}) {
+function updateConnectionState(state: Partial<ConnectionState>) {
   try {
-    const configKey = getConnectionKey('spark_supabase_config');
-    // Add a timestamp and environment info to the saved config
-    const configWithMeta = {
-      ...config,
-      savedAt: new Date().toISOString(),
-      environment: window.location.hostname
+    const currentState = getConnectionState();
+    const newState = {
+      ...currentState,
+      ...state
     };
     
-    localStorage.setItem(configKey, JSON.stringify(configWithMeta));
-    logger.info('Supabase configuration saved to local storage', {
-      module: 'supabase-connection',
-      url: config.url ? config.url.split('//')[1] : 'undefined'
-    });
+    localStorage.setItem(
+      getConnectionKey(CONNECTION_STATE_KEY),
+      JSON.stringify(newState)
+    );
+    
     return true;
   } catch (e) {
-    logger.error('Error saving Supabase config to local storage', e);
+    logger.error('Error updating connection state', e, {
+      module: 'supabase-connection'
+    });
+    return false;
+  }
+}
+
+/**
+ * Get current connection state
+ */
+function getConnectionState(): ConnectionState {
+  try {
+    const stateJson = localStorage.getItem(getConnectionKey(CONNECTION_STATE_KEY));
+    
+    if (!stateJson) {
+      return {
+        lastAttempt: '',
+        lastSuccess: null,
+        attemptCount: 0,
+        source: ''
+      };
+    }
+    
+    return JSON.parse(stateJson);
+  } catch (e) {
+    logger.error('Error reading connection state', e, {
+      module: 'supabase-connection'
+    });
+    
+    return {
+      lastAttempt: '',
+      lastSuccess: null,
+      attemptCount: 0,
+      source: '',
+      error: 'Error reading state'
+    };
+  }
+}
+
+/**
+ * Check if the connection is healthy
+ * This can be used to detect stale connections
+ */
+export async function checkConnectionHealth(): Promise<boolean> {
+  try {
+    if (!supabaseInstance) {
+      return false;
+    }
+    
+    // Try a simple query to check connection
+    const { error } = await supabaseInstance
+      .from('profiles')
+      .select('id')
+      .limit(1);
+    
+    // Connection is healthy if there's no error or if it's just a "table not found" error
+    return !error || error.code === '42P01';
+  } catch (error) {
+    logger.error('Error checking connection health', error, {
+      module: 'supabase-connection'
+    });
     return false;
   }
 }

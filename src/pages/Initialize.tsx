@@ -1,15 +1,16 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ConnectionForm } from '@/components/init/ConnectionForm';
 import { DatabaseSetupStep } from '@/components/init/DatabaseSetupStep';
 import { AdminSetupForm } from '@/components/init/AdminSetupForm';
-import { hasStoredConfig, isDevelopment, clearConfig } from '@/config/supabase-config';
+import { hasStoredConfig, isDevelopment, clearConfig, getEnvironmentInfo } from '@/config/supabase-config';
 import { toast } from '@/hooks/use-toast';
-import { ArrowLeft, ArrowRight, Database, ShieldCheck, Settings, Info, RefreshCw } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Database, ShieldCheck, Settings, Info, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { resetSupabaseClient } from '@/services/supabase/connection-service';
+import { resetSupabaseClient, getConnectionInfo } from '@/services/supabase/connection-service';
+import { logger } from '@/utils/logging';
 
 // Initialize page steps
 enum InitStep {
@@ -19,24 +20,130 @@ enum InitStep {
   Complete = 3,
 }
 
+// Local storage key for initialization state
+const INIT_STATE_KEY = 'initialization_state';
+
+// Interface for persistent initialization state
+interface InitializationState {
+  step: InitStep;
+  supabaseUrl: string;
+  anonKey: string;
+  serviceKey: string;
+  timestamp: string;
+  sessionId: string;
+}
+
 const Initialize = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [currentStep, setCurrentStep] = useState<InitStep>(InitStep.Connection);
-  const [supabaseUrl, setSupabaseUrl] = useState('');
-  const [anonKey, setAnonKey] = useState('');
-  const [serviceKey, setServiceKey] = useState('');
+  
+  // Generate a unique session ID for this initialization process
+  const [sessionId] = useState<string>(() => {
+    return `init_${Math.random().toString(36).substring(2, 10)}`;
+  });
+  
+  // Load saved state or use defaults
+  const [currentStep, setCurrentStep] = useState<InitStep>(() => {
+    try {
+      const savedState = localStorage.getItem(INIT_STATE_KEY);
+      if (savedState) {
+        const parsedState = JSON.parse(savedState) as InitializationState;
+        // Only use saved state if it's less than 24 hours old
+        const savedTime = new Date(parsedState.timestamp).getTime();
+        const now = new Date().getTime();
+        const hoursSinceSaved = (now - savedTime) / (1000 * 60 * 60);
+        
+        if (hoursSinceSaved < 24) {
+          return parsedState.step;
+        }
+      }
+      return InitStep.Connection;
+    } catch (e) {
+      return InitStep.Connection;
+    }
+  });
+  
+  const [supabaseUrl, setSupabaseUrl] = useState<string>(() => {
+    try {
+      const savedState = localStorage.getItem(INIT_STATE_KEY);
+      if (savedState) {
+        const parsedState = JSON.parse(savedState) as InitializationState;
+        return parsedState.supabaseUrl || '';
+      }
+      return '';
+    } catch (e) {
+      return '';
+    }
+  });
+  
+  const [anonKey, setAnonKey] = useState<string>(() => {
+    try {
+      const savedState = localStorage.getItem(INIT_STATE_KEY);
+      if (savedState) {
+        const parsedState = JSON.parse(savedState) as InitializationState;
+        return parsedState.anonKey || '';
+      }
+      return '';
+    } catch (e) {
+      return '';
+    }
+  });
+  
+  const [serviceKey, setServiceKey] = useState<string>(() => {
+    try {
+      const savedState = localStorage.getItem(INIT_STATE_KEY);
+      if (savedState) {
+        const parsedState = JSON.parse(savedState) as InitializationState;
+        return parsedState.serviceKey || '';
+      }
+      return '';
+    } catch (e) {
+      return '';
+    }
+  });
   
   // Parse URL parameters
   const urlParams = new URLSearchParams(location.search);
   const forceInit = urlParams.get('force_init') === 'true';
   const resetConfig = urlParams.get('reset_config') === 'true';
+  const resumeInit = urlParams.get('resume') === 'true';
+  
+  // Save state whenever it changes
+  const saveState = useCallback(() => {
+    try {
+      const state: InitializationState = {
+        step: currentStep,
+        supabaseUrl,
+        anonKey,
+        serviceKey,
+        timestamp: new Date().toISOString(),
+        sessionId
+      };
+      
+      localStorage.setItem(INIT_STATE_KEY, JSON.stringify(state));
+      
+      logger.info('Saved initialization state', {
+        module: 'initialize',
+        step: currentStep,
+        sessionId
+      });
+    } catch (e) {
+      logger.error('Failed to save initialization state', e, {
+        module: 'initialize'
+      });
+    }
+  }, [currentStep, supabaseUrl, anonKey, serviceKey, sessionId]);
+  
+  // Save state on changes
+  useEffect(() => {
+    saveState();
+  }, [currentStep, supabaseUrl, anonKey, serviceKey, saveState]);
   
   // Check if already initialized
   useEffect(() => {
     if (resetConfig) {
       // Clear config, reset Supabase client, and reload with force_init parameter
-      clearConfig(); // This now also calls resetSupabaseClient()
+      clearConfig();
       toast({
         title: 'Configuration Reset',
         description: 'The stored configuration has been cleared.',
@@ -50,15 +157,41 @@ const Initialize = () => {
       return;
     }
     
+    // Check for resume parameter
+    if (resumeInit) {
+      try {
+        const savedState = localStorage.getItem(INIT_STATE_KEY);
+        if (savedState) {
+          const parsedState = JSON.parse(savedState) as InitializationState;
+          // Only resume if state is less than 24 hours old
+          const savedTime = new Date(parsedState.timestamp).getTime();
+          const now = new Date().getTime();
+          const hoursSinceSaved = (now - savedTime) / (1000 * 60 * 60);
+          
+          if (hoursSinceSaved < 24) {
+            toast({
+              title: 'Resuming Setup',
+              description: `Continuing from step ${parsedState.step + 1} of 4.`,
+            });
+            return;
+          }
+        }
+      } catch (e) {
+        logger.error('Error resuming initialization', e, {
+          module: 'initialize'
+        });
+      }
+    }
+    
     // Allow forcing the initialize page with force_init parameter
-    if (!forceInit && hasStoredConfig()) {
+    if (!forceInit && !resumeInit && hasStoredConfig()) {
       toast({
         title: 'Already Configured',
         description: 'Supabase connection is already configured.',
       });
       navigate('/');
     }
-  }, [navigate, forceInit, resetConfig]);
+  }, [navigate, forceInit, resetConfig, resumeInit]);
   
   // Handle successful connection setup
   const handleConnectionSuccess = (url: string, anon: string, service: string) => {
@@ -66,19 +199,42 @@ const Initialize = () => {
     setAnonKey(anon);
     setServiceKey(service);
     setCurrentStep(InitStep.DatabaseSetup);
+    
+    // Log the transition
+    logger.info('Completed connection setup, moving to database setup', {
+      module: 'initialize',
+      sessionId
+    });
   };
   
   // Handle successful database initialization
   const handleDatabaseSuccess = () => {
     setCurrentStep(InitStep.AdminSetup);
+    
+    // Log the transition
+    logger.info('Completed database setup, moving to admin setup', {
+      module: 'initialize',
+      sessionId
+    });
   };
   
   // Handle successful admin creation
   const handleAdminSuccess = () => {
     setCurrentStep(InitStep.Complete);
+    
+    // Clear initialization state
+    localStorage.removeItem(INIT_STATE_KEY);
+    
     toast({
       title: 'Setup Complete',
       description: 'Your application is now configured and ready to use.',
+    });
+    
+    // Log the completion
+    logger.info('Completed initialization process', {
+      module: 'initialize',
+      sessionId,
+      environment: getEnvironmentInfo().id
     });
     
     // Redirect to home after a short delay
@@ -90,6 +246,11 @@ const Initialize = () => {
   // Reset stored configuration with force_init parameter
   const handleResetConfig = () => {
     navigate('/initialize?reset_config=true&force_init=true', { replace: true });
+  };
+  
+  // Handle resuming initialization
+  const handleResumeInit = () => {
+    navigate('/initialize?resume=true', { replace: true });
   };
   
   // Render the current step
@@ -135,6 +296,8 @@ const Initialize = () => {
   // Render the developer info alert
   const renderDevAlert = () => {
     if (isDevelopment()) {
+      const connectionInfo = getConnectionInfo();
+      
       return (
         <Alert className="mb-6">
           <Info className="h-4 w-4" />
@@ -146,8 +309,9 @@ const Initialize = () => {
             <ul className="list-disc pl-5 space-y-1 text-sm">
               <li><code>force_init=true</code> - Forces initialization page (current: {forceInit ? 'On' : 'Off'})</li>
               <li><code>reset_config=true</code> - Clears stored configuration</li>
+              <li><code>resume=true</code> - Resumes initialization (current: {resumeInit ? 'On' : 'Off'})</li>
             </ul>
-            <div className="flex gap-2 mt-2">
+            <div className="flex flex-wrap gap-2 mt-2">
               <Button 
                 variant="outline" 
                 size="sm"
@@ -157,10 +321,72 @@ const Initialize = () => {
                 <RefreshCw className="mr-1 h-3 w-3" />
                 Reset Configuration
               </Button>
+              
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleResumeInit}
+                className="text-xs"
+              >
+                <ArrowRight className="mr-1 h-3 w-3" />
+                Resume Setup
+              </Button>
+            </div>
+            
+            <div className="mt-2 text-xs text-muted-foreground">
+              <p>Environment: {connectionInfo.environment.id}</p>
+              <p>Session ID: {sessionId}</p>
             </div>
           </AlertDescription>
         </Alert>
       );
+    }
+    return null;
+  };
+  
+  // Check if there's a saved state that can be resumed
+  const renderResumeAlert = () => {
+    if (currentStep === InitStep.Connection) {
+      try {
+        const savedState = localStorage.getItem(INIT_STATE_KEY);
+        if (savedState && !resumeInit) {
+          const parsedState = JSON.parse(savedState) as InitializationState;
+          
+          // Only show resume option if saved state is beyond the connection step
+          // and is less than 24 hours old
+          if (parsedState.step > InitStep.Connection) {
+            const savedTime = new Date(parsedState.timestamp).getTime();
+            const now = new Date().getTime();
+            const hoursSinceSaved = (now - savedTime) / (1000 * 60 * 60);
+            
+            if (hoursSinceSaved < 24) {
+              return (
+                <Alert className="mb-6" variant="warning">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Resume Setup</AlertTitle>
+                  <AlertDescription className="space-y-2">
+                    <p>
+                      You have a partially completed setup from {hoursSinceSaved < 1 
+                        ? 'less than an hour' 
+                        : `about ${Math.floor(hoursSinceSaved)} hour${Math.floor(hoursSinceSaved) === 1 ? '' : 's'}`} ago.
+                    </p>
+                    <Button 
+                      onClick={handleResumeInit}
+                      size="sm"
+                      className="mt-2"
+                    >
+                      <ArrowRight className="mr-1 h-3 w-3" />
+                      Resume Setup
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              );
+            }
+          }
+        }
+      } catch (e) {
+        // Ignore errors reading saved state
+      }
     }
     return null;
   };
@@ -215,6 +441,9 @@ const Initialize = () => {
             Configure your application for first use
           </p>
         </div>
+        
+        {/* Resume setup alert */}
+        {renderResumeAlert()}
         
         {/* Developer information alert */}
         {renderDevAlert()}

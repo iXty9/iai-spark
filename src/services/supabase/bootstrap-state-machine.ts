@@ -1,0 +1,294 @@
+/**
+ * Bootstrap state machine for managing Supabase connection bootstrap process
+ * This provides a more robust approach to handling the bootstrap process
+ * with proper state transitions and error handling
+ */
+
+import { logger } from '@/utils/logging';
+import { loadConfiguration, ConfigSource, saveConfiguration } from './config-loader';
+import { resetSupabaseClient } from './connection-service';
+import { getEnvironmentInfo } from '@/config/supabase/environment';
+
+// Bootstrap state machine states
+export enum BootstrapState {
+  INITIAL = 'initial',
+  LOADING = 'loading',
+  CONFIG_FOUND = 'config_found',
+  CONFIG_MISSING = 'config_missing',
+  CONNECTION_ERROR = 'connection_error',
+  CONNECTION_SUCCESS = 'connection_success',
+  COMPLETE = 'complete'
+}
+
+// Error types for more specific handling
+export enum ErrorType {
+  NETWORK = 'network',
+  AUTH = 'auth',
+  DATABASE = 'database',
+  CONFIG = 'config',
+  UNKNOWN = 'unknown'
+}
+
+// Bootstrap state machine context
+export interface BootstrapContext {
+  state: BootstrapState;
+  error?: string;
+  errorType?: ErrorType;
+  configSource?: ConfigSource;
+  retryCount: number;
+  lastAttempt: string;
+  lastSuccess?: string;
+  environment: string;
+}
+
+// Local storage key for bootstrap state
+const BOOTSTRAP_STATE_KEY = 'supabase_bootstrap_state';
+
+/**
+ * Initialize bootstrap context with default values
+ */
+export function initBootstrapContext(): BootstrapContext {
+  try {
+    // Try to load saved state
+    const savedState = localStorage.getItem(BOOTSTRAP_STATE_KEY);
+    if (savedState) {
+      const parsedState = JSON.parse(savedState) as BootstrapContext;
+      
+      // Reset to initial state if last attempt was more than 1 hour ago
+      const lastAttemptTime = new Date(parsedState.lastAttempt).getTime();
+      const now = new Date().getTime();
+      const hoursSinceLastAttempt = (now - lastAttemptTime) / (1000 * 60 * 60);
+      
+      if (hoursSinceLastAttempt > 1) {
+        return createDefaultContext();
+      }
+      
+      return {
+        ...parsedState,
+        state: BootstrapState.INITIAL // Always start from initial state
+      };
+    }
+    
+    return createDefaultContext();
+  } catch (error) {
+    logger.error('Error initializing bootstrap context', error, {
+      module: 'bootstrap-state-machine'
+    });
+    return createDefaultContext();
+  }
+}
+
+/**
+ * Create default bootstrap context
+ */
+function createDefaultContext(): BootstrapContext {
+  return {
+    state: BootstrapState.INITIAL,
+    retryCount: 0,
+    lastAttempt: new Date().toISOString(),
+    environment: getEnvironmentInfo().id
+  };
+}
+
+/**
+ * Save bootstrap context to localStorage
+ */
+export function saveBootstrapContext(context: BootstrapContext): void {
+  try {
+    localStorage.setItem(BOOTSTRAP_STATE_KEY, JSON.stringify(context));
+  } catch (error) {
+    logger.error('Error saving bootstrap context', error, {
+      module: 'bootstrap-state-machine'
+    });
+  }
+}
+
+/**
+ * Clear bootstrap context from localStorage
+ */
+export function clearBootstrapContext(): void {
+  try {
+    localStorage.removeItem(BOOTSTRAP_STATE_KEY);
+  } catch (error) {
+    logger.error('Error clearing bootstrap context', error, {
+      module: 'bootstrap-state-machine'
+    });
+  }
+}
+
+/**
+ * Determine error type from error message
+ */
+export function determineErrorType(error: string): ErrorType {
+  if (!error) return ErrorType.UNKNOWN;
+  
+  const errorLower = error.toLowerCase();
+  
+  if (errorLower.includes('network') || 
+      errorLower.includes('fetch') || 
+      errorLower.includes('connection') ||
+      errorLower.includes('timeout') ||
+      errorLower.includes('cors')) {
+    return ErrorType.NETWORK;
+  }
+  
+  if (errorLower.includes('auth') || 
+      errorLower.includes('unauthorized') || 
+      errorLower.includes('permission') ||
+      errorLower.includes('forbidden') ||
+      errorLower.includes('credentials')) {
+    return ErrorType.AUTH;
+  }
+  
+  if (errorLower.includes('database') || 
+      errorLower.includes('table') || 
+      errorLower.includes('sql') ||
+      errorLower.includes('query') ||
+      errorLower.includes('schema')) {
+    return ErrorType.DATABASE;
+  }
+  
+  if (errorLower.includes('config') || 
+      errorLower.includes('settings') || 
+      errorLower.includes('initialization')) {
+    return ErrorType.CONFIG;
+  }
+  
+  return ErrorType.UNKNOWN;
+}
+
+/**
+ * Execute bootstrap process
+ * This is the main function that drives the bootstrap state machine
+ */
+export async function executeBootstrap(
+  context: BootstrapContext,
+  onStateChange: (newContext: BootstrapContext) => void
+): Promise<BootstrapContext> {
+  try {
+    // Update context with current state
+    const updatedContext: BootstrapContext = {
+      ...context,
+      state: BootstrapState.LOADING,
+      lastAttempt: new Date().toISOString()
+    };
+    
+    // Save and notify of state change
+    saveBootstrapContext(updatedContext);
+    onStateChange(updatedContext);
+    
+    logger.info('Starting bootstrap process', {
+      module: 'bootstrap-state-machine',
+      retryCount: updatedContext.retryCount,
+      environment: updatedContext.environment
+    });
+    
+    // Load configuration using the unified loader
+    const result = await loadConfiguration();
+    
+    if (result.config) {
+      // Configuration found
+      logger.info(`Bootstrap succeeded from ${result.source}`, {
+        module: 'bootstrap-state-machine'
+      });
+      
+      // Save configuration
+      saveConfiguration(result.config);
+      
+      // Reset Supabase client to use new configuration
+      resetSupabaseClient();
+      
+      // Update context with success state
+      const successContext: BootstrapContext = {
+        ...updatedContext,
+        state: BootstrapState.CONNECTION_SUCCESS,
+        configSource: result.source,
+        lastSuccess: new Date().toISOString(),
+        error: undefined,
+        errorType: undefined
+      };
+      
+      // Save and notify of state change
+      saveBootstrapContext(successContext);
+      onStateChange(successContext);
+      
+      // Transition to complete state after a delay
+      setTimeout(() => {
+        const completeContext: BootstrapContext = {
+          ...successContext,
+          state: BootstrapState.COMPLETE
+        };
+        
+        saveBootstrapContext(completeContext);
+        onStateChange(completeContext);
+      }, 2000);
+      
+      return successContext;
+    } else {
+      // No configuration found
+      logger.warn('No configuration found during bootstrap', {
+        module: 'bootstrap-state-machine',
+        error: result.error
+      });
+      
+      // Determine error type if error exists
+      const errorType = result.error 
+        ? determineErrorType(result.error)
+        : ErrorType.CONFIG;
+      
+      // Update context with error state
+      const errorContext: BootstrapContext = {
+        ...updatedContext,
+        state: result.error ? BootstrapState.CONNECTION_ERROR : BootstrapState.CONFIG_MISSING,
+        error: result.error || 'No configuration found',
+        errorType,
+        retryCount: updatedContext.retryCount + 1
+      };
+      
+      // Save and notify of state change
+      saveBootstrapContext(errorContext);
+      onStateChange(errorContext);
+      
+      return errorContext;
+    }
+  } catch (error) {
+    // Unexpected error
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    logger.error('Unexpected error during bootstrap:', error, {
+      module: 'bootstrap-state-machine'
+    });
+    
+    // Update context with error state
+    const errorContext: BootstrapContext = {
+      ...context,
+      state: BootstrapState.CONNECTION_ERROR,
+      error: errorMsg,
+      errorType: determineErrorType(errorMsg),
+      retryCount: context.retryCount + 1,
+      lastAttempt: new Date().toISOString()
+    };
+    
+    // Save and notify of state change
+    saveBootstrapContext(errorContext);
+    onStateChange(errorContext);
+    
+    return errorContext;
+  }
+}
+
+/**
+ * Reset bootstrap state machine
+ * This is useful when forcing a new bootstrap attempt
+ */
+export function resetBootstrap(
+  onStateChange: (newContext: BootstrapContext) => void
+): BootstrapContext {
+  // Create new context with default values
+  const newContext = createDefaultContext();
+  
+  // Save and notify of state change
+  saveBootstrapContext(newContext);
+  onStateChange(newContext);
+  
+  return newContext;
+}
