@@ -339,10 +339,38 @@ export async function loadFromDatabase(defaultUrl?: string, defaultKey?: string)
       module: 'config-loader'
     });
     
-    const bootstrapConfig = await fetchBootstrapConfig(defaultUrl, defaultKey);
+    const databaseUrl = defaultUrl;
+    const databaseKey = defaultKey;
     
-    if (!bootstrapConfig) {
-      return { config: null, source: ConfigSource.DATABASE };
+    // Fetch bootstrap config from database
+    const bootstrapConfigResult = await fetchBootstrapConfig(databaseUrl, databaseKey);
+    
+    // Check if the result is an error object
+    if ('error' in bootstrapConfigResult) {
+      logger.warn('Failed to fetch bootstrap config from database', {
+        module: 'config-loader',
+        url: databaseUrl,
+        error: bootstrapConfigResult.error
+      });
+      return { config: null, source: ConfigSource.DATABASE, error: bootstrapConfigResult.error };
+    }
+    
+    // If it's not an error, it's a valid config
+    const { url, anonKey, serviceKey, isInitialized } = bootstrapConfigResult;
+    
+    // Validate returned config
+    if (!url || !anonKey) {
+      logger.warn('Database returned incomplete config', {
+        module: 'config-loader',
+        hasUrl: !!url,
+        hasAnonKey: !!anonKey
+      });
+      
+      return {
+        config: null,
+        source: ConfigSource.DATABASE,
+        error: 'Database returned incomplete configuration'
+      };
     }
     
     logger.info('Successfully bootstrapped from database', {
@@ -351,10 +379,10 @@ export async function loadFromDatabase(defaultUrl?: string, defaultKey?: string)
     
     return {
       config: {
-        url: bootstrapConfig.url,
-        anonKey: bootstrapConfig.anonKey,
-        serviceKey: bootstrapConfig.serviceKey,
-        isInitialized: bootstrapConfig.isInitialized || true,
+        url: bootstrapConfigResult.url,
+        anonKey: bootstrapConfigResult.anonKey,
+        serviceKey: bootstrapConfigResult.serviceKey,
+        isInitialized: bootstrapConfigResult.isInitialized || true,
         savedAt: new Date().toISOString(),
         environment: getEnvironmentId()
       },

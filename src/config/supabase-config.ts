@@ -30,6 +30,7 @@ export type { SupabaseConfig } from './supabase/types';
 import { getStoredConfig } from './supabase/storage';
 import { resetSupabaseClient } from '@/services/supabase/connection-service';
 import { logger } from '@/utils/logging';
+import { clearConfig } from './supabase/storage';
 
 /**
  * Safely get configuration URL, never returning hardcoded values

@@ -1,7 +1,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { ThemeColors } from '@/types/theme';
+import { ThemeColors, ThemeSettings } from '@/types/theme';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { logger } from '@/utils/logging';
 import { applyThemeChanges, applyBackgroundImage } from '@/utils/theme-utils';
@@ -11,6 +11,13 @@ type Theme = 'light' | 'dark';
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  // Add missing properties
+  mode: Theme;
+  setMode: (mode: Theme) => void;
+  resetTheme: () => void;
+  importTheme: (themeJson: string) => boolean;
+  exportTheme: () => string;
+  validateTheme: (themeJson: string) => boolean;
   isThemeLoaded: boolean;
   applyThemeColors: (colors: ThemeColors) => void;
   applyBackground: (backgroundImage: string | null, opacity: number) => void;
@@ -147,6 +154,12 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     applyBackgroundImage(backgroundImage, backgroundOpacity);
   }, [backgroundImage, backgroundOpacity]);
   
+  // Mode is an alias for theme
+  const mode = theme;
+  const setMode = (newMode: Theme) => {
+    setTheme(newMode);
+  };
+  
   // Handle theme change
   const handleThemeChange = (newTheme: Theme) => {
     setTheme(newTheme);
@@ -164,6 +177,185 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       themeSettings.mode = newTheme;
       
       updateProfile({ theme_settings: JSON.stringify(themeSettings) });
+    }
+  };
+  
+  // Reset theme to defaults
+  const resetTheme = () => {
+    // Reset to defaults logic here
+    const defaultLightTheme = {
+      backgroundColor: "#ffffff",
+      primaryColor: "#007bff",
+      textColor: "#333333",
+      accentColor: "#ff4500",
+      userBubbleColor: "#e1f5fe",
+      aiBubbleColor: "#f5f5f5",
+      userBubbleOpacity: 1,
+      aiBubbleOpacity: 1,
+      userTextColor: "#000000",
+      aiTextColor: "#000000"
+    };
+    
+    const defaultDarkTheme = {
+      backgroundColor: "#121212",
+      primaryColor: "#bb86fc",
+      textColor: "#e0e0e0",
+      accentColor: "#03dac6",
+      userBubbleColor: "#31456a",
+      aiBubbleColor: "#2d2d2d",
+      userBubbleOpacity: 1,
+      aiBubbleOpacity: 1,
+      userTextColor: "#ffffff",
+      aiTextColor: "#ffffff"
+    };
+    
+    // Apply default for current theme
+    const currentTheme = theme === 'light' ? defaultLightTheme : defaultDarkTheme;
+    applyThemeChanges(currentTheme);
+    
+    // Update profile if available
+    if (profile) {
+      let themeSettings;
+      
+      try {
+        themeSettings = profile.theme_settings ? JSON.parse(profile.theme_settings) : {};
+      } catch (e) {
+        themeSettings = {};
+      }
+      
+      themeSettings.lightTheme = defaultLightTheme;
+      themeSettings.darkTheme = defaultDarkTheme;
+      
+      updateProfile({ theme_settings: JSON.stringify(themeSettings) });
+    }
+    
+    logger.info('Theme reset to defaults', {
+      theme,
+      timestamp: new Date().toISOString()
+    });
+  };
+  
+  // Validate theme JSON
+  const validateTheme = (themeJson: string): boolean => {
+    try {
+      const parsedTheme = JSON.parse(themeJson);
+      
+      // Basic validation checks
+      const requiredProps = ['lightTheme', 'darkTheme', 'mode'];
+      const hasRequiredProps = requiredProps.every(prop => parsedTheme.hasOwnProperty(prop));
+      
+      if (!hasRequiredProps) return false;
+      
+      // Validate light and dark themes
+      const requiredThemeProps = [
+        'backgroundColor',
+        'primaryColor',
+        'textColor',
+        'accentColor',
+        'userBubbleColor',
+        'aiBubbleColor',
+        'userTextColor',
+        'aiTextColor'
+      ];
+      
+      const hasLightThemeProps = requiredThemeProps.every(
+        prop => parsedTheme.lightTheme.hasOwnProperty(prop)
+      );
+      
+      const hasDarkThemeProps = requiredThemeProps.every(
+        prop => parsedTheme.darkTheme.hasOwnProperty(prop)
+      );
+      
+      return hasLightThemeProps && hasDarkThemeProps;
+    } catch (e) {
+      return false;
+    }
+  };
+  
+  // Import theme from JSON
+  const importTheme = (themeJson: string): boolean => {
+    try {
+      if (!validateTheme(themeJson)) return false;
+      
+      const parsedTheme = JSON.parse(themeJson) as ThemeSettings;
+      
+      // Apply theme mode if present
+      if (parsedTheme.mode) {
+        setTheme(parsedTheme.mode);
+      }
+      
+      // Apply theme colors for current theme
+      const currentThemeColors = theme === 'dark' ? 
+        parsedTheme.darkTheme : parsedTheme.lightTheme;
+        
+      if (currentThemeColors) {
+        applyThemeChanges(currentThemeColors);
+      }
+      
+      // Update profile if available
+      if (profile) {
+        updateProfile({ theme_settings: themeJson });
+      }
+      
+      return true;
+    } catch (e) {
+      return false;
+    }
+  };
+  
+  // Export theme as JSON
+  const exportTheme = (): string => {
+    try {
+      // Get current theme settings from profile or create default
+      let themeSettings: ThemeSettings = {
+        mode: theme,
+        lightTheme: {
+          backgroundColor: "#ffffff",
+          primaryColor: "#007bff",
+          textColor: "#333333",
+          accentColor: "#ff4500",
+          userBubbleColor: "#e1f5fe",
+          aiBubbleColor: "#f5f5f5",
+          userBubbleOpacity: 1,
+          aiBubbleOpacity: 1,
+          userTextColor: "#000000",
+          aiTextColor: "#000000"
+        },
+        darkTheme: {
+          backgroundColor: "#121212",
+          primaryColor: "#bb86fc",
+          textColor: "#e0e0e0",
+          accentColor: "#03dac6",
+          userBubbleColor: "#31456a",
+          aiBubbleColor: "#2d2d2d",
+          userBubbleOpacity: 1,
+          aiBubbleOpacity: 1,
+          userTextColor: "#ffffff",
+          aiTextColor: "#ffffff"
+        },
+        exportDate: new Date().toISOString()
+      };
+      
+      // Get from profile if available
+      if (profile?.theme_settings) {
+        try {
+          const profileSettings = JSON.parse(profile.theme_settings) as ThemeSettings;
+          themeSettings = {
+            ...themeSettings,
+            ...profileSettings,
+            exportDate: new Date().toISOString()
+          };
+        } catch (e) {
+          // If parsing fails, use default
+        }
+      }
+      
+      return JSON.stringify(themeSettings, null, 2);
+    } catch (e) {
+      return JSON.stringify({
+        error: "Failed to export theme",
+        message: e instanceof Error ? e.message : String(e)
+      });
     }
   };
   
@@ -199,6 +391,12 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         theme,
         setTheme: handleThemeChange,
+        mode,
+        setMode,
+        resetTheme,
+        importTheme,
+        exportTheme,
+        validateTheme,
         isThemeLoaded,
         applyThemeColors,
         applyBackground,

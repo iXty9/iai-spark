@@ -1,4 +1,3 @@
-
 /**
  * Bootstrap state machine for managing Supabase connection bootstrap process
  * This provides a more robust approach to handling the bootstrap process
@@ -304,7 +303,7 @@ export async function executeBootstrap(
         } catch (error) {
           logger.error('Error during client initialization retry', error, {
             module: 'bootstrap-state-machine',
-            attempt
+            retryAttempt: attempt
           });
         }
       };

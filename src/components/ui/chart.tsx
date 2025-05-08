@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useId, forwardRef, useMemo } from "react";
 import * as R from "recharts";
 import { cn } from "@/lib/utils";
@@ -83,7 +84,7 @@ const ChartTooltipContent = forwardRef<HTMLDivElement,
     if (hideLabel || !payload?.length) return null;
     const item = payload[0];
     const key = labelKey || item.dataKey || item.name || "value";
-    const itemConfig = getPayloadConfigFromPayload(config, item, key);
+    const itemConfig = getPayloadConfigFromPayload(config, item, String(key));
     const val = !labelKey && typeof label === "string"
       ? config[label as keyof typeof config]?.label || label
       : itemConfig?.label;
@@ -106,7 +107,7 @@ const ChartTooltipContent = forwardRef<HTMLDivElement,
       <div className="grid gap-1.5">
         {payload.map((item, i) => {
           const key = nameKey || item.name || item.dataKey || "value";
-          const itemConfig = getPayloadConfigFromPayload(config, item, key);
+          const itemConfig = getPayloadConfigFromPayload(config, item, String(key));
           const indicatorColor = color ?? item.payload?.fill ?? item.color;
           return (
             <div
@@ -183,7 +184,7 @@ const ChartLegendContent = forwardRef<HTMLDivElement,
     >
       {payload.map(item => {
         const key = nameKey || item.dataKey || "value";
-        const itemConfig = getPayloadConfigFromPayload(config, item, key);
+        const itemConfig = getPayloadConfigFromPayload(config, item, String(key));
         return (
           <div key={item.value} className="flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground">
             {itemConfig?.icon && !hideIcon ? (

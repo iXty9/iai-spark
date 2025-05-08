@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -203,7 +202,7 @@ export default function SupabaseAuth() {
                   <Info className="h-4 w-4" />
                   <AlertTitle>Current Environment</AlertTitle>
                   <AlertDescription className="text-sm text-muted-foreground">
-                    <p>Environment ID: <span className="font-mono">{connectionInfo.environmentId}</span></p>
+                    <p>Environment ID: <span className="font-mono">{connectionInfo.environment.id}</span></p>
                     <p>Current URL: <span className="font-mono">{connectionInfo.url || 'Not set'}</span></p>
                     <p>Last connected: {connectionInfo.lastConnection !== 'never' 
                       ? new Date(connectionInfo.lastConnection).toLocaleString() 

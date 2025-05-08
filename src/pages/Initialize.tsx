@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ConnectionForm } from '@/components/init/ConnectionForm';
@@ -413,7 +412,6 @@ const Initialize = () => {
             serviceKey={serviceKey}
             onSuccess={handleDatabaseSuccess}
             onBack={() => setCurrentStep(InitStep.Connection)}
-            onProgress={handleDatabaseSetupProgress}
           />
         );
       case InitStep.AdminSetup:

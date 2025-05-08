@@ -62,7 +62,7 @@ if (!client) {
           description: 'Could not connect to database. Check configuration or try initializing again.',
           variant: 'destructive',
           action: {
-            label: "Initialize",
+            altText: "Initialize",
             onClick: () => window.location.href = '/initialize'
           }
         });

@@ -1,3 +1,4 @@
+
 /**
  * Type definitions for config loader to avoid circular dependencies
  */
@@ -28,5 +29,4 @@ export interface ConfigLoader {
   saveConfiguration: (config: SupabaseConfig) => boolean;
 }
 
-// Export all types
-export type { ConfigLoadResult, ConfigLoader };
+// Do not re-export types here - they're already exported above
