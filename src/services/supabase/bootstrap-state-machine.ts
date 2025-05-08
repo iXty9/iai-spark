@@ -5,7 +5,8 @@
  */
 
 import { logger } from '@/utils/logging';
-import { loadConfiguration, ConfigSource, saveConfiguration } from './config-loader';
+import { configLoader } from './config-loader';
+import { ConfigSource } from './config-loader-types';
 import { resetSupabaseClient } from './connection-service';
 import { getEnvironmentInfo } from '@/config/supabase/environment';
 
