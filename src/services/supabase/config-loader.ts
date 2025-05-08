@@ -34,11 +34,13 @@ export const configLoader = configLoaderImpl;
 export async function loadFromUrlParameters(): Promise<ConfigLoadResult> {
   try {
     const urlParams = new URLSearchParams(window.location.search);
-    const publicUrl = urlParams.get('public_url');
-    const publicKey = urlParams.get('public_key');
+    
+    // Check for different possible parameter names
+    const publicUrl = urlParams.get('public_url') || urlParams.get('supabase_url');
+    const publicKey = urlParams.get('public_key') || urlParams.get('supabase_key') || urlParams.get('anon_key');
     
     if (!publicUrl || !publicKey) {
-      return { config: null, source: ConfigSource.NONE };
+      return { config: null, source: ConfigSource.URL_PARAMETERS };
     }
     
     logger.info('Found potential configuration in URL parameters', {
@@ -480,13 +482,50 @@ export async function loadConfiguration(): Promise<ConfigLoadResult> {
  */
 export function saveConfiguration(config: SupabaseConfig): boolean {
   try {
+    if (!config) {
+      logger.error('Cannot save null configuration', {
+        module: 'config-loader'
+      });
+      return false;
+    }
+    
+    // Log the config being saved for debugging
+    logger.debug('Saving configuration', {
+      module: 'config-loader',
+      hasUrl: !!config.url,
+      hasAnonKey: !!config.anonKey,
+      urlPrefix: config.url ? config.url.substring(0, 10) + '...' : 'none'
+    });
+    
+    // Convert to SiteConfigEnv format for localStorage
+    const siteConfig = {
+      supabaseUrl: config.url,
+      supabaseAnonKey: config.anonKey,
+      siteHost: window.location.origin,
+      lastUpdated: new Date().toISOString()
+    };
+    
     // Always save to localStorage
-    const localSaved = writeConfigToLocalStorage(config);
+    const localSaved = writeConfigToLocalStorage(siteConfig);
     
     if (!localSaved) {
       logger.warn('Failed to save configuration to localStorage', {
         module: 'config-loader'
       });
+      
+      // Try direct localStorage save as fallback
+      try {
+        const storageKey = getEnvironmentId();
+        localStorage.setItem(`spark_supabase_config_${storageKey}`, JSON.stringify(config));
+        logger.info('Saved configuration using direct localStorage method', {
+          module: 'config-loader'
+        });
+        return true;
+      } catch (storageError) {
+        logger.error('Direct localStorage save also failed', storageError, {
+          module: 'config-loader'
+        });
+      }
     }
     
     // Could add other storage mechanisms here

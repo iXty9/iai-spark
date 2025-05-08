@@ -84,12 +84,19 @@ export const supabase = (() => {
           module: 'supabase-client'
         });
         
-        // Redirect to initialization page if client is requested but not available
+        // Don't throw an error if we're already on the initialize page
+        // This prevents infinite redirects and allows the initialize page to work
         if (window.location.pathname !== '/initialize') {
+          logger.info('Redirecting to initialize page', {
+            module: 'supabase-client',
+            currentPath: window.location.pathname
+          });
           window.location.href = '/initialize';
+          return null; // Return null instead of throwing
         }
         
-        throw new Error('Supabase client not initialized');
+        // Return null instead of throwing an error when on initialize page
+        return null;
       }
     }
     

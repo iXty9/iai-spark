@@ -275,7 +275,7 @@ export async function updateStaticSiteConfig(config: SiteConfigEnv): Promise<boo
  * Fallback function to write configuration to localStorage
  * This is used as a fallback when the API isn't available
  */
-export function writeConfigToLocalStorage(config: SiteConfigEnv): boolean {
+export function writeConfigToLocalStorage(config: SiteConfigEnv | any): boolean {
   try {
     // Validate input configuration
     if (!config) {
@@ -285,15 +285,22 @@ export function writeConfigToLocalStorage(config: SiteConfigEnv): boolean {
       return false;
     }
     
+    // Handle both SiteConfigEnv and SupabaseConfig formats
+    const supabaseUrl = config.supabaseUrl || config.url;
+    const supabaseAnonKey = config.supabaseAnonKey || config.anonKey;
+    
     // Validate required fields
-    if (!config.supabaseUrl || !config.supabaseUrl.trim()) {
+    if (!supabaseUrl || typeof supabaseUrl !== 'string' || !supabaseUrl.trim()) {
       logger.error('Cannot save empty supabaseUrl to localStorage', {
-        module: 'site-config'
+        module: 'site-config',
+        configType: typeof config,
+        hasUrl: !!config.url,
+        hasSupabaseUrl: !!config.supabaseUrl
       });
       return false;
     }
     
-    if (!config.supabaseAnonKey || !config.supabaseAnonKey.trim()) {
+    if (!supabaseAnonKey || typeof supabaseAnonKey !== 'string' || !supabaseAnonKey.trim()) {
       logger.error('Cannot save empty supabaseAnonKey to localStorage', {
         module: 'site-config'
       });

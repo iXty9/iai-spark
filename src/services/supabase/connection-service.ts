@@ -162,6 +162,34 @@ export function getSupabaseClient() {
     const connectionId = localStorage.getItem(connIdKey) || 'unknown';
     
     
+    // Check for URL parameters first
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlSupabaseUrl = urlParams.get('supabase_url');
+    const urlSupabaseKey = urlParams.get('supabase_key');
+    
+    // If URL parameters are present, use them directly
+    if (urlSupabaseUrl && urlSupabaseKey) {
+      logger.info(`Using URL parameters for Supabase connection ${connectionId}`, {
+        module: 'supabase-connection',
+        url: urlSupabaseUrl.split('//')[1]
+      });
+      
+      // Create and initialize the Supabase client with URL parameters
+      supabaseInstance = createClient<Database>(urlSupabaseUrl, urlSupabaseKey, {
+        auth: {
+          storage: localStorage,
+          persistSession: true,
+          autoRefreshToken: true,
+          debug: process.env.NODE_ENV === 'development'
+        }
+      });
+      
+      // Record last connection time
+      localStorage.setItem(getConnectionKey(LAST_CONNECTION_TIME_KEY), new Date().toISOString());
+      
+      return supabaseInstance;
+    }
+    
     // Get stored configuration
     const storedConfig = getStoredConfig();
     
