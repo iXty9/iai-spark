@@ -5,7 +5,7 @@
 
 import { logger } from '@/utils/logging';
 import { getConnectionInfo } from './connection-service';
-import { BootstrapContext, BootstrapState } from './bootstrap-state-machine';
+import { BootstrapContext, BootstrapState, initBootstrapContext } from './bootstrap-state-machine';
 import { testBootstrapConnection } from './bootstrap-service';
 import { validateConfig } from './config-validation';
 import { getStoredConfig } from '@/config/supabase-config';
@@ -99,21 +99,11 @@ export async function runBootstrapDiagnostics(): Promise<DiagnosticResult> {
  * Get the bootstrap context
  * This is a wrapper to handle cases where the context might not be available
  */
+import { initBootstrapContext } from './bootstrap-state-machine';
+
 export function getBootstrapContext(): BootstrapContext {
   try {
-    // This function should be imported from bootstrap-state-machine
-    // For now, we'll create a placeholder
-    const contextJson = localStorage.getItem('supabase_bootstrap_state');
-    if (contextJson) {
-      return JSON.parse(contextJson);
-    }
-    
-    return {
-      state: BootstrapState.INITIAL,
-      retryCount: 0,
-      lastAttempt: '',
-      environment: 'unknown'
-    };
+    return initBootstrapContext();
   } catch (e) {
     logger.error('Error getting bootstrap context', e, {
       module: 'bootstrap-diagnostics'
