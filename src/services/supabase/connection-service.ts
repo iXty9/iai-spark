@@ -2,9 +2,80 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { getStoredConfig, saveConfig, clearConfig } from '@/config/supabase-config';
 import { fetchStaticSiteConfig } from '@/services/site-config/site-config-file-service';
 import { logger } from '@/utils/logging';
+import { toast } from '@/hooks/use-toast';
 
 // Store the Supabase client instance
 let supabaseInstance: SupabaseClient | null = null;
+
+// Constants for connection tracking
+const CONNECTION_ID_KEY = 'connection_id';
+const ENVIRONMENT_KEY = 'environment_info';
+const LAST_CONNECTION_TIME_KEY = 'last_connection_time';
+const CONNECTION_STATE_KEY = 'connection_state';
+
+// Connection state interface
+interface ConnectionState {
+  lastAttempt: string;
+  lastSuccess: string | null;
+  attemptCount: number;
+  source: string;
+  error?: string;
+}
+
+// Environment info interface
+interface EnvironmentInfo {
+  id: string;
+  host: string;
+  timestamp: string;
+  userAgent?: string;
+}
+
+// Config loader utility
+const configLoader = {
+  loadConfiguration: async () => {
+    try {
+      const staticConfig = await fetchStaticSiteConfig();
+      return { config: staticConfig ? {
+        url: staticConfig.supabaseUrl,
+        anonKey: staticConfig.supabaseAnonKey,
+        isInitialized: true,
+        savedAt: new Date().toISOString(),
+        environment: getEnvironmentId()
+      } : null };
+    } catch (e) {
+      return { config: null };
+    }
+  },
+  saveConfiguration: (config: any) => {
+    saveConfig(config);
+  }
+};
+
+/**
+ * Get environment ID for tracking
+ */
+function getEnvironmentId(): string {
+  return window.location.hostname;
+}
+
+/**
+ * Get environment information
+ */
+function getEnvironmentInfo(): EnvironmentInfo {
+  return {
+    id: getEnvironmentId(),
+    host: window.location.hostname,
+    timestamp: new Date().toISOString(),
+    userAgent: navigator.userAgent
+  };
+}
+
+/**
+ * Get connection storage key with namespace
+ */
+function getConnectionKey(key: string): string {
+  return `supabase_${key}`;
+}
 
 // Connection test result type
 export interface ConnectionTestResult {
@@ -730,6 +801,53 @@ export function shouldBypassRedirect(pathname: string): boolean {
   ];
   
   return bypassRoutes.some(route => pathname.startsWith(route));
+}
+
+/**
+ * Check for public bootstrap configuration
+ * Attempts to load configuration from public sources
+ */
+export async function checkPublicBootstrapConfig(): Promise<boolean> {
+  try {
+    logger.info('Checking for public bootstrap configuration', {
+      module: 'connection-service'
+    });
+    
+    // Try to load configuration from static file
+    const staticConfig = await fetchStaticSiteConfig();
+    
+    if (staticConfig && staticConfig.supabaseUrl && staticConfig.supabaseAnonKey) {
+      logger.info('Found valid static site configuration', {
+        module: 'connection-service'
+      });
+      
+      // Save the configuration
+      saveConfig({
+        url: staticConfig.supabaseUrl,
+        anonKey: staticConfig.supabaseAnonKey,
+        isInitialized: true,
+        savedAt: new Date().toISOString(),
+        environment: getEnvironmentId()
+      });
+      
+      // Reset the client to use the new configuration
+      resetSupabaseClient();
+      
+      return true;
+    }
+    
+    logger.warn('No valid public bootstrap configuration found', {
+      module: 'connection-service'
+    });
+    
+    return false;
+  } catch (error) {
+    logger.error('Error checking public bootstrap configuration', error, {
+      module: 'connection-service'
+    });
+    
+    return false;
+  }
 }
 
 /**
