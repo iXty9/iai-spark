@@ -8,7 +8,7 @@ import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import SupabaseAuth from "./pages/SupabaseAuth";
 import Initialize from "./pages/Initialize";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner";
 import { BootstrapProvider } from "@/components/supabase/BootstrapProvider";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { AuthProvider } from "@/contexts/AuthContext";
