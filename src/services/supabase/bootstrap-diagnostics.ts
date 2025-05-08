@@ -99,8 +99,6 @@ export async function runBootstrapDiagnostics(): Promise<DiagnosticResult> {
  * Get the bootstrap context
  * This is a wrapper to handle cases where the context might not be available
  */
-import { initBootstrapContext } from './bootstrap-state-machine';
-
 export function getBootstrapContext(): BootstrapContext {
   try {
     return initBootstrapContext();
