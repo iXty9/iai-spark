@@ -49,6 +49,46 @@ export interface DebugInfo {
     height: string;
     position: string;
   };
+  // Extended with additional debug information
+  supabaseInfo?: {
+    connectionStatus: string;
+    lastConnectionAttempt: string | null;
+    connectionLatency: number | null;
+    authStatus: string;
+    retryCount: number;
+    lastError: string | null;
+    environment: string | null;
+    isInitialized: boolean;
+  };
+  bootstrapInfo?: {
+    stage: string;
+    startTime: string | null;
+    completionTime: string | null;
+    steps: Array<{
+      step: string;
+      status: string;
+      timestamp: string;
+      error: string | null;
+    }>;
+    lastError: string | null;
+  };
+  environmentInfo?: {
+    type: string | null;
+    isDevelopment: boolean;
+    isProduction: boolean;
+    publicVars: Record<string, string>;
+  };
+  storageInfo?: {
+    availableSpace: number | null;
+    usedSpace: number | null;
+    appKeys: string[];
+    errors: string[];
+  };
+  consoleLogs?: Array<{
+    type: string;
+    message: string;
+    timestamp: string;
+  }>;
 }
 
 export interface DebugEvent {

@@ -65,7 +65,91 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
       if (url) setLastWebhookCall(`Using ${url.includes('9553f3d014f7') ? 'AUTHENTICATED' : 'ANONYMOUS'} webhook`);
     };
     window.addEventListener('webhookCall', handler);
-    return () => window.removeEventListener('webhookCall', handler);
+    
+    // Track Supabase connection status
+    const trackSupabaseStatus = (status: string, error: string | null = null) => {
+      window.dispatchEvent(new CustomEvent('chatDebug', { 
+        detail: { 
+          supabaseInfo: {
+            connectionStatus: status,
+            lastConnectionAttempt: new Date().toISOString(),
+            lastError: error,
+            // Keep other properties from existing state
+            ...(window as any).debugState?.supabaseInfo
+          }
+        }
+      }));
+    };
+    
+    // Listen for Supabase connection events
+    window.addEventListener('supabaseConnection', (e: any) => {
+      const { status, error } = e.detail || {};
+      trackSupabaseStatus(status || 'unknown', error);
+    });
+    
+    // Track bootstrap process
+    window.addEventListener('bootstrapProcess', (e: any) => {
+      const { stage, error } = e.detail || {};
+      const currentSteps = (window as any).debugState?.bootstrapInfo?.steps || [];
+      
+      window.dispatchEvent(new CustomEvent('chatDebug', { 
+        detail: { 
+          bootstrapInfo: {
+            stage: stage || 'unknown',
+            steps: [
+              ...currentSteps,
+              {
+                step: stage,
+                status: error ? 'error' : 'success',
+                timestamp: new Date().toISOString(),
+                error
+              }
+            ],
+            lastError: error,
+            // Keep other properties
+            ...(window as any).debugState?.bootstrapInfo
+          }
+        }
+      }));
+    });
+    
+    // Collect environment information
+    const collectEnvironmentInfo = () => {
+      const publicVars: Record<string, string> = {};
+      
+      // Safely collect public environment variables
+      if (typeof process !== 'undefined' && process.env) {
+        Object.keys(process.env).forEach(key => {
+          if (key.startsWith('NEXT_PUBLIC_') || key.startsWith('REACT_APP_')) {
+            const value = process.env[key] as string;
+            // Sanitize sensitive values
+            publicVars[key] = key.includes('KEY') || key.includes('SECRET') || key.includes('TOKEN') ? 
+              `${value?.substring(0, 3)}...${value?.substring(value.length - 3)}` : 
+              value;
+          }
+        });
+      }
+      
+      window.dispatchEvent(new CustomEvent('chatDebug', { 
+        detail: { 
+          environmentInfo: {
+            type: typeof process !== 'undefined' ? process.env.NODE_ENV : 'unknown',
+            isDevelopment: typeof process !== 'undefined' ? process.env.NODE_ENV === 'development' : false,
+            isProduction: typeof process !== 'undefined' ? process.env.NODE_ENV === 'production' : false,
+            publicVars
+          }
+        }
+      }));
+    };
+    
+    // Collect environment info on mount
+    collectEnvironmentInfo();
+    
+    return () => {
+      window.removeEventListener('webhookCall', handler);
+      window.removeEventListener('supabaseConnection', handler);
+      window.removeEventListener('bootstrapProcess', handler);
+    };
   }, []);
 
   // On mount: Safari and iOS detection + viewport height

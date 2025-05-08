@@ -4,6 +4,59 @@ import { logger } from './logging';
 import { sendDebugWebhookMessage } from '@/services/webhook';
 
 /**
+ * Utility functions for debug information collection and reporting
+ */
+
+// Function to emit Supabase connection status events
+export function emitSupabaseConnectionEvent(status: string, error: string | null = null) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('supabaseConnection', {
+      detail: { status, error }
+    }));
+  }
+}
+
+// Function to emit bootstrap process events
+export function emitBootstrapEvent(stage: string, error: string | null = null) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('bootstrapProcess', {
+      detail: { stage, error }
+    }));
+  }
+}
+
+// Function to collect and emit environment information
+export function collectEnvironmentInfo() {
+  if (typeof window !== 'undefined') {
+    const publicVars: Record<string, string> = {};
+    
+    // Safely collect public environment variables
+    if (typeof process !== 'undefined' && process.env) {
+      Object.keys(process.env).forEach(key => {
+        if (key.startsWith('NEXT_PUBLIC_') || key.startsWith('REACT_APP_')) {
+          const value = process.env[key] as string;
+          // Sanitize sensitive values
+          publicVars[key] = key.includes('KEY') || key.includes('SECRET') || key.includes('TOKEN') ? 
+            `${value?.substring(0, 3)}...${value?.substring(value.length - 3)}` : 
+            value;
+        }
+      });
+    }
+    
+    window.dispatchEvent(new CustomEvent('chatDebug', { 
+      detail: { 
+        environmentInfo: {
+          type: typeof process !== 'undefined' ? process.env.NODE_ENV : 'unknown',
+          isDevelopment: typeof process !== 'undefined' ? process.env.NODE_ENV === 'development' : false,
+          isProduction: typeof process !== 'undefined' ? process.env.NODE_ENV === 'production' : false,
+          publicVars
+        }
+      }
+    }));
+  }
+}
+
+/**
  * Parse webhook response to get the actual content
  * Handles different response formats from the webhook
  */
