@@ -4,6 +4,7 @@ import { logger } from '@/utils/logging';
 import { fetchConnectionConfig } from '@/services/admin/settingsService';
 import { testBootstrapConnection } from './bootstrap-service';
 import { fetchStaticSiteConfig, updateStaticSiteConfig } from '@/services/site-config/site-config-file-service';
+import { createClient } from '@supabase/supabase-js';
 
 /**
  * Configuration for server-side environment
@@ -138,7 +139,17 @@ export async function loadSiteEnvironmentConfig(
     // This avoids the need for an initial database connection
     const staticConfig = await fetchStaticSiteConfig();
     
-    if (staticConfig) {
+    if (staticConfig && staticConfig.supabaseUrl && staticConfig.supabaseAnonKey) {
+      // Validate that values are not empty strings
+      if (!staticConfig.supabaseUrl.trim() || !staticConfig.supabaseAnonKey.trim()) {
+        logger.warn('Static site config has empty values', {
+          module: 'site-config',
+          hasUrl: !!staticConfig.supabaseUrl,
+          hasKey: !!staticConfig.supabaseAnonKey
+        });
+        return null;
+      }
+      
       logger.info('Loaded site environment config from static file', {
         module: 'site-config',
         host: staticConfig.siteHost,
@@ -177,11 +188,13 @@ export async function loadSiteEnvironmentConfig(
     try {
       const config: SiteConfigEnv = JSON.parse(data.value);
       
-      // Validate that the config contains required fields
-      if (!config.supabaseUrl || !config.supabaseAnonKey) {
-        logger.warn('Site environment config is incomplete', {
+      // Validate that the config contains required fields and they're not empty
+      if (!config.supabaseUrl || !config.supabaseAnonKey || 
+          !config.supabaseUrl.trim() || !config.supabaseAnonKey.trim()) {
+        logger.warn('Site environment config is incomplete or has empty values', {
           module: 'site-config',
-          config
+          hasUrl: !!config.supabaseUrl,
+          hasKey: !!config.supabaseAnonKey
         });
         return null;
       }
@@ -223,8 +236,14 @@ export async function loadSiteEnvironmentConfig(
  */
 function createTemporaryClient(url: string, key: string) {
   try {
-    // Only import here to avoid circular dependencies
-    const { createClient } = require('@supabase/supabase-js');
+    if (!url || !key) {
+      logger.warn('Cannot create temporary client with empty credentials', {
+        module: 'site-config',
+        hasUrl: !!url,
+        hasKey: !!key
+      });
+      return null;
+    }
     
     return createClient(url, key, {
       auth: {

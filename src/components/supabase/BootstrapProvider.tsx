@@ -6,7 +6,7 @@ import { Loader2, RefreshCcw, Info, AlertTriangle, CheckCircle, Settings } from 
 import { useNavigate } from 'react-router-dom';
 import { logger } from '@/utils/logging';
 import { clearConfigAndResetClient } from '@/config/supabase-config';
-import { ConfigSource } from '@/services/supabase/config-loader';
+import { ConfigSource } from '@/services/supabase/config-loader-types';
 import { 
   BootstrapState, 
   ErrorType, 
@@ -87,13 +87,30 @@ export function BootstrapProvider({ children }: BootstrapProviderProps) {
   
   // Handle reconnect/setup action
   const handleReconnect = useCallback(() => {
+    // Always navigate to initialize without forcing init
+    // This allows the setup page to detect and use existing config if valid
     navigate('/initialize');
   }, [navigate]);
   
   // Handle manual configuration action
   const handleManualConfig = useCallback(() => {
+    // When manually configuring, force initialization
     navigate('/initialize?force_init=true');
   }, [navigate]);
+  
+  // Redirect to initialize page for empty or invalid config
+  useEffect(() => {
+    // Automatically redirect to initialization page if we're in CONFIG_MISSING state
+    // and we're not already on the initialize page
+    if (context.state === BootstrapState.CONFIG_MISSING && 
+        !window.location.pathname.includes('/initialize')) {
+      logger.info('Auto-redirecting to initialize page due to missing config', {
+        module: 'bootstrap-provider',
+        currentPath: window.location.pathname
+      });
+      navigate('/initialize');
+    }
+  }, [context.state, navigate]);
   
   // Effect for state transitions
   useEffect(() => {
@@ -197,8 +214,17 @@ export function BootstrapProvider({ children }: BootstrapProviderProps) {
               <Info className="h-4 w-4" />
               <AlertTitle>Setup Required</AlertTitle>
               <AlertDescription>
-                This appears to be your first visit or the application hasn't been configured yet.
-                You'll need to set up your database connection to continue.
+                {context.configSource ? (
+                  <>
+                    Configuration file was found but contains invalid or empty values.
+                    Please complete the setup process to continue.
+                  </>
+                ) : (
+                  <>
+                    This appears to be your first visit or the application hasn't been configured yet.
+                    You'll need to set up your database connection to continue.
+                  </>
+                )}
               </AlertDescription>
             </Alert>
             

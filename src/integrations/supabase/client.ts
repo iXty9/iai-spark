@@ -19,51 +19,59 @@ if (!client) {
     module: 'supabase-client'
   });
   
-  // First retry after 2.5 seconds
-  setTimeout(() => {
+  let retries = 0;
+  const maxRetries = 3;
+  
+  // Function to retry client initialization
+  const retryClientInit = () => {
+    retries++;
     client = getSupabaseClient();
     
     // Emit connection status after delayed initialization
     if (client) {
-      logger.info('Supabase client initialized on first retry', {
+      logger.info(`Supabase client initialized on retry ${retries}`, {
         module: 'supabase-client'
       });
       emitSupabaseConnectionEvent('connected', null);
-    } else {
-      logger.warn('Supabase client still not available after first retry', {
+      
+      // Clear any scheduled retries
+      if (retryTimeoutId) {
+        clearTimeout(retryTimeoutId);
+        retryTimeoutId = null;
+      }
+    } else if (retries < maxRetries) {
+      logger.warn(`Supabase client still not available after retry ${retries}/${maxRetries}`, {
         module: 'supabase-client'
       });
-      emitSupabaseConnectionEvent('disconnected', 'Client not initialized after first retry');
+      emitSupabaseConnectionEvent('disconnected', `Client not initialized after retry ${retries}`);
       
-      // Second retry after another 2 seconds
-      setTimeout(() => {
-        client = getSupabaseClient();
-        
-        if (client) {
-          logger.info('Supabase client initialized on second retry', {
-            module: 'supabase-client'
-          });
-          emitSupabaseConnectionEvent('connected', null);
-        } else {
-          logger.error('Supabase client initialization failed after multiple retries', {
-            module: 'supabase-client'
-          });
-          emitSupabaseConnectionEvent('disconnected', 'Client not initialized after multiple retries');
-          
-          // Show error toast after all retries failed
-          toast({
-            title: 'Connection Error',
-            description: 'Could not connect to database. Please check configuration or reload the page.',
-            variant: 'destructive',
-            action: {
-              altText: "Reconnect",
-              onClick: () => window.location.reload()
-            }
-          });
-        }
-      }, 2000);
+      // Schedule next retry with increasing delay
+      const delay = 1500 * Math.pow(1.5, retries);
+      retryTimeoutId = setTimeout(retryClientInit, delay);
+    } else {
+      logger.error('Supabase client initialization failed after multiple retries', {
+        module: 'supabase-client'
+      });
+      emitSupabaseConnectionEvent('disconnected', 'Client not initialized after multiple retries');
+      
+      // Check if we're already on the initialize page to prevent redirect loops
+      if (!window.location.pathname.includes('/initialize')) {
+        // Show error toast after all retries failed
+        toast({
+          title: 'Connection Error',
+          description: 'Could not connect to database. Check configuration or try initializing again.',
+          variant: 'destructive',
+          action: {
+            label: "Initialize",
+            onClick: () => window.location.href = '/initialize'
+          }
+        });
+      }
     }
-  }, 2500);
+  };
+  
+  // Schedule first retry
+  let retryTimeoutId = setTimeout(retryClientInit, 1500);
 } else {
   // Emit connection status for debugging if client is available immediately
   logger.info('Supabase client initialized immediately', {
@@ -86,7 +94,7 @@ export const supabase = (() => {
         
         // Don't throw an error if we're already on the initialize page
         // This prevents infinite redirects and allows the initialize page to work
-        if (window.location.pathname !== '/initialize') {
+        if (!window.location.pathname.includes('/initialize')) {
           logger.info('Redirecting to initialize page', {
             module: 'supabase-client',
             currentPath: window.location.pathname

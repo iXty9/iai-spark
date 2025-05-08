@@ -1,4 +1,3 @@
-
 import { logger } from '@/utils/logging';
 import { SiteConfigEnv } from '@/services/supabase/site-config-service';
 

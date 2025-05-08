@@ -1,3 +1,4 @@
+
 /**
  * Bootstrap state machine for managing Supabase connection bootstrap process
  * This provides a more robust approach to handling the bootstrap process
@@ -233,8 +234,32 @@ export async function executeBootstrap(
     // Load configuration using the unified loader
     const result = await configLoader.loadConfiguration();
     
-    if (result.config) {
-      // Configuration found - transition to CONFIG_FOUND
+    if (result.config && result.config.url && result.config.anonKey) {
+      // Verify config has non-empty values for required fields
+      if (!result.config.url.trim() || !result.config.anonKey.trim()) {
+        logger.warn('Bootstrap found empty configuration values', {
+          module: 'bootstrap-state-machine',
+          source: result.source,
+          hasUrl: !!result.config.url,
+          hasAnonKey: !!result.config.anonKey
+        });
+        
+        // Handle as CONFIG_MISSING case when values are empty
+        const errorContext = transitionTo(
+          loadingContext,
+          BootstrapState.CONFIG_MISSING,
+          onStateChange,
+          {
+            error: 'Configuration found but contains empty values',
+            errorType: ErrorType.CONFIG,
+            configSource: result.source
+          }
+        );
+        
+        return errorContext;
+      }
+      
+      // Configuration found with valid values - transition to CONFIG_FOUND
       const configFoundContext = transitionTo(
         loadingContext,
         BootstrapState.CONFIG_FOUND,
@@ -254,10 +279,12 @@ export async function executeBootstrap(
       
       // Force a new client initialization after a short delay
       // Use multiple retries with increasing delays
-      const retryClientInit = (attempt = 1, maxAttempts = 3) => {
-        setTimeout(() => {
-          // Import the function directly from connection-service to avoid reference errors
-          const { getSupabaseClient } = require('./connection-service');
+      const retryClientInit = async (attempt = 1, maxAttempts = 3) => {
+        try {
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+          
+          // Use dynamic import instead of require
+          const { getSupabaseClient } = await import('./connection-service');
           const client = getSupabaseClient();
           
           if (client) {
@@ -268,15 +295,21 @@ export async function executeBootstrap(
             logger.warn(`Bootstrap forced client initialization failed, retry ${attempt}/${maxAttempts}`, {
               module: 'bootstrap-state-machine'
             });
-            retryClientInit(attempt + 1, maxAttempts);
+            await retryClientInit(attempt + 1, maxAttempts);
           } else {
             logger.error(`Bootstrap forced client initialization failed after ${maxAttempts} attempts`, {
               module: 'bootstrap-state-machine'
             });
           }
-        }, 500 * attempt); // Increasing delay for each retry
+        } catch (error) {
+          logger.error('Error during client initialization retry', error, {
+            module: 'bootstrap-state-machine',
+            attempt
+          });
+        }
       };
       
+      // Start the retry process
       retryClientInit();
       
       // Transition to CONNECTION_SUCCESS
@@ -302,10 +335,12 @@ export async function executeBootstrap(
       
       return successContext;
     } else {
-      // No configuration found - transition to appropriate error state
-      logger.warn('No configuration found during bootstrap', {
+      // No configuration found or invalid configuration - transition to appropriate error state
+      logger.warn('No valid configuration found during bootstrap', {
         module: 'bootstrap-state-machine',
-        error: result.error
+        error: result.error,
+        hasConfig: !!result.config,
+        configSourceIfFound: result.source
       });
       
       // Determine error type if error exists
@@ -323,7 +358,7 @@ export async function executeBootstrap(
         errorState,
         onStateChange,
         {
-          error: result.error || 'No configuration found',
+          error: result.error || 'No valid configuration found',
           errorType,
           retryCount: loadingContext.retryCount + 1
         }
