@@ -67,8 +67,16 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
     };
     window.addEventListener('webhookCall', handler);
     
-    // Initialize bootstrap tracking
-    emitBootstrapEvent('initializing');
+    // Check if bootstrap has already been initialized to prevent duplicate events
+    const bootstrapState = localStorage.getItem('supabase_bootstrap_state');
+    const isBootstrapInitialized = bootstrapState && 
+      JSON.parse(bootstrapState).stage !== 'not_started' && 
+      JSON.parse(bootstrapState).stage !== 'failed';
+    
+    // Only initialize bootstrap if not already started
+    if (!isBootstrapInitialized) {
+      emitBootstrapEvent('initializing');
+    }
     
     // Mark the start time for connection tracking
     if (typeof window !== 'undefined') {

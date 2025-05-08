@@ -18,8 +18,19 @@ export function emitSupabaseConnectionEvent(status: string, error: string | null
       null;
     
     // Get current environment from localStorage or default to hostname-based detection
-    const environment = localStorage.getItem('supabase_environment_local') || 
+    let environment = localStorage.getItem('supabase_environment_local') || 
       (window.location.hostname === 'localhost' ? 'development' : 'production');
+    
+    // Make sure we're not storing a JSON object as a string
+    if (environment.startsWith('{') && environment.endsWith('}')) {
+      try {
+        const envObj = JSON.parse(environment);
+        environment = envObj.id || envObj.type || 'unknown';
+      } catch (e) {
+        // If parsing fails, use the raw value
+        console.warn('Failed to parse environment string', e);
+      }
+    }
     
     // Dispatch the event with enhanced information
     window.dispatchEvent(new CustomEvent('supabaseConnection', {
@@ -135,7 +146,19 @@ export function collectEnvironmentInfo() {
     // 2. Check hostname (localhost = development)
     // 3. Check process.env.NODE_ENV
     // 4. Default to "unknown"
-    const storedEnv = localStorage.getItem('supabase_environment_local');
+    let storedEnv = localStorage.getItem('supabase_environment_local');
+    
+    // Make sure we're not using a JSON string
+    if (storedEnv && storedEnv.startsWith('{') && storedEnv.endsWith('}')) {
+      try {
+        const envObj = JSON.parse(storedEnv);
+        storedEnv = envObj.id || envObj.type || null;
+      } catch (e) {
+        // If parsing fails, use null
+        console.warn('Failed to parse environment string', e);
+        storedEnv = null;
+      }
+    }
     const hostnameEnv = window.location.hostname === 'localhost' ? 'development' : 
                         window.location.hostname.includes('staging') ? 'staging' :
                         window.location.hostname.includes('dev') ? 'development' :
