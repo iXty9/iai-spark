@@ -36,6 +36,19 @@ interface StaticSiteConfig {
 }
 
 /**
+ * Generate a template configuration with default empty values
+ * This is useful when creating a new site-config.json file
+ */
+export function generateTemplateConfig(): StaticSiteConfig {
+  return {
+    supabaseUrl: '',
+    supabaseAnonKey: '',
+    siteHost: window.location.hostname,
+    lastUpdated: new Date().toISOString()
+  };
+}
+
+/**
  * Fetch the static site configuration file
  * This is used to bootstrap the application without requiring localStorage or an existing connection
  */

@@ -54,15 +54,15 @@ export default function SupabaseAuth() {
           setDbConfigFound(true);
           
           // Test if the connection actually works with these credentials
-          const connectionWorks = await testSupabaseConnection(
+          const connectionTest = await testSupabaseConnection(
             config.url, 
             config.anonKey
           );
           
-          if (!connectionWorks.isConnected) {
+          if (!connectionTest || connectionTest === false) {
             logger.warn('Saved database config exists but connection failed', {
               module: 'supabase-auth',
-              error: connectionWorks.error
+              error: 'Connection test failed'
             });
           }
         }
@@ -129,7 +129,7 @@ export default function SupabaseAuth() {
       // Test the connection before using it
       const connectionTest = await testSupabaseConnection(dbConfig.url, dbConfig.anonKey);
       
-      if (connectionTest.isConnected) {
+      if (connectionTest && connectionTest !== false) {
         // Save the config from the database to localStorage
         saveConfig({
           url: dbConfig.url,
@@ -144,7 +144,7 @@ export default function SupabaseAuth() {
         // Navigate back to previous page or home
         navigate('/');
       } else {
-        throw new Error(connectionTest.error || "Connection failed with saved credentials");
+        throw new Error("Connection failed with saved credentials");
       }
     } catch (error) {
       console.error("Error using saved configuration:", error);
