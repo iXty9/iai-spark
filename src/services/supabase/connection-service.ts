@@ -123,25 +123,7 @@ export function getSupabaseClient() {
   if (supabaseInstance) return supabaseInstance;
   
   try {
-    // Generate a unique connection ID for this instance if one doesn't exist
-    const connIdKey = getConnectionKey(CONNECTION_ID_KEY);
-    if (!localStorage.getItem(connIdKey)) {
-      const connectionId = `conn_${Math.random().toString(36).substring(2, 10)}`;
-      localStorage.setItem(connIdKey, connectionId);
-      
-      // Store environment info for debugging
-      const envInfo = getEnvironmentInfo();
-      localStorage.setItem(getConnectionKey(ENVIRONMENT_KEY), JSON.stringify(envInfo));
-      
-      logger.info(`Generating new connection ID: ${connectionId}`, {
-        module: 'supabase-connection',
-        environment: envInfo.id
-      });
-    }
-    
-    const connectionId = localStorage.getItem(connIdKey) || 'unknown';
-    
-    // Check for special URL parameters
+    // Check for special URL parameters first
     const urlParams = new URLSearchParams(window.location.search);
     const forceInit = urlParams.get('force_init') === 'true';
     const resetConfig = urlParams.get('reset_config') === 'true';
@@ -160,6 +142,25 @@ export function getSupabaseClient() {
       });
       return null;
     }
+    
+    // Generate a unique connection ID for this instance if one doesn't exist
+    const connIdKey = getConnectionKey(CONNECTION_ID_KEY);
+    if (!localStorage.getItem(connIdKey)) {
+      const connectionId = `conn_${Math.random().toString(36).substring(2, 10)}`;
+      localStorage.setItem(connIdKey, connectionId);
+      
+      // Store environment info for debugging
+      const envInfo = getEnvironmentInfo();
+      localStorage.setItem(getConnectionKey(ENVIRONMENT_KEY), JSON.stringify(envInfo));
+      
+      logger.info(`Generating new connection ID: ${connectionId}`, {
+        module: 'supabase-connection',
+        environment: envInfo.id
+      });
+    }
+    
+    const connectionId = localStorage.getItem(connIdKey) || 'unknown';
+    
     
     // Get stored configuration
     const storedConfig = getStoredConfig();

@@ -7,14 +7,27 @@ import { toast } from '@/hooks/use-toast';
 import { PostgrestResponse, PostgrestSingleResponse } from '@supabase/supabase-js';
 import { emitSupabaseConnectionEvent } from '@/utils/debug';
 
-// Get the Supabase client
-const client = getSupabaseClient();
+// Initialize client as null, will be set properly after bootstrap
+let client = null;
 
-// Emit connection status for debugging
-if (client) {
-  emitSupabaseConnectionEvent('connected', null);
+// Attempt to get the client immediately
+client = getSupabaseClient();
+
+// If client isn't available, try again after a delay to allow bootstrap to complete
+if (!client) {
+  setTimeout(() => {
+    client = getSupabaseClient();
+    
+    // Emit connection status after delayed initialization
+    if (client) {
+      emitSupabaseConnectionEvent('connected', null);
+    } else {
+      emitSupabaseConnectionEvent('disconnected', 'Client not initialized after retry');
+    }
+  }, 1500); // Give bootstrap enough time to complete
 } else {
-  emitSupabaseConnectionEvent('disconnected', 'Client not initialized');
+  // Emit connection status for debugging if client is available immediately
+  emitSupabaseConnectionEvent('connected', null);
 }
 
 // Fallback client for handling cases when the Supabase client isn't available
@@ -128,5 +141,21 @@ const fallbackClient = {
   }
 };
 
-// Handle reset configuration scenarios
-export const supabase = client || fallbackClient;
+// Export a function that always returns the latest client
+// This ensures we always get the most up-to-date client instance
+export const supabase = (() => {
+  return function getClient() {
+    // If client exists, return it
+    if (client) return client;
+    
+    // Try to get the client again
+    const freshClient = getSupabaseClient();
+    if (freshClient) {
+      client = freshClient;
+      return client;
+    }
+    
+    // Fall back to the fallback client if still no client
+    return fallbackClient;
+  };
+})()();

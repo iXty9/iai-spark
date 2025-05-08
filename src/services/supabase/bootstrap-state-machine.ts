@@ -252,6 +252,14 @@ export async function executeBootstrap(
       // Reset Supabase client to use new configuration
       resetSupabaseClient();
       
+      // Force a new client initialization after a short delay
+      setTimeout(() => {
+        const client = getSupabaseClient();
+        logger.info(`Bootstrap forced client initialization: ${client ? 'success' : 'failed'}`, {
+          module: 'bootstrap-state-machine'
+        });
+      }, 500);
+      
       // Transition to CONNECTION_SUCCESS
       const successContext = transitionTo(
         configFoundContext,
