@@ -12,9 +12,28 @@ import { Toaster } from "@/components/ui/toaster";
 import { BootstrapProvider } from "@/components/supabase/BootstrapProvider";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { useEffect } from "react";
+import { bootstrapMonitor } from "@/services/supabase/bootstrap-monitor";
+import { checkPublicBootstrapConfig } from "@/services/supabase/connection-service";
 import "./App.css";
 
 function App() {
+  // Initialize bootstrap process on app load
+  useEffect(() => {
+    // Try to bootstrap immediately
+    checkPublicBootstrapConfig().catch(err => {
+      console.error("Initial bootstrap attempt failed:", err);
+    });
+    
+    // Start monitoring for recovery if needed
+    bootstrapMonitor.start();
+    
+    // Clean up monitor on unmount
+    return () => {
+      bootstrapMonitor.stop();
+    };
+  }, []);
+
   return (
     <Router>
       <BootstrapProvider>

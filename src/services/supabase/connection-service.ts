@@ -39,34 +39,51 @@ export async function checkPublicBootstrapConfig() {
       module: 'supabase-connection'
     });
     
-    // Use the unified configuration loader
-    const result = await configLoader.loadConfiguration();
+    // Check if this is a first-time user (no previous connection attempts)
+    const isFirstTimeUser = !localStorage.getItem(getConnectionKey(LAST_CONNECTION_TIME_KEY));
     
-    if (result.config) {
-      logger.info(`Successfully loaded configuration from ${result.source}`, {
-        module: 'supabase-connection'
-      });
+    // For first-time users, we'll be more aggressive with retries
+    const maxAttempts = isFirstTimeUser ? 3 : 1;
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      if (attempt > 0) {
+        // Add a small delay between attempts
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        logger.info(`Retry attempt ${attempt} for bootstrap configuration`, {
+          module: 'supabase-connection'
+        });
+      }
       
-      // Save the configuration
-      configLoader.saveConfiguration(result.config);
+      // Use the unified configuration loader
+      const result = await configLoader.loadConfiguration();
       
-      // Reset the Supabase client to use the new config
-      resetSupabaseClient();
-      
-      // Update connection state
-      updateConnectionState({
-        lastAttempt: new Date().toISOString(),
-        lastSuccess: new Date().toISOString(),
-        attemptCount: 1,
-        source: result.source
-      });
-      
-      return true;
+      if (result.config) {
+        logger.info(`Successfully loaded configuration from ${result.source}`, {
+          module: 'supabase-connection'
+        });
+        
+        // Save the configuration
+        configLoader.saveConfiguration(result.config);
+        
+        // Reset the Supabase client to use the new config
+        resetSupabaseClient();
+        
+        // Update connection state
+        updateConnectionState({
+          lastAttempt: new Date().toISOString(),
+          lastSuccess: new Date().toISOString(),
+          attemptCount: 1,
+          source: result.source
+        });
+        
+        return true;
+      }
     }
     
-    logger.info('No bootstrap configuration found', {
+    logger.info('No bootstrap configuration found after attempts', {
       module: 'supabase-connection',
-      error: result.error
+      error: 'Configuration not found'
     });
     
     // Update connection state
@@ -75,7 +92,7 @@ export async function checkPublicBootstrapConfig() {
       lastSuccess: null,
       attemptCount: getConnectionState().attemptCount + 1,
       source: ConfigSource.NONE,
-      error: result.error
+      error: 'Configuration not found after multiple attempts'
     });
     
     return false;

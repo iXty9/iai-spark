@@ -50,26 +50,54 @@ const BOOTSTRAP_STATE_KEY = 'supabase_bootstrap_state';
  */
 export function initBootstrapContext(): BootstrapContext {
   try {
+    // Check if localStorage is available first
+    try {
+      localStorage.setItem('test', 'test');
+      localStorage.removeItem('test');
+    } catch (e) {
+      // If localStorage isn't available, return a memory-only context
+      logger.warn('localStorage not available for bootstrap context', {
+        module: 'bootstrap-state-machine'
+      });
+      return createDefaultContext();
+    }
+    
     // Try to load saved state
     const savedState = localStorage.getItem(BOOTSTRAP_STATE_KEY);
     if (savedState) {
-      const parsedState = JSON.parse(savedState) as BootstrapContext;
-      
-      // Reset to initial state if last attempt was more than 1 hour ago
-      const lastAttemptTime = new Date(parsedState.lastAttempt).getTime();
-      const now = new Date().getTime();
-      const hoursSinceLastAttempt = (now - lastAttemptTime) / (1000 * 60 * 60);
-      
-      if (hoursSinceLastAttempt > 1) {
+      try {
+        const parsedState = JSON.parse(savedState) as BootstrapContext;
+        
+        // Reset to initial state if last attempt was more than 1 hour ago
+        const lastAttemptTime = new Date(parsedState.lastAttempt).getTime();
+        const now = new Date().getTime();
+        const hoursSinceLastAttempt = (now - lastAttemptTime) / (1000 * 60 * 60);
+        
+        if (hoursSinceLastAttempt > 1) {
+          logger.info('Bootstrap context expired, creating new context', {
+            module: 'bootstrap-state-machine',
+            hoursSinceLastAttempt
+          });
+          return createDefaultContext();
+        }
+        
+        return {
+          ...parsedState,
+          state: BootstrapState.INITIAL // Always start from initial state
+        };
+      } catch (e) {
+        // If parsing fails, create a new context
+        logger.error('Failed to parse saved bootstrap context', e, {
+          module: 'bootstrap-state-machine'
+        });
         return createDefaultContext();
       }
-      
-      return {
-        ...parsedState,
-        state: BootstrapState.INITIAL // Always start from initial state
-      };
     }
     
+    // For new users, create a fresh context
+    logger.info('No saved bootstrap context found, creating new context', {
+      module: 'bootstrap-state-machine'
+    });
     return createDefaultContext();
   } catch (error) {
     logger.error('Error initializing bootstrap context', error, {
