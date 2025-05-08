@@ -12,27 +12,69 @@ import { Toaster } from "@/components/ui/sonner";
 import { BootstrapProvider } from "@/components/supabase/BootstrapProvider";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { bootstrapMonitor } from "@/services/supabase/bootstrap-monitor";
 import { checkPublicBootstrapConfig } from "@/services/supabase/connection-service";
+import { logger } from "@/utils/logging";
 import "./App.css";
 
 function App() {
-  // Initialize bootstrap process on app load
+  // State to track client initialization
+  const [clientInitialized, setClientInitialized] = useState<boolean>(false);
+  
+  // Safe initialization - Handle with care to prevent recursion
   useEffect(() => {
-    // Try to bootstrap immediately
-    checkPublicBootstrapConfig().catch(err => {
-      console.error("Initial bootstrap attempt failed:", err);
-    });
+    const initializeApp = async () => {
+      try {
+        logger.info("Starting app initialization process", { module: 'app-init' });
+        
+        // Try to check config without causing auth errors
+        const hasConfig = await checkPublicBootstrapConfig().catch(err => {
+          logger.error("Initial bootstrap check failed:", err, { module: 'app-init' });
+          return false;
+        });
+        
+        logger.info("Initial bootstrap check complete", { 
+          hasConfig, 
+          module: 'app-init' 
+        });
+        
+        setClientInitialized(true);
+        
+        // Only start monitor if we've safely initialized
+        if (hasConfig) {
+          bootstrapMonitor.start();
+        } else {
+          logger.info("Bootstrap monitor not started - no configuration found", {
+            module: 'app-init'
+          });
+        }
+      } catch (err) {
+        // Log error but continue rendering the app
+        logger.error("Error during app initialization:", err, { module: 'app-init' });
+        setClientInitialized(true); // Still mark as initialized to allow rendering
+      }
+    };
     
-    // Start monitoring for recovery if needed
-    bootstrapMonitor.start();
+    initializeApp();
     
     // Clean up monitor on unmount
     return () => {
       bootstrapMonitor.stop();
     };
   }, []);
+
+  // Render simple loading state while client initializes
+  if (!clientInitialized) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto"></div>
+          <p className="mt-2 text-muted-foreground">Initializing application...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Router>

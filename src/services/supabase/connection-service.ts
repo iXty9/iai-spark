@@ -816,40 +816,82 @@ export async function checkPublicBootstrapConfig(): Promise<boolean> {
       module: 'connection-service'
     });
     
-    // Try to load configuration from static file
-    const staticConfig = await fetchStaticSiteConfig();
+    // Try to safely initialize the client if not already done
+    if (!getSupabaseClient()) {
+      // Initialize with a default null-safe client
+      // This will be replaced with actual credentials later
+      const defaultClient = initializeClientWithFallback();
+      if (!defaultClient) {
+        logger.warn('Failed to create even a fallback client', {
+          module: 'connection-service'
+        });
+        return false;
+      }
+    }
     
-    if (staticConfig && staticConfig.supabaseUrl && staticConfig.supabaseAnonKey) {
-      logger.info('Found valid static site configuration', {
-        module: 'connection-service'
-      });
-      
-      // Save the configuration
-      saveConfig({
-        url: staticConfig.supabaseUrl,
-        anonKey: staticConfig.supabaseAnonKey,
-        isInitialized: true,
-        savedAt: new Date().toISOString(),
-        environment: getEnvironmentId()
-      });
-      
-      // Reset the client to use the new configuration
-      resetSupabaseClient();
-      
+    // Check if we already have config
+    const config = getStoredConfig();
+    if (config && config.url && config.anonKey) {
       return true;
     }
     
-    logger.warn('No valid public bootstrap configuration found', {
-      module: 'connection-service'
-    });
+    // Try to fetch public config
+    try {
+      const publicConfig = await fetchStaticSiteConfig();
+      
+      if (publicConfig && 
+          publicConfig.supabaseUrl && 
+          publicConfig.supabaseAnonKey) {
+        return true;
+      }
+    } catch (e) {
+      // Silently handle fetch errors
+      logger.debug('No public config available', {
+        module: 'connection-service'
+      });
+    }
     
     return false;
   } catch (error) {
-    logger.error('Error checking public bootstrap configuration', error, {
+    logger.error('Error checking public bootstrap config', error, {
+      module: 'connection-service'
+    });
+    return false;
+  }
+}
+
+/**
+ * Initialize client with fallback to prevent auth errors
+ * This creates a minimal client that won't throw errors when accessed
+ */
+function initializeClientWithFallback() {
+  try {
+    // Import createClient directly to avoid circular dependencies
+    const { createClient } = require('@supabase/supabase-js');
+    
+    // Create a dummy client that won't throw errors
+    const dummyUrl = 'https://example.supabase.co';
+    const dummyKey = 'dummy-key';
+    
+    // Create a client with settings that prevent auto-connection
+    const dummyClient = createClient(dummyUrl, dummyKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false
+      }
+    });
+    
+    logger.debug('Created fallback client for safe initialization', {
       module: 'connection-service'
     });
     
-    return false;
+    return dummyClient;
+  } catch (error) {
+    logger.error('Failed to create fallback client', error, {
+      module: 'connection-service'
+    });
+    return null;
   }
 }
 
