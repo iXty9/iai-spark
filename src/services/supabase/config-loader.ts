@@ -5,9 +5,7 @@
  */
 
 import { logger } from '@/utils/logging';
-import { fetchStaticSiteConfig } from '@/services/site-config/site-config-file-service';
-import { getConfigFromEnvironment } from '@/services/site-config/site-config-file-service';
-import { readConfigFromLocalStorage, writeConfigToLocalStorage, clearLocalStorageConfig } from '@/services/site-config/site-config-file-service';
+import { fetchStaticSiteConfig, getConfigFromEnvironment, readConfigFromLocalStorage, writeConfigToLocalStorage, clearLocalStorageConfig, convertSupabaseConfigToSiteConfig, convertSiteConfigToSupabaseConfig } from '@/services/site-config/site-config-file-service';
 import { fetchBootstrapConfig, testBootstrapConnection } from '@/services/supabase/bootstrap-service';
 import { SupabaseConfig } from '@/config/supabase/types';
 import { getEnvironmentId } from '@/config/supabase/environment';
@@ -517,7 +515,8 @@ export async function loadConfiguration(): Promise<ConfigLoadResult> {
   const urlConfig = await loadFromUrlParameters();
   if (urlConfig.config) {
     // Save to localStorage for future use
-    writeConfigToLocalStorage(urlConfig.config);
+    const siteConfig = convertSupabaseConfigToSiteConfig(urlConfig.config);
+    writeConfigToLocalStorage(siteConfig);
     return urlConfig;
   }
   
@@ -525,7 +524,8 @@ export async function loadConfiguration(): Promise<ConfigLoadResult> {
   const staticConfig = await loadFromStaticFile();
   if (staticConfig.config) {
     // Save to localStorage for future use
-    writeConfigToLocalStorage(staticConfig.config);
+    const siteConfig = convertSupabaseConfigToSiteConfig(staticConfig.config);
+    writeConfigToLocalStorage(siteConfig);
     return staticConfig;
   }
   
@@ -539,7 +539,8 @@ export async function loadConfiguration(): Promise<ConfigLoadResult> {
   const envConfig = loadFromEnvironment();
   if (envConfig.config) {
     // Save to localStorage for future use
-    writeConfigToLocalStorage(envConfig.config);
+    const siteConfig = convertSupabaseConfigToSiteConfig(envConfig.config);
+    writeConfigToLocalStorage(siteConfig);
     return envConfig;
   }
   
@@ -553,7 +554,8 @@ export async function loadConfiguration(): Promise<ConfigLoadResult> {
     
     if (dbConfig.config) {
       // Save to localStorage for future use
-      writeConfigToLocalStorage(dbConfig.config);
+      const siteConfig = convertSupabaseConfigToSiteConfig(dbConfig.config);
+      writeConfigToLocalStorage(siteConfig);
       return dbConfig;
     }
     
@@ -605,12 +607,7 @@ export function saveConfiguration(config: SupabaseConfig): boolean {
     });
     
     // Convert to SiteConfigEnv format for localStorage
-    const siteConfig = {
-      supabaseUrl: config.url,
-      supabaseAnonKey: config.anonKey,
-      siteHost: window.location.origin,
-      lastUpdated: new Date().toISOString()
-    };
+    const siteConfig = convertSupabaseConfigToSiteConfig(config);
     
     // Always save to localStorage
     const localSaved = writeConfigToLocalStorage(siteConfig);
