@@ -40,7 +40,7 @@ export async function checkPublicBootstrapConfig() {
     });
     
     // Use the unified configuration loader
-    const result = await loadConfiguration();
+    const result = await configLoader.loadConfiguration();
     
     if (result.config) {
       logger.info(`Successfully loaded configuration from ${result.source}`, {
@@ -48,7 +48,7 @@ export async function checkPublicBootstrapConfig() {
       });
       
       // Save the configuration
-      saveConfiguration(result.config);
+      configLoader.saveConfiguration(result.config);
       
       // Reset the Supabase client to use the new config
       resetSupabaseClient();
