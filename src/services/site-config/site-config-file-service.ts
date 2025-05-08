@@ -9,6 +9,19 @@ import { SiteConfigEnv } from '@/services/supabase/site-config-service';
 const SITE_CONFIG_FILE_PATH = '/site-config.json';
 
 /**
+ * Environment variable names that can be used for configuration
+ */
+const ENV_SUPABASE_URL = 'VITE_SUPABASE_URL';
+const ENV_SUPABASE_ANON_KEY = 'VITE_SUPABASE_ANON_KEY';
+const ENV_SITE_HOST = 'VITE_SITE_HOST';
+
+/**
+ * Local storage keys
+ */
+const LS_CONFIG_KEY = 'site-config';
+const LS_CONFIG_TIMESTAMP = 'site-config-timestamp';
+
+/**
  * Format for the static site configuration file
  */
 interface StaticSiteConfig {
@@ -246,11 +259,13 @@ export function writeConfigToLocalStorage(config: SiteConfigEnv): boolean {
     }
     
     try {
-      localStorage.setItem('site-config', JSON.stringify(staticConfig));
+      localStorage.setItem(LS_CONFIG_KEY, JSON.stringify(staticConfig));
+      localStorage.setItem(LS_CONFIG_TIMESTAMP, new Date().toISOString());
       
       logger.info('Static site configuration saved to localStorage', {
         module: 'site-config',
-        host: staticConfig.siteHost
+        host: staticConfig.siteHost,
+        timestamp: new Date().toISOString()
       });
       
       return true;
@@ -272,6 +287,106 @@ export function writeConfigToLocalStorage(config: SiteConfigEnv): boolean {
 }
 
 /**
+ * Try to get configuration from environment variables
+ * This is used during development or in environments where env vars are available
+ */
+export function getConfigFromEnvironment(): SiteConfigEnv | null {
+  try {
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined' || !window.location) {
+      return null;
+    }
+    
+    // Access environment variables (these are injected by Vite during build)
+    const supabaseUrl = import.meta.env[ENV_SUPABASE_URL] || '';
+    const supabaseAnonKey = import.meta.env[ENV_SUPABASE_ANON_KEY] || '';
+    const siteHost = import.meta.env[ENV_SITE_HOST] || window.location.hostname;
+    
+    // Validate the environment variables
+    if (!supabaseUrl || !supabaseAnonKey) {
+      logger.info('No valid configuration found in environment variables', {
+        module: 'site-config',
+        hasUrl: !!supabaseUrl,
+        hasKey: !!supabaseAnonKey
+      });
+      return null;
+    }
+    
+    logger.info('Using configuration from environment variables', {
+      module: 'site-config',
+      siteHost
+    });
+    
+    return {
+      supabaseUrl: supabaseUrl.trim(),
+      supabaseAnonKey: supabaseAnonKey.trim(),
+      siteHost: siteHost.trim(),
+      lastUpdated: new Date().toISOString()
+    };
+  } catch (error) {
+    logger.error('Error reading configuration from environment', {
+      module: 'site-config',
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return null;
+  }
+}
+
+/**
+ * Generate a template configuration file
+ * This can be used to create a default site-config.json
+ */
+export function generateTemplateConfig(): StaticSiteConfig {
+  return {
+    supabaseUrl: "https://your-project-id.supabase.co",
+    supabaseAnonKey: "your-anon-key-here",
+    siteHost: window.location.hostname,
+    lastUpdated: new Date().toISOString()
+  };
+}
+
+/**
+ * Try all available configuration sources in order of preference
+ * This is the main entry point for getting configuration
+ */
+export async function getConfigFromAllSources(): Promise<SiteConfigEnv | null> {
+  // Try sources in order of preference
+  
+  // 1. Try static site config file (fastest and most reliable when available)
+  const staticConfig = await fetchStaticSiteConfig();
+  if (staticConfig) {
+    logger.info('Using configuration from static site config file', {
+      module: 'site-config'
+    });
+    return staticConfig;
+  }
+  
+  // 2. Try environment variables (good for development)
+  const envConfig = getConfigFromEnvironment();
+  if (envConfig) {
+    logger.info('Using configuration from environment variables', {
+      module: 'site-config'
+    });
+    return envConfig;
+  }
+  
+  // 3. Try localStorage (fallback for returning users)
+  const localConfig = readConfigFromLocalStorage();
+  if (localConfig) {
+    logger.info('Using configuration from localStorage', {
+      module: 'site-config'
+    });
+    return localConfig;
+  }
+  
+  // 4. No configuration found
+  logger.warn('No configuration found from any source', {
+    module: 'site-config'
+  });
+  return null;
+}
+
+/**
  * Read configuration from localStorage
  * This is used as a fallback when the static file isn't available
  */
@@ -285,7 +400,7 @@ export function readConfigFromLocalStorage(): SiteConfigEnv | null {
       return null;
     }
     
-    const configJson = localStorage.getItem('site-config');
+    const configJson = localStorage.getItem(LS_CONFIG_KEY);
     
     if (!configJson) {
       logger.info('No configuration found in localStorage', {
