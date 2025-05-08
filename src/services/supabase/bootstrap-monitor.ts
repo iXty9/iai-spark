@@ -1,3 +1,4 @@
+
 /**
  * Bootstrap monitor service
  * Provides automatic recovery and monitoring for bootstrap process

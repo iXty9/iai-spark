@@ -30,6 +30,9 @@ interface EnvironmentInfo {
   userAgent?: string;
 }
 
+// Type definition for Database (placeholder - should match your actual database type)
+type Database = any;
+
 // Config loader utility
 const configLoader = {
   loadConfiguration: async () => {
@@ -219,7 +222,6 @@ export function getSupabaseClient() {
     }
     
     const connectionId = localStorage.getItem(connIdKey) || 'unknown';
-    
     
     // Check for URL parameters for direct connection details
     const urlSupabaseUrl = urlParams.get('supabase_url');
@@ -657,6 +659,7 @@ export function startConnectionMonitoring(intervalMs = 60000): () => void {
     }
   };
 }
+
 /**
  * Attempt to repair a broken connection
  * This implements self-healing for common connection issues
