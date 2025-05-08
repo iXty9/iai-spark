@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -19,8 +18,14 @@ const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(1, 'Password is required'),
 });
-
 type LoginFormData = z.infer<typeof loginSchema>;
+
+const iconProps = "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground";
+
+const FIELD_CONFIG = [
+  { name: 'email', label: 'Email', Icon: Mail, type: 'email', placeholder: 'your@email.com' },
+  { name: 'password', label: 'Password', Icon: Lock, type: 'password' }
+];
 
 export const LoginForm = () => {
   const navigate = useNavigate();
@@ -28,89 +33,49 @@ export const LoginForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [showDebug, setShowDebug] = useState(false);
-  const [isResettingConfig, setIsResettingConfig] = useState(false);
-  
+  const [isResetting, setIsResetting] = useState(false);
+
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-    }
+    defaultValues: { email: '', password: '' }
   });
 
-  const handleSubmit = async (data: LoginFormData) => {
+  const handleSubmit = async ({ email, password }: LoginFormData) => {
     setIsLoading(true);
     setServerError(null);
-    
     try {
-      // Sanitize the email to prevent XSS
-      const sanitizedEmail = DOMPurify.sanitize(data.email);
-      
-      await signIn(sanitizedEmail, data.password);
+      await signIn(DOMPurify.sanitize(email), password);
       navigate('/');
     } catch (error: any) {
-      console.error('Login error:', error);
-      
-      // Improve error messaging to help debug connection issues
-      let errorMessage = 'Authentication failed';
-      
-      if (error.message) {
-        if (error.message.includes('Invalid login credentials')) {
-          errorMessage = 'Invalid email or password';
-        } else if (error.message.includes('network')) {
-          errorMessage = 'Network error - cannot connect to authentication service';
-        } else if (error.message.includes('timeout')) {
-          errorMessage = 'Connection timed out - check your network and try again';
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
-      setServerError(errorMessage);
+      let message = 'Authentication failed';
+      if (error?.message?.includes('Invalid login credentials')) message = 'Invalid email or password';
+      else if (error?.message?.includes('network')) message = 'Network error - cannot connect to authentication service';
+      else if (error?.message?.includes('timeout')) message = 'Connection timed out - check your network and try again';
+      else if (error?.message) message = error.message;
+      setServerError(message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Reset connection config and reload the page
   const handleResetConfig = () => {
+    setIsResetting(true);
     try {
-      setIsResettingConfig(true);
-      
-      // Clear authentication data
-      localStorage.removeItem('spark_supabase_config');
-      
-      // Clear any auth tokens
-      ['sb-refresh-token', 'sb-access-token', 'supabase.auth.expires_at', 'supabase.auth.token'].forEach(key => {
-        try {
-          localStorage.removeItem(key);
-        } catch (e) {
-          console.warn(`Failed to remove ${key} from localStorage:`, e);
-        }
-      });
-      
-      // Also clean up any keys with supabase in them
-      Object.keys(localStorage).forEach(key => {
-        if (key.includes('supabase') || key.startsWith('sb-')) {
-          try {
-            localStorage.removeItem(key);
-          } catch (e) {
-            console.warn(`Failed to remove ${key} from localStorage:`, e);
-          }
-        }
-      });
-      
-      // Force reload to reinitialize
+      Object.keys(localStorage)
+        .filter(k => ['spark_supabase_config', 'sb-refresh-token', 'sb-access-token', 'supabase.auth.expires_at', 'supabase.auth.token'].includes(k)
+          || k.includes('supabase') || k.startsWith('sb-'))
+        .forEach(k => {
+          try { localStorage.removeItem(k); }
+          catch (e) { /* ignore */ }
+        });
       setTimeout(() => {
         window.location.href = window.location.pathname + '?reset_config=true';
       }, 500);
     } catch (e) {
-      console.error('Error resetting config:', e);
-      setIsResettingConfig(false);
+      setIsResetting(false);
     }
   };
 
-  // Get connection info for debugging
   const connectionInfo = getConnectionInfo();
 
   return (
@@ -123,10 +88,10 @@ export const LoginForm = () => {
               <AlertTitle>Authentication Error</AlertTitle>
               <AlertDescription>{serverError}</AlertDescription>
               <div className="mt-2 text-xs">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="text-primary underline"
-                  onClick={() => setShowDebug(!showDebug)}
+                  onClick={() => setShowDebug(v => !v)}
                 >
                   {showDebug ? 'Hide debug info' : 'Show debug info'}
                 </button>
@@ -135,88 +100,59 @@ export const LoginForm = () => {
                     <pre className="overflow-auto max-h-32 p-2 bg-slate-900 text-white rounded text-xs">
                       {JSON.stringify(connectionInfo, null, 2)}
                     </pre>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
                       className="mt-2 text-xs"
                       onClick={handleResetConfig}
-                      disabled={isResettingConfig}
+                      disabled={isResetting}
                     >
-                      {isResettingConfig ? (
-                        <>
-                          <RefreshCw className="mr-1 h-3 w-3 animate-spin" />
-                          Resetting...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="mr-1 h-3 w-3" />
-                          Reset Connection Config
-                        </>
-                      )}
+                      <RefreshCw className={`mr-1 h-3 w-3${isResetting ? ' animate-spin' : ''}`} />
+                      {isResetting ? "Resetting..." : "Reset Connection Config"}
                     </Button>
                   </div>
                 )}
               </div>
             </Alert>
           )}
-          
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <FormControl>
-                    <Input 
-                      id="email" 
-                      type="email" 
-                      placeholder="your@email.com"
-                      className="pl-10"
-                      {...field}
-                    />
-                  </FormControl>
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <FormControl>
-                    <Input 
-                      id="password" 
-                      type="password"
-                      className="pl-10"
-                      {...field}
-                    />
-                  </FormControl>
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {FIELD_CONFIG.map(({ name, label, Icon, type, placeholder }) => (
+            <FormField
+              key={name}
+              control={form.control}
+              name={name as keyof LoginFormData}
+              render={({ field }) => (
+                <FormItem className="space-y-2">
+                  <Label htmlFor={name}>{label}</Label>
+                  <div className="relative">
+                    <Icon className={iconProps} />
+                    <FormControl>
+                      <Input
+                        id={name}
+                        type={type}
+                        placeholder={placeholder}
+                        className="pl-10"
+                        {...field}
+                      />
+                    </FormControl>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          ))}
         </CardContent>
         <CardFooter className="flex flex-col space-y-3">
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             className="w-full bg-[#ea384c] hover:bg-[#dd3333]"
             disabled={isLoading}
           >
             {isLoading ? 'Signing in...' : 'Sign In'}
           </Button>
-          <Button 
-            type="button" 
-            variant="outline" 
+          <Button
+            type="button"
+            variant="outline"
             className="w-full"
             onClick={() => navigate('/')}
           >
