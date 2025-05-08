@@ -135,35 +135,56 @@ export async function testBootstrapConnection(
       };
     }
     
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
     const testClient = createClient(url, anonKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
+      },
+      global: {
+        fetch: (fetchUrl, options) => {
+          return fetch(fetchUrl, { 
+            ...options, 
+            signal: controller.signal 
+          });
+        }
       }
     });
     
-    // Try to make a simple query to test the connection
-    const { error: connectionError } = await testClient
-      .from('app_settings')
-      .select('key')
-      .limit(1);
-    
-    // Connection is good if there's no error or if it's just a "table not found" error
-    const isConnected = !connectionError || connectionError.code === '42P01';
-    
-    if (!isConnected) {
-      logger.warn('Bootstrap connection test failed', { 
-        module: 'bootstrap',
-        url: url.split('//')[1],
-        errorCode: connectionError?.code
-      });
+    try {
+      // Try to make a simple query to test the connection
+      const { error: connectionError } = await testClient
+        .from('app_settings')
+        .select('key')
+        .limit(1);
       
-      return {
-        isConnected: false,
-        hasPermissions: false,
-        error: connectionError?.message || 'Unknown connection error',
-        errorCode: connectionError?.code
-      };
+      // Clear timeout since request completed
+      clearTimeout(timeoutId);
+      
+      // Connection is good if there's no error or if it's just a "table not found" error
+      const isConnected = !connectionError || connectionError.code === '42P01';
+      
+      if (!isConnected) {
+        logger.warn('Bootstrap connection test failed', { 
+          module: 'bootstrap',
+          url: url.split('//')[1],
+          errorCode: connectionError?.code
+        });
+        
+        return {
+          isConnected: false,
+          hasPermissions: false,
+          error: connectionError?.message || 'Unknown connection error',
+          errorCode: connectionError?.code
+        };
+      }
+    } catch (innerError) {
+      // Clear timeout
+      clearTimeout(timeoutId);
+      throw innerError;
     }
     
     logger.info('Bootstrap connection test successful', { 
@@ -220,6 +241,16 @@ export async function testBootstrapConnection(
   } catch (error) {
     logger.error('Error testing bootstrap connection', error, { module: 'bootstrap' });
     
+    // Check for timeout
+    if (error.name === 'AbortError') {
+      return {
+        isConnected: false,
+        hasPermissions: false,
+        error: 'Connection timed out after 10 seconds',
+        errorCode: 'timeout_error'
+      };
+    }
+    
     // Categorize network errors
     if (error instanceof TypeError && error.message.includes('fetch')) {
       return {
@@ -227,6 +258,16 @@ export async function testBootstrapConnection(
         hasPermissions: false,
         error: 'Network error connecting to Supabase',
         errorCode: 'network_error'
+      };
+    }
+    
+    // Handle CORS errors
+    if (error.message && error.message.includes('CORS')) {
+      return {
+        isConnected: false,
+        hasPermissions: false,
+        error: 'CORS policy blocked connection to Supabase',
+        errorCode: 'cors_error'
       };
     }
     

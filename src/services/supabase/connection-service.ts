@@ -193,7 +193,7 @@ export function getSupabaseClient() {
         source: 'stored_config'
       });
       
-      // Check health and attempt repair if needed
+      // Check health and start monitoring
       setTimeout(async () => {
         try {
           if (!await checkConnectionHealth()) {
@@ -202,6 +202,9 @@ export function getSupabaseClient() {
             });
             await attemptConnectionRepair();
           }
+          
+          // Start connection monitoring
+          startConnectionMonitoring();
         } catch (e) {
           // Don't let this error affect the main flow
           logger.error('Error in connection health check', e, {
@@ -443,20 +446,101 @@ export async function checkConnectionHealth(): Promise<boolean> {
       return false;
     }
     
-    // Try a simple query to check connection
-    const { error } = await supabaseInstance
-      .from('profiles')
-      .select('id')
-      .limit(1);
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
     
-    // Connection is healthy if there's no error or if it's just a "table not found" error
-    return !error || error.code === '42P01';
+    try {
+      // Try a simple query to check connection
+      const { error } = await supabaseInstance
+        .from('profiles')
+        .select('id')
+        .limit(1)
+        .abortSignal(controller.signal);
+      
+      // Clear timeout since request completed
+      clearTimeout(timeoutId);
+      
+      // Connection is healthy if there's no error or if it's just a "table not found" error
+      return !error || error.code === '42P01';
+    } catch (innerError) {
+      clearTimeout(timeoutId);
+      
+      // Check for timeout
+      if (innerError.name === 'AbortError') {
+        logger.warn('Connection health check timed out', {
+          module: 'supabase-connection'
+        });
+        return false;
+      }
+      
+      throw innerError;
+    }
   } catch (error) {
     logger.error('Error checking connection health', error, {
       module: 'supabase-connection'
     });
     return false;
   }
+}
+
+/**
+ * Start monitoring the connection health
+ * Returns a function to stop monitoring
+ */
+export function startConnectionMonitoring(intervalMs = 60000): () => void {
+  let monitoringInterval: number | null = null;
+  
+  const checkConnection = async () => {
+    try {
+      const isHealthy = await checkConnectionHealth();
+      
+      // Update connection state
+      updateConnectionState({
+        lastAttempt: new Date().toISOString(),
+        lastSuccess: isHealthy ? new Date().toISOString() : getConnectionState().lastSuccess,
+        attemptCount: getConnectionState().attemptCount + 1,
+        source: getConnectionState().source,
+        error: isHealthy ? undefined : 'Connection health check failed'
+      });
+      
+      // If not healthy, attempt repair
+      if (!isHealthy) {
+        logger.warn('Connection health check failed, attempting repair', {
+          module: 'supabase-connection'
+        });
+        
+        const repaired = await attemptConnectionRepair();
+        
+        if (repaired) {
+          // Update state after successful repair
+          updateConnectionState({
+            lastSuccess: new Date().toISOString(),
+            error: undefined
+          });
+        }
+      }
+    } catch (e) {
+      logger.error('Error in connection monitoring', e, {
+        module: 'supabase-connection'
+      });
+    }
+  };
+  
+  // Start monitoring
+  if (typeof window !== 'undefined') {
+    monitoringInterval = window.setInterval(checkConnection, intervalMs);
+    
+    // Initial check
+    checkConnection();
+  }
+  
+  // Return function to stop monitoring
+  return () => {
+    if (monitoringInterval !== null && typeof window !== 'undefined') {
+      window.clearInterval(monitoringInterval);
+    }
+  };
 }
 /**
  * Attempt to repair a broken connection
@@ -496,6 +580,58 @@ export async function attemptConnectionRepair(): Promise<boolean> {
             module: 'supabase-connection'
           });
           return true;
+        }
+      }
+      
+      // Try with service key if available
+      const storedConfig = getStoredConfig();
+      if (storedConfig?.serviceKey) {
+        logger.info('Attempting repair with service key', {
+          module: 'supabase-connection'
+        });
+        
+        // Create temporary client with service key
+        const tempClient = createClient(storedConfig.url, storedConfig.serviceKey, {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false
+          }
+        });
+        
+        // Try to verify and update configuration
+        try {
+          const { data, error } = await tempClient
+            .from('app_settings')
+            .select('key, value')
+            .in('key', ['supabase_url', 'supabase_anon_key']);
+            
+          if (!error && data && data.length > 0) {
+            // Extract updated configuration
+            const updatedConfig = {
+              url: data.find(item => item.key === 'supabase_url')?.value || storedConfig.url,
+              anonKey: data.find(item => item.key === 'supabase_anon_key')?.value || storedConfig.anonKey,
+              serviceKey: storedConfig.serviceKey,
+              isInitialized: true,
+              savedAt: new Date().toISOString(),
+              environment: storedConfig.environment
+            };
+            
+            // Save updated configuration
+            configLoader.saveConfiguration(updatedConfig);
+            resetSupabaseClient();
+            
+            // Check if that fixed it
+            if (await checkConnectionHealth()) {
+              logger.info('Connection repaired using service key', {
+                module: 'supabase-connection'
+              });
+              return true;
+            }
+          }
+        } catch (e) {
+          logger.error('Error during service key repair attempt', e, {
+            module: 'supabase-connection'
+          });
         }
       }
     }
