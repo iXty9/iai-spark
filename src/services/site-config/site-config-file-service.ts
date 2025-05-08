@@ -5,8 +5,12 @@ import { SiteConfigEnv } from '@/services/supabase/site-config-service';
 /**
  * Path to the static site configuration file
  * This file will be accessible without authentication
+ * 
+ * Note: This file should be added to .gitignore to prevent committing sensitive credentials
+ * Use site-config.example.json as a template
  */
 const SITE_CONFIG_FILE_PATH = '/site-config.json';
+const SITE_CONFIG_EXAMPLE_PATH = '/site-config.example.json';
 
 /**
  * Environment variable names that can be used for configuration
@@ -59,7 +63,8 @@ export async function fetchStaticSiteConfig(): Promise<SiteConfigEnv | null> {
       logger.warn('No static site configuration found', {
         module: 'site-config',
         status: response.status,
-        statusText: response.statusText
+        statusText: response.statusText,
+        message: 'This is expected for new installations. Create a site-config.json file based on the example template.'
       });
       return null;
     }

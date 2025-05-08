@@ -104,7 +104,7 @@ export function ConfigurationDashboard({ onConfigSaved }: ConfigurationDashboard
       if (success) {
         toast({
           title: "Configuration File Generated",
-          description: "site-config.json has been generated and downloaded. Place this file in your public directory.",
+          description: "site-config.json has been generated and downloaded. Place this file in your public directory. Note: This file contains sensitive information and should not be committed to version control.",
           variant: "default"
         });
       } else {
@@ -210,7 +210,7 @@ export function ConfigurationDashboard({ onConfigSaved }: ConfigurationDashboard
               <div className="space-y-2">
                 <h4 className="text-md font-medium">1. Static Configuration File</h4>
                 <p className="text-sm">
-                  Create a <code>site-config.json</code> file in your project's public directory with the following structure:
+                  Create a <code>site-config.json</code> file in your project's public directory based on the <code>site-config.example.json</code> template:
                 </p>
                 <pre className="bg-gray-100 p-2 rounded text-xs overflow-auto">
 {`{
