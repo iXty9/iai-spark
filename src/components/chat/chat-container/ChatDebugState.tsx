@@ -58,7 +58,7 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
   const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const inputContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // One-time only: listen for webhook events
+  // One-time only: listen for webhook events and initialize debug tracking
   useEffect(() => {
     const handler = (e: any) => {
       const url = e?.detail?.webhookUrl;
@@ -66,89 +66,36 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
     };
     window.addEventListener('webhookCall', handler);
     
-    // Track Supabase connection status
-    const trackSupabaseStatus = (status: string, error: string | null = null) => {
-      window.dispatchEvent(new CustomEvent('chatDebug', { 
-        detail: { 
-          supabaseInfo: {
-            connectionStatus: status,
-            lastConnectionAttempt: new Date().toISOString(),
-            lastError: error,
-            // Keep other properties from existing state
-            ...(window as any).debugState?.supabaseInfo
-          }
-        }
-      }));
-    };
+    // Initialize bootstrap tracking
+    emitBootstrapEvent('initializing');
     
-    // Listen for Supabase connection events
-    window.addEventListener('supabaseConnection', (e: any) => {
-      const { status, error } = e.detail || {};
-      trackSupabaseStatus(status || 'unknown', error);
-    });
-    
-    // Track bootstrap process
-    window.addEventListener('bootstrapProcess', (e: any) => {
-      const { stage, error } = e.detail || {};
-      const currentSteps = (window as any).debugState?.bootstrapInfo?.steps || [];
-      
-      window.dispatchEvent(new CustomEvent('chatDebug', { 
-        detail: { 
-          bootstrapInfo: {
-            stage: stage || 'unknown',
-            steps: [
-              ...currentSteps,
-              {
-                step: stage,
-                status: error ? 'error' : 'success',
-                timestamp: new Date().toISOString(),
-                error
-              }
-            ],
-            lastError: error,
-            // Keep other properties
-            ...(window as any).debugState?.bootstrapInfo
-          }
-        }
-      }));
-    });
-    
-    // Collect environment information
-    const collectEnvironmentInfo = () => {
-      const publicVars: Record<string, string> = {};
-      
-      // Safely collect public environment variables
-      if (typeof process !== 'undefined' && process.env) {
-        Object.keys(process.env).forEach(key => {
-          if (key.startsWith('NEXT_PUBLIC_') || key.startsWith('REACT_APP_')) {
-            const value = process.env[key] as string;
-            // Sanitize sensitive values
-            publicVars[key] = key.includes('KEY') || key.includes('SECRET') || key.includes('TOKEN') ? 
-              `${value?.substring(0, 3)}...${value?.substring(value.length - 3)}` : 
-              value;
-          }
-        });
-      }
-      
-      window.dispatchEvent(new CustomEvent('chatDebug', { 
-        detail: { 
-          environmentInfo: {
-            type: typeof process !== 'undefined' ? process.env.NODE_ENV : 'unknown',
-            isDevelopment: typeof process !== 'undefined' ? process.env.NODE_ENV === 'development' : false,
-            isProduction: typeof process !== 'undefined' ? process.env.NODE_ENV === 'production' : false,
-            publicVars
-          }
-        }
-      }));
-    };
+    // Mark the start time for connection tracking
+    if (typeof window !== 'undefined') {
+      (window as any).supabaseConnectionStartTime = performance.now();
+    }
     
     // Collect environment info on mount
     collectEnvironmentInfo();
     
+    // Track authentication state
+    const authState = isAuthenticated ? 'authenticated' : 'unauthenticated';
+    window.dispatchEvent(new CustomEvent('chatDebug', { 
+      detail: { 
+        supabaseInfo: {
+          authStatus: authState,
+          lastAuthChange: new Date().toISOString()
+        }
+      }
+    }));
+    
+    // Mark bootstrap as completed after a delay
+    const completeBootstrap = setTimeout(() => {
+      emitBootstrapEvent('completed');
+    }, 2000);
+    
     return () => {
       window.removeEventListener('webhookCall', handler);
-      window.removeEventListener('supabaseConnection', handler);
-      window.removeEventListener('bootstrapProcess', handler);
+      clearTimeout(completeBootstrap);
     };
   }, []);
 

@@ -143,8 +143,73 @@ export const StateDebugPanel: React.FC<{
       }
     };
     
+    // Handle Supabase connection events
+    const handleSupabaseConnection = ({ detail }: any) => {
+      const { status, error, timestamp } = detail;
+      addLog(`Supabase connection: ${status}${error ? ` (Error: ${error})` : ''}`);
+      
+      setState(s => {
+        const newState = {
+          ...s,
+          supabaseInfo: {
+            ...s.supabaseInfo,
+            connectionStatus: status,
+            lastConnectionAttempt: timestamp || new Date().toISOString(),
+            lastError: error,
+            connectionLatency: detail.connectionLatency || s.supabaseInfo.connectionLatency,
+            environment: detail.environment || s.supabaseInfo.environment,
+            retryCount: status === 'connecting' ? (s.supabaseInfo.retryCount || 0) + 1 : s.supabaseInfo.retryCount,
+            isInitialized: status === 'connected'
+          },
+          timestamp: new Date().toISOString()
+        };
+        
+        // Update global debug state
+        if (typeof window !== 'undefined') {
+          (window as any).debugState = newState;
+        }
+        
+        return newState;
+      });
+    };
+    
+    // Handle bootstrap process events
+    const handleBootstrapProcess = ({ detail }: any) => {
+      const { stage, error, timestamp, step } = detail;
+      addLog(`Bootstrap: ${stage}${error ? ` (Error: ${error})` : ''}`);
+      
+      setState(s => {
+        const steps = [...(s.bootstrapInfo.steps || [])];
+        if (step) {
+          steps.push(step);
+        }
+        
+        const newState = {
+          ...s,
+          bootstrapInfo: {
+            ...s.bootstrapInfo,
+            stage,
+            startTime: s.bootstrapInfo.startTime || timestamp || new Date().toISOString(),
+            completionTime: stage === 'completed' ? (timestamp || new Date().toISOString()) : s.bootstrapInfo.completionTime,
+            steps,
+            lastError: error || s.bootstrapInfo.lastError
+          },
+          timestamp: new Date().toISOString()
+        };
+        
+        // Update global debug state
+        if (typeof window !== 'undefined') {
+          (window as any).debugState = newState;
+        }
+        
+        return newState;
+      });
+    };
+    
     window.addEventListener('chatDebug', handleDebugEvent);
     window.addEventListener('webhookCall', handleWebhookCall);
+    window.addEventListener('supabaseConnection', handleSupabaseConnection);
+    window.addEventListener('bootstrapProcess', handleBootstrapProcess);
     
     // Intercept console logs
     const originalConsole = {
@@ -200,6 +265,8 @@ export const StateDebugPanel: React.FC<{
     return () => {
       window.removeEventListener('chatDebug', handleDebugEvent);
       window.removeEventListener('webhookCall', handleWebhookCall);
+      window.removeEventListener('supabaseConnection', handleSupabaseConnection);
+      window.removeEventListener('bootstrapProcess', handleBootstrapProcess);
       
       // Restore original console methods
       console.log = originalConsole.log;

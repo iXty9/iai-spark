@@ -10,18 +10,105 @@ import { sendDebugWebhookMessage } from '@/services/webhook';
 // Function to emit Supabase connection status events
 export function emitSupabaseConnectionEvent(status: string, error: string | null = null) {
   if (typeof window !== 'undefined') {
+    const timestamp = new Date().toISOString();
+    
+    // Track connection latency if this is a successful connection
+    const connectionLatency = status === 'connected' ? 
+      performance.now() - (window as any).supabaseConnectionStartTime || 0 : 
+      null;
+    
+    // Get current environment from localStorage or default to hostname-based detection
+    const environment = localStorage.getItem('supabase_environment_local') || 
+      (window.location.hostname === 'localhost' ? 'development' : 'production');
+    
+    // Dispatch the event with enhanced information
     window.dispatchEvent(new CustomEvent('supabaseConnection', {
-      detail: { status, error }
+      detail: { 
+        status, 
+        error, 
+        timestamp,
+        connectionLatency,
+        environment
+      }
     }));
+    
+    // Also update the global debug state directly
+    if (typeof (window as any).debugState !== 'undefined') {
+      const currentInfo = (window as any).debugState.supabaseInfo || {};
+      
+      (window as any).debugState.supabaseInfo = {
+        ...currentInfo,
+        connectionStatus: status,
+        lastConnectionAttempt: timestamp,
+        connectionLatency: connectionLatency,
+        lastError: error,
+        environment: environment,
+        retryCount: (currentInfo.retryCount || 0) + (status === 'connecting' ? 1 : 0),
+        isInitialized: status === 'connected'
+      };
+    }
+    
+    // Log the connection event
+    console.info(`Supabase connection: ${status}${error ? ` (Error: ${error})` : ''}`);
   }
 }
 
 // Function to emit bootstrap process events
 export function emitBootstrapEvent(stage: string, error: string | null = null) {
   if (typeof window !== 'undefined') {
+    const timestamp = new Date().toISOString();
+    
+    // Initialize bootstrap start time if this is the first event
+    if (!(window as any).bootstrapStartTime) {
+      (window as any).bootstrapStartTime = timestamp;
+    }
+    
+    // Create the step object
+    const step = {
+      step: stage,
+      status: error ? 'error' : 'success',
+      timestamp,
+      error
+    };
+    
+    // Dispatch the event
     window.dispatchEvent(new CustomEvent('bootstrapProcess', {
-      detail: { stage, error }
+      detail: { 
+        stage, 
+        error,
+        timestamp,
+        step
+      }
     }));
+    
+    // Also update the global debug state directly
+    if (typeof (window as any).debugState !== 'undefined') {
+      const currentInfo = (window as any).debugState.bootstrapInfo || {};
+      const steps = [...(currentInfo.steps || []), step];
+      
+      (window as any).debugState.bootstrapInfo = {
+        ...currentInfo,
+        stage,
+        startTime: (window as any).bootstrapStartTime,
+        completionTime: stage === 'completed' ? timestamp : currentInfo.completionTime,
+        steps,
+        lastError: error || currentInfo.lastError
+      };
+    }
+    
+    // Log the bootstrap event
+    console.info(`Bootstrap process: ${stage}${error ? ` (Error: ${error})` : ''}`);
+    
+    // Store bootstrap state in localStorage for persistence across page reloads
+    try {
+      localStorage.setItem('supabase_bootstrap_state', JSON.stringify({
+        stage,
+        timestamp,
+        error: error || null
+      }));
+    } catch (e) {
+      // Ignore storage errors
+    }
   }
 }
 
@@ -43,16 +130,66 @@ export function collectEnvironmentInfo() {
       });
     }
     
+    // Determine environment type from multiple sources
+    // 1. Check localStorage for stored environment
+    // 2. Check hostname (localhost = development)
+    // 3. Check process.env.NODE_ENV
+    // 4. Default to "unknown"
+    const storedEnv = localStorage.getItem('supabase_environment_local');
+    const hostnameEnv = window.location.hostname === 'localhost' ? 'development' : 
+                        window.location.hostname.includes('staging') ? 'staging' :
+                        window.location.hostname.includes('dev') ? 'development' :
+                        window.location.hostname.includes('test') ? 'testing' :
+                        'production';
+    const processEnv = typeof process !== 'undefined' ? process.env.NODE_ENV : null;
+    
+    const envType = storedEnv || hostnameEnv || processEnv || 'unknown';
+    const isDevelopment = envType === 'development' || window.location.hostname === 'localhost';
+    const isProduction = envType === 'production' && window.location.hostname !== 'localhost';
+    
+    // Store the determined environment for future reference
+    try {
+      localStorage.setItem('supabase_environment_local', envType);
+    } catch (e) {
+      // Ignore storage errors
+    }
+    
+    // Add build information if available
+    const buildInfo = {
+      version: typeof process !== 'undefined' && process.env.NEXT_PUBLIC_APP_VERSION ? 
+        process.env.NEXT_PUBLIC_APP_VERSION : 'unknown',
+      buildDate: typeof process !== 'undefined' && process.env.NEXT_PUBLIC_BUILD_DATE ? 
+        process.env.NEXT_PUBLIC_BUILD_DATE : 'unknown',
+      commitHash: typeof process !== 'undefined' && process.env.NEXT_PUBLIC_COMMIT_HASH ? 
+        process.env.NEXT_PUBLIC_COMMIT_HASH : 'unknown'
+    };
+    
+    // Dispatch the environment information event
     window.dispatchEvent(new CustomEvent('chatDebug', { 
       detail: { 
         environmentInfo: {
-          type: typeof process !== 'undefined' ? process.env.NODE_ENV : 'unknown',
-          isDevelopment: typeof process !== 'undefined' ? process.env.NODE_ENV === 'development' : false,
-          isProduction: typeof process !== 'undefined' ? process.env.NODE_ENV === 'production' : false,
-          publicVars
+          type: envType,
+          isDevelopment,
+          isProduction,
+          publicVars,
+          buildInfo
         }
       }
     }));
+    
+    // Also update the global debug state directly
+    if (typeof (window as any).debugState !== 'undefined') {
+      (window as any).debugState.environmentInfo = {
+        type: envType,
+        isDevelopment,
+        isProduction,
+        publicVars,
+        buildInfo
+      };
+    }
+    
+    // Log environment information
+    console.info(`Environment: ${envType} (isDev: ${isDevelopment}, isProd: ${isProduction})`);
   }
 }
 
@@ -141,6 +278,41 @@ export const logWebhookActivity = (url: string, status: string, data?: any) => {
     status: status
   };
 };
+
+/**
+ * Track authentication state changes for debugging
+ */
+export function trackAuthStateChange(isAuthenticated: boolean, userId?: string | null) {
+  if (typeof window !== 'undefined') {
+    const authStatus = isAuthenticated ? 'authenticated' : 'unauthenticated';
+    
+    // Update the global debug state
+    if (typeof (window as any).debugState !== 'undefined') {
+      const currentInfo = (window as any).debugState.supabaseInfo || {};
+      
+      (window as any).debugState.supabaseInfo = {
+        ...currentInfo,
+        authStatus,
+        userId: userId || null,
+        lastAuthChange: new Date().toISOString()
+      };
+    }
+    
+    // Dispatch an event for the debug panel to capture
+    window.dispatchEvent(new CustomEvent('chatDebug', { 
+      detail: { 
+        supabaseInfo: {
+          authStatus,
+          userId: userId || null,
+          lastAuthChange: new Date().toISOString()
+        }
+      }
+    }));
+    
+    // Log the auth state change
+    console.info(`Auth state changed: ${authStatus}${userId ? ` (User: ${userId})` : ''}`);
+  }
+}
 
 /**
  * Send debug information to webhook - only when DevMode is enabled

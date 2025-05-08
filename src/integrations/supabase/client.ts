@@ -5,14 +5,25 @@
 import { getSupabaseClient } from '@/services/supabase/connection-service';
 import { toast } from '@/hooks/use-toast';
 import { PostgrestResponse, PostgrestSingleResponse } from '@supabase/supabase-js';
+import { emitSupabaseConnectionEvent } from '@/utils/debug';
 
 // Get the Supabase client
 const client = getSupabaseClient();
+
+// Emit connection status for debugging
+if (client) {
+  emitSupabaseConnectionEvent('connected', null);
+} else {
+  emitSupabaseConnectionEvent('disconnected', 'Client not initialized');
+}
 
 // Fallback client for handling cases when the Supabase client isn't available
 const fallbackClient = {
   auth: {
     getSession: () => {
+      // Track connection error for debugging
+      emitSupabaseConnectionEvent('auth_error', 'Client not initialized');
+      
       toast({
         title: 'Connection Error',
         description: 'Supabase client is not available. Please check configuration or reconnect.',
