@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { emitDebugEvent } from '@/utils/debug-events';
+import { emitBootstrapEvent, collectEnvironmentInfo } from '@/utils/debug';
 import { StateDebugPanel } from '@/components/debug/StateDebugPanel';
 import { ChatDebugOverlay } from './ChatDebugOverlay';
 import { Message, DebugInfo } from '@/types/chat';
