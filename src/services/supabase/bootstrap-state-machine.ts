@@ -303,7 +303,6 @@ export async function executeBootstrap(
         } catch (error) {
           logger.error('Error during client initialization retry', error, {
             module: 'bootstrap-state-machine',
-            retryAttempt: attempt
           });
         }
       };
