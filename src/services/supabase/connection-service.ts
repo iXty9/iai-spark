@@ -3,7 +3,8 @@ import { toast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 import { getStoredConfig, clearConfig, getEnvironmentId, getEnvironmentInfo } from '@/config/supabase-config';
 import { logger } from '@/utils/logging';
-import { loadConfiguration, saveConfiguration, ConfigSource } from '@/services/supabase/config-loader';
+import { configLoader } from '@/services/supabase/config-loader';
+import { ConfigSource } from '@/services/supabase/config-loader-types';
 
 // Client instance and connection tracking
 let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
@@ -174,6 +175,23 @@ export function getSupabaseClient() {
         attemptCount: 1,
         source: 'stored_config'
       });
+      
+      // Check health and attempt repair if needed
+      setTimeout(async () => {
+        try {
+          if (!await checkConnectionHealth()) {
+            logger.warn('Connection health check failed, attempting repair', {
+              module: 'supabase-connection'
+            });
+            await attemptConnectionRepair();
+          }
+        } catch (e) {
+          // Don't let this error affect the main flow
+          logger.error('Error in connection health check', e, {
+            module: 'supabase-connection'
+          });
+        }
+      }, 1000);
       
       return supabaseInstance;
     }
@@ -418,6 +436,60 @@ export async function checkConnectionHealth(): Promise<boolean> {
     return !error || error.code === '42P01';
   } catch (error) {
     logger.error('Error checking connection health', error, {
+      module: 'supabase-connection'
+    });
+    return false;
+  }
+}
+/**
+ * Attempt to repair a broken connection
+ * This implements self-healing for common connection issues
+ */
+export async function attemptConnectionRepair(): Promise<boolean> {
+  try {
+    logger.info('Attempting to repair connection', {
+      module: 'supabase-connection'
+    });
+    
+    // Get current connection state
+    const connectionInfo = getConnectionInfo();
+    
+    // Check if we have a stored config but connection is failing
+    if (connectionInfo.hasStoredConfig) {
+      // Try to refresh the client
+      resetSupabaseClient();
+      
+      // Check if that fixed it
+      if (await checkConnectionHealth()) {
+        logger.info('Connection repaired by resetting client', {
+          module: 'supabase-connection'
+        });
+        return true;
+      }
+      
+      // Try to reload configuration
+      const result = await configLoader.loadConfiguration();
+      if (result.config) {
+        configLoader.saveConfiguration(result.config);
+        resetSupabaseClient();
+        
+        // Check if that fixed it
+        if (await checkConnectionHealth()) {
+          logger.info('Connection repaired by reloading configuration', {
+            module: 'supabase-connection'
+          });
+          return true;
+        }
+      }
+    }
+    
+    logger.warn('Unable to repair connection', {
+      module: 'supabase-connection'
+    });
+    
+    return false;
+  } catch (error) {
+    logger.error('Error during connection repair attempt', error, {
       module: 'supabase-connection'
     });
     return false;

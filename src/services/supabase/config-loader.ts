@@ -11,24 +11,20 @@ import { readConfigFromLocalStorage, writeConfigToLocalStorage } from '@/service
 import { fetchBootstrapConfig, testBootstrapConnection } from '@/services/supabase/bootstrap-service';
 import { SupabaseConfig } from '@/config/supabase/types';
 import { getEnvironmentId } from '@/config/supabase/environment';
+import { ConfigSource, ConfigLoadResult, ConfigLoader } from './config-loader-types';
+import { validateConfig } from './config-validation';
 
-// Configuration source types for tracking and analytics
-export enum ConfigSource {
-  URL_PARAMETERS = 'url_parameters',
-  STATIC_FILE = 'static_file',
-  LOCAL_STORAGE = 'local_storage',
-  ENVIRONMENT = 'environment',
-  DATABASE = 'database',
-  DEFAULT = 'default',
-  NONE = 'none'
-}
+// Re-export types for backward compatibility
+export { ConfigSource, ConfigLoadResult };
 
-// Configuration loading result with source tracking
-export interface ConfigLoadResult {
-  config: SupabaseConfig | null;
-  source: ConfigSource;
-  error?: string;
-}
+// Implement the ConfigLoader interface
+const configLoaderImpl: ConfigLoader = {
+  loadConfiguration,
+  saveConfiguration
+};
+
+// Export the implementation
+export const configLoader = configLoaderImpl;
 
 /**
  * Load configuration from URL parameters
@@ -48,45 +44,72 @@ export async function loadFromUrlParameters(): Promise<ConfigLoadResult> {
       module: 'config-loader'
     });
     
-    // Test if the connection works
-    const isValid = await testBootstrapConnection(publicUrl, publicKey);
+    // Test if the connection works with enhanced testing
+    const connectionTest = await testBootstrapConnection(publicUrl, publicKey);
     
-    if (!isValid) {
+    if (!connectionTest.isConnected) {
       logger.warn('URL parameter configuration failed connection test', {
-        module: 'config-loader'
+        module: 'config-loader',
+        error: connectionTest.error,
+        errorCode: connectionTest.errorCode
       });
       return { 
         config: null, 
         source: ConfigSource.URL_PARAMETERS,
-        error: 'Connection test failed for URL parameters'
+        error: `Connection test failed: ${connectionTest.error}`
       };
     }
     
     // Try to bootstrap from these credentials
-    const bootstrapConfig = await fetchBootstrapConfig(publicUrl, publicKey);
+    const bootstrapResult = await fetchBootstrapConfig(publicUrl, publicKey);
     
-    if (bootstrapConfig) {
-      logger.info('Successfully loaded configuration from URL parameters', {
-        module: 'config-loader'
+    if ('error' in bootstrapResult) {
+      logger.warn('Bootstrap failed for URL parameters', {
+        module: 'config-loader',
+        error: bootstrapResult.error,
+        code: bootstrapResult.code
       });
       
-      return {
-        config: {
-          url: bootstrapConfig.url,
-          anonKey: bootstrapConfig.anonKey,
-          serviceKey: bootstrapConfig.serviceKey,
-          isInitialized: bootstrapConfig.isInitialized || true,
-          savedAt: new Date().toISOString(),
-          environment: getEnvironmentId()
-        },
-        source: ConfigSource.URL_PARAMETERS
+      return { 
+        config: null, 
+        source: ConfigSource.URL_PARAMETERS,
+        error: `Bootstrap failed: ${bootstrapResult.error}`
       };
     }
     
-    return { 
-      config: null, 
-      source: ConfigSource.URL_PARAMETERS,
-      error: 'Bootstrap failed for URL parameters'
+    logger.info('Successfully loaded configuration from URL parameters', {
+      module: 'config-loader'
+    });
+    
+    // Create config object
+    const configObj = {
+      url: bootstrapResult.url,
+      anonKey: bootstrapResult.anonKey,
+      serviceKey: bootstrapResult.serviceKey,
+      isInitialized: bootstrapResult.isInitialized || true,
+      savedAt: new Date().toISOString(),
+      environment: getEnvironmentId()
+    };
+    
+    // Validate the configuration
+    const validation = validateConfig(configObj);
+    
+    if (!validation.valid) {
+      logger.warn('URL parameter configuration validation failed', {
+        module: 'config-loader',
+        errors: validation.errors
+      });
+      
+      return {
+        config: null,
+        source: ConfigSource.URL_PARAMETERS,
+        error: `Configuration validation failed: ${validation.errors?.join(', ')}`
+      };
+    }
+    
+    return {
+      config: validation.config,
+      source: ConfigSource.URL_PARAMETERS
     };
   } catch (error) {
     logger.error('Error loading configuration from URL parameters', error, {

@@ -158,6 +158,27 @@ export function determineErrorType(error: string): ErrorType {
 }
 
 /**
+ * Helper function for state transitions
+ */
+function transitionTo(
+  context: BootstrapContext, 
+  newState: BootstrapState,
+  onStateChange: (newContext: BootstrapContext) => void,
+  additionalProps: Partial<BootstrapContext> = {}
+): BootstrapContext {
+  const newContext = {
+    ...context,
+    state: newState,
+    ...additionalProps
+  };
+  
+  saveBootstrapContext(newContext);
+  onStateChange(newContext);
+  
+  return newContext;
+}
+
+/**
  * Execute bootstrap process
  * This is the main function that drives the bootstrap state machine
  */
@@ -166,66 +187,66 @@ export async function executeBootstrap(
   onStateChange: (newContext: BootstrapContext) => void
 ): Promise<BootstrapContext> {
   try {
-    // Update context with current state
-    const updatedContext: BootstrapContext = {
-      ...context,
-      state: BootstrapState.LOADING,
-      lastAttempt: new Date().toISOString()
-    };
-    
-    // Save and notify of state change
-    saveBootstrapContext(updatedContext);
-    onStateChange(updatedContext);
+    // Update context with current state - transition to LOADING
+    const loadingContext = transitionTo(
+      context, 
+      BootstrapState.LOADING, 
+      onStateChange, 
+      { lastAttempt: new Date().toISOString() }
+    );
     
     logger.info('Starting bootstrap process', {
       module: 'bootstrap-state-machine',
-      retryCount: updatedContext.retryCount,
-      environment: updatedContext.environment
+      retryCount: loadingContext.retryCount,
+      environment: loadingContext.environment
     });
     
     // Load configuration using the unified loader
-    const result = await loadConfiguration();
+    const result = await configLoader.loadConfiguration();
     
     if (result.config) {
-      // Configuration found
-      logger.info(`Bootstrap succeeded from ${result.source}`, {
+      // Configuration found - transition to CONFIG_FOUND
+      const configFoundContext = transitionTo(
+        loadingContext,
+        BootstrapState.CONFIG_FOUND,
+        onStateChange,
+        { configSource: result.source }
+      );
+      
+      logger.info(`Bootstrap found configuration from ${result.source}`, {
         module: 'bootstrap-state-machine'
       });
       
       // Save configuration
-      saveConfiguration(result.config);
+      configLoader.saveConfiguration(result.config);
       
       // Reset Supabase client to use new configuration
       resetSupabaseClient();
       
-      // Update context with success state
-      const successContext: BootstrapContext = {
-        ...updatedContext,
-        state: BootstrapState.CONNECTION_SUCCESS,
-        configSource: result.source,
-        lastSuccess: new Date().toISOString(),
-        error: undefined,
-        errorType: undefined
-      };
-      
-      // Save and notify of state change
-      saveBootstrapContext(successContext);
-      onStateChange(successContext);
+      // Transition to CONNECTION_SUCCESS
+      const successContext = transitionTo(
+        configFoundContext,
+        BootstrapState.CONNECTION_SUCCESS,
+        onStateChange,
+        {
+          lastSuccess: new Date().toISOString(),
+          error: undefined,
+          errorType: undefined
+        }
+      );
       
       // Transition to complete state after a delay
       setTimeout(() => {
-        const completeContext: BootstrapContext = {
-          ...successContext,
-          state: BootstrapState.COMPLETE
-        };
-        
-        saveBootstrapContext(completeContext);
-        onStateChange(completeContext);
+        transitionTo(
+          successContext,
+          BootstrapState.COMPLETE,
+          onStateChange
+        );
       }, 2000);
       
       return successContext;
     } else {
-      // No configuration found
+      // No configuration found - transition to appropriate error state
       logger.warn('No configuration found during bootstrap', {
         module: 'bootstrap-state-machine',
         error: result.error
@@ -236,41 +257,43 @@ export async function executeBootstrap(
         ? determineErrorType(result.error)
         : ErrorType.CONFIG;
       
-      // Update context with error state
-      const errorContext: BootstrapContext = {
-        ...updatedContext,
-        state: result.error ? BootstrapState.CONNECTION_ERROR : BootstrapState.CONFIG_MISSING,
-        error: result.error || 'No configuration found',
-        errorType,
-        retryCount: updatedContext.retryCount + 1
-      };
+      // Transition to appropriate error state
+      const errorState = result.error 
+        ? BootstrapState.CONNECTION_ERROR 
+        : BootstrapState.CONFIG_MISSING;
       
-      // Save and notify of state change
-      saveBootstrapContext(errorContext);
-      onStateChange(errorContext);
+      const errorContext = transitionTo(
+        loadingContext,
+        errorState,
+        onStateChange,
+        {
+          error: result.error || 'No configuration found',
+          errorType,
+          retryCount: loadingContext.retryCount + 1
+        }
+      );
       
       return errorContext;
     }
   } catch (error) {
-    // Unexpected error
+    // Unexpected error - transition to CONNECTION_ERROR
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error('Unexpected error during bootstrap:', error, {
       module: 'bootstrap-state-machine'
     });
     
-    // Update context with error state
-    const errorContext: BootstrapContext = {
-      ...context,
-      state: BootstrapState.CONNECTION_ERROR,
-      error: errorMsg,
-      errorType: determineErrorType(errorMsg),
-      retryCount: context.retryCount + 1,
-      lastAttempt: new Date().toISOString()
-    };
-    
-    // Save and notify of state change
-    saveBootstrapContext(errorContext);
-    onStateChange(errorContext);
+    // Transition to error state
+    const errorContext = transitionTo(
+      context,
+      BootstrapState.CONNECTION_ERROR,
+      onStateChange,
+      {
+        error: errorMsg,
+        errorType: determineErrorType(errorMsg),
+        retryCount: context.retryCount + 1,
+        lastAttempt: new Date().toISOString()
+      }
+    );
     
     return errorContext;
   }

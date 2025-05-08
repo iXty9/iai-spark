@@ -6,7 +6,8 @@ import { DatabaseSetupStep } from '@/components/init/DatabaseSetupStep';
 import { AdminSetupForm } from '@/components/init/AdminSetupForm';
 import { hasStoredConfig, isDevelopment, clearConfig, getEnvironmentInfo } from '@/config/supabase-config';
 import { toast } from '@/hooks/use-toast';
-import { ArrowLeft, ArrowRight, Database, ShieldCheck, Settings, Info, RefreshCw, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Database, ShieldCheck, Settings, Info, RefreshCw, AlertTriangle, FileText } from 'lucide-react';
+import { runBootstrapDiagnostics, generateDiagnosticReport } from '@/services/supabase/bootstrap-diagnostics';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { resetSupabaseClient, getConnectionInfo } from '@/services/supabase/connection-service';
@@ -22,6 +23,8 @@ enum InitStep {
 
 // Local storage key for initialization state
 const INIT_STATE_KEY = 'initialization_state';
+const INIT_INTERRUPTED_KEY = 'init_interrupted';
+const INIT_IN_PROGRESS_KEY = 'init_in_progress';
 
 // Interface for persistent initialization state
 interface InitializationState {
@@ -31,6 +34,12 @@ interface InitializationState {
   serviceKey: string;
   timestamp: string;
   sessionId: string;
+  lastActive: string;
+  progress?: {
+    current: number;
+    total: number;
+    message: string;
+  };
 }
 
 const Initialize = () => {
@@ -42,24 +51,73 @@ const Initialize = () => {
     return `init_${Math.random().toString(36).substring(2, 10)}`;
   });
   
+  // Check if initialization was interrupted
+  const [wasInterrupted, setWasInterrupted] = useState<boolean>(() => {
+    try {
+      // Check if we have an interrupted flag
+      const interrupted = localStorage.getItem(INIT_INTERRUPTED_KEY) === 'true';
+      
+      if (interrupted) {
+        // Clear the flag
+        localStorage.removeItem(INIT_INTERRUPTED_KEY);
+        return true;
+      }
+      
+      // Check if we have a saved state that's recent (within last hour)
+      const savedState = localStorage.getItem(INIT_STATE_KEY);
+      if (savedState) {
+        const parsedState = JSON.parse(savedState) as InitializationState;
+        const savedTime = new Date(parsedState.timestamp).getTime();
+        const now = new Date().getTime();
+        const minutesSinceSaved = (now - savedTime) / (1000 * 60);
+        
+        return minutesSinceSaved < 60 && parsedState.step < InitStep.Complete;
+      }
+      
+      return false;
+    } catch (e) {
+      return false;
+    }
+  });
+  
   // Load saved state or use defaults
   const [currentStep, setCurrentStep] = useState<InitStep>(() => {
     try {
       const savedState = localStorage.getItem(INIT_STATE_KEY);
       if (savedState) {
         const parsedState = JSON.parse(savedState) as InitializationState;
-        // Only use saved state if it's less than 24 hours old
+        // Only use saved state if it's less than 6 hours old (reduced from 24)
         const savedTime = new Date(parsedState.timestamp).getTime();
         const now = new Date().getTime();
         const hoursSinceSaved = (now - savedTime) / (1000 * 60 * 60);
         
-        if (hoursSinceSaved < 24) {
+        if (hoursSinceSaved < 6) {
           return parsedState.step;
         }
       }
       return InitStep.Connection;
     } catch (e) {
       return InitStep.Connection;
+    }
+  });
+  
+  // Add progress tracking
+  const [progress, setProgress] = useState<{
+    current: number;
+    total: number;
+    message: string;
+  }>(() => {
+    try {
+      const savedState = localStorage.getItem(INIT_STATE_KEY);
+      if (savedState) {
+        const parsedState = JSON.parse(savedState) as InitializationState;
+        if (parsedState.progress) {
+          return parsedState.progress;
+        }
+      }
+      return { current: 0, total: 0, message: '' };
+    } catch (e) {
+      return { current: 0, total: 0, message: '' };
     }
   });
   
@@ -117,7 +175,9 @@ const Initialize = () => {
         anonKey,
         serviceKey,
         timestamp: new Date().toISOString(),
-        sessionId
+        lastActive: new Date().toISOString(),
+        sessionId,
+        progress: progress.total > 0 ? progress : undefined
       };
       
       localStorage.setItem(INIT_STATE_KEY, JSON.stringify(state));
@@ -138,6 +198,35 @@ const Initialize = () => {
   useEffect(() => {
     saveState();
   }, [currentStep, supabaseUrl, anonKey, serviceKey, saveState]);
+  
+  // Set up cleanup on component unmount
+  useEffect(() => {
+    // Set a flag when component mounts
+    localStorage.setItem(INIT_IN_PROGRESS_KEY, 'true');
+    
+    // Set up periodic updates of lastActive
+    const intervalId = setInterval(() => {
+      try {
+        const savedState = localStorage.getItem(INIT_STATE_KEY);
+        if (savedState) {
+          const parsedState = JSON.parse(savedState) as InitializationState;
+          parsedState.lastActive = new Date().toISOString();
+          localStorage.setItem(INIT_STATE_KEY, JSON.stringify(parsedState));
+        }
+      } catch (e) {
+        // Ignore errors
+      }
+    }, 30000); // Update every 30 seconds
+    
+    return () => {
+      // If we're not at the complete step, mark as interrupted
+      if (currentStep < InitStep.Complete) {
+        localStorage.setItem(INIT_INTERRUPTED_KEY, 'true');
+      }
+      localStorage.removeItem(INIT_IN_PROGRESS_KEY);
+      clearInterval(intervalId);
+    };
+  }, [currentStep]);
   
   // Check if already initialized
   useEffect(() => {
@@ -207,9 +296,29 @@ const Initialize = () => {
     });
   };
   
+  // Handle progress updates during database setup
+  const handleDatabaseSetupProgress = (current: number, total: number, message: string) => {
+    setProgress({ current, total, message });
+    
+    // Update saved state with progress
+    try {
+      const savedState = localStorage.getItem(INIT_STATE_KEY);
+      if (savedState) {
+        const parsedState = JSON.parse(savedState) as InitializationState;
+        parsedState.progress = { current, total, message };
+        localStorage.setItem(INIT_STATE_KEY, JSON.stringify(parsedState));
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+  };
+  
   // Handle successful database initialization
   const handleDatabaseSuccess = () => {
     setCurrentStep(InitStep.AdminSetup);
+    
+    // Reset progress
+    setProgress({ current: 0, total: 0, message: '' });
     
     // Log the transition
     logger.info('Completed database setup, moving to admin setup', {
@@ -253,6 +362,42 @@ const Initialize = () => {
     navigate('/initialize?resume=true', { replace: true });
   };
   
+  // Handle running diagnostics
+  const handleRunDiagnostics = async () => {
+    try {
+      // Show loading toast
+      toast({
+        title: 'Running Diagnostics',
+        description: 'Please wait while we analyze your configuration...',
+      });
+      
+      // Run diagnostics
+      const diagnostics = await runBootstrapDiagnostics();
+      
+      // Show results
+      toast({
+        title: 'Diagnostic Results',
+        description: `Found ${diagnostics.recommendations.length} issues to address.`,
+        action: {
+          altText: "View Details",
+          onClick: () => {
+            // Create a modal or dialog to show detailed results
+            alert(`Recommendations:\n${diagnostics.recommendations.join('\n')}`);
+            
+            // In a real implementation, you would show this in a proper UI component
+            console.log('Diagnostic results:', diagnostics);
+          }
+        }
+      });
+    } catch (error) {
+      toast({
+        title: 'Diagnostics Failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive'
+      });
+    }
+  };
+  
   // Render the current step
   const renderStep = () => {
     switch (currentStep) {
@@ -268,6 +413,7 @@ const Initialize = () => {
             serviceKey={serviceKey}
             onSuccess={handleDatabaseSuccess}
             onBack={() => setCurrentStep(InitStep.Connection)}
+            onProgress={handleDatabaseSetupProgress}
           />
         );
       case InitStep.AdminSetup:
@@ -330,6 +476,16 @@ const Initialize = () => {
               >
                 <ArrowRight className="mr-1 h-3 w-3" />
                 Resume Setup
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleRunDiagnostics}
+                className="text-xs"
+              >
+                <FileText className="mr-1 h-3 w-3" />
+                Run Diagnostics
               </Button>
             </div>
             
@@ -453,6 +609,21 @@ const Initialize = () => {
         <div className="flex justify-center">
           {renderStep()}
         </div>
+        
+        {/* Progress bar */}
+        {progress.total > 0 && (
+          <div className="w-full mt-4 max-w-xl mx-auto">
+            <div className="text-sm text-muted-foreground mb-1">
+              {progress.message} ({progress.current}/{progress.total})
+            </div>
+            <div className="w-full bg-muted rounded-full h-2">
+              <div 
+                className="bg-primary h-2 rounded-full transition-all duration-300" 
+                style={{ width: `${(progress.current / progress.total) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
