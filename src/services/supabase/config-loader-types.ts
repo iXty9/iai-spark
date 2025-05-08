@@ -27,3 +27,6 @@ export interface ConfigLoader {
   loadConfiguration: () => Promise<ConfigLoadResult>;
   saveConfiguration: (config: SupabaseConfig) => boolean;
 }
+
+// Export all types
+export type { ConfigLoadResult, ConfigLoader };
