@@ -964,7 +964,7 @@ export async function checkPublicBootstrapConfig(): Promise<boolean> {
   try {
     // Check if we already have config first
     const config = getStoredConfig();
-    if (config && config.url && config.anonKey) {
+    if (config && config.url && config.url.trim() && config.anonKey && config.anonKey.trim()) {
       return true;
     }
     
@@ -973,8 +973,8 @@ export async function checkPublicBootstrapConfig(): Promise<boolean> {
       const publicConfig = await fetchStaticSiteConfig();
       
       if (publicConfig && 
-          publicConfig.supabaseUrl && 
-          publicConfig.supabaseAnonKey) {
+          publicConfig.supabaseUrl && publicConfig.supabaseUrl.trim() && 
+          publicConfig.supabaseAnonKey && publicConfig.supabaseAnonKey.trim()) {
         
         // Convert to the format expected by the Supabase client
         const supabaseConfig = {
@@ -994,6 +994,7 @@ export async function checkPublicBootstrapConfig(): Promise<boolean> {
       // Silently handle fetch errors
     }
     
+    // If we get here, we need to initialize
     return false;
   } catch (error) {
     return false;
@@ -1101,7 +1102,8 @@ export async function getRedirectPath(): Promise<string | null> {
     // Check if we already have a valid stored config first (fastest check)
     try {
       const storedConfig = getStoredConfig();
-      if (storedConfig && storedConfig.url && storedConfig.anonKey) {
+      if (storedConfig && storedConfig.url && storedConfig.url.trim() && 
+          storedConfig.anonKey && storedConfig.anonKey.trim()) {
         // We already have a valid config, no redirect needed
         isCheckingRedirect = false;
         return null;
@@ -1139,10 +1141,12 @@ export async function getRedirectPath(): Promise<string | null> {
     }
     
     // If we get here, we don't have a valid config from any source
+    // Always redirect to initialize page
     isCheckingRedirect = false;
     return '/initialize';
   } catch (error) {
+    // On any error, redirect to initialize page
     isCheckingRedirect = false;
-    return null;
+    return '/initialize';
   }
 }
