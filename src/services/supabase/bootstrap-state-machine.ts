@@ -362,6 +362,26 @@ export async function executeBootstrap(
               try {
                 const { data, error } = await client.auth.getSession();
                 
+                // Also verify that the from method works
+                if (typeof client.from === 'function') {
+                  try {
+                    // Just test the method, don't actually execute a query
+                    const testQuery = client.from('profiles');
+                    if (!testQuery) {
+                      throw new Error('from() method returned null or undefined');
+                    }
+                  } catch (fromError) {
+                    logger.warn(`Bootstrap client from() method check failed on attempt ${attempt}`, {
+                      module: 'bootstrap-state-machine',
+                      error: fromError instanceof Error ? fromError.message : String(fromError)
+                    });
+                    
+                    if (attempt < maxAttempts) {
+                      return await retryClientInit(attempt + 1, maxAttempts);
+                    }
+                  }
+                }
+                
                 if (error) {
                   logger.warn(`Bootstrap client initialization auth check failed on attempt ${attempt}`, {
                     module: 'bootstrap-state-machine',

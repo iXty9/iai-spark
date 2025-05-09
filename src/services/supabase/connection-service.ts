@@ -240,22 +240,40 @@ function releaseInitializationLock(): void {
   }
 }
 
+// Global variable to track if we're currently initializing the client
+let isInitializingClient = false;
+
 /**
  * Get the Supabase client instance, creating it if needed
  * Now with improved error handling and state management
  */
 export async function getSupabaseClient() {
+  // Return existing instance if available
   if (supabaseInstance) return supabaseInstance;
+  
+  // Check if we already have an instance in the window object
+  if (typeof window !== 'undefined' && (window as any).supabaseInstance) {
+    supabaseInstance = (window as any).supabaseInstance;
+    return supabaseInstance;
+  }
+  
+  // If we're already initializing, wait a bit and check again
+  if (isInitializingClient) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    if (supabaseInstance) return supabaseInstance;
+    if (typeof window !== 'undefined' && (window as any).supabaseInstance) {
+      supabaseInstance = (window as any).supabaseInstance;
+      return supabaseInstance;
+    }
+  }
+  
+  // Set initializing flag
+  isInitializingClient = true;
   
   // Try to acquire initialization lock
   const lockAcquired = acquireInitializationLock();
   
   try {
-    // Even if we didn't acquire the lock, check if instance exists now
-    // (it might have been created by another call that got the lock)
-    if (!lockAcquired && window.supabaseInstance) {
-      return window.supabaseInstance;
-    }
     
     // Check for special URL parameters first
     const urlParams = new URLSearchParams(window.location.search);
@@ -359,9 +377,14 @@ export async function getSupabaseClient() {
           storage: localStorage,
           persistSession: true,
           autoRefreshToken: true,
-          debug: process.env.NODE_ENV === 'development'
+          debug: false // Disable debug to prevent console spam
         }
       });
+      
+      // Store in window for cross-reference
+      if (typeof window !== 'undefined') {
+        (window as any).supabaseInstance = supabaseInstance;
+      }
       
       // Record last connection time
       localStorage.setItem(getConnectionKey(LAST_CONNECTION_TIME_KEY), new Date().toISOString());
@@ -494,6 +517,9 @@ export async function getSupabaseClient() {
     
     // Return null instead of potentially invalid instance
     return null;
+  } finally {
+    // Always reset the initializing flag
+    isInitializingClient = false;
   }
 }
 
@@ -964,9 +990,6 @@ export async function checkPublicBootstrapConfig(): Promise<boolean> {
  */
 function initializeClientWithFallback() {
   try {
-    // Import createClient directly to avoid circular dependencies
-    const { createClient } = require('@supabase/supabase-js');
-    
     // Create a dummy client that won't throw errors
     const dummyUrl = 'https://example.supabase.co';
     const dummyKey = 'dummy-key';
@@ -980,16 +1003,49 @@ function initializeClientWithFallback() {
       }
     });
     
-    logger.debug('Created fallback client for safe initialization', {
-      module: 'connection-service'
-    });
+    // Ensure the auth object is properly initialized
+    if (!dummyClient.auth) {
+      throw new Error('Auth object not initialized in fallback client');
+    }
+    
+    // Add a safe getSession method if it doesn't exist
+    if (typeof dummyClient.auth.getSession !== 'function') {
+      dummyClient.auth.getSession = async () => {
+        return { data: { session: null }, error: null };
+      };
+    }
+    
+    // Add a safe from method if it doesn't exist
+    if (typeof dummyClient.from !== 'function') {
+      dummyClient.from = (table) => {
+        return {
+          select: () => Promise.resolve({ data: null, error: null }),
+          insert: () => Promise.resolve({ data: null, error: null }),
+          update: () => Promise.resolve({ data: null, error: null }),
+          delete: () => Promise.resolve({ data: null, error: null }),
+          eq: () => ({ data: null, error: null }),
+          single: () => Promise.resolve({ data: null, error: null })
+        };
+      };
+    }
     
     return dummyClient;
   } catch (error) {
-    logger.error('Failed to create fallback client', error, {
-      module: 'connection-service'
-    });
-    return null;
+    // Return a minimal object with the required methods to prevent null errors
+    return {
+      auth: {
+        getSession: async () => ({ data: { session: null }, error: null }),
+        onAuthStateChange: () => ({ data: null, error: null, unsubscribe: () => {} })
+      },
+      from: (table) => ({
+        select: () => Promise.resolve({ data: null, error: null }),
+        insert: () => Promise.resolve({ data: null, error: null }),
+        update: () => Promise.resolve({ data: null, error: null }),
+        delete: () => Promise.resolve({ data: null, error: null }),
+        eq: () => ({ data: null, error: null }),
+        single: () => Promise.resolve({ data: null, error: null })
+      })
+    };
   }
 }
 
