@@ -249,7 +249,9 @@ let isInitializingClient = false;
  */
 export async function getSupabaseClient() {
   // Return existing instance if available
-  if (supabaseInstance) return supabaseInstance;
+  if (supabaseInstance && typeof supabaseInstance.from === 'function') {
+    return supabaseInstance;
+  }
   
   // Check if we already have an instance in the window object
   if (typeof window !== 'undefined' && (window as any).supabaseInstance) {
@@ -272,6 +274,15 @@ export async function getSupabaseClient() {
       supabaseInstance = null;
       (window as any).supabaseInstance = null;
     }
+  }
+  
+  // If no valid instance exists, create a fallback client
+  if (!supabaseInstance) {
+    logger.info('Supabase client initialized immediately', {
+      module: 'supabase-client'
+    });
+    supabaseInstance = initializeClientWithFallback();
+    return supabaseInstance;
   }
   
   // If we're already initializing, wait a bit and check again
@@ -495,13 +506,15 @@ export async function getSupabaseClient() {
     logger.warn('No valid Supabase configuration available', { 
       module: 'supabase-connection'
     });
-    
+  
     // Release the lock since initialization failed
     if (lockAcquired) {
       releaseInitializationLock();
     }
-    
-    return null;
+  
+    // Return a fallback client instead of null
+    supabaseInstance = initializeClientWithFallback();
+    return supabaseInstance;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error('Failed to initialize Supabase client', error, {
