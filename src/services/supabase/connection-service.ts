@@ -38,14 +38,32 @@ const configLoader = {
   loadConfiguration: async () => {
     try {
       const staticConfig = await fetchStaticSiteConfig();
-      return { config: staticConfig ? {
-        url: staticConfig.supabaseUrl,
-        anonKey: staticConfig.supabaseAnonKey,
-        isInitialized: true,
-        savedAt: new Date().toISOString(),
-        environment: getEnvironmentId()
-      } : null };
+      
+      // Check if we have a valid static config
+      if (staticConfig && staticConfig.supabaseUrl && staticConfig.supabaseAnonKey) {
+        logger.info('Found valid configuration in site-config.json', {
+          module: 'config-loader',
+          url: staticConfig.supabaseUrl.substring(0, 12) + '...'
+        });
+        
+        // Return properly formatted config object
+        return { 
+          config: {
+            url: staticConfig.supabaseUrl,
+            anonKey: staticConfig.supabaseAnonKey,
+            isInitialized: true,
+            savedAt: staticConfig.lastUpdated || new Date().toISOString(),
+            environment: getEnvironmentId()
+          },
+          source: 'STATIC_FILE'  // Indicate this came from site-config.json
+        };
+      }
+      
+      return { config: null };
     } catch (e) {
+      logger.error('Error loading static configuration', e, {
+        module: 'config-loader'
+      });
       return { config: null };
     }
   },
@@ -331,14 +349,33 @@ export function getSupabaseClient() {
       return supabaseInstance;
     }
     
-    // If no stored config is available, trigger bootstrap in the background
-    // This avoids blocking the UI while we try to bootstrap
-    setTimeout(() => {
-      checkPublicBootstrapConfig().catch(error => {
+    // If no stored config is available, try to load from site-config.json first
+    // then trigger bootstrap in the background if that fails
+    setTimeout(async () => {
+      try {
+        // Try to load from site-config.json first
+        const { config } = await configLoader.loadConfiguration();
+        if (config) {
+          logger.info('Loaded configuration from site-config.json', {
+            module: 'supabase-connection'
+          });
+          
+          // Save the config and reset the client to use it
+          saveConfig(config);
+          resetSupabaseClient();
+          
+          // Refresh the page to use the new config
+          window.location.reload();
+          return;
+        }
+        
+        // If that fails, try bootstrap
+        await checkPublicBootstrapConfig();
+      } catch (error) {
         logger.error('Failed to bootstrap configuration', error, {
           module: 'supabase-connection'
         });
-      });
+      }
     }, 0);
     
     // No valid configuration available
@@ -894,6 +931,24 @@ export async function checkPublicBootstrapConfig(): Promise<boolean> {
       if (publicConfig && 
           publicConfig.supabaseUrl && 
           publicConfig.supabaseAnonKey) {
+        
+        // Convert to the format expected by the Supabase client
+        const supabaseConfig = {
+          url: publicConfig.supabaseUrl,
+          anonKey: publicConfig.supabaseAnonKey,
+          isInitialized: true,
+          savedAt: publicConfig.lastUpdated || new Date().toISOString(),
+          environment: getEnvironmentId()
+        };
+        
+        // Save the config
+        saveConfig(supabaseConfig);
+        
+        logger.info('Loaded and saved configuration from site-config.json', {
+          module: 'connection-service',
+          url: publicConfig.supabaseUrl.substring(0, 12) + '...'
+        });
+        
         return true;
       }
     } catch (e) {
@@ -962,6 +1017,37 @@ export async function getRedirectPath(): Promise<string | null> {
     // Check for static config file first
     const staticConfig = await fetchStaticSiteConfig();
     
+    // If static config exists and is valid, use it to initialize the app
+    if (staticConfig && staticConfig.supabaseUrl && staticConfig.supabaseUrl.trim() && 
+        staticConfig.supabaseAnonKey && staticConfig.supabaseAnonKey.trim()) {
+      
+      // If stored config is empty but static config exists, load it
+      if (isConfigEmpty()) {
+        // Convert to the format expected by the Supabase client
+        const supabaseConfig = {
+          url: staticConfig.supabaseUrl,
+          anonKey: staticConfig.supabaseAnonKey,
+          isInitialized: true,
+          savedAt: staticConfig.lastUpdated || new Date().toISOString(),
+          environment: getEnvironmentId()
+        };
+        
+        // Save the config
+        saveConfig(supabaseConfig);
+        
+        logger.info('Loaded configuration from site-config.json', {
+          module: 'connection-service',
+          url: staticConfig.supabaseUrl.substring(0, 12) + '...'
+        });
+        
+        // No redirect needed, we've loaded the config
+        return null;
+      }
+      
+      // Config already exists, no redirect needed
+      return null;
+    }
+    
     // If static config is missing or empty, redirect to initialization
     if (!staticConfig || !staticConfig.supabaseUrl || !staticConfig.supabaseUrl.trim() || 
         !staticConfig.supabaseAnonKey || !staticConfig.supabaseAnonKey.trim()) {
@@ -974,15 +1060,6 @@ export async function getRedirectPath(): Promise<string | null> {
       });
       
       return '/initialize';
-    }
-    
-    // If stored config is empty or invalid but static config exists, 
-    // redirect to reconnect page
-    if (isConfigEmpty() && staticConfig) {
-      logger.info('Valid static site config exists but stored config is empty, redirecting to reconnect', {
-        module: 'connection-service'
-      });
-      return '/supabase-auth';
     }
     
     // No redirect needed
