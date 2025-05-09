@@ -123,26 +123,17 @@ export function BootstrapProvider({ children }: BootstrapProviderProps) {
     }
     
     // Automatically redirect to initialization page if we're in CONFIG_MISSING state
-    // and we're not already on the initialize page
-    if (context.state === BootstrapState.CONFIG_MISSING && 
+    // or CONNECTION_ERROR state and we're not already on the initialize page
+    if ((context.state === BootstrapState.CONFIG_MISSING || 
+         context.state === BootstrapState.CONNECTION_ERROR) && 
         !window.location.pathname.includes('/initialize')) {
-      logger.info('Auto-redirecting to initialize page due to missing config', {
-        module: 'bootstrap-provider',
-        currentPath: window.location.pathname
-      });
-      navigate('/initialize');
-    }
-    
-    // For connection errors, redirect to Supabase auth if we're not on a protected path
-    if (context.state === BootstrapState.CONNECTION_ERROR && 
-        !window.location.pathname.includes('/supabase-auth') &&
-        !window.location.pathname.includes('/initialize')) {
-      logger.info('Auto-redirecting to supabase-auth page due to connection error', {
+      logger.info('Auto-redirecting to initialize page due to missing config or connection error', {
         module: 'bootstrap-provider',
         currentPath: window.location.pathname,
+        state: context.state,
         errorType: context.errorType
       });
-      navigate('/supabase-auth');
+      navigate('/initialize');
     }
   }, [context.state, context.errorType, navigate, isNonRedirectablePath, location.pathname]);
   

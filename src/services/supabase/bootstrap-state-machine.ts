@@ -495,10 +495,9 @@ export async function executeBootstrap(
         ? determineErrorType(result.error)
         : ErrorType.CONFIG;
       
-      // Transition to appropriate error state
-      const errorState = result.error 
-        ? BootstrapState.CONNECTION_ERROR 
-        : BootstrapState.CONFIG_MISSING;
+      // Always transition to CONFIG_MISSING when no valid config is found
+      // This ensures we redirect to the initialize page instead of supabase-auth
+      const errorState = BootstrapState.CONFIG_MISSING;
       
       const errorContext = transitionTo(
         loadingContext,
