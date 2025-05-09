@@ -253,6 +253,10 @@ const Initialize = () => {
         localStorage.setItem(INIT_INTERRUPTED_KEY, 'true');
       }
       localStorage.removeItem(INIT_IN_PROGRESS_KEY);
+      
+      // Clear the redirect attempt flag when unmounting
+      sessionStorage.removeItem('initialize_redirect_attempted');
+      
       clearInterval(intervalId);
     };
   }, [currentStep]);
@@ -306,6 +310,16 @@ const Initialize = () => {
       // First check if site-config.json has valid values
       const checkSiteConfig = async () => {
         try {
+          // Set a flag in sessionStorage to prevent redirect loops
+          const redirectAttempted = sessionStorage.getItem('initialize_redirect_attempted');
+          if (redirectAttempted === 'true') {
+            // We've already tried to redirect once in this session, don't try again
+            logger.warn('Preventing redirect loop in initialize page', {
+              module: 'initialize'
+            });
+            return false;
+          }
+          
           const response = await fetch('/site-config.json');
           if (response.ok) {
             const config = await response.json();
@@ -321,11 +335,17 @@ const Initialize = () => {
                 logger.info('Valid site-config.json found, redirecting to home', {
                   module: 'initialize'
                 });
+                
+                // Set the flag to prevent future redirects in this session
+                sessionStorage.setItem('initialize_redirect_attempted', 'true');
+                
                 toast({
                   title: 'Already Configured',
                   description: 'Application is already configured with site-config.json.',
                 });
-                navigate('/');
+                
+                // Use replace instead of push to avoid browser history issues
+                navigate('/', { replace: true });
                 return true;
               }
             }
