@@ -477,6 +477,11 @@ export function getSupabaseClient() {
       module: 'supabase-connection'
     });
     
+    // Release the lock since initialization failed
+    if (lockAcquired) {
+      releaseInitializationLock();
+    }
+    
     return null;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
@@ -502,6 +507,11 @@ export function getSupabaseClient() {
         onClick: () => window.location.href = '/initialize'
       }
     });
+    
+    // Release the lock since initialization failed
+    if (lockAcquired) {
+      releaseInitializationLock();
+    }
     
     // Return null instead of potentially invalid instance
     return null;
