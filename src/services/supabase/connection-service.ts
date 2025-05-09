@@ -218,6 +218,26 @@ export function getSupabaseClient() {
       return null;
     }
     
+    // Try to load from site-config.json first
+    try {
+      const staticConfig = fetchStaticSiteConfig();
+      if (staticConfig && staticConfig.supabaseUrl && staticConfig.supabaseAnonKey) {
+        // Convert to the format expected by the Supabase client
+        const supabaseConfig = {
+          url: staticConfig.supabaseUrl,
+          anonKey: staticConfig.supabaseAnonKey,
+          isInitialized: true,
+          savedAt: staticConfig.lastUpdated || new Date().toISOString(),
+          environment: getEnvironmentId()
+        };
+        
+        // Save the config
+        saveConfig(supabaseConfig);
+      }
+    } catch (e) {
+      // Silently handle fetch errors
+    }
+    
     // Generate a unique connection ID for this instance if one doesn't exist
     const connIdKey = getConnectionKey(CONNECTION_ID_KEY);
     if (!localStorage.getItem(connIdKey)) {
@@ -868,21 +888,27 @@ export async function attemptConnectionRepair(): Promise<boolean> {
  * This helps detect when we should redirect to initialization
  */
 export function isConfigEmpty(): boolean {
-  const config = getStoredConfig();
-  
-  // Check if we have no config at all
-  if (!config) {
+  try {
+    const config = getStoredConfig();
+    
+    // Check if we have no config at all
+    if (!config) {
+      return true;
+    }
+    
+    // Check if the config has empty values
+    if (!config.url || !config.url.trim() || !config.anonKey || !config.anonKey.trim()) {
+      // Clear the invalid config to prevent auto-connection attempts
+      clearConfig();
+      return true;
+    }
+    
+    return false;
+  } catch (e) {
+    // If there's any error reading the config, assume it's empty
+    // This helps prevent redirect loops in some browsers
     return true;
   }
-  
-  // Check if the config has empty values
-  if (!config.url || !config.url.trim() || !config.anonKey || !config.anonKey.trim()) {
-    // Clear the invalid config to prevent auto-connection attempts
-    clearConfig();
-    return true;
-  }
-  
-  return false;
 }
 
 /**
@@ -993,14 +1019,7 @@ export async function getRedirectPath(): Promise<string | null> {
       return null;
     }
     
-    // Check if we already have a valid stored config
-    const storedConfig = getStoredConfig();
-    if (storedConfig && storedConfig.url && storedConfig.anonKey) {
-      // We already have a valid config, no redirect needed
-      return null;
-    }
-    
-    // Check for static config file
+    // Always try to load from site-config.json first
     try {
       const staticConfig = await fetchStaticSiteConfig();
       
@@ -1024,7 +1043,18 @@ export async function getRedirectPath(): Promise<string | null> {
         return null;
       }
     } catch (e) {
-      // If we can't load the static config, continue to initialization
+      // If we can't load the static config, check stored config
+    }
+    
+    // Check if we already have a valid stored config
+    try {
+      const storedConfig = getStoredConfig();
+      if (storedConfig && storedConfig.url && storedConfig.anonKey) {
+        // We already have a valid config, no redirect needed
+        return null;
+      }
+    } catch (e) {
+      // If there's an error reading the stored config, continue
     }
     
     // If we get here, we don't have a valid config from any source
