@@ -1067,10 +1067,10 @@ function initializeClientWithFallback() {
     return dummyClient;
   } catch (error) {
     // Return a minimal object with the required methods to prevent null errors
-    return {
+    const fallbackClient = {
       auth: {
         getSession: async () => ({ data: { session: null }, error: null }),
-        onAuthStateChange: () => ({ data: null, error: null, unsubscribe: () => {} })
+        onAuthStateChange: (callback) => ({ data: null, error: null, unsubscribe: () => {} })
       },
       from: function(table) {
         return {
@@ -1086,6 +1086,13 @@ function initializeClientWithFallback() {
         };
       }
     };
+    
+    // Store the fallback client in the window object
+    if (typeof window !== 'undefined') {
+      (window as any).supabaseInstance = fallbackClient;
+    }
+    
+    return fallbackClient;
   }
 }
 
