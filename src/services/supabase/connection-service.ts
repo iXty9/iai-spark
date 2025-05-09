@@ -244,7 +244,7 @@ function releaseInitializationLock(): void {
  * Get the Supabase client instance, creating it if needed
  * Now with improved error handling and state management
  */
-export function getSupabaseClient() {
+export async function getSupabaseClient() {
   if (supabaseInstance) return supabaseInstance;
   
   // Try to acquire initialization lock
@@ -409,67 +409,46 @@ export function getSupabaseClient() {
     
     // If no stored config is available, try to load from site-config.json first
     // then trigger bootstrap in the background if that fails
-    // Use a proper debounced approach to prevent race conditions
-    const initPromise = new Promise<void>((resolve) => {
-      setTimeout(async () => {
-        try {
-          // Check if another process has already initialized the client
-          if (supabaseInstance || (window as any).supabaseInstance) {
-            resolve();
-            return;
-          }
-          
-          // Try to load from site-config.json first
-          const staticConfig = await fetchStaticSiteConfig();
-          
-          if (staticConfig && staticConfig.supabaseUrl && staticConfig.supabaseAnonKey) {
-            // Convert to the format expected by the Supabase client
-            const supabaseConfig = {
-              url: staticConfig.supabaseUrl,
-              anonKey: staticConfig.supabaseAnonKey,
-              isInitialized: true,
-              savedAt: staticConfig.lastUpdated || new Date().toISOString(),
-              environment: getEnvironmentId()
-            };
-            
-            // Save the config
-            saveConfig(supabaseConfig);
-            
-            // Only reset if we have the lock
-            if (lockAcquired) {
-              resetSupabaseClient();
-              
-              // Create a new client with the config
-              supabaseInstance = createClient<Database>(supabaseConfig.url, supabaseConfig.anonKey, {
-                auth: {
-                  storage: localStorage,
-                  persistSession: true,
-                  autoRefreshToken: true,
-                  debug: false
-                }
-              });
-              
-              // Store in window for cross-reference
-              (window as any).supabaseInstance = supabaseInstance;
-            }
-            
-            resolve();
-            return;
-          }
-          
-          // If that fails, try bootstrap
-          await checkPublicBootstrapConfig();
-          resolve();
-        } catch (error) {
-          // Silent error handling to avoid console spam
-          resolve();
-        }
-      }, 100); // Small delay to allow other processes to complete
-    });
-    
-    // If we have the lock, wait for initialization to complete
     if (lockAcquired) {
-      await initPromise;
+      // Try to load from site-config.json first
+      try {
+        const staticConfig = await fetchStaticSiteConfig();
+        
+        if (staticConfig && staticConfig.supabaseUrl && staticConfig.supabaseAnonKey) {
+          // Convert to the format expected by the Supabase client
+          const supabaseConfig = {
+            url: staticConfig.supabaseUrl,
+            anonKey: staticConfig.supabaseAnonKey,
+            isInitialized: true,
+            savedAt: staticConfig.lastUpdated || new Date().toISOString(),
+            environment: getEnvironmentId()
+          };
+          
+          // Save the config
+          saveConfig(supabaseConfig);
+          resetSupabaseClient();
+          
+          // Create a new client with the config
+          supabaseInstance = createClient<Database>(supabaseConfig.url, supabaseConfig.anonKey, {
+            auth: {
+              storage: localStorage,
+              persistSession: true,
+              autoRefreshToken: true,
+              debug: false
+            }
+          });
+          
+          // Store in window for cross-reference
+          (window as any).supabaseInstance = supabaseInstance;
+          
+          return supabaseInstance;
+        }
+        
+        // If that fails, try bootstrap
+        await checkPublicBootstrapConfig();
+      } catch (error) {
+        // Silent error handling to avoid console spam
+      }
     }
     
     // No valid configuration available - minimal logging
