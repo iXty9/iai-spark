@@ -303,28 +303,69 @@ const Initialize = () => {
         }
       }
       
-      // Check if client is valid before trying to access stored configs
-      setTimeout(() => {
+      // First check if site-config.json has valid values
+      const checkSiteConfig = async () => {
         try {
-          // This simple check will detect if client is initialized properly
-          const hasConfig = hasStoredConfig();
-          setHasValidClient(true);
-          
-          // Allow forcing the initialize page with force_init parameter
-          if (!forceInit && !resumeInit && hasConfig) {
-            toast({
-              title: 'Already Configured',
-              description: 'Supabase connection is already configured.',
-            });
-            navigate('/');
+          const response = await fetch('/site-config.json');
+          if (response.ok) {
+            const config = await response.json();
+            // Check if config has valid values
+            if (config && 
+                config.supabaseUrl && 
+                config.supabaseUrl.includes('supabase.co') && 
+                config.supabaseAnonKey && 
+                config.supabaseAnonKey.length > 20) {
+              
+              // Site config exists and has valid values - redirect to home
+              if (!forceInit) {
+                logger.info('Valid site-config.json found, redirecting to home', {
+                  module: 'initialize'
+                });
+                toast({
+                  title: 'Already Configured',
+                  description: 'Application is already configured with site-config.json.',
+                });
+                navigate('/');
+                return true;
+              }
+            }
           }
+          return false;
         } catch (error) {
-          logger.error('Error checking Supabase configuration', error, {
+          logger.error('Error checking site-config.json', error, {
             module: 'initialize'
           });
-          // Keep going - we're already on the initialize page
+          return false;
         }
-      }, 200);
+      };
+      
+      // Check site-config.json first, then fall back to checking stored config
+      checkSiteConfig().then(hasValidSiteConfig => {
+        if (!hasValidSiteConfig) {
+          // Check if client is valid before trying to access stored configs
+          setTimeout(() => {
+            try {
+              // This simple check will detect if client is initialized properly
+              const hasConfig = hasStoredConfig();
+              setHasValidClient(true);
+              
+              // Allow forcing the initialize page with force_init parameter
+              if (!forceInit && !resumeInit && hasConfig) {
+                toast({
+                  title: 'Already Configured',
+                  description: 'Supabase connection is already configured.',
+                });
+                navigate('/');
+              }
+            } catch (error) {
+              logger.error('Error checking Supabase configuration', error, {
+                module: 'initialize'
+              });
+              // Keep going - we're already on the initialize page
+            }
+          }, 200);
+        }
+      });
     } catch (error) {
       logger.error('Error in initialization check', error, {
         module: 'initialize'
