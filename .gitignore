@@ -7,6 +7,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Supabase configuration file with sensitive credentials
+public/site-config.json
+  
 node_modules
 dist
 dist-ssr
@@ -14,7 +17,8 @@ dist-ssr
 
 # Editor directories and files
 .vscode/*
-!.vscode/extensions.json
+!.vscode/extensions.json*/
+  
 .idea
 .DS_Store
 *.suo
@@ -23,5 +27,3 @@ dist-ssr
 *.sln
 *.sw?
 .aider*
-# Supabase configuration file with sensitive credentials
-public/site-config.json
