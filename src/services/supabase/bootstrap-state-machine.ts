@@ -11,6 +11,7 @@ import { ConfigSource } from './config-loader-types';
 import { resetSupabaseClient, getSupabaseClient, shouldBypassRedirect } from './connection-service';
 import { getEnvironmentInfo } from '@/config/supabase/environment';
 import { clearConfig } from '@/config/supabase-config';
+import { isValidUrl } from './config-validation';
 
 // Bootstrap state machine states
 export enum BootstrapState {
@@ -164,6 +165,15 @@ export function determineErrorType(error: string): ErrorType {
   
   const errorLower = error.toLowerCase();
   
+  // Check for URL format errors first
+  if (errorLower.includes('invalid url') || 
+      errorLower.includes('malformed url') ||
+      errorLower.includes('url format') ||
+      errorLower.includes('invalid format') ||
+      errorLower.includes('url') && errorLower.includes('format')) {
+    return ErrorType.CONFIG;
+  }
+  
   if (errorLower.includes('network') || 
       errorLower.includes('fetch') || 
       errorLower.includes('connection') ||
@@ -285,6 +295,32 @@ export async function executeBootstrap(
           onStateChange,
           {
             error: 'Configuration found but contains empty values',
+            errorType: ErrorType.CONFIG,
+            configSource: result.source
+          }
+        );
+        
+        return errorContext;
+      }
+      
+      // Verify URL format is valid before proceeding
+      if (!isValidUrl(result.config.url)) {
+        logger.warn('Bootstrap found configuration with invalid URL format', {
+          module: 'bootstrap-state-machine',
+          source: result.source,
+          url: result.config.url
+        });
+        
+        // Clear config to prevent auto-connection with invalid URL
+        clearConfig();
+        
+        // Handle as CONFIG_MISSING case when URL is malformed
+        const errorContext = transitionTo(
+          loadingContext,
+          BootstrapState.CONFIG_MISSING,
+          onStateChange,
+          {
+            error: 'Configuration found but contains invalid URL format',
             errorType: ErrorType.CONFIG,
             configSource: result.source
           }

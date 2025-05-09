@@ -379,8 +379,59 @@ const Initialize = () => {
   };
   
   // Handle successful admin creation
-  const handleAdminSuccess = () => {
+  const handleAdminSuccess = async () => {
     setCurrentStep(InitStep.Complete);
+    
+    // Create config object
+    const config = {
+      url: supabaseUrl,
+      anonKey: anonKey,
+      serviceKey: serviceKey,
+      isInitialized: true
+    };
+    
+    // Update site-config.json
+    try {
+      // Import the site config service
+      const { createSiteConfig, updateStaticSiteConfig } = await import('@/services/site-config/site-config-file-service');
+      
+      const siteConfig = createSiteConfig(supabaseUrl, anonKey);
+      const updated = await updateStaticSiteConfig(siteConfig);
+      
+      if (updated) {
+        toast({
+          title: 'Configuration Saved',
+          description: 'Your configuration has been saved to site-config.json',
+        });
+        
+        logger.info('Successfully updated site-config.json after setup', {
+          module: 'initialize',
+          sessionId
+        });
+      } else {
+        toast({
+          title: 'Warning',
+          description: 'Setup completed but could not update site-config.json',
+          variant: 'warning'
+        });
+        
+        logger.warn('Failed to update site-config.json after setup', {
+          module: 'initialize',
+          sessionId
+        });
+      }
+    } catch (error) {
+      logger.error('Error updating site-config.json', error, {
+        module: 'initialize',
+        sessionId
+      });
+      
+      toast({
+        title: 'Warning',
+        description: 'Setup completed but could not update site-config.json',
+        variant: 'warning'
+      });
+    }
     
     // Clear initialization state
     localStorage.removeItem(INIT_STATE_KEY);

@@ -213,7 +213,12 @@ export function BootstrapProvider({ children }: BootstrapProviderProps) {
                     Database structure issue detected. The database may need initialization.
                   </>
                 )}
-                {context.errorType === ErrorType.CONFIG && (
+                {context.errorType === ErrorType.CONFIG && context.error?.toLowerCase().includes('url format') && (
+                  <>
+                    The Supabase URL in your configuration is invalid. Please check the format and ensure it starts with https://.
+                  </>
+                )}
+                {context.errorType === ErrorType.CONFIG && !context.error?.toLowerCase().includes('url format') && (
                   <>
                     Configuration issue detected. The application may need to be set up.
                   </>

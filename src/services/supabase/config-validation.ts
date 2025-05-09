@@ -98,10 +98,42 @@ export function isValidUrl(url: string): boolean {
       return false;
     }
     
+    // Ensure URL starts with http:// or https://
+    if (!url.trim().startsWith('http://') && !url.trim().startsWith('https://')) {
+      return false;
+    }
+    
     // Try to parse URL
     new URL(url);
     return true;
   } catch (e) {
     return false;
+  }
+}
+
+/**
+ * Attempt to repair a malformed URL
+ */
+export function attemptUrlFormatRepair(url: string): string | null {
+  if (!url || !url.trim()) return null;
+  
+  // Remove common typos
+  let fixedUrl = url.trim();
+  
+  // Fix missing or incorrect protocol
+  if (fixedUrl.startsWith('ahttp')) {
+    fixedUrl = fixedUrl.replace('ahttp', 'http');
+  }
+  
+  if (!fixedUrl.startsWith('http://') && !fixedUrl.startsWith('https://')) {
+    fixedUrl = 'https://' + fixedUrl;
+  }
+  
+  // Validate the fixed URL
+  try {
+    new URL(fixedUrl);
+    return fixedUrl;
+  } catch (e) {
+    return null;
   }
 }

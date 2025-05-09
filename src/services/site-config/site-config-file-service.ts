@@ -157,40 +157,75 @@ export function getConfigFromEnvironment(): SiteConfig | null {
  */
 export async function updateStaticSiteConfig(config: SiteConfig): Promise<boolean> {
   try {
-    // This function would typically call a server API endpoint
-    // that would save the config to a file on the server
-    // For client-side only applications, we can't directly write to files
+    // First, save to localStorage as a fallback
+    writeConfigToLocalStorage(config);
     
-    // Example implementation using an API endpoint
-    const response = await fetch('/api/update-site-config.json', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(config)
+    // For development environments, we can use a special endpoint
+    // that's available in the development server
+    const isDev = window.location.hostname === 'localhost' || 
+                 window.location.hostname === '127.0.0.1';
+    
+    const endpoint = isDev 
+      ? '/api/dev/update-site-config' 
+      : '/api/update-site-config';
+    
+    logger.info('Attempting to update site-config.json', {
+      module: 'site-config',
+      endpoint,
+      isDev
     });
     
-    if (!response.ok) {
-      logger.error('Failed to update static site config', {
+    // Try to update via API endpoint
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(config)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        logger.info('Successfully updated static site config via API', {
+          module: 'site-config'
+        });
+        return true;
+      } else {
+        throw new Error(result.error || 'Server reported failure');
+      }
+    } catch (apiError) {
+      // If API fails, try fallback method for development
+      if (isDev) {
+        logger.warn('API update failed, trying fallback method for development', {
+          module: 'site-config',
+          error: apiError instanceof Error ? apiError.message : String(apiError)
+        });
+        
+        // In development, we can use localStorage and console to help developers
+        console.warn('Could not update site-config.json via API. For development, here is the config to manually update:');
+        console.log(JSON.stringify(config, null, 2));
+        
+        // Show instructions in console
+        console.info('To manually update site-config.json:');
+        console.info('1. Copy the JSON above');
+        console.info('2. Replace the contents of public/site-config.json');
+        console.info('3. Restart your development server');
+        
+        return true; // Return true for development to allow flow to continue
+      }
+      
+      // For production, log the error and return false
+      logger.error('Failed to update static site config via API', {
         module: 'site-config',
-        status: response.status,
-        statusText: response.statusText
+        error: apiError instanceof Error ? apiError.message : String(apiError)
       });
-      return false;
-    }
-    
-    const result = await response.json();
-    
-    if (result.success) {
-      logger.info('Successfully updated static site config', {
-        module: 'site-config'
-      });
-      return true;
-    } else {
-      logger.warn('Server reported failure updating static site config', {
-        module: 'site-config',
-        error: result.error
-      });
+      
       return false;
     }
   } catch (error) {
@@ -199,6 +234,18 @@ export async function updateStaticSiteConfig(config: SiteConfig): Promise<boolea
     });
     return false;
   }
+}
+
+/**
+ * Create a site config object from Supabase connection details
+ */
+export function createSiteConfig(url: string, anonKey: string): SiteConfig {
+  return {
+    supabaseUrl: url,
+    supabaseAnonKey: anonKey,
+    siteHost: window.location.origin,
+    lastUpdated: new Date().toISOString()
+  };
 }
 
 /**

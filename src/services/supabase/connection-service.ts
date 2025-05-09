@@ -686,6 +686,58 @@ export async function attemptConnectionRepair(): Promise<boolean> {
         return true;
       }
       
+      // Try to repair malformed URL if present
+      const storedConfig = getStoredConfig();
+      if (storedConfig?.url) {
+        // Import the URL repair function
+        const { attemptUrlFormatRepair } = await import('@/services/supabase/config-validation');
+        
+        const repairedUrl = attemptUrlFormatRepair(storedConfig.url);
+        if (repairedUrl && repairedUrl !== storedConfig.url) {
+          logger.info('Attempting repair with fixed URL format', {
+            module: 'supabase-connection',
+            originalUrl: storedConfig.url.substring(0, 10) + '...',
+            fixedUrl: repairedUrl.substring(0, 10) + '...'
+          });
+          
+          // Test connection with repaired URL
+          const connectionTest = await testSupabaseConnection(repairedUrl, storedConfig.anonKey);
+          
+          // Check if the connection test was successful
+          const isConnected = typeof connectionTest === 'boolean' 
+            ? connectionTest 
+            : connectionTest.isConnected;
+            
+          if (isConnected) {
+            // Save the repaired configuration
+            configLoader.saveConfiguration({
+              ...storedConfig,
+              url: repairedUrl
+            });
+            resetSupabaseClient();
+            
+            // Update site-config.json with repaired URL
+            try {
+              const { createSiteConfig, updateStaticSiteConfig } = await import('@/services/site-config/site-config-file-service');
+              
+              const siteConfig = createSiteConfig(repairedUrl, storedConfig.anonKey);
+              await updateStaticSiteConfig(siteConfig);
+              
+              logger.info('Updated site-config.json with repaired URL', {
+                module: 'supabase-connection'
+              });
+            } catch (e) {
+              // Log but continue
+              logger.warn('Could not update site-config.json with repaired URL', e, {
+                module: 'supabase-connection'
+              });
+            }
+            
+            return true;
+          }
+        }
+      }
+      
       // Try to reload configuration
       const result = await configLoader.loadConfiguration();
       if (result.config) {

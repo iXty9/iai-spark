@@ -213,6 +213,35 @@ export async function loadFromStaticFile(): Promise<ConfigLoadResult> {
       };
     }
     
+    // Validate URL format
+    const { isValidUrl, attemptUrlFormatRepair } = await import('./config-validation');
+    
+    if (!isValidUrl(staticConfig.supabaseUrl)) {
+      logger.warn('Static site config contains invalid URL format', {
+        module: 'config-loader',
+        url: staticConfig.supabaseUrl
+      });
+      
+      // Try to repair the URL
+      const repairedUrl = attemptUrlFormatRepair(staticConfig.supabaseUrl);
+      if (repairedUrl) {
+        logger.info('Repaired malformed URL in static config', {
+          module: 'config-loader',
+          originalUrl: staticConfig.supabaseUrl,
+          repairedUrl: repairedUrl
+        });
+        
+        // Use the repaired URL
+        staticConfig.supabaseUrl = repairedUrl;
+      } else {
+        return {
+          config: null,
+          source: ConfigSource.STATIC_FILE,
+          error: 'Static site config contains invalid URL format'
+        };
+      }
+    }
+    
     logger.info('Successfully loaded static site config file', {
       module: 'config-loader',
       host: staticConfig.siteHost,
