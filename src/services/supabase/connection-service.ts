@@ -41,11 +41,6 @@ const configLoader = {
       
       // Check if we have a valid static config
       if (staticConfig && staticConfig.supabaseUrl && staticConfig.supabaseAnonKey) {
-        logger.info('Found valid configuration in site-config.json', {
-          module: 'config-loader',
-          url: staticConfig.supabaseUrl.substring(0, 12) + '...'
-        });
-        
         // Return properly formatted config object
         return { 
           config: {
@@ -356,25 +351,27 @@ export function getSupabaseClient() {
         // Try to load from site-config.json first
         const { config } = await configLoader.loadConfiguration();
         if (config) {
-          logger.info('Loaded configuration from site-config.json', {
-            module: 'supabase-connection'
-          });
-          
           // Save the config and reset the client to use it
           saveConfig(config);
           resetSupabaseClient();
           
-          // Refresh the page to use the new config
-          window.location.reload();
+          // Create a new client with the config
+          supabaseInstance = createClient<Database>(config.url, config.anonKey, {
+            auth: {
+              storage: localStorage,
+              persistSession: true,
+              autoRefreshToken: true,
+              debug: false
+            }
+          });
+          
           return;
         }
         
         // If that fails, try bootstrap
         await checkPublicBootstrapConfig();
       } catch (error) {
-        logger.error('Failed to bootstrap configuration', error, {
-          module: 'supabase-connection'
-        });
+        // Silent error handling to avoid console spam
       }
     }, 0);
     
@@ -901,23 +898,6 @@ export function shouldBypassRedirect(pathname: string): boolean {
  */
 export async function checkPublicBootstrapConfig(): Promise<boolean> {
   try {
-    logger.info('Checking for public bootstrap configuration', {
-      module: 'connection-service'
-    });
-    
-    // Try to safely initialize the client if not already done
-    if (!getSupabaseClient()) {
-      // Initialize with a default null-safe client
-      // This will be replaced with actual credentials later
-      const defaultClient = initializeClientWithFallback();
-      if (!defaultClient) {
-        logger.warn('Failed to create even a fallback client', {
-          module: 'connection-service'
-        });
-        return false;
-      }
-    }
-    
     // Check if we already have config
     const config = getStoredConfig();
     if (config && config.url && config.anonKey) {
@@ -944,25 +924,25 @@ export async function checkPublicBootstrapConfig(): Promise<boolean> {
         // Save the config
         saveConfig(supabaseConfig);
         
-        logger.info('Loaded and saved configuration from site-config.json', {
-          module: 'connection-service',
-          url: publicConfig.supabaseUrl.substring(0, 12) + '...'
+        // Initialize client with this config
+        resetSupabaseClient();
+        supabaseInstance = createClient<Database>(supabaseConfig.url, supabaseConfig.anonKey, {
+          auth: {
+            storage: localStorage,
+            persistSession: true,
+            autoRefreshToken: true,
+            debug: false
+          }
         });
         
         return true;
       }
     } catch (e) {
       // Silently handle fetch errors
-      logger.debug('No public config available', {
-        module: 'connection-service'
-      });
     }
     
     return false;
   } catch (error) {
-    logger.error('Error checking public bootstrap config', error, {
-      module: 'connection-service'
-    });
     return false;
   }
 }
@@ -1035,9 +1015,15 @@ export async function getRedirectPath(): Promise<string | null> {
         // Save the config
         saveConfig(supabaseConfig);
         
-        logger.info('Loaded configuration from site-config.json', {
-          module: 'connection-service',
-          url: staticConfig.supabaseUrl.substring(0, 12) + '...'
+        // Initialize client with this config
+        resetSupabaseClient();
+        supabaseInstance = createClient<Database>(supabaseConfig.url, supabaseConfig.anonKey, {
+          auth: {
+            storage: localStorage,
+            persistSession: true,
+            autoRefreshToken: true,
+            debug: false
+          }
         });
         
         // No redirect needed, we've loaded the config
@@ -1055,19 +1041,12 @@ export async function getRedirectPath(): Promise<string | null> {
       // Clear any stored config since we're missing static config
       clearConfig();
       
-      logger.info('Missing or empty static site config, redirecting to initialization', {
-        module: 'connection-service'
-      });
-      
       return '/initialize';
     }
     
     // No redirect needed
     return null;
   } catch (error) {
-    logger.error('Error determining redirect path', error, {
-      module: 'connection-service'
-    });
     return null;
   }
 }
