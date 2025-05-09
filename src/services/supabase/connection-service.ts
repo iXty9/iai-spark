@@ -12,6 +12,8 @@ const CONNECTION_ID_KEY = 'connection_id';
 const ENVIRONMENT_KEY = 'environment_info';
 const LAST_CONNECTION_TIME_KEY = 'last_connection_time';
 const CONNECTION_STATE_KEY = 'connection_state';
+const INITIALIZATION_LOCK_KEY = 'initialization_lock';
+const INITIALIZATION_TIMESTAMP_KEY = 'initialization_timestamp';
 
 // Connection state interface
 interface ConnectionState {
@@ -191,13 +193,70 @@ export async function testSupabaseConnection(
 }
 
 /**
+ * Acquire initialization lock to prevent race conditions
+ * Returns true if lock was acquired, false otherwise
+ */
+function acquireInitializationLock(): boolean {
+  try {
+    const lockKey = getConnectionKey(INITIALIZATION_LOCK_KEY);
+    const timestampKey = getConnectionKey(INITIALIZATION_TIMESTAMP_KEY);
+    
+    // Check if there's an existing lock
+    const existingLock = localStorage.getItem(lockKey);
+    const existingTimestamp = localStorage.getItem(timestampKey);
+    
+    // If there's an existing lock, check if it's stale (older than 10 seconds)
+    if (existingLock && existingTimestamp) {
+      const lockTime = new Date(existingTimestamp).getTime();
+      const currentTime = new Date().getTime();
+      
+      // If lock is less than 10 seconds old, it's still valid
+      if (currentTime - lockTime < 10000) {
+        return false;
+      }
+    }
+    
+    // Set the lock and timestamp
+    const lockId = `lock_${Math.random().toString(36).substring(2, 10)}`;
+    localStorage.setItem(lockKey, lockId);
+    localStorage.setItem(timestampKey, new Date().toISOString());
+    
+    return true;
+  } catch (e) {
+    // If there's an error, assume we couldn't acquire the lock
+    return false;
+  }
+}
+
+/**
+ * Release initialization lock
+ */
+function releaseInitializationLock(): void {
+  try {
+    const lockKey = getConnectionKey(INITIALIZATION_LOCK_KEY);
+    localStorage.removeItem(lockKey);
+  } catch (e) {
+    // Silently handle errors
+  }
+}
+
+/**
  * Get the Supabase client instance, creating it if needed
  * Now with improved error handling and state management
  */
 export function getSupabaseClient() {
   if (supabaseInstance) return supabaseInstance;
   
+  // Try to acquire initialization lock
+  const lockAcquired = acquireInitializationLock();
+  
   try {
+    // Even if we didn't acquire the lock, check if instance exists now
+    // (it might have been created by another call that got the lock)
+    if (!lockAcquired && window.supabaseInstance) {
+      return window.supabaseInstance;
+    }
+    
     // Check for special URL parameters first
     const urlParams = new URLSearchParams(window.location.search);
     const forceInit = urlParams.get('force_init') === 'true';
@@ -208,6 +267,7 @@ export function getSupabaseClient() {
       logger.info('Configuration reset requested via URL parameter', {
         module: 'supabase-connection'
       });
+      releaseInitializationLock();
       return null;
     }
     
@@ -215,6 +275,7 @@ export function getSupabaseClient() {
       logger.info('Force init parameter detected, not initializing Supabase client', {
         module: 'supabase-connection'
       });
+      releaseInitializationLock();
       return null;
     }
     
@@ -348,44 +409,68 @@ export function getSupabaseClient() {
     
     // If no stored config is available, try to load from site-config.json first
     // then trigger bootstrap in the background if that fails
-    setTimeout(async () => {
-      try {
-        // Try to load from site-config.json first
-        const staticConfig = await fetchStaticSiteConfig();
-        
-        if (staticConfig && staticConfig.supabaseUrl && staticConfig.supabaseAnonKey) {
-          // Convert to the format expected by the Supabase client
-          const supabaseConfig = {
-            url: staticConfig.supabaseUrl,
-            anonKey: staticConfig.supabaseAnonKey,
-            isInitialized: true,
-            savedAt: staticConfig.lastUpdated || new Date().toISOString(),
-            environment: getEnvironmentId()
-          };
+    // Use a proper debounced approach to prevent race conditions
+    const initPromise = new Promise<void>((resolve) => {
+      setTimeout(async () => {
+        try {
+          // Check if another process has already initialized the client
+          if (supabaseInstance || (window as any).supabaseInstance) {
+            resolve();
+            return;
+          }
           
-          // Save the config
-          saveConfig(supabaseConfig);
-          resetSupabaseClient();
+          // Try to load from site-config.json first
+          const staticConfig = await fetchStaticSiteConfig();
           
-          // Create a new client with the config
-          supabaseInstance = createClient<Database>(supabaseConfig.url, supabaseConfig.anonKey, {
-            auth: {
-              storage: localStorage,
-              persistSession: true,
-              autoRefreshToken: true,
-              debug: false
+          if (staticConfig && staticConfig.supabaseUrl && staticConfig.supabaseAnonKey) {
+            // Convert to the format expected by the Supabase client
+            const supabaseConfig = {
+              url: staticConfig.supabaseUrl,
+              anonKey: staticConfig.supabaseAnonKey,
+              isInitialized: true,
+              savedAt: staticConfig.lastUpdated || new Date().toISOString(),
+              environment: getEnvironmentId()
+            };
+            
+            // Save the config
+            saveConfig(supabaseConfig);
+            
+            // Only reset if we have the lock
+            if (lockAcquired) {
+              resetSupabaseClient();
+              
+              // Create a new client with the config
+              supabaseInstance = createClient<Database>(supabaseConfig.url, supabaseConfig.anonKey, {
+                auth: {
+                  storage: localStorage,
+                  persistSession: true,
+                  autoRefreshToken: true,
+                  debug: false
+                }
+              });
+              
+              // Store in window for cross-reference
+              (window as any).supabaseInstance = supabaseInstance;
             }
-          });
+            
+            resolve();
+            return;
+          }
           
-          return;
+          // If that fails, try bootstrap
+          await checkPublicBootstrapConfig();
+          resolve();
+        } catch (error) {
+          // Silent error handling to avoid console spam
+          resolve();
         }
-        
-        // If that fails, try bootstrap
-        await checkPublicBootstrapConfig();
-      } catch (error) {
-        // Silent error handling to avoid console spam
-      }
-    }, 0);
+      }, 100); // Small delay to allow other processes to complete
+    });
+    
+    // If we have the lock, wait for initialization to complete
+    if (lockAcquired) {
+      await initPromise;
+    }
     
     // No valid configuration available - minimal logging
     logger.warn('No valid Supabase configuration available', { 
@@ -433,6 +518,14 @@ export function resetSupabaseClient() {
   });
   
   supabaseInstance = null;
+  
+  // Also clear from window object
+  if (typeof window !== 'undefined') {
+    (window as any).supabaseInstance = null;
+  }
+  
+  // Release any existing initialization lock
+  releaseInitializationLock();
 }
 
 /**
@@ -915,15 +1008,38 @@ function initializeClientWithFallback() {
  * Get the appropriate redirect path based on the current config state
  * Returns null if no redirect is needed
  */
+// Track if we're currently checking for redirect to prevent multiple redirects
+let isCheckingRedirect = false;
+
 export async function getRedirectPath(): Promise<string | null> {
+  // Prevent multiple simultaneous redirect checks
+  if (isCheckingRedirect) {
+    return null;
+  }
+  
+  isCheckingRedirect = true;
+  
   try {
     // Check if we're on a bypass route
     const pathname = window.location.pathname;
     if (shouldBypassRedirect(pathname)) {
+      isCheckingRedirect = false;
       return null;
     }
     
-    // Always try to load from site-config.json first
+    // Check if we already have a valid stored config first (fastest check)
+    try {
+      const storedConfig = getStoredConfig();
+      if (storedConfig && storedConfig.url && storedConfig.anonKey) {
+        // We already have a valid config, no redirect needed
+        isCheckingRedirect = false;
+        return null;
+      }
+    } catch (e) {
+      // If there's an error reading the stored config, continue to next check
+    }
+    
+    // Then try to load from site-config.json
     try {
       const staticConfig = await fetchStaticSiteConfig();
       
@@ -944,26 +1060,18 @@ export async function getRedirectPath(): Promise<string | null> {
         saveConfig(supabaseConfig);
         
         // No redirect needed, we've loaded the config
+        isCheckingRedirect = false;
         return null;
       }
     } catch (e) {
-      // If we can't load the static config, check stored config
-    }
-    
-    // Check if we already have a valid stored config
-    try {
-      const storedConfig = getStoredConfig();
-      if (storedConfig && storedConfig.url && storedConfig.anonKey) {
-        // We already have a valid config, no redirect needed
-        return null;
-      }
-    } catch (e) {
-      // If there's an error reading the stored config, continue
+      // If we can't load the static config, continue
     }
     
     // If we get here, we don't have a valid config from any source
+    isCheckingRedirect = false;
     return '/initialize';
   } catch (error) {
+    isCheckingRedirect = false;
     return null;
   }
 }
