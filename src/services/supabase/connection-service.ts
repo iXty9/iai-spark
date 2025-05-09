@@ -254,7 +254,24 @@ export async function getSupabaseClient() {
   // Check if we already have an instance in the window object
   if (typeof window !== 'undefined' && (window as any).supabaseInstance) {
     supabaseInstance = (window as any).supabaseInstance;
-    return supabaseInstance;
+    
+    // Verify the instance has a working from method
+    if (supabaseInstance && typeof supabaseInstance.from === 'function') {
+      try {
+        const testQuery = supabaseInstance.from('test_table');
+        if (testQuery && typeof testQuery.select === 'function') {
+          return supabaseInstance;
+        }
+      } catch (e) {
+        // If there's an error, the instance is invalid
+        supabaseInstance = null;
+        (window as any).supabaseInstance = null;
+      }
+    } else {
+      // If from is not a function, the instance is invalid
+      supabaseInstance = null;
+      (window as any).supabaseInstance = null;
+    }
   }
   
   // If we're already initializing, wait a bit and check again
@@ -1017,13 +1034,18 @@ function initializeClientWithFallback() {
     
     // Add a safe from method if it doesn't exist
     if (typeof dummyClient.from !== 'function') {
-      dummyClient.from = (table) => {
+      dummyClient.from = function(table) {
         return {
           select: () => Promise.resolve({ data: null, error: null }),
           insert: () => Promise.resolve({ data: null, error: null }),
           update: () => Promise.resolve({ data: null, error: null }),
           delete: () => Promise.resolve({ data: null, error: null }),
-          eq: () => ({ data: null, error: null }),
+          eq: function() {
+            return {
+              select: () => Promise.resolve({ data: null, error: null }),
+              single: () => Promise.resolve({ data: null, error: null })
+            };
+          },
           single: () => Promise.resolve({ data: null, error: null })
         };
       };
@@ -1037,14 +1059,19 @@ function initializeClientWithFallback() {
         getSession: async () => ({ data: { session: null }, error: null }),
         onAuthStateChange: () => ({ data: null, error: null, unsubscribe: () => {} })
       },
-      from: (table) => ({
-        select: () => Promise.resolve({ data: null, error: null }),
-        insert: () => Promise.resolve({ data: null, error: null }),
-        update: () => Promise.resolve({ data: null, error: null }),
-        delete: () => Promise.resolve({ data: null, error: null }),
-        eq: () => ({ data: null, error: null }),
-        single: () => Promise.resolve({ data: null, error: null })
-      })
+      from: function(table) {
+        return {
+          select: () => Promise.resolve({ data: null, error: null }),
+          insert: () => Promise.resolve({ data: null, error: null }),
+          update: () => Promise.resolve({ data: null, error: null }),
+          delete: () => Promise.resolve({ data: null, error: null }),
+          eq: () => ({ 
+            select: () => Promise.resolve({ data: null, error: null }),
+            single: () => Promise.resolve({ data: null, error: null })
+          }),
+          single: () => Promise.resolve({ data: null, error: null })
+        };
+      }
     };
   }
 }
