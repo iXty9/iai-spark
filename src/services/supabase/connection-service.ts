@@ -754,14 +754,14 @@ export async function attemptConnectionRepair(): Promise<boolean> {
       }
       
       // Try with service key if available
-      const storedConfig = getStoredConfig();
-      if (storedConfig?.serviceKey) {
+      const configWithServiceKey = getStoredConfig();
+      if (configWithServiceKey?.serviceKey) {
         logger.info('Attempting repair with service key', {
           module: 'supabase-connection'
         });
         
         // Create temporary client with service key
-        const tempClient = createClient(storedConfig.url, storedConfig.serviceKey, {
+        const tempClient = createClient(configWithServiceKey.url, configWithServiceKey.serviceKey, {
           auth: {
             persistSession: false,
             autoRefreshToken: false
@@ -778,12 +778,12 @@ export async function attemptConnectionRepair(): Promise<boolean> {
           if (!error && data && data.length > 0) {
             // Extract updated configuration
             const updatedConfig = {
-              url: data.find(item => item.key === 'supabase_url')?.value || storedConfig.url,
-              anonKey: data.find(item => item.key === 'supabase_anon_key')?.value || storedConfig.anonKey,
-              serviceKey: storedConfig.serviceKey,
+              url: data.find(item => item.key === 'supabase_url')?.value || configWithServiceKey.url,
+              anonKey: data.find(item => item.key === 'supabase_anon_key')?.value || configWithServiceKey.anonKey,
+              serviceKey: configWithServiceKey.serviceKey,
               isInitialized: true,
               savedAt: new Date().toISOString(),
-              environment: storedConfig.environment
+              environment: configWithServiceKey.environment
             };
             
             // Save updated configuration
