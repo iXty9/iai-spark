@@ -948,7 +948,6 @@ export function shouldBypassRedirect(pathname: string): boolean {
   // These routes should never be redirected away from
   const bypassRoutes = [
     '/initialize',
-    '/supabase-auth',
     '/auth/error',
     '/api/',
     '/debug'
