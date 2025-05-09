@@ -287,21 +287,9 @@ export function getSupabaseClient() {
     const storedConfig = getStoredConfig();
     
     if (storedConfig && storedConfig.url && storedConfig.anonKey) {
-      // Use stored configuration
-      logger.info(`Using stored Supabase configuration for connection ${connectionId}`, {
-        module: 'supabase-connection',
-        url: storedConfig.url.split('//')[1],
-        environment: storedConfig.environment || getEnvironmentId(),
-        configTimestamp: storedConfig.savedAt || 'unknown'
-      });
-      
-      // Log more details about the configuration for debugging
-      logger.debug('Supabase configuration details', {
-        module: 'supabase-connection',
-        urlPrefix: storedConfig.url.substring(0, 12) + '...',
-        anonKeyPrefix: storedConfig.anonKey.substring(0, 10) + '...',
-        hasServiceKey: !!storedConfig.serviceKey,
-        isInitialized: storedConfig.isInitialized
+      // Use stored configuration - minimal logging
+      logger.info(`Using stored Supabase configuration`, {
+        module: 'supabase-connection'
       });
       
       // Create and initialize the Supabase client with stored config
@@ -337,13 +325,10 @@ export function getSupabaseClient() {
         }
       });
       
-      // Check health and start monitoring
+      // Check health and start monitoring - with reduced logging
       setTimeout(async () => {
         try {
           if (!await checkConnectionHealth()) {
-            logger.warn('Connection health check failed, attempting repair', {
-              module: 'supabase-connection'
-            });
             await attemptConnectionRepair();
           }
           
@@ -354,10 +339,7 @@ export function getSupabaseClient() {
           // This helps prevent RLS policy violations
           await checkAndFixUserPermissions();
         } catch (e) {
-          // Don't let this error affect the main flow
-          logger.error('Error in connection health check', e, {
-            module: 'supabase-connection'
-          });
+          // Silent error handling
         }
       }, 1000);
       
@@ -405,11 +387,9 @@ export function getSupabaseClient() {
       }
     }, 0);
     
-    // No valid configuration available
+    // No valid configuration available - minimal logging
     logger.warn('No valid Supabase configuration available', { 
-      module: 'supabase-connection',
-      connectionId,
-      environment: getEnvironmentId()
+      module: 'supabase-connection'
     });
     
     return null;
@@ -579,18 +559,12 @@ export async function checkConnectionHealth(): Promise<boolean> {
       
       // Check for timeout
       if (innerError.name === 'AbortError') {
-        logger.warn('Connection health check timed out', {
-          module: 'supabase-connection'
-        });
         return false;
       }
       
       throw innerError;
     }
   } catch (error) {
-    logger.error('Error checking connection health', error, {
-      module: 'supabase-connection'
-    });
     return false;
   }
 }
@@ -602,9 +576,6 @@ export async function checkConnectionHealth(): Promise<boolean> {
 export async function checkAndFixUserPermissions(): Promise<boolean> {
   try {
     if (!supabaseInstance) {
-      logger.warn('Cannot check permissions - no Supabase instance', {
-        module: 'supabase-connection'
-      });
       return false;
     }
     
@@ -612,10 +583,6 @@ export async function checkAndFixUserPermissions(): Promise<boolean> {
     const { data: { user }, error: userError } = await supabaseInstance.auth.getUser();
     
     if (userError || !user) {
-      logger.warn('Cannot check permissions - no authenticated user', {
-        module: 'supabase-connection',
-        error: userError?.message
-      });
       return false;
     }
     
@@ -628,11 +595,6 @@ export async function checkAndFixUserPermissions(): Promise<boolean> {
     
     // If profile doesn't exist or there's an error, try to create it
     if (profileError || !profile) {
-      logger.info('Creating missing profile for user', {
-        module: 'supabase-connection',
-        userId: user.id
-      });
-      
       // Insert profile with minimal data
       const { error: insertError } = await supabaseInstance
         .from('profiles')
@@ -642,25 +604,12 @@ export async function checkAndFixUserPermissions(): Promise<boolean> {
         });
       
       if (insertError) {
-        logger.error('Failed to create profile for user', {
-          module: 'supabase-connection',
-          userId: user.id,
-          error: insertError.message
-        });
         return false;
       }
-      
-      logger.info('Successfully created profile for user', {
-        module: 'supabase-connection',
-        userId: user.id
-      });
     }
     
     return true;
   } catch (error) {
-    logger.error('Error checking user permissions', error, {
-      module: 'supabase-connection'
-    });
     return false;
   }
 }
@@ -687,10 +636,6 @@ export function startConnectionMonitoring(intervalMs = 60000): () => void {
       
       // If not healthy, attempt repair
       if (!isHealthy) {
-        logger.warn('Connection health check failed, attempting repair', {
-          module: 'supabase-connection'
-        });
-        
         const repaired = await attemptConnectionRepair();
         
         if (repaired) {
@@ -702,9 +647,7 @@ export function startConnectionMonitoring(intervalMs = 60000): () => void {
         }
       }
     } catch (e) {
-      logger.error('Error in connection monitoring', e, {
-        module: 'supabase-connection'
-      });
+      // Silent error handling
     }
   };
   
@@ -730,10 +673,6 @@ export function startConnectionMonitoring(intervalMs = 60000): () => void {
  */
 export async function attemptConnectionRepair(): Promise<boolean> {
   try {
-    logger.info('Attempting to repair connection', {
-      module: 'supabase-connection'
-    });
-    
     // Get current connection state
     const connectionInfo = getConnectionInfo();
     
@@ -744,9 +683,6 @@ export async function attemptConnectionRepair(): Promise<boolean> {
       
       // Check if that fixed it
       if (await checkConnectionHealth()) {
-        logger.info('Connection repaired by resetting client', {
-          module: 'supabase-connection'
-        });
         return true;
       }
       
@@ -758,12 +694,6 @@ export async function attemptConnectionRepair(): Promise<boolean> {
         
         const repairedUrl = attemptUrlFormatRepair(storedConfig.url);
         if (repairedUrl && repairedUrl !== storedConfig.url) {
-          logger.info('Attempting repair with fixed URL format', {
-            module: 'supabase-connection',
-            originalUrl: storedConfig.url.substring(0, 10) + '...',
-            fixedUrl: repairedUrl.substring(0, 10) + '...'
-          });
-          
           // Test connection with repaired URL
           const connectionTest = await testSupabaseConnection(repairedUrl, storedConfig.anonKey);
           
@@ -786,15 +716,8 @@ export async function attemptConnectionRepair(): Promise<boolean> {
               
               const siteConfig = createSiteConfig(repairedUrl, storedConfig.anonKey);
               await updateStaticSiteConfig(siteConfig);
-              
-              logger.info('Updated site-config.json with repaired URL', {
-                module: 'supabase-connection'
-              });
             } catch (e) {
-              // Log but continue
-              logger.warn('Could not update site-config.json with repaired URL', e, {
-                module: 'supabase-connection'
-              });
+              // Silent error handling
             }
             
             return true;
@@ -810,9 +733,6 @@ export async function attemptConnectionRepair(): Promise<boolean> {
         
         // Check if that fixed it
         if (await checkConnectionHealth()) {
-          logger.info('Connection repaired by reloading configuration', {
-            module: 'supabase-connection'
-          });
           return true;
         }
       }
@@ -820,10 +740,6 @@ export async function attemptConnectionRepair(): Promise<boolean> {
       // Try with service key if available
       const configWithServiceKey = getStoredConfig();
       if (configWithServiceKey?.serviceKey) {
-        logger.info('Attempting repair with service key', {
-          module: 'supabase-connection'
-        });
-        
         // Create temporary client with service key
         const tempClient = createClient(configWithServiceKey.url, configWithServiceKey.serviceKey, {
           auth: {
@@ -856,29 +772,17 @@ export async function attemptConnectionRepair(): Promise<boolean> {
             
             // Check if that fixed it
             if (await checkConnectionHealth()) {
-              logger.info('Connection repaired using service key', {
-                module: 'supabase-connection'
-              });
               return true;
             }
           }
         } catch (e) {
-          logger.error('Error during service key repair attempt', e, {
-            module: 'supabase-connection'
-          });
+          // Silent error handling
         }
       }
     }
     
-    logger.warn('Unable to repair connection', {
-      module: 'supabase-connection'
-    });
-    
     return false;
   } catch (error) {
-    logger.error('Error during connection repair attempt', error, {
-      module: 'supabase-connection'
-    });
     return false;
   }
 }
