@@ -355,25 +355,36 @@ export async function executeBootstrap(
           
           // Create client with explicit error handling
           try {
-            const client = getSupabaseClient();
+            const client = await getSupabaseClient();
             
-            if (client) {
+            if (client && client.auth && typeof client.auth.getSession === 'function') {
               // Test if auth is working
-              const { data, error } = await client.auth.getSession();
-              
-              if (error) {
-                logger.warn(`Bootstrap client initialization auth check failed on attempt ${attempt}`, {
+              try {
+                const { data, error } = await client.auth.getSession();
+                
+                if (error) {
+                  logger.warn(`Bootstrap client initialization auth check failed on attempt ${attempt}`, {
+                    module: 'bootstrap-state-machine',
+                    error: error.message
+                  });
+                  
+                  if (attempt < maxAttempts) {
+                    return await retryClientInit(attempt + 1, maxAttempts);
+                  }
+                } else {
+                  logger.info(`Bootstrap forced client initialization: success on attempt ${attempt}`, {
+                    module: 'bootstrap-state-machine'
+                  });
+                }
+              } catch (authError) {
+                logger.warn(`Bootstrap client auth check threw an error on attempt ${attempt}`, {
                   module: 'bootstrap-state-machine',
-                  error: error.message
+                  error: authError instanceof Error ? authError.message : String(authError)
                 });
                 
                 if (attempt < maxAttempts) {
                   return await retryClientInit(attempt + 1, maxAttempts);
                 }
-              } else {
-                logger.info(`Bootstrap forced client initialization: success on attempt ${attempt}`, {
-                  module: 'bootstrap-state-machine'
-                });
               }
             } else if (attempt < maxAttempts) {
               logger.warn(`Bootstrap forced client initialization failed, retry ${attempt}/${maxAttempts}`, {

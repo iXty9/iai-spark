@@ -281,7 +281,7 @@ export async function getSupabaseClient() {
     
     // Try to load from site-config.json first
     try {
-      const staticConfig = fetchStaticSiteConfig();
+      const staticConfig = await fetchStaticSiteConfig();
       if (staticConfig && staticConfig.supabaseUrl && staticConfig.supabaseAnonKey) {
         // Convert to the format expected by the Supabase client
         const supabaseConfig = {
