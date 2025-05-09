@@ -375,9 +375,6 @@ export function getSupabaseClient() {
             }
           });
           
-          // Force a page reload to use the new config
-          window.location.href = '/';
-          
           return;
         }
         
@@ -875,16 +872,6 @@ export function isConfigEmpty(): boolean {
   
   // Check if we have no config at all
   if (!config) {
-    // Before returning true, check if we have a valid site-config.json
-    try {
-      const staticConfig = fetchStaticSiteConfig();
-      if (staticConfig && staticConfig.supabaseUrl && staticConfig.supabaseAnonKey) {
-        // We have a valid static config, so we should use that instead
-        return false;
-      }
-    } catch (e) {
-      // Ignore errors and continue with the check
-    }
     return true;
   }
   
@@ -921,7 +908,13 @@ export function shouldBypassRedirect(pathname: string): boolean {
  */
 export async function checkPublicBootstrapConfig(): Promise<boolean> {
   try {
-    // Always try to fetch public config first
+    // Check if we already have config first
+    const config = getStoredConfig();
+    if (config && config.url && config.anonKey) {
+      return true;
+    }
+    
+    // Try to fetch public config
     try {
       const publicConfig = await fetchStaticSiteConfig();
       
@@ -941,30 +934,10 @@ export async function checkPublicBootstrapConfig(): Promise<boolean> {
         // Save the config
         saveConfig(supabaseConfig);
         
-        // Initialize client with this config
-        resetSupabaseClient();
-        supabaseInstance = createClient<Database>(supabaseConfig.url, supabaseConfig.anonKey, {
-          auth: {
-            storage: localStorage,
-            persistSession: true,
-            autoRefreshToken: true,
-            debug: false
-          }
-        });
-        
-        // Force a page reload to use the new config
-        window.location.href = '/';
-        
         return true;
       }
     } catch (e) {
       // Silently handle fetch errors
-    }
-    
-    // Check if we already have config as a fallback
-    const config = getStoredConfig();
-    if (config && config.url && config.anonKey) {
-      return true;
     }
     
     return false;
@@ -1020,53 +993,42 @@ export async function getRedirectPath(): Promise<string | null> {
       return null;
     }
     
-    // Check for static config file first
-    const staticConfig = await fetchStaticSiteConfig();
-    
-    // If static config exists and is valid, use it to initialize the app
-    if (staticConfig && staticConfig.supabaseUrl && staticConfig.supabaseUrl.trim() && 
-        staticConfig.supabaseAnonKey && staticConfig.supabaseAnonKey.trim()) {
-      
-      // Always load from static config if it exists
-      // Convert to the format expected by the Supabase client
-      const supabaseConfig = {
-        url: staticConfig.supabaseUrl,
-        anonKey: staticConfig.supabaseAnonKey,
-        isInitialized: true,
-        savedAt: staticConfig.lastUpdated || new Date().toISOString(),
-        environment: getEnvironmentId()
-      };
-      
-      // Save the config
-      saveConfig(supabaseConfig);
-      
-      // Initialize client with this config
-      resetSupabaseClient();
-      supabaseInstance = createClient<Database>(supabaseConfig.url, supabaseConfig.anonKey, {
-        auth: {
-          storage: localStorage,
-          persistSession: true,
-          autoRefreshToken: true,
-          debug: false
-        }
-      });
-      
-      // No redirect needed, we've loaded the config
+    // Check if we already have a valid stored config
+    const storedConfig = getStoredConfig();
+    if (storedConfig && storedConfig.url && storedConfig.anonKey) {
+      // We already have a valid config, no redirect needed
       return null;
     }
     
-    // If static config is missing or empty, redirect to initialization
-    if (!staticConfig || !staticConfig.supabaseUrl || !staticConfig.supabaseUrl.trim() || 
-        !staticConfig.supabaseAnonKey || !staticConfig.supabaseAnonKey.trim()) {
+    // Check for static config file
+    try {
+      const staticConfig = await fetchStaticSiteConfig();
       
-      // Clear any stored config since we're missing static config
-      clearConfig();
-      
-      return '/initialize';
+      // If static config exists and is valid, use it to initialize the app
+      if (staticConfig && staticConfig.supabaseUrl && staticConfig.supabaseUrl.trim() && 
+          staticConfig.supabaseAnonKey && staticConfig.supabaseAnonKey.trim()) {
+        
+        // Convert to the format expected by the Supabase client
+        const supabaseConfig = {
+          url: staticConfig.supabaseUrl,
+          anonKey: staticConfig.supabaseAnonKey,
+          isInitialized: true,
+          savedAt: staticConfig.lastUpdated || new Date().toISOString(),
+          environment: getEnvironmentId()
+        };
+        
+        // Save the config
+        saveConfig(supabaseConfig);
+        
+        // No redirect needed, we've loaded the config
+        return null;
+      }
+    } catch (e) {
+      // If we can't load the static config, continue to initialization
     }
     
-    // No redirect needed
-    return null;
+    // If we get here, we don't have a valid config from any source
+    return '/initialize';
   } catch (error) {
     return null;
   }
