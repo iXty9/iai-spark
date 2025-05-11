@@ -1,673 +1,173 @@
-/**
- * Unified configuration loader service
- * Provides a standardized approach to loading Supabase configuration
- * with clear priority order and error handling
- */
-
 import { logger } from '@/utils/logging';
-import { fetchStaticSiteConfig, getConfigFromEnvironment, readConfigFromLocalStorage, writeConfigToLocalStorage, clearLocalStorageConfig, convertSupabaseConfigToSiteConfig, convertSiteConfigToSupabaseConfig } from '@/services/site-config/site-config-file-service';
+import {
+  fetchStaticSiteConfig,
+  getConfigFromEnvironment,
+  readConfigFromLocalStorage,
+  writeConfigToLocalStorage,
+  clearLocalStorageConfig,
+  convertSupabaseConfigToSiteConfig,
+  convertSiteConfigToSupabaseConfig
+} from '@/services/site-config/site-config-file-service';
 import { fetchBootstrapConfig, testBootstrapConnection } from '@/services/supabase/bootstrap-service';
 import { SupabaseConfig } from '@/config/supabase/types';
 import { getEnvironmentId } from '@/config/supabase/environment';
 import { ConfigSource, ConfigLoadResult, ConfigLoader } from './config-loader-types';
 import { validateConfig } from './config-validation';
-
-// Re-export types for backward compatibility
 export { ConfigSource };
 export type { ConfigLoadResult };
 
-// Implement the ConfigLoader interface
-const configLoaderImpl: ConfigLoader = {
-  loadConfiguration,
-  saveConfiguration
-};
+const now = () => new Date().toISOString();
+const createConfig = (url: string, anonKey: string, serviceKey?: string, inited = true) => ({
+  url: url.trim(), anonKey: anonKey.trim(),
+  ...(serviceKey ? { serviceKey: serviceKey.trim() } : {}),
+  isInitialized: inited, savedAt: now(), environment: getEnvironmentId()
+});
 
-// Export the implementation
-export const configLoader = configLoaderImpl;
+const emptyFieldErr = (f: string) => `Config contains empty or invalid value: ${f}`;
+const returnErr = (config: null, source: ConfigSource, error: string) => ({ config, source, error });
 
-/**
- * Load configuration from URL parameters
- * Highest priority - allows explicit overrides
- */
-export async function loadFromUrlParameters(): Promise<ConfigLoadResult> {
-  try {
-    const urlParams = new URLSearchParams(window.location.search);
-    
-    // Check for different possible parameter names
-    const publicUrl = urlParams.get('public_url') || urlParams.get('supabase_url');
-    const publicKey = urlParams.get('public_key') || urlParams.get('supabase_key') || urlParams.get('anon_key');
-    
-    if (!publicUrl || !publicKey) {
-      return { config: null, source: ConfigSource.URL_PARAMETERS };
-    }
-    
-    // Check if values are empty strings
-    if (!publicUrl.trim() || !publicKey.trim()) {
-      logger.warn('URL parameters contain empty values', {
-        module: 'config-loader',
-        hasUrlParam: !!publicUrl,
-        hasKeyParam: !!publicKey
-      });
-      
-      return { 
-        config: null, 
-        source: ConfigSource.URL_PARAMETERS,
-        error: 'URL parameters contain empty values'
-      };
-    }
-    
-    logger.info('Found potential configuration in URL parameters', {
-      module: 'config-loader'
-    });
-    
-    // Test if the connection works with enhanced testing
-    const connectionTest = await testBootstrapConnection(publicUrl, publicKey);
-    
-    if (!connectionTest.isConnected) {
-      logger.warn('URL parameter configuration failed connection test', {
-        module: 'config-loader',
-        error: connectionTest.error,
-        errorCode: connectionTest.errorCode
-      });
-      return { 
-        config: null, 
-        source: ConfigSource.URL_PARAMETERS,
-        error: `Connection test failed: ${connectionTest.error}`
-      };
-    }
-    
-    // Try to bootstrap from these credentials
-    const bootstrapResult = await fetchBootstrapConfig(publicUrl, publicKey);
-    
-    if ('error' in bootstrapResult) {
-      logger.warn('Bootstrap failed for URL parameters', {
-        module: 'config-loader',
-        error: bootstrapResult.error,
-        code: bootstrapResult.code
-      });
-      
-      return { 
-        config: null, 
-        source: ConfigSource.URL_PARAMETERS,
-        error: `Bootstrap failed: ${bootstrapResult.error}`
-      };
-    }
-    
-    logger.info('Successfully loaded configuration from URL parameters', {
-      module: 'config-loader'
-    });
-    
-    // Create config object
-    const configObj = {
-      url: bootstrapResult.url,
-      anonKey: bootstrapResult.anonKey,
-      serviceKey: bootstrapResult.serviceKey,
-      isInitialized: bootstrapResult.isInitialized || true,
-      savedAt: new Date().toISOString(),
-      environment: getEnvironmentId()
-    };
-    
-    // Validate the configuration
-    const validation = validateConfig(configObj);
-    
-    if (!validation.valid) {
-      logger.warn('URL parameter configuration validation failed', {
-        module: 'config-loader',
-        errors: validation.errors
-      });
-      
-      return {
-        config: null,
-        source: ConfigSource.URL_PARAMETERS,
-        error: `Configuration validation failed: ${validation.errors?.join(', ')}`
-      };
-    }
-    
-    return {
-      config: validation.config,
-      source: ConfigSource.URL_PARAMETERS
-    };
-  } catch (error) {
-    logger.error('Error loading configuration from URL parameters', error, {
-      module: 'config-loader'
-    });
-    return { 
-      config: null, 
-      source: ConfigSource.URL_PARAMETERS,
-      error: error instanceof Error ? error.message : String(error)
-    };
-  }
+function isEmpty(val?: string) { return !val || !val.trim(); }
+function validFields(obj: any, fields: string[]) {
+  for(const f of fields) if(isEmpty(obj?.[f])) return emptyFieldErr(f);
+  return null;
 }
-
-/**
- * Load configuration from static site config file
- * Second priority - deployment-specific settings
- */
-export async function loadFromStaticFile(): Promise<ConfigLoadResult> {
-  try {
-    logger.info('Attempting to load static site config file', {
-      module: 'config-loader'
-    });
-    
-    // Add retry mechanism for fetching the static config
-    let retries = 3;
-    let staticConfig = null;
-    let lastError = null;
-    
-    while (retries > 0 && !staticConfig) {
-      try {
-        logger.info(`Static config fetch attempt ${4-retries}/3`, {
-          module: 'config-loader'
-        });
-        
-        staticConfig = await fetchStaticSiteConfig();
-        
-        if (staticConfig) {
-          logger.info('Static config fetch successful', {
-            module: 'config-loader'
-          });
-          break;
-        } else {
-          logger.warn(`Static config fetch returned null on attempt ${4-retries}`, {
-            module: 'config-loader'
-          });
-        }
-      } catch (e) {
-        lastError = e;
-        logger.warn(`Static config fetch attempt failed, ${retries-1} retries left`, {
-          module: 'config-loader',
-          error: e instanceof Error ? e.message : String(e)
-        });
-      }
-      
-      retries--;
-      // Wait before retry with increasing delay
-      await new Promise(resolve => setTimeout(resolve, 500 * (4-retries)));
-    }
-    
-    if (!staticConfig) {
-      logger.error('All static config fetch attempts failed', {
-        module: 'config-loader',
-        lastError: lastError instanceof Error ? lastError.message : String(lastError)
-      });
-      return { 
-        config: null, 
-        source: ConfigSource.STATIC_FILE,
-        error: lastError instanceof Error ? lastError.message : 'Failed to fetch static config'
-      };
-    }
-    
-    // Check for empty string values in the config
-    if (!staticConfig.supabaseUrl || !staticConfig.supabaseUrl.trim() || 
-        !staticConfig.supabaseAnonKey || !staticConfig.supabaseAnonKey.trim()) {
-      logger.warn('Static site config contains empty values', {
-        module: 'config-loader',
-        hasUrl: !!staticConfig.supabaseUrl,
-        hasAnonKey: !!staticConfig.supabaseAnonKey
-      });
-      
-      return {
-        config: null,
-        source: ConfigSource.STATIC_FILE,
-        error: 'Static site config contains empty or invalid values'
-      };
-    }
-    
-    // Validate URL format
-    const { isValidUrl, attemptUrlFormatRepair } = await import('./config-validation');
-    
-    if (!isValidUrl(staticConfig.supabaseUrl)) {
-      logger.warn('Static site config contains invalid URL format', {
-        module: 'config-loader',
-        url: staticConfig.supabaseUrl
-      });
-      
-      // Try to repair the URL
-      const repairedUrl = attemptUrlFormatRepair(staticConfig.supabaseUrl);
-      if (repairedUrl) {
-        logger.info('Repaired malformed URL in static config', {
-          module: 'config-loader',
-          originalUrl: staticConfig.supabaseUrl,
-          repairedUrl: repairedUrl
-        });
-        
-        // Use the repaired URL
-        staticConfig.supabaseUrl = repairedUrl;
-      } else {
-        return {
-          config: null,
-          source: ConfigSource.STATIC_FILE,
-          error: 'Static site config contains invalid URL format'
-        };
-      }
-    }
-    
-    logger.info('Successfully loaded static site config file', {
-      module: 'config-loader',
-      host: staticConfig.siteHost,
-      hasUrl: !!staticConfig.supabaseUrl,
-      hasAnonKey: !!staticConfig.supabaseAnonKey
-    });
-    
-    // Validate the config before returning
-    if (!staticConfig.supabaseUrl || !staticConfig.supabaseAnonKey) {
-      logger.error('Static config is missing required fields', {
-        module: 'config-loader',
-        hasUrl: !!staticConfig.supabaseUrl,
-        hasAnonKey: !!staticConfig.supabaseAnonKey
-      });
-      
-      return {
-        config: null,
-        source: ConfigSource.STATIC_FILE,
-        error: 'Static config is missing required fields'
-      };
-    }
-    
-    const config = {
-      url: staticConfig.supabaseUrl.trim(),
-      anonKey: staticConfig.supabaseAnonKey.trim(),
-      isInitialized: true,
-      savedAt: new Date().toISOString(),
-      environment: getEnvironmentId()
-    };
-    
-    // Log the actual values to help with debugging (partial values for security)
-    logger.info('Static config values:', {
-      module: 'config-loader',
-      urlPrefix: config.url.substring(0, 12) + '...',
-      anonKeyPrefix: config.anonKey.substring(0, 10) + '...',
-      environment: config.environment
-    });
-    
-    return {
-      config,
-      source: ConfigSource.STATIC_FILE
-    };
-  } catch (error) {
-    logger.error('Error loading static site config file', error, {
-      module: 'config-loader'
-    });
-    return { 
-      config: null, 
-      source: ConfigSource.STATIC_FILE,
-      error: error instanceof Error ? error.message : String(error)
-    };
-  }
-}
-
-/**
- * Load configuration from localStorage
- * Third priority - for returning users
- */
-export function loadFromLocalStorage(): ConfigLoadResult {
-  try {
-    logger.info('Attempting to load configuration from localStorage', {
-      module: 'config-loader'
-    });
-    
-    const localConfig = readConfigFromLocalStorage();
-    
-    if (!localConfig) {
-      return { config: null, source: ConfigSource.LOCAL_STORAGE };
-    }
-    
-    // Check for empty string values in the config
-    if (!localConfig.supabaseUrl || !localConfig.supabaseUrl.trim() || 
-        !localConfig.supabaseAnonKey || !localConfig.supabaseAnonKey.trim()) {
-      logger.warn('localStorage config contains empty values', {
-        module: 'config-loader',
-        hasUrl: !!localConfig.supabaseUrl,
-        hasAnonKey: !!localConfig.supabaseAnonKey
-      });
-      
-      // Clear the invalid local storage config
-      clearLocalStorageConfig();
-      
-      return { 
-        config: null, 
-        source: ConfigSource.LOCAL_STORAGE,
-        error: 'Local storage config contains empty values'
-      };
-    }
-    
-    logger.info('Successfully loaded configuration from localStorage', {
-      module: 'config-loader'
-    });
-    
-    return {
-      config: {
-        url: localConfig.supabaseUrl.trim(),
-        anonKey: localConfig.supabaseAnonKey.trim(),
-        isInitialized: true,
-        savedAt: new Date().toISOString(),
-        environment: getEnvironmentId()
-      },
-      source: ConfigSource.LOCAL_STORAGE
-    };
-  } catch (error) {
-    logger.error('Error loading configuration from localStorage', error, {
-      module: 'config-loader'
-    });
-    return { 
-      config: null, 
-      source: ConfigSource.LOCAL_STORAGE,
-      error: error instanceof Error ? error.message : String(error)
-    };
-  }
-}
-
-/**
- * Load configuration from environment variables
- * Fourth priority - for development
- */
-export function loadFromEnvironment(): ConfigLoadResult {
-  try {
-    logger.info('Attempting to load configuration from environment variables', {
-      module: 'config-loader'
-    });
-    
-    const envConfig = getConfigFromEnvironment();
-    
-    if (!envConfig) {
-      return { config: null, source: ConfigSource.ENVIRONMENT };
-    }
-    
-    // Check for empty string values in the config
-    if (!envConfig.supabaseUrl || !envConfig.supabaseUrl.trim() || 
-        !envConfig.supabaseAnonKey || !envConfig.supabaseAnonKey.trim()) {
-      logger.warn('Environment variables contain empty values', {
-        module: 'config-loader',
-        hasUrl: !!envConfig.supabaseUrl,
-        hasAnonKey: !!envConfig.supabaseAnonKey
-      });
-      
-      return { 
-        config: null, 
-        source: ConfigSource.ENVIRONMENT,
-        error: 'Environment variables contain empty values'
-      };
-    }
-    
-    logger.info('Successfully loaded configuration from environment variables', {
-      module: 'config-loader'
-    });
-    
-    return {
-      config: {
-        url: envConfig.supabaseUrl.trim(),
-        anonKey: envConfig.supabaseAnonKey.trim(),
-        isInitialized: true,
-        savedAt: new Date().toISOString(),
-        environment: getEnvironmentId()
-      },
-      source: ConfigSource.ENVIRONMENT
-    };
-  } catch (error) {
-    logger.error('Error loading configuration from environment', error, {
-      module: 'config-loader'
-    });
-    return { 
-      config: null, 
-      source: ConfigSource.ENVIRONMENT,
-      error: error instanceof Error ? error.message : String(error)
-    };
-  }
-}
-
-/**
- * Load configuration from database bootstrap
- * Fifth priority - fallback method
- */
-export async function loadFromDatabase(defaultUrl?: string, defaultKey?: string): Promise<ConfigLoadResult> {
-  try {
-    if (!defaultUrl || !defaultKey || !defaultUrl.trim() || !defaultKey.trim()) {
-      logger.warn('No default credentials available for database bootstrap', {
-        module: 'config-loader',
-        hasUrl: !!defaultUrl,
-        hasKey: !!defaultKey
-      });
-      return { config: null, source: ConfigSource.DATABASE };
-    }
-    
-    logger.info('Attempting to bootstrap from database', {
-      module: 'config-loader'
-    });
-    
-    const databaseUrl = defaultUrl.trim();
-    const databaseKey = defaultKey.trim();
-    
-    // Fetch bootstrap config from database
-    const bootstrapConfigResult = await fetchBootstrapConfig(databaseUrl, databaseKey);
-    
-    // Check if the result is an error object
-    if ('error' in bootstrapConfigResult) {
-      logger.warn('Failed to fetch bootstrap config from database', {
-        module: 'config-loader',
-        url: databaseUrl,
-        error: bootstrapConfigResult.error
-      });
-      return { config: null, source: ConfigSource.DATABASE, error: bootstrapConfigResult.error };
-    }
-    
-    // If it's not an error, it's a valid config
-    const { url, anonKey, serviceKey, isInitialized } = bootstrapConfigResult;
-    
-    // Validate returned config
-    if (!url || !url.trim() || !anonKey || !anonKey.trim()) {
-      logger.warn('Database returned incomplete config', {
-        module: 'config-loader',
-        hasUrl: !!url,
-        hasAnonKey: !!anonKey
-      });
-      
-      return {
-        config: null,
-        source: ConfigSource.DATABASE,
-        error: 'Database returned incomplete configuration'
-      };
-    }
-    
-    logger.info('Successfully bootstrapped from database', {
-      module: 'config-loader'
-    });
-    
-    return {
-      config: {
-        url: bootstrapConfigResult.url.trim(),
-        anonKey: bootstrapConfigResult.anonKey.trim(),
-        serviceKey: bootstrapConfigResult.serviceKey ? bootstrapConfigResult.serviceKey.trim() : undefined,
-        isInitialized: bootstrapConfigResult.isInitialized || true,
-        savedAt: new Date().toISOString(),
-        environment: getEnvironmentId()
-      },
-      source: ConfigSource.DATABASE
-    };
-  } catch (error) {
-    logger.error('Error bootstrapping from database', error, {
-      module: 'config-loader'
-    });
-    return { 
-      config: null, 
-      source: ConfigSource.DATABASE,
-      error: error instanceof Error ? error.message : String(error)
-    };
-  }
-}
-
-/**
- * Get default configuration
- * Lowest priority - last resort
- */
-export function getDefaultConfig(): ConfigLoadResult {
-  try {
-    // This should be customized based on your application's needs
-    const defaultUrl = import.meta.env.VITE_DEFAULT_SUPABASE_URL || '';
-    const defaultKey = import.meta.env.VITE_DEFAULT_SUPABASE_ANON_KEY || '';
-    
-    if (!defaultUrl || !defaultKey || !defaultUrl.trim() || !defaultKey.trim()) {
-      return { config: null, source: ConfigSource.DEFAULT };
-    }
-    
-    return {
-      config: {
-        url: defaultUrl.trim(),
-        anonKey: defaultKey.trim(),
-        isInitialized: false,
-        savedAt: new Date().toISOString(),
-        environment: getEnvironmentId()
-      },
-      source: ConfigSource.DEFAULT
-    };
-  } catch (error) {
-    logger.error('Error getting default configuration', error, {
-      module: 'config-loader'
-    });
-    return { 
-      config: null, 
-      source: ConfigSource.DEFAULT,
-      error: error instanceof Error ? error.message : String(error)
-    };
-  }
-}
-
-/**
- * Main function to load configuration from all sources in priority order
- * Returns the first valid configuration found
- */
-export async function loadConfiguration(): Promise<ConfigLoadResult> {
-  logger.info('Starting unified configuration loading sequence', {
-    module: 'config-loader'
-  });
-  
-  // 1. Try URL parameters (highest priority)
-  const urlConfig = await loadFromUrlParameters();
-  if (urlConfig.config) {
-    // Save to localStorage for future use
-    const siteConfig = convertSupabaseConfigToSiteConfig(urlConfig.config);
-    writeConfigToLocalStorage(siteConfig);
-    return urlConfig;
-  }
-  
-  // 2. Try static site config file
-  const staticConfig = await loadFromStaticFile();
-  if (staticConfig.config) {
-    // Save to localStorage for future use
-    const siteConfig = convertSupabaseConfigToSiteConfig(staticConfig.config);
-    writeConfigToLocalStorage(siteConfig);
-    return staticConfig;
-  }
-  
-  // 3. Try localStorage
-  const localConfig = loadFromLocalStorage();
-  if (localConfig.config) {
-    return localConfig;
-  }
-  
-  // 4. Try environment variables
-  const envConfig = loadFromEnvironment();
-  if (envConfig.config) {
-    // Save to localStorage for future use
-    const siteConfig = convertSupabaseConfigToSiteConfig(envConfig.config);
-    writeConfigToLocalStorage(siteConfig);
-    return envConfig;
-  }
-  
-  // 5. Try database bootstrap (using default config if available)
-  const defaultConfig = getDefaultConfig();
-  if (defaultConfig.config) {
-    const dbConfig = await loadFromDatabase(
-      defaultConfig.config.url,
-      defaultConfig.config.anonKey
-    );
-    
-    if (dbConfig.config) {
-      // Save to localStorage for future use
-      const siteConfig = convertSupabaseConfigToSiteConfig(dbConfig.config);
-      writeConfigToLocalStorage(siteConfig);
-      return dbConfig;
-    }
-    
-    // If all else fails, return the default config
-    return defaultConfig;
-  }
-  
-  // No configuration found
-  logger.warn('No configuration found from any source', {
-    module: 'config-loader'
-  });
-  
+function valResult(obj: any, source: ConfigSource, extraFields?: string[]) {
+  const err = validFields(obj, ['supabaseUrl','supabaseAnonKey', ...(extraFields||[])]);
+  if (err) return returnErr(null, source, err);
   return {
-    config: null,
-    source: ConfigSource.NONE,
-    error: 'No configuration found from any source'
+    config: createConfig(obj.supabaseUrl, obj.supabaseAnonKey),
+    source
   };
 }
 
-/**
- * Save configuration to localStorage and optionally to other storage mechanisms
- */
+export async function loadFromUrlParameters(): Promise<ConfigLoadResult> {
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const publicUrl = urlParams.get('public_url') || urlParams.get('supabase_url');
+    const publicKey = urlParams.get('public_key') || urlParams.get('supabase_key') || urlParams.get('anon_key');
+    if (isEmpty(publicUrl) || isEmpty(publicKey))
+      return returnErr(null, ConfigSource.URL_PARAMETERS, 'URL parameters contain empty values');
+    const test = await testBootstrapConnection(publicUrl!, publicKey!);
+    if (!test.isConnected) return returnErr(null, ConfigSource.URL_PARAMETERS, `Connection test failed: ${test.error}`);
+    const boot = await fetchBootstrapConfig(publicUrl!, publicKey!);
+    if ('error' in boot) return returnErr(null, ConfigSource.URL_PARAMETERS, `Bootstrap failed: ${boot.error}`);
+    const config = createConfig(boot.url, boot.anonKey, boot.serviceKey, boot.isInitialized ?? true);
+    const validation = validateConfig(config);
+    if (!validation.valid) return returnErr(null, ConfigSource.URL_PARAMETERS, `Validation failed: ${validation.errors?.join(', ')}`);
+    return { config: validation.config, source: ConfigSource.URL_PARAMETERS };
+  } catch (e: any) {
+    return returnErr(null, ConfigSource.URL_PARAMETERS, e?.message ?? String(e));
+  }
+}
+
+export async function loadFromStaticFile(): Promise<ConfigLoadResult> {
+  let retries = 3, staticConfig = null, lastErr;
+  while (retries-- && !staticConfig) {
+    try { staticConfig = await fetchStaticSiteConfig(); }
+    catch (e) { lastErr = e; await new Promise(r => setTimeout(r, 500 * (3 - retries))); }
+  }
+  if (!staticConfig)
+    return returnErr(null, ConfigSource.STATIC_FILE, lastErr instanceof Error ? lastErr.message : 'Static config fetch failed');
+  // Validate and repair
+  const { isValidUrl, attemptUrlFormatRepair } = await import('./config-validation');
+  let url = staticConfig.supabaseUrl;
+  if (!isValidUrl(url ?? '')) url = attemptUrlFormatRepair(url ?? '') || url;
+  if (isEmpty(url) || isEmpty(staticConfig.supabaseAnonKey))
+    return returnErr(null, ConfigSource.STATIC_FILE, 'Static config contains empty values');
+  const config = createConfig(url, staticConfig.supabaseAnonKey);
+  return { config, source: ConfigSource.STATIC_FILE };
+}
+
+export function loadFromLocalStorage(): ConfigLoadResult {
+  try {
+    const localConfig = readConfigFromLocalStorage();
+    if (!localConfig || isEmpty(localConfig.supabaseUrl) || isEmpty(localConfig.supabaseAnonKey)) {
+      clearLocalStorageConfig();
+      return returnErr(null, ConfigSource.LOCAL_STORAGE, 'Local storage config contains empty values');
+    }
+    return { config: createConfig(localConfig.supabaseUrl, localConfig.supabaseAnonKey), source: ConfigSource.LOCAL_STORAGE };
+  } catch (e: any) {
+    return returnErr(null, ConfigSource.LOCAL_STORAGE, e?.message ?? String(e));
+  }
+}
+
+export function loadFromEnvironment(): ConfigLoadResult {
+  try {
+    const envConfig = getConfigFromEnvironment();
+    if (!envConfig || isEmpty(envConfig.supabaseUrl) || isEmpty(envConfig.supabaseAnonKey))
+      return returnErr(null, ConfigSource.ENVIRONMENT, 'Environment vars empty');
+    return { config: createConfig(envConfig.supabaseUrl, envConfig.supabaseAnonKey), source: ConfigSource.ENVIRONMENT };
+  } catch (e: any) {
+    return returnErr(null, ConfigSource.ENVIRONMENT, e?.message ?? String(e));
+  }
+}
+
+export async function loadFromDatabase(defaultUrl?: string, defaultKey?: string): Promise<ConfigLoadResult> {
+  try {
+    if (isEmpty(defaultUrl) || isEmpty(defaultKey))
+      return returnErr(null, ConfigSource.DATABASE, 'No default credentials for DB');
+    const boot = await fetchBootstrapConfig(defaultUrl!.trim(), defaultKey!.trim());
+    if ('error' in boot)
+      return returnErr(null, ConfigSource.DATABASE, boot.error || 'Bootstrap config error');
+    if (isEmpty(boot.url) || isEmpty(boot.anonKey))
+      return returnErr(null, ConfigSource.DATABASE, 'DB returned incomplete config');
+    return { config: createConfig(boot.url, boot.anonKey, boot.serviceKey, boot.isInitialized ?? true), source: ConfigSource.DATABASE };
+  } catch (e: any) {
+    return returnErr(null, ConfigSource.DATABASE, e?.message ?? String(e));
+  }
+}
+
+export function getDefaultConfig(): ConfigLoadResult {
+  try {
+    const url = import.meta.env.VITE_DEFAULT_SUPABASE_URL || '', key = import.meta.env.VITE_DEFAULT_SUPABASE_ANON_KEY || '';
+    if (isEmpty(url) || isEmpty(key)) return { config: null, source: ConfigSource.DEFAULT };
+    return { config: createConfig(url, key, undefined, false), source: ConfigSource.DEFAULT };
+  } catch (e: any) {
+    return returnErr(null, ConfigSource.DEFAULT, e?.message ?? String(e));
+  }
+}
+
+export async function loadConfiguration(): Promise<ConfigLoadResult> {
+  for (const loader of [
+    async () => await loadFromUrlParameters(),
+    async () => await loadFromStaticFile(),
+    () => loadFromLocalStorage(),
+    () => loadFromEnvironment(),
+    async () => {
+      const def = getDefaultConfig();
+      if (!def.config) return returnErr(null, ConfigSource.NONE, "No config anywhere");
+      const db = await loadFromDatabase(def.config.url, def.config.anonKey);
+      return db.config ? db : def;
+    }
+  ]) {
+    const res = await loader();
+    if (res.config) {
+      // Save to localStorage for all except LOCAL_STORAGE itself
+      if (res.source !== ConfigSource.LOCAL_STORAGE) {
+        const siteConfig = convertSupabaseConfigToSiteConfig(res.config);
+        writeConfigToLocalStorage(siteConfig);
+      }
+      return res;
+    }
+  }
+  return returnErr(null, ConfigSource.NONE, 'No configuration found from any source');
+}
+
 export function saveConfiguration(config: SupabaseConfig): boolean {
   try {
-    if (!config) {
-      logger.error('Cannot save null configuration', {
-        module: 'config-loader'
-      });
-      return false;
-    }
-    
-    // Validate config before saving
+    if (!config) return false;
     const validation = validateConfig(config);
-    
-    if (!validation.valid) {
-      logger.error('Cannot save invalid configuration', {
-        module: 'config-loader',
-        errors: validation.errors
-      });
-      return false;
-    }
-    
-    // Log the config being saved for debugging
-    logger.debug('Saving configuration', {
-      module: 'config-loader',
-      hasUrl: !!config.url,
-      hasAnonKey: !!config.anonKey,
-      urlPrefix: config.url ? config.url.substring(0, 10) + '...' : 'none'
-    });
-    
-    // Convert to SiteConfigEnv format for localStorage
+    if (!validation.valid) return false;
     const siteConfig = convertSupabaseConfigToSiteConfig(config);
-    
-    // Always save to localStorage
-    const localSaved = writeConfigToLocalStorage(siteConfig);
-    
-    if (!localSaved) {
-      logger.warn('Failed to save configuration to localStorage', {
-        module: 'config-loader'
-      });
-      
-      // Try direct localStorage save as fallback
+    if (!writeConfigToLocalStorage(siteConfig)) {
       try {
         const storageKey = getEnvironmentId();
         localStorage.setItem(`spark_supabase_config_${storageKey}`, JSON.stringify(config));
-        logger.info('Saved configuration using direct localStorage method', {
-          module: 'config-loader'
-        });
         return true;
-      } catch (storageError) {
-        logger.error('Direct localStorage save also failed', storageError, {
-          module: 'config-loader'
-        });
-      }
+      } catch {}
     }
-    
-    // Could add other storage mechanisms here
-    
     return true;
-  } catch (error) {
-    logger.error('Error saving configuration', error, {
-      module: 'config-loader'
-    });
-    return false;
-  }
+  } catch { return false; }
 }
+
+export const configLoader: ConfigLoader = { loadConfiguration, saveConfiguration };
