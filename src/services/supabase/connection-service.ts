@@ -1,3 +1,4 @@
+
 import { createClient, SupabaseClient, PostgrestQueryBuilder } from '@supabase/supabase-js';
 import { getStoredConfig, saveConfig, clearConfig } from '@/config/supabase-config';
 import { fetchStaticSiteConfig } from '@/services/site-config/site-config-file-service';
@@ -19,6 +20,19 @@ interface EnvironmentInfo { id: string; host: string; timestamp: string; userAge
 let supabaseInstance: SupabaseClient | null = null;
 let isInitializingClient = false;
 
+// --- Tab visibility tracking ---
+let isTabVisible = true;
+const checkTabVisibility = () => {
+  isTabVisible = document.visibilityState === 'visible';
+  logger.debug('Tab visibility changed', { isVisible: isTabVisible }, { module: 'supabase-connection' });
+};
+
+// Register visibility change listener
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', checkTabVisibility);
+  checkTabVisibility(); // Initialize
+}
+
 // --- Locking ---
 const lockKey = getConnectionKey('initialization_lock'), lockTimeKey = getConnectionKey('initialization_timestamp');
 const acquireInitializationLock = (): boolean => {
@@ -36,6 +50,25 @@ const releaseInitializationLock = () => { try { localStorage.removeItem(lockKey)
 const buildConfig = ({ url, anonKey, serviceKey = '', lastUpdated }: any) => ({
   url, anonKey, serviceKey, isInitialized: true, savedAt: lastUpdated || now(), environment: getEnvId()
 });
+
+// --- Config caching ---
+const configCache = {
+  lastCheck: 0,
+  cachedConfig: null as any,
+  // Cache config results for 5 minutes
+  cacheExpiry: 5 * 60 * 1000,
+  hasValidCache() {
+    return this.cachedConfig && (Date.now() - this.lastCheck < this.cacheExpiry);
+  },
+  updateCache(config: any) {
+    this.cachedConfig = config;
+    this.lastCheck = Date.now();
+  },
+  invalidate() {
+    this.cachedConfig = null;
+    this.lastCheck = 0;
+  }
+};
 
 // --- Core logic ---
 
@@ -56,15 +89,25 @@ export async function testSupabaseConnection(url: string, anonKey: string): Prom
 
 // --- Supabase client (singleton) ---
 export async function getSupabaseClient() {
+  // If we have a cached instance, return it
   if (supabaseInstance?.from) return supabaseInstance;
+  
+  // Check for instance on window object
   if ((window as any)?.supabaseInstance?.from) {
     supabaseInstance = (window as any).supabaseInstance;
     try { if (supabaseInstance.from('test_table').select) return supabaseInstance; }
     catch { supabaseInstance = (window as any).supabaseInstance = null; }
   }
-  if (isInitializingClient) { await new Promise(r=>setTimeout(r,100)); return supabaseInstance || (window as any).supabaseInstance; }
+  
+  // Avoid concurrent initialization
+  if (isInitializingClient) { 
+    await new Promise(r=>setTimeout(r,100)); 
+    return supabaseInstance || (window as any).supabaseInstance; 
+  }
+  
   isInitializingClient = true;
   const lockAcquired = acquireInitializationLock();
+  
   try {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('reset_config') === 'true') { clearConfig(); releaseInitializationLock(); return null; }
@@ -77,38 +120,70 @@ export async function getSupabaseClient() {
       return supabaseInstance;
     }
 
+    // Check cache first before accessing storage
+    if (configCache.hasValidCache() && configCache.cachedConfig?.url?.trim() && configCache.cachedConfig?.anonKey?.trim()) {
+      logger.info('Using cached Supabase config', { module: 'supabase-connection', source: 'cache' });
+      supabaseInstance = createSupabaseClient(configCache.cachedConfig.url, configCache.cachedConfig.anonKey, true);
+      (window as any).supabaseInstance = supabaseInstance;
+      updateConnectionState({ lastAttempt: now(), lastSuccess: now(), attemptCount: 1, source: 'cached_config' });
+      subscribePermissionFix(supabaseInstance);
+      return supabaseInstance;
+    }
+
     // If config in storage
     let cfg = getStoredConfig();
     if (cfg?.url?.trim() && cfg?.anonKey?.trim()) {
+      // Update cache
+      configCache.updateCache(cfg);
+      
       supabaseInstance = createSupabaseClient(cfg.url, cfg.anonKey, true);
       (window as any).supabaseInstance = supabaseInstance;
       localStorage.setItem(getConnectionKey('last_connection_time'), now());
       updateConnectionState({ lastAttempt: now(), lastSuccess: now(), attemptCount: 1, source: 'stored_config' });
       subscribePermissionFix(supabaseInstance);
-      setTimeout(async ()=>{ if (!await checkConnectionHealth()) await attemptConnectionRepair(); startConnectionMonitoring(); await checkAndFixUserPermissions(); }, 1000);
+      
+      // Initialize health monitoring in background
+      setTimeout(async ()=>{ 
+        if (!await checkConnectionHealth()) await attemptConnectionRepair(); 
+        startConnectionMonitoring(); 
+        await checkAndFixUserPermissions(); 
+      }, 1000);
+      
       return supabaseInstance;
     }
 
-    // Try static site-config.json
-    const staticConfig = await fetchStaticSiteConfig();
-    if (staticConfig?.supabaseUrl?.trim() && staticConfig?.supabaseAnonKey?.trim()) {
-      const conf = buildConfig({ url: staticConfig.supabaseUrl, anonKey: staticConfig.supabaseAnonKey, lastUpdated: staticConfig.lastUpdated });
-      saveConfig(conf);
-      resetSupabaseClient();
-      supabaseInstance = createSupabaseClient(conf.url, conf.anonKey, true);
-      (window as any).supabaseInstance = supabaseInstance;
-      return supabaseInstance;
+    // Try static site-config.json - but don't make this request if we're on a non-critical path
+    // to avoid unnecessary traffic
+    if (!shouldBypassRedirect(window.location.pathname)) {
+      const staticConfig = await fetchStaticSiteConfig();
+      if (staticConfig?.supabaseUrl?.trim() && staticConfig?.supabaseAnonKey?.trim()) {
+        const conf = buildConfig({ url: staticConfig.supabaseUrl, anonKey: staticConfig.supabaseAnonKey, lastUpdated: staticConfig.lastUpdated });
+        saveConfig(conf);
+        configCache.updateCache(conf);
+        resetSupabaseClient();
+        supabaseInstance = createSupabaseClient(conf.url, conf.anonKey, true);
+        (window as any).supabaseInstance = supabaseInstance;
+        return supabaseInstance;
+      }
     }
-    // Try bootstrap
-    await checkPublicBootstrapConfig();
+    
+    // Try bootstrap - only if we're on a path that requires it
+    if (!shouldBypassRedirect(window.location.pathname)) {
+      await checkPublicBootstrapConfig();
+    }
 
     if (lockAcquired) releaseInitializationLock();
     supabaseInstance = initializeClientWithFallback() as SupabaseClient<any, "public", any>;
     return supabaseInstance;
   } catch (e) {
     updateConnectionState({ lastAttempt: now(), lastSuccess: null, attemptCount: getConnectionState().attemptCount+1, source: 'error', error: e instanceof Error? e.message:String(e)});
-    toast({title:'Connection Error', description:'Could not connect to database. Please check configuration.',
-      variant:'destructive', action:{altText:"Reconnect",onClick:()=>window.location.href='/initialize'}});
+    
+    // Only show toast on critical paths, not for background operations
+    if (!shouldBypassRedirect(window.location.pathname)) {
+      toast({title:'Connection Error', description:'Could not connect to database. Please check configuration.',
+        variant:'destructive', action:{altText:"Reconnect",onClick:()=>window.location.href='/initialize'}});
+    }
+    
     if (lockAcquired) releaseInitializationLock();
     return null;
   } finally { isInitializingClient = false; }
@@ -134,6 +209,7 @@ export function resetSupabaseClient() {
   logger.info('Resetting Supabase client instance',{module: 'supabase-connection'});
   supabaseInstance = null;
   if (window) (window as any).supabaseInstance = null;
+  configCache.invalidate();
   releaseInitializationLock();
 }
 
@@ -195,20 +271,98 @@ export async function checkAndFixUserPermissions(): Promise<boolean> {
   return true;
 }
 
-export function startConnectionMonitoring(intervalMs = 60_000): () => void {
+// Monitoring intervals in milliseconds
+const ACTIVE_TAB_INTERVAL = 5 * 60 * 1000;   // 5 minutes when tab is active
+const INACTIVE_TAB_INTERVAL = 15 * 60 * 1000; // 15 minutes when tab is inactive
+
+export function startConnectionMonitoring(initialIntervalMs = ACTIVE_TAB_INTERVAL): () => void {
   let interval: number | null = null;
+  let currentInterval = initialIntervalMs;
+  
   const check = async () => {
+    // Skip checks if tab is not visible
+    if (!isTabVisible) {
+      logger.debug('Skipping connection health check in background tab', {}, { module: 'supabase-connection' });
+      return;
+    }
+    
     const isHealthy = await checkConnectionHealth();
-    updateConnectionState({ lastAttempt: now(), lastSuccess: isHealthy ? now() : getConnectionState().lastSuccess,
-      attemptCount: getConnectionState().attemptCount + 1, source: getConnectionState().source,
-      error: isHealthy?undefined:'Connection health check failed' });
-    if (!isHealthy && await attemptConnectionRepair()) updateConnectionState({ lastSuccess: now(), error: undefined });
+    
+    updateConnectionState({ 
+      lastAttempt: now(), 
+      lastSuccess: isHealthy ? now() : getConnectionState().lastSuccess,
+      attemptCount: getConnectionState().attemptCount + 1, 
+      source: getConnectionState().source,
+      error: isHealthy ? undefined : 'Connection health check failed' 
+    });
+    
+    if (!isHealthy && await attemptConnectionRepair()) {
+      updateConnectionState({ lastSuccess: now(), error: undefined });
+    }
   };
-  if (window) { interval = window.setInterval(check, intervalMs); check(); }
-  return () => { if (interval && window) window.clearInterval(interval); };
+  
+  // Update interval based on tab visibility
+  const updateMonitoringInterval = () => {
+    if (interval !== null && window) {
+      window.clearInterval(interval);
+    }
+    
+    currentInterval = isTabVisible ? ACTIVE_TAB_INTERVAL : INACTIVE_TAB_INTERVAL;
+    
+    if (window) {
+      interval = window.setInterval(check, currentInterval);
+      logger.debug('Updated connection monitoring interval', { 
+        isTabVisible, 
+        intervalMs: currentInterval 
+      }, { module: 'supabase-connection' });
+    }
+  };
+  
+  // Set initial interval
+  updateMonitoringInterval();
+  
+  // Add visibility change handler to adjust interval
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', updateMonitoringInterval);
+  }
+  
+  // Run initial check
+  check();
+  
+  // Return cleanup function
+  return () => { 
+    if (interval !== null && window) {
+      window.clearInterval(interval);
+    }
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', updateMonitoringInterval);
+    }
+  };
 }
 
+let repairAttemptTimestamps: number[] = [];
+const MAX_REPAIR_ATTEMPTS = 3;
+const REPAIR_COOLDOWN = 10 * 60 * 1000; // 10 minutes
+
 export async function attemptConnectionRepair(): Promise<boolean> {
+  // Rate limiting for repair attempts
+  const now = Date.now();
+  
+  // Remove timestamps older than cooldown period
+  repairAttemptTimestamps = repairAttemptTimestamps.filter(ts => (now - ts) < REPAIR_COOLDOWN);
+  
+  // If we've exceeded the maximum number of attempts in the cooldown period, skip repair
+  if (repairAttemptTimestamps.length >= MAX_REPAIR_ATTEMPTS) {
+    logger.warn('Connection repair rate limited', { 
+      attemptsInWindow: repairAttemptTimestamps.length,
+      cooldownMs: REPAIR_COOLDOWN
+    }, { module: 'supabase-connection' });
+    return false;
+  }
+  
+  // Record this attempt
+  repairAttemptTimestamps.push(now);
+  
   const ci = getConnectionInfo(), cfg = getStoredConfig();
   if (ci.hasStoredConfig && cfg?.url) {
     resetSupabaseClient(); if (await checkConnectionHealth()) return true;
@@ -219,10 +373,6 @@ export async function attemptConnectionRepair(): Promise<boolean> {
         const test = await testSupabaseConnection(repairedUrl, cfg.anonKey);
         if (typeof test==='object' && test.isConnected) {
           configLoader.saveConfiguration({ ...cfg, url: repairedUrl }); resetSupabaseClient();
-          try {
-            const { createSiteConfig, updateStaticSiteConfig } = await import('@/services/site-config/site-config-file-service');
-            await updateStaticSiteConfig(createSiteConfig(repairedUrl, cfg.anonKey));
-          } catch {}
           return true;
         }
       }
@@ -258,9 +408,33 @@ export function shouldBypassRedirect(pathname: string): boolean {
   return bypassRoutes.some(route => pathname.startsWith(route));
 }
 
+// Limits how often we check public bootstrap config
+const bootstrapCheckInfo = {
+  lastCheck: 0,
+  checkInterval: 5 * 60 * 1000, // 5 minutes
+  canCheck() {
+    return Date.now() - this.lastCheck > this.checkInterval;
+  },
+  recordCheck() {
+    this.lastCheck = Date.now();
+  }
+};
+
 export async function checkPublicBootstrapConfig(): Promise<boolean> {
   const c = getStoredConfig();
   if (c?.url?.trim() && c?.anonKey?.trim()) return true;
+  
+  // Check if we've tried recently
+  if (!bootstrapCheckInfo.canCheck()) {
+    logger.debug('Skipping bootstrap check due to rate limiting', {
+      lastCheck: new Date(bootstrapCheckInfo.lastCheck).toISOString(),
+      nextCheck: new Date(bootstrapCheckInfo.lastCheck + bootstrapCheckInfo.checkInterval).toISOString()
+    }, { module: 'bootstrap-config' });
+    return false;
+  }
+  
+  bootstrapCheckInfo.recordCheck();
+  
   try {
     const publicConfig = await fetchStaticSiteConfig();
     if (publicConfig?.supabaseUrl?.trim() && publicConfig?.supabaseAnonKey?.trim()) {
@@ -308,14 +482,28 @@ export async function getRedirectPath(): Promise<string | null> {
     const pathname = window.location.pathname;
     if (shouldBypassRedirect(pathname)) return isCheckingRedirect = false, null;
     try {
-      const c = getStoredConfig();
-      if (c?.url?.trim() && c?.anonKey?.trim()) return isCheckingRedirect = false, null;
+      // Use cached config when possible
+      if (configCache.hasValidCache()) {
+        const c = configCache.cachedConfig;
+        if (c?.url?.trim() && c?.anonKey?.trim()) return isCheckingRedirect = false, null;
+      } else {
+        const c = getStoredConfig();
+        if (c?.url?.trim() && c?.anonKey?.trim()) {
+          configCache.updateCache(c);
+          return isCheckingRedirect = false, null;
+        }
+      }
     } catch {}
     try {
-      const staticConfig = await fetchStaticSiteConfig();
-      if (staticConfig?.supabaseUrl?.trim() && staticConfig?.supabaseAnonKey?.trim()) {
-        saveConfig(buildConfig({url: staticConfig.supabaseUrl, anonKey: staticConfig.supabaseAnonKey, lastUpdated: staticConfig.lastUpdated}));
-        return isCheckingRedirect = false, null;
+      // Only check static site config if we haven't checked recently
+      if (bootstrapCheckInfo.canCheck()) {
+        bootstrapCheckInfo.recordCheck();
+        const staticConfig = await fetchStaticSiteConfig();
+        if (staticConfig?.supabaseUrl?.trim() && staticConfig?.supabaseAnonKey?.trim()) {
+          saveConfig(buildConfig({url: staticConfig.supabaseUrl, anonKey: staticConfig.supabaseAnonKey, lastUpdated: staticConfig.lastUpdated}));
+          configCache.updateCache(buildConfig({url: staticConfig.supabaseUrl, anonKey: staticConfig.supabaseAnonKey, lastUpdated: staticConfig.lastUpdated}));
+          return isCheckingRedirect = false, null;
+        }
       }
     } catch {}
     return isCheckingRedirect = false, '/initialize';
@@ -326,6 +514,12 @@ export async function getRedirectPath(): Promise<string | null> {
 const configLoader = {
   loadConfiguration: async () => {
     try {
+      // Add rate limiting
+      if (!bootstrapCheckInfo.canCheck()) {
+        return { config: null };
+      }
+      
+      bootstrapCheckInfo.recordCheck();
       const c = await fetchStaticSiteConfig();
       if (c?.supabaseUrl?.trim() && c?.supabaseAnonKey?.trim())
         return { config: buildConfig({ url: c.supabaseUrl, anonKey: c.supabaseAnonKey, lastUpdated: c.lastUpdated }), source: 'STATIC_FILE' };

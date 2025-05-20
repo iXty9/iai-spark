@@ -1,4 +1,3 @@
-
 import { emitDebugEvent } from '@/utils/debug-events';
 import { logger } from '@/utils/logging';
 import { getWebhookUrl, getWebhookTimeout } from './url-provider';
@@ -11,6 +10,23 @@ import {
   dispatchWebhookRequestError
 } from './utils/webhook-events';
 
+// Track webhook calls per tab session
+const webhookSessionTracker = {
+  callsThisSession: 0,
+  tabActive: true,
+  initialize() {
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        this.tabActive = document.visibilityState === 'visible';
+      });
+      this.tabActive = document.visibilityState === 'visible';
+    }
+  }
+};
+
+// Initialize session tracker
+webhookSessionTracker.initialize();
+
 /**
  * Sends a message to the appropriate webhook based on authentication status
  */
@@ -18,6 +34,13 @@ export const sendWebhookMessage = async (
   message: string,
   isAuthenticated: boolean
 ): Promise<any> => {
+  // Skip or delay webhook calls if tab is inactive
+  if (!webhookSessionTracker.tabActive) {
+    logger.debug('Delaying webhook call as tab is inactive', {}, { module: 'webhook' });
+    // Return mock response for inactive tabs
+    return { inactive_tab: true, message: "Tab inactive, delaying real API call" };
+  }
+  
   // Apply rate limiting based on authentication status
   const rateLimitKey = isAuthenticated ? 'authenticated' : 'anonymous';
   if (!webhookRateLimiter.checkLimit(rateLimitKey)) {
@@ -26,20 +49,23 @@ export const sendWebhookMessage = async (
     throw error;
   }
   
+  // Track calls per session
+  webhookSessionTracker.callsThisSession++;
+  
   const webhookUrl = await getWebhookUrl(isAuthenticated);
   
   // Get configurable timeout
   const timeoutMs = await getWebhookTimeout();
   
-  // Validate URL again right before using it
+  // Validate URL again right before using
   if (!isValidWebhookUrl(webhookUrl)) {
     const error = new Error('Invalid webhook URL');
     logger.error('Attempted to use invalid webhook URL', { url: webhookUrl }, { module: 'webhook' });
     throw error;
   }
   
-  // Log only in development
-  if (process.env.NODE_ENV === 'development') {
+  // Log only in development and limit frequency
+  if (process.env.NODE_ENV === 'development' && webhookSessionTracker.callsThisSession <= 5) {
     logger.info(`Using webhook for ${isAuthenticated ? 'authenticated' : 'anonymous'} user`, 
       { url: webhookUrl }, 
       { module: 'webhook' }
@@ -65,16 +91,20 @@ export const sendWebhookMessage = async (
     // Dispatch event to track request start for timer component
     dispatchWebhookRequestStart(requestId, timeoutMs);
     
+    // Prepare message - keep it compact
+    const payload = {
+      message: message,
+      timestamp: new Date().toISOString(),
+      isAuthenticated: isAuthenticated,
+      sessionCall: webhookSessionTracker.callsThisSession
+    };
+    
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        message: message,
-        timestamp: new Date().toISOString(),
-        isAuthenticated: isAuthenticated
-      }),
+      body: JSON.stringify(payload),
       signal: controller.signal
     });
     

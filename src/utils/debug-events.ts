@@ -19,15 +19,28 @@ const eventTracker = {
   // Use a map to store last event by type
   lastEvents: new Map<string, { timestamp: number; details: string }>(),
   
-  // Minimum time between similar events (in ms)
-  minInterval: 5000,
+  // Minimum time between similar events (in ms) - increased from 5s to 15s
+  minInterval: 15000,
   
   // Check if DevMode is enabled globally
   isDevModeEnabled: false,
+  
+  // Track tab visibility
+  isTabVisible: true,
 
   // For updating the dev mode state
   updateDevModeState(isEnabled: boolean) {
     this.isDevModeEnabled = isEnabled;
+  },
+  
+  // Initialize visibility tracking
+  init() {
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        this.isTabVisible = document.visibilityState === 'visible';
+      });
+      this.isTabVisible = document.visibilityState === 'visible';
+    }
   },
   
   // Get a fingerprint for an event to identify similar events
@@ -39,6 +52,11 @@ const eventTracker = {
   
   // Check if an event is too similar to a recent one
   isDuplicate(details: DebugEvent): boolean {
+    // Skip all events when tab is not visible
+    if (!this.isTabVisible) {
+      return true;
+    }
+    
     const fingerprint = this.getEventFingerprint(details);
     
     // Always allow error events through
@@ -79,6 +97,9 @@ const eventTracker = {
   }
 };
 
+// Initialize the tracker
+eventTracker.init();
+
 // Clean up old events every minute
 setInterval(() => eventTracker.cleanup(), 60000);
 
@@ -92,6 +113,11 @@ if (typeof window !== 'undefined') {
 export const emitDebugEvent = (details: DebugEvent): void => {
   // Only emit events if in development or DevMode is enabled
   if (process.env.NODE_ENV !== 'development' && !eventTracker.isDevModeEnabled) {
+    return;
+  }
+  
+  // Skip events when tab is not visible
+  if (!eventTracker.isTabVisible) {
     return;
   }
   

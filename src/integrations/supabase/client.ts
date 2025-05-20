@@ -8,21 +8,47 @@ import { logger } from '@/utils/logging';
 
 // Initialize client as null, will be set properly after bootstrap
 let client = null;
+let isTabVisible = true;
 
-// Attempt to get the client immediately
-client = getSupabaseClient();
+// Keep track of tab visibility
+if (typeof document !== 'undefined') {
+  const handleVisibilityChange = () => {
+    isTabVisible = document.visibilityState === 'visible';
+    logger.debug('Tab visibility changed in supabase client', { 
+      isVisible: isTabVisible 
+    }, { module: 'supabase-client' });
+  };
+  
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  isTabVisible = document.visibilityState === 'visible';
+}
+
+// Attempt to get the client immediately (but only if tab is visible)
+if (isTabVisible) {
+  client = getSupabaseClient();
+} else {
+  logger.debug('Delaying initial Supabase client load as tab is inactive', { 
+    isVisible: isTabVisible 
+  }, { module: 'supabase-client' });
+}
 
 // If client isn't available, try again after a delay to allow bootstrap to complete
-if (!client) {
+if (!client && isTabVisible) {
   logger.info('Supabase client not available immediately, scheduling retry', {
     module: 'supabase-client'
   });
   
   let retries = 0;
-  const maxRetries = 3;
+  const maxRetries = 2; // Reduced from 3 to 2
   
   // Function to retry client initialization
   const retryClientInit = () => {
+    // Skip if tab is not visible
+    if (!isTabVisible) {
+      logger.debug('Skipping Supabase client retry as tab is inactive', {}, { module: 'supabase-client' });
+      return;
+    }
+    
     retries++;
     client = getSupabaseClient();
     
@@ -45,7 +71,7 @@ if (!client) {
       emitSupabaseConnectionEvent('disconnected', `Client not initialized after retry ${retries}`);
       
       // Schedule next retry with increasing delay
-      const delay = 1500 * Math.pow(1.5, retries);
+      const delay = 2000 * Math.pow(1.5, retries); // Increased base delay
       retryTimeoutId = setTimeout(retryClientInit, delay);
     } else {
       logger.error('Supabase client initialization failed after multiple retries', {
@@ -70,8 +96,8 @@ if (!client) {
   };
   
   // Schedule first retry
-  let retryTimeoutId = setTimeout(retryClientInit, 1500);
-} else {
+  let retryTimeoutId = setTimeout(retryClientInit, 2000); // Increased from 1500ms
+} else if (client) {
   // Emit connection status for debugging if client is available immediately
   logger.info('Supabase client initialized immediately', {
     module: 'supabase-client'
@@ -83,26 +109,35 @@ if (!client) {
 export const supabase = (() => {
   return function getClient() {
     if (!client) {
-      // If client is still not available, force a retry
-      client = getSupabaseClient();
-      
-      if (!client) {
-        logger.error('Supabase client requested but not available', {
-          module: 'supabase-client'
-        });
+      // Only attempt initialization if tab is visible
+      if (isTabVisible) {
+        // If client is still not available, force a retry
+        client = getSupabaseClient();
         
-        // Don't throw an error if we're already on the initialize page
-        // This prevents infinite redirects and allows the initialize page to work
-        if (!window.location.pathname.includes('/initialize')) {
-          logger.info('Redirecting to initialize page', {
-            module: 'supabase-client',
-            currentPath: window.location.pathname
+        if (!client) {
+          logger.error('Supabase client requested but not available', {
+            module: 'supabase-client'
           });
-          window.location.href = '/initialize';
-          return null; // Return null instead of throwing
+          
+          // Don't throw an error if we're already on the initialize page
+          // This prevents infinite redirects and allows the initialize page to work
+          if (!window.location.pathname.includes('/initialize')) {
+            logger.info('Redirecting to initialize page', {
+              module: 'supabase-client',
+              currentPath: window.location.pathname
+            });
+            window.location.href = '/initialize';
+            return null; // Return null instead of throwing
+          }
+          
+          // Return null instead of throwing an error when on initialize page
+          return null;
         }
-        
-        // Return null instead of throwing an error when on initialize page
+      } else {
+        // If tab is inactive, don't attempt to get client
+        logger.debug('Supabase client requested while tab inactive', { 
+          isVisible: isTabVisible
+        }, { module: 'supabase-client' });
         return null;
       }
     }
@@ -119,4 +154,9 @@ export function isClientReady(): boolean {
   } catch (e) {
     return false;
   }
+}
+
+// Add tab visibility tracking
+export function isTabActive(): boolean {
+  return isTabVisible;
 }

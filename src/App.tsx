@@ -21,9 +21,35 @@ import "./App.css";
 function App() {
   // State to track client initialization
   const [clientInitialized, setClientInitialized] = useState<boolean>(false);
+  // Track tab visibility for smarter initialization
+  const [isTabVisible, setIsTabVisible] = useState<boolean>(true);
+  
+  // Monitor tab visibility
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsTabVisible(document.visibilityState === 'visible');
+    };
+    
+    // Set initial value
+    setIsTabVisible(document.visibilityState === 'visible');
+    
+    // Add listener
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Cleanup
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
   
   // Safe initialization - Handle with care to prevent recursion
   useEffect(() => {
+    // Skip initialization if tab is not visible
+    if (!isTabVisible) {
+      logger.info("Delaying app initialization until tab becomes visible", { module: 'app-init' });
+      return;
+    }
+    
     const initializeApp = async () => {
       try {
         logger.info("Starting app initialization process", { module: 'app-init' });
@@ -41,7 +67,7 @@ function App() {
         
         setClientInitialized(true);
         
-        // Only start monitor if we've safely initialized
+        // Only start monitor if we've safely initialized and have config
         if (hasConfig) {
           bootstrapMonitor.start();
         } else {
@@ -62,7 +88,7 @@ function App() {
     return () => {
       bootstrapMonitor.stop();
     };
-  }, []);
+  }, [isTabVisible]);
 
   // Render simple loading state while client initializes
   if (!clientInitialized) {
