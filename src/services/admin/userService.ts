@@ -1,90 +1,38 @@
 
-import { logger } from '@/utils/logging';
-import { UserWithRole, UserRole, UsersFetchOptions, UsersSearchOptions, UsersFetchResult } from './types/userTypes';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logging';
 
 /**
- * Check admin connection status
+ * Fetch users for admin management
+ * @param search Optional search term for email or user display name
+ * @param limit Number of users to fetch
+ * @param page Page number for pagination
  */
-export async function checkAdminConnectionStatus(): Promise<any> {
-  // Implementation to check connection status
-  return {
-    isConnected: true,
-    isAuthenticated: true,
-    isAdmin: true,
-    functionAvailable: true,
-    environmentInfo: {
-      environmentId: "development"
-    }
-  };
-}
-
-/**
- * Fetch users with pagination
- */
-export async function fetchUsers(options: UsersFetchOptions = {}): Promise<UsersFetchResult> {
+export async function fetchUsers(search?: string, limit = 50, page = 1) {
   try {
-    const { page = 1, pageSize = 10, roleFilter } = options;
+    const client = await supabase;
+    if (!client) throw new Error('Supabase client not available');
     
-    // Placeholder implementation to fetch users
-    const { data, error, count } = await supabase
+    let query = client
       .from('profiles')
-      .select('*', { count: 'exact' });
+      .select('id, username, email, created_at, updated_at, is_admin, avatar_url, metadata');
     
-    if (error) {
-      logger.error('Error fetching users:', error);
-      return { users: [], totalCount: 0 };
+    if (search) {
+      query = query.or(`username.ilike.%${search}%,email.ilike.%${search}%`);
     }
     
-    // Mock implementation - replace with actual user fetching logic
-    const users: UserWithRole[] = data?.map(user => ({
-      id: user.id,
-      email: user.email || '',
-      created_at: user.created_at,
-      role: 'user' as UserRole,
-      username: user.username
-    })) || [];
+    const { data, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range((page - 1) * limit, page * limit - 1)
+      .select();
     
-    return { 
-      users,
-      totalCount: count || users.length
-    };
-  } catch (error) {
-    logger.error('Error in fetchUsers:', error);
-    return { users: [], totalCount: 0 };
-  }
-}
-
-/**
- * Search users
- */
-export async function searchUsers(options: UsersSearchOptions): Promise<UsersFetchResult> {
-  try {
-    const { searchQuery, page = 1, pageSize = 10, roleFilter } = options;
-    
-    // Mock implementation - replace with actual search logic
-    // This is a placeholder that would be replaced with actual search implementation
-    const filteredUsers: UserWithRole[] = [];
-    
+    if (error) throw error;
     return {
-      users: filteredUsers,
-      totalCount: filteredUsers.length
+      users: data || [],
+      total: count || data?.length || 0
     };
   } catch (error) {
-    logger.error('Error in searchUsers:', error);
-    return { users: [], totalCount: 0 };
-  }
-}
-
-/**
- * Update user role
- */
-export async function updateUserRole(userId: string, role: UserRole): Promise<boolean> {
-  try {
-    // Implementation for updating user role
-    return true;
-  } catch (error) {
-    logger.error('Error in updateUserRole:', error);
-    return false;
+    logger.error('Error fetching users', error);
+    return { users: [], total: 0 };
   }
 }

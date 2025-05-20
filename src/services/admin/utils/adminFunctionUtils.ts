@@ -1,6 +1,51 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
+
+/**
+ * Check if the current user has admin permissions
+ */
+export async function isUserAdmin(): Promise<boolean> {
+  try {
+    const client = await supabase;
+    if (!client) return false;
+    
+    const { data: { user } } = await client.auth.getUser();
+    if (!user) return false;
+
+    // Check if user has admin flag in profiles
+    const { data: profile, error } = await client
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', user.id)
+      .single();
+      
+    if (error || !profile) return false;
+    return !!profile.is_admin;
+  } catch (err) {
+    logger.error('Error checking admin status', err);
+    return false;
+  }
+}
+
+/**
+ * Invoke an edge function with authentication
+ */
+export async function invokeAuthenticatedFunction(functionName: string, payload: any): Promise<any> {
+  try {
+    const client = await supabase;
+    if (!client) throw new Error('Supabase client not available');
+    
+    const { data, error } = await client.functions.invoke(functionName, {
+      body: payload
+    });
+    
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    logger.error(`Error invoking function ${functionName}`, err);
+    throw err;
+  }
+}
 
 // Helper function to invoke admin-users edge function
 export async function invokeAdminFunction(action: string, params: any = {}): Promise<any> {

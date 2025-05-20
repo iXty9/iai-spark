@@ -1,3 +1,4 @@
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { getStoredConfig, saveConfig, clearConfig } from '@/config/supabase-config';
 import { fetchStaticSiteConfig } from '@/services/site-config/site-config-file-service';
@@ -43,7 +44,7 @@ const acquireInitializationLock = (): boolean => {
   try {
     const t = localStorage.getItem(lockTimeKey);
     if (localStorage.getItem(lockKey) && t && (Date.now() - new Date(t).getTime()) < 10_000) return false;
-    localStorage.setItem(lockKey, Math.random().toString(36).substr(2,8));
+    localStorage.setItem(lockKey, Math.random().toString(36).substring(2,8));
     localStorage.setItem(lockTimeKey, now());
     return true;
   } catch { return false; }
@@ -147,10 +148,13 @@ export async function getSupabaseClient() {
       subscribePermissionFix(supabaseInstance);
       
       // Initialize health monitoring in background
-      setTimeout(() => {
-        if (!await checkConnectionHealth()) await attemptConnectionRepair(); 
-        startConnectionMonitoring(); 
-        await checkAndFixUserPermissions(); 
+      setTimeout(async () => {
+        const isHealthy = await checkConnectionHealth();
+        if (!isHealthy) {
+          await attemptConnectionRepair();
+        } 
+        startConnectionMonitoring();
+        await checkAndFixUserPermissions();
       }, 1000);
       
       return supabaseInstance;
@@ -204,8 +208,14 @@ const createSupabaseClient = (url: string, anonKey: string, persist = true) =>
   });
 
 const subscribePermissionFix = (client: SupabaseClient) =>
-  client.auth.onAuthStateChange(event => {
-    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') checkAndFixUserPermissions().catch(err=>logger.error('Error checking permissions after auth change', err));
+  client.auth.onAuthStateChange(async (event) => {
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      try {
+        await checkAndFixUserPermissions();
+      } catch (err) {
+        logger.error('Error checking permissions after auth change', err);
+      }
+    }
   });
 
 // --- Mini utilities ---
@@ -300,7 +310,8 @@ export function startConnectionMonitoring(initialIntervalMs = ACTIVE_TAB_INTERVA
       error: isHealthy ? undefined : 'Connection health check failed' 
     });
     
-    if (!isHealthy && await attemptConnectionRepair()) {
+    const didRepair = !isHealthy ? await attemptConnectionRepair() : false;
+    if (didRepair) {
       updateConnectionState({ lastSuccess: now(), error: undefined });
     }
   };
@@ -369,29 +380,50 @@ export async function attemptConnectionRepair(): Promise<boolean> {
   
   const ci = getConnectionInfo(), cfg = getStoredConfig();
   if (ci.hasStoredConfig && cfg?.url) {
-    resetSupabaseClient(); if (await checkConnectionHealth()) return true;
+    resetSupabaseClient(); 
+    const isHealthy = await checkConnectionHealth(); 
+    if (isHealthy) return true;
+    
     try {
       const { attemptUrlFormatRepair } = await import('@/services/supabase/config-validation');
       const repairedUrl = attemptUrlFormatRepair(cfg.url);
       if (repairedUrl && repairedUrl!==cfg.url) {
         const test = await testSupabaseConnection(repairedUrl, cfg.anonKey);
         if (typeof test==='object' && test.isConnected) {
-          configLoader.saveConfiguration({ ...cfg, url: repairedUrl }); resetSupabaseClient();
+          configLoader.saveConfiguration({ ...cfg, url: repairedUrl }); 
+          resetSupabaseClient();
           return true;
         }
       }
     } catch {}
-    const result = await configLoader.loadConfiguration?.(); // If present
-    if (result?.config) { configLoader.saveConfiguration(result.config); resetSupabaseClient(); if (await checkConnectionHealth()) return true; }
+    
+    try {
+      const result = await configLoader.loadConfiguration(); // If present
+      if (result?.config) { 
+        configLoader.saveConfiguration(result.config); 
+        resetSupabaseClient(); 
+        const isHealthy = await checkConnectionHealth(); 
+        if (isHealthy) return true; 
+      }
+    } catch {}
+    
     if (cfg?.serviceKey) {
       const tempClient = createClient(cfg.url, cfg.serviceKey, {auth:{persistSession:false,autoRefreshToken:false}});
       try {
         const { data, error } = await tempClient.from('app_settings').select('key, value').in('key', ['supabase_url', 'supabase_anon_key']);
         if (!error && data?.length > 0) {
-          const updatedCfg = { url: data.find((i:any) => i.key==="supabase_url")?.value || cfg.url,
+          const updatedCfg = { 
+            url: data.find((i:any) => i.key==="supabase_url")?.value || cfg.url,
             anonKey: data.find((i:any) => i.key==="supabase_anon_key")?.value || cfg.anonKey,
-            serviceKey: cfg.serviceKey, isInitialized:true, savedAt: now(), environment: cfg.environment };
-          configLoader.saveConfiguration(updatedCfg); resetSupabaseClient(); if (await checkConnectionHealth()) return true;
+            serviceKey: cfg.serviceKey, 
+            isInitialized: true, 
+            savedAt: now(), 
+            environment: cfg.environment 
+          };
+          configLoader.saveConfiguration(updatedCfg); 
+          resetSupabaseClient(); 
+          const isHealthy = await checkConnectionHealth();
+          if (isHealthy) return true;
         }
       } catch {}
     }
@@ -475,7 +507,7 @@ function fallbackFromFallback() {
     eq: () => ({ select: () => Promise.resolve({ data: null, error: null }), single: () => Promise.resolve({ data: null, error: null }) }),
     single: () => Promise.resolve({ data: null, error: null }),
     upsert: () => Promise.resolve({ data: null, error: null }),
-  } as unknown as PostgrestQueryBuilder<any, any, any, unknown>;
+  } as unknown as any;
 }
 
 let isCheckingRedirect = false;
@@ -484,20 +516,29 @@ export async function getRedirectPath(): Promise<string | null> {
   isCheckingRedirect = true;
   try {
     const pathname = window.location.pathname;
-    if (shouldBypassRedirect(pathname)) return isCheckingRedirect = false, null;
+    if (shouldBypassRedirect(pathname)) {
+      isCheckingRedirect = false;
+      return null;
+    }
+    
     try {
       // Use cached config when possible
       if (configCache.hasValidCache()) {
         const c = configCache.cachedConfig;
-        if (c?.url?.trim() && c?.anonKey?.trim()) return isCheckingRedirect = false, null;
+        if (c?.url?.trim() && c?.anonKey?.trim()) {
+          isCheckingRedirect = false;
+          return null;
+        }
       } else {
         const c = getStoredConfig();
         if (c?.url?.trim() && c?.anonKey?.trim()) {
           configCache.updateCache(c);
-          return isCheckingRedirect = false, null;
+          isCheckingRedirect = false;
+          return null;
         }
       }
     } catch {}
+    
     try {
       // Only check static site config if we haven't checked recently
       if (bootstrapCheckInfo.canCheck()) {
@@ -506,12 +547,18 @@ export async function getRedirectPath(): Promise<string | null> {
         if (staticConfig?.supabaseUrl?.trim() && staticConfig?.supabaseAnonKey?.trim()) {
           saveConfig(buildConfig({url: staticConfig.supabaseUrl, anonKey: staticConfig.supabaseAnonKey, lastUpdated: staticConfig.lastUpdated}));
           configCache.updateCache(buildConfig({url: staticConfig.supabaseUrl, anonKey: staticConfig.supabaseAnonKey, lastUpdated: staticConfig.lastUpdated}));
-          return isCheckingRedirect = false, null;
+          isCheckingRedirect = false;
+          return null;
         }
       }
     } catch {}
-    return isCheckingRedirect = false, '/initialize';
-  } catch { return isCheckingRedirect = false, '/initialize'; }
+    
+    isCheckingRedirect = false;
+    return '/initialize';
+  } catch { 
+    isCheckingRedirect = false;
+    return '/initialize';
+  }
 }
 
 // Short configLoader for attemptConnectionRepair()
@@ -533,6 +580,7 @@ const configLoader = {
   saveConfiguration: saveConfig
 };
 
-setTimeout(() => {
-  window.location.href = window.location.pathname + '?reset_config=true';
-}, 500);
+// Let's remove the setTimeout that causes a page refresh - this could be causing issues
+// setTimeout(() => {
+//   window.location.href = window.location.pathname + '?reset_config=true';
+// }, 500);

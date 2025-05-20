@@ -1,107 +1,77 @@
 
+import { logger } from '@/utils/logging';
+
+// Track tab visibility for optimizations
+let isTabVisibleState = true;
+
+// Initialize the visibility tracker
+function initVisibilityTracker() {
+  if (typeof document !== 'undefined') {
+    // Set the initial state
+    isTabVisibleState = document.visibilityState === 'visible';
+    
+    // Add event listener to track visibility changes
+    document.addEventListener('visibilitychange', () => {
+      const wasVisible = isTabVisibleState;
+      isTabVisibleState = document.visibilityState === 'visible';
+      
+      // Only log if the state actually changed
+      if (wasVisible !== isTabVisibleState) {
+        logger.debug('Tab visibility changed', { isVisible: isTabVisibleState }, { module: 'visibility-tracker' });
+      }
+    });
+    
+    logger.info('Visibility tracker initialized', { module: 'visibility-tracker' });
+  }
+}
+
+// Initialize visibility tracking on module import
+initVisibilityTracker();
+
 /**
- * Tab visibility tracker
- * Provides a centralized way to track tab visibility
+ * Check if the current tab is visible
+ * @returns true if tab is visible, false otherwise
  */
-
-import { eventBus, AppEvents } from './event-bus';
-
-class VisibilityTracker {
-  private isVisible: boolean;
-  private initialized: boolean = false;
-  
-  constructor() {
-    // Default to visible (safer assumption)
-    this.isVisible = true;
-    
-    // Initialize on first use
-    this.init();
-  }
-  
-  /**
-   * Initialize visibility tracking
-   */
-  private init(): void {
-    if (this.initialized) return;
-    this.initialized = true;
-    
-    if (typeof document !== 'undefined') {
-      // Set initial value
-      this.isVisible = document.visibilityState === 'visible';
-      
-      // Set up event listener
-      document.addEventListener('visibilitychange', this.handleVisibilityChange);
-      
-      // Publish initial state
-      eventBus.publish(
-        this.isVisible ? AppEvents.TAB_VISIBLE : AppEvents.TAB_HIDDEN, 
-        { timestamp: new Date().toISOString() }
-      );
-    }
-  }
-  
-  /**
-   * Handle visibility change event
-   */
-  private handleVisibilityChange = (): void => {
-    const wasVisible = this.isVisible;
-    this.isVisible = document.visibilityState === 'visible';
-    
-    // Only publish if state actually changed
-    if (wasVisible !== this.isVisible) {
-      eventBus.publish(
-        this.isVisible ? AppEvents.TAB_VISIBLE : AppEvents.TAB_HIDDEN, 
-        { timestamp: new Date().toISOString() }
-      );
-    }
-  };
-  
-  /**
-   * Check if tab is visible
-   * @returns True if tab is visible
-   */
-  isTabVisible(): boolean {
-    // Make sure we're initialized
-    if (!this.initialized) this.init();
-    return this.isVisible;
-  }
-  
-  /**
-   * Release resources - should be called when app unmounts
-   */
-  cleanup(): void {
-    if (typeof document !== 'undefined') {
-      document.removeEventListener('visibilitychange', this.handleVisibilityChange);
-    }
-    this.initialized = false;
-  }
-}
-
-// Export singleton instance
-export const visibilityTracker = new VisibilityTracker();
-
-// Helper function to check visibility
 export function isTabVisible(): boolean {
-  return visibilityTracker.isTabVisible();
+  return isTabVisibleState;
 }
 
-// Helper hook for React components
-export function useTabVisibility(): boolean {
-  const [isVisible, setIsVisible] = React.useState(visibilityTracker.isTabVisible());
+/**
+ * Wait until the tab becomes visible
+ * @param maxWaitMs Maximum time to wait in milliseconds (default: 30000)
+ * @returns Promise that resolves when tab becomes visible or times out
+ */
+export function waitUntilVisible(maxWaitMs: number = 30000): Promise<boolean> {
+  // If already visible, resolve immediately
+  if (isTabVisibleState) return Promise.resolve(true);
   
-  React.useEffect(() => {
-    const visibleSub = eventBus.subscribe(AppEvents.TAB_VISIBLE, () => setIsVisible(true));
-    const hiddenSub = eventBus.subscribe(AppEvents.TAB_HIDDEN, () => setIsVisible(false));
+  return new Promise<boolean>((resolve) => {
+    // Set timeout to resolve after maxWaitMs
+    const timeoutId = setTimeout(() => {
+      cleanup();
+      resolve(false);
+    }, maxWaitMs);
     
-    return () => {
-      visibleSub.unsubscribe();
-      hiddenSub.unsubscribe();
+    // Create visibility change handler
+    const visibilityHandler = () => {
+      if (document.visibilityState === 'visible') {
+        cleanup();
+        resolve(true);
+      }
     };
-  }, []);
-  
-  return isVisible;
+    
+    // Add event listener
+    document.addEventListener('visibilitychange', visibilityHandler);
+    
+    // Cleanup function to remove listener and clear timeout
+    function cleanup() {
+      clearTimeout(timeoutId);
+      document.removeEventListener('visibilitychange', visibilityHandler);
+    }
+  });
 }
 
-// Make sure to initialize and cleanup on app lifecycle
-eventBus.subscribe(AppEvents.APP_MOUNTED, () => visibilityTracker.isTabVisible());
-eventBus.subscribe(AppEvents.APP_UNMOUNTED, () => visibilityTracker.cleanup());
+export default {
+  isTabVisible,
+  waitUntilVisible
+};

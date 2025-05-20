@@ -1,112 +1,98 @@
+
 import { supabase } from '@/integrations/supabase/client';
-import { UserRole } from './types/userTypes';
 import { logger } from '@/utils/logging';
 
 /**
- * Checks if a user has a specific role
- * @param userId The user ID to check
- * @param role The role to check for
- * @returns A promise resolving to a boolean indicating if the user has the role
+ * Fetch all roles
  */
-export async function hasRole(userId: string, role: UserRole): Promise<boolean> {
+export async function fetchAllRoles() {
   try {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('role', role);
+    const client = await supabase;
+    if (!client) throw new Error('Supabase client not available');
     
-    if (error) {
-      logger.error('Error checking user role:', error);
-      return false;
-    }
-    
-    return data && data.length > 0;
+    const { data, error } = await client
+      .from('app_roles')
+      .select('*')
+      .order('role_name', { ascending: true });
+      
+    if (error) throw error;
+    return data || [];
   } catch (error) {
-    logger.error('Unexpected error in hasRole:', error);
-    return false;
+    logger.error('Error fetching roles', error);
+    return [];
   }
 }
 
 /**
- * Fetch a user's role from the database
+ * Create a new role
  */
-export async function getUserRole(userId: string): Promise<UserRole | null> {
+export async function createRole(roleName: string, description?: string) {
   try {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId);
+    const client = await supabase;
+    if (!client) throw new Error('Supabase client not available');
     
-    if (error) {
-      logger.error('Error fetching user role:', error);
-      return null;
-    }
-
-    return data && data.length > 0 ? data[0].role as UserRole : null;
+    const { data, error } = await client
+      .from('app_roles')
+      .insert({
+        role_name: roleName,
+        description: description || '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data;
   } catch (error) {
-    logger.error('Unexpected error in getUserRole:', error);
-    return null;
+    logger.error('Error creating role', error);
+    throw error;
   }
 }
 
 /**
- * Set a user's role in the database
+ * Delete a role
  */
-export async function setUserRole(userId: string, role: UserRole): Promise<boolean> {
+export async function deleteRole(roleId: string) {
   try {
-    if (!userId) throw new Error('No user logged in');
-
-    // Check if role entry exists
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('id')
-      .eq('user_id', userId);
+    const client = await supabase;
+    if (!client) throw new Error('Supabase client not available');
     
-    if (error) {
-      logger.error('Error checking existing user role:', error);
-      return false;
-    }
-
-    let updateResult;
-    
-    if (data && data.length > 0) {
-      // Update
-      updateResult = await supabase
-        .from('user_roles')
-        .update({ role })
-        .eq('user_id', userId);
-    } else {
-      // Insert
-      updateResult = await supabase
-        .from('user_roles')
-        .insert({ user_id: userId, role });
-    }
-
-    if (updateResult.error) {
-      logger.error('Error setting user role:', updateResult.error);
-      return false;
-    }
-
+    const { error } = await client
+      .from('app_roles')
+      .delete()
+      .eq('id', roleId);
+      
+    if (error) throw error;
     return true;
   } catch (error) {
-    logger.error('Unexpected error in setUserRole:', error);
-    return false;
+    logger.error('Error deleting role', error);
+    throw error;
   }
 }
 
 /**
- * Check admin connection status
+ * Update a role
  */
-export async function checkAdminConnectionStatus(): Promise<any> {
-  // Implementation to check connection status
-  return {
-    isConnected: true,
-    isAuthenticated: true,
-    isAdmin: true,
-    functionAvailable: true,
-    environmentInfo: {
-      environmentId: "development"
-    }
-  };
+export async function updateRole(roleId: string, updates: { role_name?: string; description?: string }) {
+  try {
+    const client = await supabase;
+    if (!client) throw new Error('Supabase client not available');
+    
+    const { data, error } = await client
+      .from('app_roles')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', roleId)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    logger.error('Error updating role', error);
+    throw error;
+  }
 }

@@ -1,7 +1,101 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
-import { AppSettings } from './types';
+
+/**
+ * Fetch all settings
+ */
+export async function fetchAllSettings() {
+  try {
+    const client = await supabase;
+    if (!client) throw new Error('Supabase client not available');
+    
+    const { data, error } = await client
+      .from('app_settings')
+      .select('*')
+      .order('key', { ascending: true });
+      
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    logger.error('Error fetching settings', error);
+    return [];
+  }
+}
+
+/**
+ * Create a new setting
+ */
+export async function createSetting(key: string, value: string, description?: string) {
+  try {
+    const client = await supabase;
+    if (!client) throw new Error('Supabase client not available');
+    
+    const { data, error } = await client
+      .from('app_settings')
+      .insert({
+        key,
+        value,
+        description: description || '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    logger.error('Error creating setting', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete a setting
+ */
+export async function deleteSetting(settingId: string) {
+  try {
+    const client = await supabase;
+    if (!client) throw new Error('Supabase client not available');
+    
+    const { error } = await client
+      .from('app_settings')
+      .delete()
+      .eq('id', settingId);
+      
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    logger.error('Error deleting setting', error);
+    throw error;
+  }
+}
+
+/**
+ * Update a setting
+ */
+export async function updateSetting(settingId: string, updates: { key?: string; value?: string; description?: string }) {
+  try {
+    const client = await supabase;
+    if (!client) throw new Error('Supabase client not available');
+    
+    const { data, error } = await client
+      .from('app_settings')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', settingId)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    logger.error('Error updating setting', error);
+    throw error;
+  }
+}
 
 /**
  * Fetch all app settings as a key-value map

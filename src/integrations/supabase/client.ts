@@ -1,10 +1,11 @@
 
 // This file provides a centralized client export for integrations
 
-import { getSupabaseClient, isClientReady, isTabVisible } from '@/services/supabase/client-provider';
+import { getSupabaseClient, isClientReady } from '@/services/supabase/client-provider';
+import { isTabVisible } from '@/utils/visibility-tracker'; // Import from visibility-tracker
 import { logger } from '@/utils/logging';
 
-// Export the client getter function
+// Export the client getter function - properly awaited to make it synchronous
 export const supabase = (async function() {
   try {
     // Try to get the client

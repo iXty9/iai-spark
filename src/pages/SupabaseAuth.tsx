@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,8 +14,7 @@ import { loadSiteEnvironmentConfig } from '@/services/supabase/site-config-servi
 import { fetchStaticSiteConfig } from '@/services/site-config/site-config-file-service';
 import { logger } from '@/utils/logging';
 
-// Import the ConnectionTestResult type
-import { testSupabaseConnection } from '@/services/supabase/connection-service';
+// Import the ConnectionTestResult type - just import the type, not the function again
 import type { ConnectionTestResult } from '@/services/supabase/connection-service';
 
 export default function SupabaseAuth() {
