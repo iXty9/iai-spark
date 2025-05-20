@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,7 @@ import { Form, FormField, FormItem, FormMessage, FormControl } from '@/component
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import DOMPurify from 'dompurify';
+import { sanitizeInput } from '@/utils/security';
 import { getConnectionInfo } from '@/services/supabase/connection-service';
 
 const loginSchema = z.object({
@@ -44,7 +45,8 @@ export const LoginForm = () => {
     setIsLoading(true);
     setServerError(null);
     try {
-      await signIn(DOMPurify.sanitize(email), password);
+      // Use the utility function from security.ts instead of direct DOMPurify import
+      await signIn(sanitizeInput(email), password);
       navigate('/');
     } catch (error: any) {
       let message = 'Authentication failed';
