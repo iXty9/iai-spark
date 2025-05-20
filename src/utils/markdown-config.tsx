@@ -24,6 +24,21 @@ if (typeof window !== 'undefined') {
   }
 }
 
+// Add type guards for trustedTypes
+interface WindowWithTrustedTypes extends Window {
+  trustedTypes?: {
+    createPolicy: (name: string, rules: any) => any;
+  };
+}
+
+// Use the type guard
+const windowWithTrustedTypes = window as WindowWithTrustedTypes;
+
+// Replace direct trustedTypes access with type guarded version
+if (typeof windowWithTrustedTypes.trustedTypes !== 'undefined') {
+  // Use windowWithTrustedTypes.trustedTypes instead
+}
+
 export const markdownComponents = {
   a: ({ node, ...props }: MarkdownComponentProps) => (
     <a 

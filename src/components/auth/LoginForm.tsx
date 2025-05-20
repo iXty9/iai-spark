@@ -13,7 +13,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { sanitizeInput } from '@/utils/security';
-import { getConnectionInfo } from '@/services/supabase/connection-service';
+import { getConnectionInfo } from '@/services/supabase/client-provider';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -45,7 +45,7 @@ export const LoginForm = () => {
     setIsLoading(true);
     setServerError(null);
     try {
-      // Use the utility function from security.ts instead of direct DOMPurify import
+      // Use the utility function from security.ts
       await signIn(sanitizeInput(email), password);
       navigate('/');
     } catch (error: any) {

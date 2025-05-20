@@ -13,68 +13,72 @@ import { BootstrapProvider } from "@/components/supabase/BootstrapProvider";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
-import { bootstrapMonitor } from "@/services/supabase/bootstrap-monitor";
-import { checkPublicBootstrapConfig } from "@/services/supabase/connection-service";
 import { logger } from "@/utils/logging";
+import { eventBus, AppEvents } from "@/utils/event-bus";
+import { bootstrapManager } from "@/services/supabase/bootstrap/bootstrap-manager";
+import { getSupabaseClient } from "@/services/supabase/client-provider";
 import "./App.css";
 
 function App() {
   // State to track client initialization
   const [clientInitialized, setClientInitialized] = useState<boolean>(false);
-  // Track tab visibility for smarter initialization
-  const [isTabVisible, setIsTabVisible] = useState<boolean>(true);
   
-  // Monitor tab visibility
+  // Initialize app when mounted
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      setIsTabVisible(document.visibilityState === 'visible');
-    };
-    
-    // Set initial value
-    setIsTabVisible(document.visibilityState === 'visible');
-    
-    // Add listener
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    // Cleanup
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
-  
-  // Safe initialization - Handle with care to prevent recursion
-  useEffect(() => {
-    // Skip initialization if tab is not visible
-    if (!isTabVisible) {
-      logger.info("Delaying app initialization until tab becomes visible", { module: 'app-init' });
-      return;
-    }
-    
     const initializeApp = async () => {
+      logger.info("Starting app initialization process", { module: 'app-init' });
+      
+      // Signal app mounted
+      eventBus.publish(AppEvents.APP_MOUNTED, {
+        timestamp: new Date().toISOString()
+      });
+      
       try {
-        logger.info("Starting app initialization process", { module: 'app-init' });
+        // Start bootstrap process
+        bootstrapManager.startBootstrap();
         
-        // Try to check config without causing auth errors
-        const hasConfig = await checkPublicBootstrapConfig().catch(err => {
-          logger.error("Initial bootstrap check failed:", err, { module: 'app-init' });
-          return false;
-        });
+        // Listen for bootstrap completion
+        const bootstrapSubscription = eventBus.subscribe(
+          AppEvents.BOOTSTRAP_COMPLETED,
+          () => {
+            logger.info("Bootstrap process completed", { module: 'app-init' });
+            
+            // Initialize client
+            getSupabaseClient().then(() => {
+              setClientInitialized(true);
+            }).catch(err => {
+              logger.error("Error initializing client:", err, { module: 'app-init' });
+              setClientInitialized(true); // Still mark as initialized to allow rendering
+            });
+          }
+        );
         
-        logger.info("Initial bootstrap check complete", { 
-          hasConfig, 
-          module: 'app-init' 
-        });
+        // Listen for bootstrap failure - still render app with error state
+        const bootstrapFailedSubscription = eventBus.subscribe(
+          AppEvents.BOOTSTRAP_FAILED,
+          () => {
+            logger.warn("Bootstrap process failed, but still rendering app", { module: 'app-init' });
+            setClientInitialized(true);
+          }
+        );
         
-        setClientInitialized(true);
+        // Also set a timeout to prevent hanging
+        const timeoutId = setTimeout(() => {
+          logger.warn("Bootstrap timed out, rendering app anyway", { module: 'app-init' });
+          setClientInitialized(true);
+        }, 5000);
         
-        // Only start monitor if we've safely initialized and have config
-        if (hasConfig) {
-          bootstrapMonitor.start();
-        } else {
-          logger.info("Bootstrap monitor not started - no configuration found", {
-            module: 'app-init'
+        // Clean up
+        return () => {
+          bootstrapSubscription.unsubscribe();
+          bootstrapFailedSubscription.unsubscribe();
+          clearTimeout(timeoutId);
+          
+          // Signal app unmount
+          eventBus.publish(AppEvents.APP_UNMOUNTED, {
+            timestamp: new Date().toISOString()
           });
-        }
+        };
       } catch (err) {
         // Log error but continue rendering the app
         logger.error("Error during app initialization:", err, { module: 'app-init' });
@@ -83,12 +87,7 @@ function App() {
     };
     
     initializeApp();
-    
-    // Clean up monitor on unmount
-    return () => {
-      bootstrapMonitor.stop();
-    };
-  }, [isTabVisible]);
+  }, []);
 
   // Render simple loading state while client initializes
   if (!clientInitialized) {

@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCcw, Info, AlertTriangle, CheckCircle, Settings } from 'lucide-react';
@@ -7,15 +7,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { logger } from '@/utils/logging';
 import { clearConfigAndResetClient } from '@/config/supabase-config';
 import { ConfigSource } from '@/services/supabase/config-loader-types';
+import { eventBus, AppEvents } from '@/utils/event-bus';
 import { 
   BootstrapState, 
   ErrorType, 
-  BootstrapContext,
-  initBootstrapContext,
-  executeBootstrap,
-  resetBootstrap,
-  clearBootstrapContext
-} from '@/services/supabase/bootstrap-state-machine';
+  BootstrapContext
+} from '@/services/supabase/bootstrap/bootstrap-states';
+import { bootstrapManager } from '@/services/supabase/bootstrap/bootstrap-manager';
 
 interface BootstrapProviderProps {
   children: React.ReactNode;
@@ -30,7 +28,7 @@ const NON_REDIRECTABLE_ROUTES = [
 
 export function BootstrapProvider({ children }: BootstrapProviderProps) {
   // State machine context
-  const [context, setContext] = useState<BootstrapContext>(initBootstrapContext);
+  const [context, setContext] = useState<BootstrapContext>(() => bootstrapManager.getContext());
   
   // Additional UI state
   const [showSuccessMessage, setShowSuccessMessage] = useState<boolean>(false);
@@ -39,12 +37,12 @@ export function BootstrapProvider({ children }: BootstrapProviderProps) {
   const location = useLocation();
   
   // Check if current route should prevent redirects
-  const isNonRedirectablePath = useCallback(() => {
+  const isNonRedirectablePath = React.useCallback(() => {
     return NON_REDIRECTABLE_ROUTES.some(route => location.pathname.startsWith(route));
   }, [location.pathname]);
   
   // Handle URL parameters
-  const handleUrlParameters = useCallback(() => {
+  const handleUrlParameters = React.useCallback(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const forceInit = urlParams.get('force_init') === 'true';
     const resetConfig = urlParams.get('reset_config') === 'true';
@@ -54,7 +52,6 @@ export function BootstrapProvider({ children }: BootstrapProviderProps) {
         module: 'bootstrap-provider'
       });
       clearConfigAndResetClient();
-      clearBootstrapContext();
       
       // Reload the page with force_init parameter
       navigate('/initialize?force_init=true', { replace: true });
@@ -66,7 +63,6 @@ export function BootstrapProvider({ children }: BootstrapProviderProps) {
         module: 'bootstrap-provider'
       });
       clearConfigAndResetClient();
-      clearBootstrapContext();
       navigate('/initialize?force_init=true');
       return true;
     }
@@ -74,42 +70,80 @@ export function BootstrapProvider({ children }: BootstrapProviderProps) {
     return false;
   }, [navigate]);
   
-  // Start bootstrap process
-  const startBootstrap = useCallback(async () => {
-    // Check URL parameters first
-    if (handleUrlParameters()) {
-      return;
-    }
-    
-    // Execute bootstrap process
-    await executeBootstrap(context, setContext);
-  }, [context, handleUrlParameters]);
-  
   // Handle retry action
-  const handleRetry = useCallback(() => {
-    // Reset state but keep retry count
-    const newContext: BootstrapContext = {
-      ...context,
-      state: BootstrapState.INITIAL,
-      error: undefined,
-      errorType: undefined
-    };
-    
-    setContext(newContext);
-  }, [context]);
+  const handleRetry = React.useCallback(() => {
+    bootstrapManager.startBootstrap();
+  }, []);
   
   // Handle reconnect/setup action
-  const handleReconnect = useCallback(() => {
+  const handleReconnect = React.useCallback(() => {
     // Always navigate to initialize without forcing init
     // This allows the setup page to detect and use existing config if valid
     navigate('/initialize');
   }, [navigate]);
   
   // Handle manual configuration action
-  const handleManualConfig = useCallback(() => {
+  const handleManualConfig = React.useCallback(() => {
     // When manually configuring, force initialization
     navigate('/initialize?force_init=true');
   }, [navigate]);
+  
+  // Subscribe to bootstrap events
+  useEffect(() => {
+    // Handle URL parameters first
+    if (handleUrlParameters()) {
+      return;
+    }
+    
+    // Subscribe to bootstrap events
+    const subscriptions = [
+      eventBus.subscribe(AppEvents.BOOTSTRAP_COMPLETED, (ctx: BootstrapContext) => {
+        setContext(ctx);
+        setShowSuccessMessage(true);
+        
+        // Hide success message after a delay
+        setTimeout(() => {
+          setShowSuccessMessage(false);
+        }, 3000);
+      }),
+      
+      eventBus.subscribe(AppEvents.BOOTSTRAP_FAILED, (ctx: BootstrapContext) => {
+        setContext(ctx);
+      }),
+      
+      eventBus.subscribe(AppEvents.BOOTSTRAP_STARTED + ':' + BootstrapState.LOADING, (ctx: BootstrapContext) => {
+        setContext(ctx);
+      }),
+      
+      eventBus.subscribe(AppEvents.BOOTSTRAP_STARTED + ':' + BootstrapState.CONFIG_FOUND, (ctx: BootstrapContext) => {
+        setContext(ctx);
+      }),
+      
+      eventBus.subscribe(AppEvents.BOOTSTRAP_STARTED + ':' + BootstrapState.CONFIG_MISSING, (ctx: BootstrapContext) => {
+        setContext(ctx);
+      }),
+      
+      eventBus.subscribe(AppEvents.BOOTSTRAP_STARTED + ':' + BootstrapState.CONNECTION_ERROR, (ctx: BootstrapContext) => {
+        setContext(ctx);
+      }),
+      
+      eventBus.subscribe(AppEvents.BOOTSTRAP_STARTED + ':' + BootstrapState.CONNECTION_SUCCESS, (ctx: BootstrapContext) => {
+        setContext(ctx);
+      }),
+      
+      eventBus.subscribe(AppEvents.BOOTSTRAP_STARTED + ':' + BootstrapState.COMPLETE, (ctx: BootstrapContext) => {
+        setContext(ctx);
+      })
+    ];
+    
+    // Start bootstrap process
+    bootstrapManager.startBootstrap();
+    
+    // Clean up subscriptions
+    return () => {
+      subscriptions.forEach(sub => sub.unsubscribe());
+    };
+  }, [handleUrlParameters]);
   
   // Redirect to initialize page for empty or invalid config
   useEffect(() => {
@@ -122,8 +156,7 @@ export function BootstrapProvider({ children }: BootstrapProviderProps) {
       return;
     }
     
-    // Automatically redirect to initialization page if we're in CONFIG_MISSING state
-    // or CONNECTION_ERROR state and we're not already on the initialize page
+    // Automatically redirect to initialization page if needed
     if ((context.state === BootstrapState.CONFIG_MISSING || 
          context.state === BootstrapState.CONNECTION_ERROR) && 
         !window.location.pathname.includes('/initialize')) {
@@ -136,28 +169,6 @@ export function BootstrapProvider({ children }: BootstrapProviderProps) {
       navigate('/initialize');
     }
   }, [context.state, context.errorType, navigate, isNonRedirectablePath, location.pathname]);
-  
-  // Effect for state transitions
-  useEffect(() => {
-    switch (context.state) {
-      case BootstrapState.INITIAL:
-        // Start bootstrap process
-        startBootstrap();
-        break;
-        
-      case BootstrapState.CONNECTION_SUCCESS:
-        // Show success message briefly
-        setShowSuccessMessage(true);
-        break;
-        
-      case BootstrapState.COMPLETE:
-        // Hide success message after a delay
-        const timer = setTimeout(() => {
-          setShowSuccessMessage(false);
-        }, 2000);
-        return () => clearTimeout(timer);
-    }
-  }, [context.state, startBootstrap]);
   
   // If on a non-redirectable path, bypass loading and error states
   if (isNonRedirectablePath()) {

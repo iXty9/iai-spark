@@ -1,5 +1,4 @@
-
-import { createClient, SupabaseClient, PostgrestQueryBuilder } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { getStoredConfig, saveConfig, clearConfig } from '@/config/supabase-config';
 import { fetchStaticSiteConfig } from '@/services/site-config/site-config-file-service';
 import { logger } from '@/utils/logging';
@@ -12,7 +11,12 @@ const getEnvId = () => window.location.hostname;
 const now = () => new Date().toISOString();
 
 type Database = any;
-export interface ConnectionTestResult { isConnected: boolean; error?: string; errorCode?: string; }
+export interface ConnectionTestResult { 
+  isConnected: boolean; 
+  error?: string; 
+  errorCode?: string; 
+  hasPermissions?: boolean;
+}
 interface ConnectionState { lastAttempt: string; lastSuccess: string|null; attemptCount: number; source: string; error?: string; }
 interface EnvironmentInfo { id: string; host: string; timestamp: string; userAgent?: string; }
 
@@ -81,7 +85,7 @@ export async function testSupabaseConnection(url: string, anonKey: string): Prom
     if (error) return {isConnected: false, error: error.message, errorCode: error.code};
     const { error:authError } = await client.auth.getSession();
     if (authError) return {isConnected: false, error: `Auth check failed: ${authError.message}`, errorCode:'AUTH_ERROR' };
-    return { isConnected: true };
+    return { isConnected: true, hasPermissions: true };
   } catch (e: any) {
     return {isConnected:false, error:e?.message||String(e), errorCode:'UNKNOWN_ERROR'};
   }
@@ -143,7 +147,7 @@ export async function getSupabaseClient() {
       subscribePermissionFix(supabaseInstance);
       
       // Initialize health monitoring in background
-      setTimeout(async ()=>{ 
+      setTimeout(() => {
         if (!await checkConnectionHealth()) await attemptConnectionRepair(); 
         startConnectionMonitoring(); 
         await checkAndFixUserPermissions(); 
@@ -438,7 +442,7 @@ export async function checkPublicBootstrapConfig(): Promise<boolean> {
   try {
     const publicConfig = await fetchStaticSiteConfig();
     if (publicConfig?.supabaseUrl?.trim() && publicConfig?.supabaseAnonKey?.trim()) {
-      saveConfig(buildConfig({ url: publicConfig.supabaseUrl, anonKey: publicConfig.supabaseAnonKey, lastUpdated: publicConfig.lastUpdated }));
+      saveConfig(buildConfig({url: publicConfig.supabaseUrl, anonKey: publicConfig.supabaseAnonKey, lastUpdated: publicConfig.lastUpdated}));
       return true;
     }
   } catch {}
@@ -528,3 +532,7 @@ const configLoader = {
   },
   saveConfiguration: saveConfig
 };
+
+setTimeout(() => {
+  window.location.href = window.location.pathname + '?reset_config=true';
+}, 500);

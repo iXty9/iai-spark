@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +12,10 @@ import { ShareConfigDialog } from '@/components/supabase/ShareConfigDialog';
 import { loadSiteEnvironmentConfig } from '@/services/supabase/site-config-service';
 import { fetchStaticSiteConfig } from '@/services/site-config/site-config-file-service';
 import { logger } from '@/utils/logging';
+
+// Import the ConnectionTestResult type
+import { testSupabaseConnection } from '@/services/supabase/connection-service';
+import type { ConnectionTestResult } from '@/services/supabase/connection-service';
 
 export default function SupabaseAuth() {
   const navigate = useNavigate();
@@ -59,12 +62,28 @@ export default function SupabaseAuth() {
             config.anonKey
           );
           
-          // Fix: Handle connectionTest properly based on its type
-          if (connectionTest === false || (typeof connectionTest === 'object' && !connectionTest.isConnected)) {
-            logger.warn('Saved database config exists but connection failed', {
-              module: 'supabase-auth',
-              error: typeof connectionTest === 'object' ? connectionTest.error : 'Connection test failed'
+          // Proper type checking for the connection test result
+          const isConnected = typeof connectionTest === 'object' && connectionTest.isConnected;
+          
+          if (isConnected) {
+            // Save the config from the database to localStorage
+            saveConfig({
+              url: config.url,
+              anonKey: config.anonKey,
+              serviceKey: config.serviceKey,
+              isInitialized: config.isInitialized,
             });
+            
+            // Reset the Supabase client to use the new config
+            resetSupabaseClient();
+            
+            // Navigate back to previous page or home
+            navigate('/');
+          } else {
+            const errorMessage = typeof connectionTest === 'object' && connectionTest.error 
+                               ? connectionTest.error 
+                               : "Connection failed with saved credentials";
+            throw new Error(errorMessage);
           }
         }
         
@@ -130,9 +149,8 @@ export default function SupabaseAuth() {
       // Test the connection before using it
       const connectionTest = await testSupabaseConnection(dbConfig.url, dbConfig.anonKey);
       
-      // Fix: Handle connectionTest properly based on its type
-      const isConnected = connectionTest === true || 
-                         (typeof connectionTest === 'object' && connectionTest.isConnected);
+      // Proper type checking for the connection test result
+      const isConnected = typeof connectionTest === 'object' && connectionTest.isConnected;
       
       if (isConnected) {
         // Save the config from the database to localStorage
