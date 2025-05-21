@@ -1,3 +1,4 @@
+
 type EventCallback<T> = (data: T) => void;
 
 class EventBus {
@@ -52,4 +53,7 @@ export const AppEvents = {
   SITE_CONFIG_LOADED: 'site_config_loaded',
   APP_MOUNTED: 'app_mounted',
   APP_UNMOUNTED: 'app_unmounted',
+  TAB_VISIBLE: 'tab_visible',
+  TAB_HIDDEN: 'tab_hidden',
 };
+
