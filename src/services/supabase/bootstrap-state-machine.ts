@@ -13,7 +13,8 @@ export enum BootstrapState {
   CONFIG_MISSING = 'config_missing',
   CONNECTION_ERROR = 'connection_error',
   CONNECTION_SUCCESS = 'connection_success',
-  COMPLETE = 'complete'
+  COMPLETE = 'complete',
+  ERROR = 'error' // Adding ERROR state that might be referenced elsewhere
 }
 export enum ErrorType {
   NETWORK = 'network',

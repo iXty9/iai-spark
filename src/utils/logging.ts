@@ -34,7 +34,12 @@ interface LogOptions {
   throttle?: boolean;
   once?: boolean;
   module?: string;
-  connectionInfo?: Record<string, any>; // Added connectionInfo property for environment diagnostics
+  connectionInfo?: Record<string, any>;
+  userId?: string;
+  function?: string;
+  payload?: any;
+  bucketName?: string;
+  [key: string]: any; // Allow for additional properties
 }
 
 /**
