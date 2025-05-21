@@ -4,7 +4,7 @@ import { supabase, getResolvedClient } from '@/integrations/supabase/client';
 import { getStoredConfig } from '@/config/supabase-config';
 import { SupabaseConfig } from '@/config/supabase/types';
 
-// Find and fix line 420 where Number() is used incorrectly
+// Fix line where Number() is used incorrectly
 // Replace:
 // const timeoutMs = Number(config.timeout || 5000);
 // With:
@@ -92,12 +92,14 @@ export function getConnectionInfo(): {
   hasStoredConfig: boolean;
   url?: string;
   lastConnection?: string;
+  environment?: string;
 } {
   const config = getStoredConfig();
   return {
     hasStoredConfig: !!config,
     url: config?.url,
-    lastConnection: config?.lastConnection
+    lastConnection: config?.lastConnection,
+    environment: process.env.NODE_ENV
   };
 }
 

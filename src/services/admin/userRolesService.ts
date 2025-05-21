@@ -65,3 +65,11 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Check admin status (for components)
+ */
+export async function checkIsAdmin(userId: string | undefined): Promise<boolean> {
+  if (!userId) return false;
+  return isUserAdmin(userId);
+}

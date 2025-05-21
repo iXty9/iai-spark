@@ -36,6 +36,12 @@ function App() {
   const [session, setSession] = useState(null);
   const supabaseClient = useSupabaseClient();
   const { state: bootstrapState, error: bootstrapError } = useBootstrap();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  const handleAvatarChange = (url: string) => {
+    setAvatarUrl(url);
+    console.log('Avatar URL updated:', url);
+  };
 
   useEffect(() => {
     supabaseClient.auth.getSession().then(({ data: { session } }) => {
@@ -163,7 +169,7 @@ function App() {
             <AuthRequired>
               <Profile 
                 session={session} 
-                onAvatarChange={(url) => console.log('Avatar updated:', url)}
+                onAvatarChange={handleAvatarChange}
               />
             </AuthRequired>
           } 

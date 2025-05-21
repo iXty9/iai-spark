@@ -1,3 +1,4 @@
+
 import DOMPurify from 'dompurify';
 import MarkdownIt from 'markdown-it';
 import { highlight } from 'shiki';
@@ -21,22 +22,35 @@ const configureDOMPurify = () => {
     // Check if trustedTypes is available in the browser
     const hasTrustedTypes = 
       typeof window !== 'undefined' && 
-      'trustedTypes' in window && 
-      typeof (window as any).trustedTypes !== 'undefined';
+      window.trustedTypes !== undefined;
 
     if (hasTrustedTypes) {
-      const tt = (window as any).trustedTypes;
-      const policy = tt.createPolicy?.('markdown-html', {
-        createHTML: (string: string) => string
-      });
-      
-      DOMPurify.setConfig({
-        RETURN_TRUSTED_TYPE: true,
-        TRUSTED_TYPES_POLICY: policy ?? tt.defaultPolicy
-      });
+      try {
+        const tt = window.trustedTypes;
+        const policy = tt.createPolicy?.('markdown-html', {
+          createHTML: (string: string) => string
+        });
+        
+        DOMPurify.setConfig({
+          RETURN_TRUSTED_TYPE: true,
+          TRUSTED_TYPES_POLICY: policy ?? tt.defaultPolicy
+        });
+      } catch (e) {
+        console.error('Error configuring DOMPurify with TrustedTypes:', e);
+      }
     }
   }
 };
+
+// Fix window.trustedTypes type issue by extending Window interface
+declare global {
+  interface Window {
+    trustedTypes?: {
+      createPolicy?: (name: string, rules: { createHTML: (s: string) => string }) => any;
+      defaultPolicy?: any;
+    };
+  }
+}
 
 // Initialize DOMPurify configuration
 configureDOMPurify();
@@ -55,4 +69,18 @@ export const renderMarkdown = (markdown: string): string => {
     console.error("Failed to render markdown:", error);
     return `<p>Error rendering markdown: ${String(error)}</p>`;
   }
+};
+
+// Export markdown components for React integration
+export const markdownComponents = {
+  // Basic components for React Markdown integration
+  p: (props: any) => <p className="mb-4" {...props} />,
+  h1: (props: any) => <h1 className="text-3xl font-bold mb-4 mt-6" {...props} />,
+  h2: (props: any) => <h2 className="text-2xl font-bold mb-3 mt-5" {...props} />,
+  h3: (props: any) => <h3 className="text-xl font-bold mb-3 mt-4" {...props} />,
+  ul: (props: any) => <ul className="list-disc pl-6 mb-4" {...props} />,
+  ol: (props: any) => <ol className="list-decimal pl-6 mb-4" {...props} />,
+  li: (props: any) => <li className="mb-1" {...props} />,
+  a: (props: any) => <a className="text-blue-600 hover:underline" {...props} />,
+  blockquote: (props: any) => <blockquote className="border-l-4 border-gray-200 pl-4 italic my-4" {...props} />
 };

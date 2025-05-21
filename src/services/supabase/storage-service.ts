@@ -1,5 +1,43 @@
-import { logger } from '@/utils/logging';
 import { withSupabase } from '@/utils/supabase-helpers';
+import { logger } from '@/utils/logging';
+
+// Create storage buckets if they don't exist
+export async function ensureStorageBucketsExist(): Promise<boolean> {
+  try {
+    return withSupabase(async (client) => {
+      const requiredBuckets = ['avatars', 'public', 'private'];
+      let allSuccess = true;
+      
+      for (const bucket of requiredBuckets) {
+        try {
+          const { data: buckets } = await client.storage.listBuckets();
+          const bucketExists = buckets?.some(b => b.name === bucket);
+          
+          if (!bucketExists) {
+            const { error } = await client.storage.createBucket(bucket, {
+              public: bucket === 'public'
+            });
+            
+            if (error) {
+              logger.error(`Failed to create bucket '${bucket}'`, error);
+              allSuccess = false;
+            } else {
+              logger.info(`Created bucket '${bucket}'`);
+            }
+          }
+        } catch (err) {
+          logger.error(`Error working with bucket '${bucket}'`, err);
+          allSuccess = false;
+        }
+      }
+      
+      return allSuccess;
+    });
+  } catch (err) {
+    logger.error('Error ensuring storage buckets exist', err);
+    return false;
+  }
+}
 
 // Storage service functions using withSupabase helper
 

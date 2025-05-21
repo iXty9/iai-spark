@@ -1,25 +1,45 @@
 
-export type UserRole = 'admin' | 'moderator' | 'user';
+import { StatusType } from './statusTypes';
 
-export interface UserWithRole {
+export type UserRole = 'admin' | 'moderator' | 'user' | 'guest';
+
+export interface UserProfile {
   id: string;
   email: string;
   username?: string;
   full_name?: string;
   avatar_url?: string;
-  role: UserRole;
+  status: StatusType;
+  role?: UserRole;
   created_at: string;
   last_sign_in_at?: string;
 }
 
 export interface UsersFetchOptions {
   page?: number;
-  pageSize?: number;
-  roleFilter?: UserRole;
+  limit?: number;
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
+  status?: StatusType;
+  role?: UserRole;
   searchQuery?: string;
 }
 
-export interface UsersFetchResult {
-  users: UserWithRole[];
+export interface UsersSearchOptions {
+  query: string;
+  status?: StatusType;
+  role?: UserRole;
+}
+
+export interface UsersPaginationMetadata {
+  currentPage: number;
+  totalPages: number;
   totalCount: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+export interface UsersFetchResult {
+  users: UserProfile[];
+  metadata: UsersPaginationMetadata;
 }
