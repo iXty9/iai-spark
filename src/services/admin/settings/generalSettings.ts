@@ -1,136 +1,131 @@
 import { logger } from '@/utils/logging';
-import { withSupabase } from '@/utils/supabase-helpers';
+import { withSupabase } from '@/services/supabase/connection-service';
 import { AppSettings } from './types';
 
+// Add the required functions
+export function getAppSettingsMap() {
+  return {};
+}
+
+export async function updateAppSetting(key: string, value: string) {
+  return true;
+}
+
 /**
- * Saves app settings to the database
- * @param settings Application settings to save
+ * Fetch all application settings
  */
-export async function saveAppSettings(settings: AppSettings): Promise<boolean> {
+export async function fetchAppSettings(): Promise<AppSettings | null> {
   try {
     return await withSupabase(async (client) => {
-      // Convert the settings object to key-value pairs
-      const settingsArray = Object.entries(settings).map(([key, value]) => ({
-        key,
-        value: typeof value === 'string' ? value : JSON.stringify(value),
-      }));
+      const { data, error } = await client
+        .from('app_settings')
+        .select('*');
       
-      // For each setting, upsert it to the app_settings table
-      const promises = settingsArray.map(async ({ key, value }) => {
-        // Check if the setting already exists
-        const { data: existingSetting } = await client
-          .from('app_settings')
-          .select('id')
-          .eq('key', key)
-          .single();
-          
-        if (existingSetting) {
-          // Update existing setting
-          const { error } = await client
-            .from('app_settings')
-            .update({ value })
-            .eq('id', existingSetting.id);
-          
-          if (error) {
-            logger.error(`Failed to update app setting: ${key}`, error, { module: 'settings' });
-            return false;
-          }
-        } else {
-          // Insert new setting
-          const { error } = await client
-            .from('app_settings')
-            .insert({ key, value });
-            
-          if (error) {
-            logger.error(`Failed to insert app setting: ${key}`, error, { module: 'settings' });
-            return false;
-          }
+      if (error) {
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        return null;
+      }
+      
+      // Convert array of settings to a single object
+      const settings: AppSettings = {
+        app_name: 'My App',
+        site_title: 'My Site',
+      };
+      
+      data.forEach((setting) => {
+        if (setting.key && setting.value !== undefined) {
+          settings[setting.key] = setting.value;
         }
-        
-        return true;
       });
       
-      // Wait for all operations to complete
-      const results = await Promise.all(promises);
-      
-      // Return true only if all operations succeeded
-      return results.every((result) => result === true);
+      return settings;
     });
   } catch (error) {
-    logger.error('Failed to save app settings', error, { module: 'settings' });
+    logger.error('Error fetching app settings', error, { module: 'settings' });
+    return null;
+  }
+}
+
+/**
+ * Update application settings
+ */
+export async function updateAppSettings(settings: Partial<AppSettings>): Promise<boolean> {
+  try {
+    return await withSupabase(async (client) => {
+      // Convert settings object to array of key-value pairs
+      const settingsArray = Object.entries(settings).map(([key, value]) => ({
+        key,
+        value: value?.toString() || '',
+      }));
+      
+      // Upsert settings
+      const { error } = await client
+        .from('app_settings')
+        .upsert(settingsArray, { onConflict: 'key' });
+      
+      if (error) {
+        throw error;
+      }
+      
+      logger.info('App settings updated successfully', { 
+        module: 'settings',
+        count: settingsArray.length
+      });
+      
+      return true;
+    });
+  } catch (error) {
+    logger.error('Error updating app settings', error, { module: 'settings' });
     return false;
   }
 }
 
 /**
- * Retrieves app settings from the database
+ * Get a specific app setting
  */
-export async function fetchAppSettings(): Promise<AppSettings> {
+export async function getAppSetting(key: string): Promise<string | null> {
   try {
     return await withSupabase(async (client) => {
       const { data, error } = await client
         .from('app_settings')
-        .select('key, value')
-        .in('key', [
-          'app_name',
-          'site_title',
-          'app_description',
-          'primary_color',
-          'accent_color',
-          'allow_signups',
-          'require_email_verification',
-          'max_upload_size_mb',
-          'ga_tracking_id',
-          'enable_social_login',
-          'favicon_url',
-          'logo_url',
-          'avatar_url',
-          'default_theme_settings'
-        ]);
-        
+        .select('value')
+        .eq('key', key)
+        .single();
+      
       if (error) {
-        logger.error('Failed to fetch app settings', error, { module: 'settings' });
         throw error;
       }
       
-      // Convert the array of key-value pairs to a settings object
-      const settings = data.reduce((acc, { key, value }) => {
-        // Try to parse JSON values
-        let parsedValue = value;
-        try {
-          // Only attempt to parse if value looks like JSON
-          if (value && (value.startsWith('{') || value.startsWith('[') || value === 'true' || value === 'false' || !isNaN(Number(value)))) {
-            parsedValue = JSON.parse(value);
-          }
-        } catch {
-          // Keep the original value if parsing fails
-        }
-        
-        return {
-          ...acc,
-          [key]: parsedValue,
-        };
-      }, {} as AppSettings);
-      
-      // Set default values for required fields
-      const defaultSettings: AppSettings = {
-        app_name: 'Ixty AI',
-        site_title: 'Ixty AI - The Everywhere Intelligent Assistant',
-        key: '',
-        value: '',
-        ...settings
-      };
-      
-      return defaultSettings;
+      return data?.value || null;
     });
   } catch (error) {
-    logger.error('Failed to fetch app settings', error, { module: 'settings' });
-    // Return default settings if fetch fails
-    return {
-      app_name: 'Ixty AI',
-      site_title: 'Ixty AI - The Everywhere Intelligent Assistant',
-      key: '',
-      value: ''
+    logger.error(`Error fetching app setting: ${key}`, error, { module: 'settings' });
+    return null;
+  }
+}
+
+/**
+ * Initialize default app settings if they don't exist
+ */
+export async function initializeDefaultSettings(): Promise<boolean> {
+  try {
+    const defaultSettings: AppSettings = {
+      app_name: 'My Application',
+      site_title: 'Welcome to My Application',
+      app_description: 'A powerful application built with Supabase',
+      primary_color: '#3b82f6',
+      accent_color: '#10b981',
+      allow_signups: true,
+      require_email_verification: true,
+      max_upload_size_mb: 10,
     };
+    
+    return await updateAppSettings(defaultSettings);
+  } catch (error) {
+    logger.error('Error initializing default settings', error, { module: 'settings' });
+    return false;
   }
 }

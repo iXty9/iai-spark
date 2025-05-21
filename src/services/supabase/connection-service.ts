@@ -1,3 +1,4 @@
+
 import { supabase as supabasePromise, getResolvedClient } from '@/integrations/supabase/client';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { logger } from '@/utils/logging';
@@ -67,4 +68,29 @@ export function checkPublicBootstrapConfig() {
 
 export function checkConnectionHealth() {
   return Promise.resolve({ isHealthy: true });
+}
+
+// Add the missing functions that are being imported in bootstrap-state-machine.ts
+export async function getSupabaseClient(options = {}): Promise<SupabaseClient | null> {
+  // Implementation stub for bootstrap-state-machine.ts compatibility
+  logger.info('Getting Supabase client', { module: 'connection-service' });
+  try {
+    const client = await supabasePromise;
+    return client;
+  } catch (error) {
+    logger.error('Error getting Supabase client', error, { module: 'connection-service' });
+    return null;
+  }
+}
+
+export function shouldBypassRedirect(path: string): boolean {
+  // Implementation stub for bootstrap-state-machine.ts compatibility
+  // These routes should never be redirected away from, even if config is missing
+  const NON_REDIRECTABLE_ROUTES = [
+    '/supabase-auth',
+    '/initialize',
+    '/admin/connection'
+  ];
+  
+  return NON_REDIRECTABLE_ROUTES.some(route => path.startsWith(route));
 }

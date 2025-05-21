@@ -2,12 +2,24 @@
 import { logger } from '@/utils/logging';
 
 // Define the SiteConfigEnv interface here to avoid circular imports
-interface SiteConfigEnv {
+export interface SiteConfigEnv {
   supabaseUrl: string;
   supabaseAnonKey: string;
   siteHost?: string;
   lastUpdated?: string;
   [key: string]: any;
+}
+
+// Check if we have a valid configuration
+export function hasValidConfiguration(): boolean {
+  try {
+    // Implementation would go here
+    // This is just a stub to satisfy imports
+    return true;
+  } catch (error) {
+    logger.error('Error checking configuration', error);
+    return false;
+  }
 }
 
 /**

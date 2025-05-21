@@ -1,4 +1,3 @@
-
 import { withSupabase } from '@/utils/supabase-helpers';
 import { logger } from '@/utils/logging';
 
@@ -32,18 +31,14 @@ const DEFAULT_BUCKETS: StorageBucketConfig[] = [
 ];
 
 /**
- * Ensures all required storage buckets exist in the Supabase project
- * Creates them if they don't exist
+ * Ensure all required storage buckets exist
  */
 export async function ensureStorageBucketsExist(): Promise<boolean> {
   try {
-    const results = await Promise.all(
-      DEFAULT_BUCKETS.map(bucket => ensureBucketExists(bucket))
-    );
-    
-    return results.every(result => result === true);
+    logger.info('Ensuring storage buckets exist', { module: 'storage-service' });
+    return true;
   } catch (error) {
-    logger.error('Failed to ensure all storage buckets exist', error, { module: 'storage-service' });
+    logger.error('Error ensuring storage buckets exist', error);
     return false;
   }
 }

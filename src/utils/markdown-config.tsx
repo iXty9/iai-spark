@@ -1,85 +1,75 @@
 
 import React from 'react';
 import DOMPurify from 'dompurify';
-import type { Components } from 'react-markdown';
+import { HTMLProps, AnchorHTMLAttributes, OlHTMLAttributes } from 'react';
 
-// Define a trusted policy types interface for TypeScript
-interface TrustedTypePolicyOptions {
-  createHTML?: (input: string, ...args: any[]) => string;
+// Fix for trustedTypes not being available in all environments
+let sanitizeHTML: (html: string) => string;
+
+// Create a sanitizer that works in browsers with and without Trusted Types
+if (typeof window !== 'undefined') {
+  // Initialize DOMPurify
+  sanitizeHTML = (html: string) => {
+    return DOMPurify.sanitize(html);
+  };
+} else {
+  // Server-side rendering fallback
+  sanitizeHTML = (html: string) => html;
 }
 
-// Create a trusted HTML policy if supported by the browser
-let sanitizeHtml = (html: string) => html;
-if (typeof window !== 'undefined' && window.trustedTypes) {
-  try {
-    const policy = window.trustedTypes.createPolicy('markdown-html', {
-      createHTML: (html: string) => DOMPurify.sanitize(html),
-    });
-    sanitizeHtml = (html: string) => policy.createHTML(html) as unknown as string;
-  } catch (e) {
-    console.error('Failed to create trusted types policy', e);
-    sanitizeHtml = (html: string) => DOMPurify.sanitize(html);
-  }
-}
-
-// Extended props interface for markdown components
+// Extra props for markdown components
 interface ExtraProps {
   ordered?: boolean;
   inline?: boolean;
+  // Adding node to satisfy TypeScript
+  node?: any;
 }
 
-// Define custom markdown components
-export const markdownComponents: Components = {
-  // List components
-  ul: ({ node, ordered, ...props }: React.HTMLProps<HTMLUListElement> & ExtraProps) => (
-    <ul className="list-disc pl-6 my-4 space-y-2" {...props} />
+// Export the components that will be used to render markdown
+export const markdownComponents = {
+  // Basic elements
+  ul: ({ className, ...props }: HTMLProps<HTMLUListElement> & ExtraProps) => (
+    <ul className={`list-disc pl-6 my-4 ${className || ''}`} {...props} />
   ),
-  ol: ({ node, ordered, ...props }: React.OlHTMLAttributes<HTMLOListElement> & ExtraProps) => (
-    <ol className="list-decimal pl-6 my-4 space-y-2" {...props} />
+  ol: ({ className, ...props }: OlHTMLAttributes<HTMLOListElement> & ExtraProps) => (
+    <ol className={`list-decimal pl-6 my-4 ${className || ''}`} {...props} />
   ),
-  li: ({ node, ...props }: React.HTMLProps<HTMLLIElement>) => (
-    <li className="my-1" {...props} />
+  li: ({ className, ...props }: HTMLProps<HTMLLIElement>) => (
+    <li className={`my-1 ${className || ''}`} {...props} />
   ),
-  
-  // Text formatting
-  p: ({ node, ...props }: React.HTMLProps<HTMLParagraphElement>) => (
-    <p className="mb-4 last:mb-0" {...props} />
+  p: ({ className, ...props }: HTMLProps<HTMLParagraphElement>) => (
+    <p className={`my-2 ${className || ''}`} {...props} />
   ),
-  h1: ({ node, ...props }: React.HTMLProps<HTMLHeadingElement>) => (
-    <h1 className="text-2xl font-bold mt-6 mb-3" {...props} />
+  h1: ({ className, ...props }: HTMLProps<HTMLHeadingElement>) => (
+    <h1 className={`text-3xl font-bold my-4 ${className || ''}`} {...props} />
   ),
-  h2: ({ node, ...props }: React.HTMLProps<HTMLHeadingElement>) => (
-    <h2 className="text-xl font-bold mt-6 mb-2" {...props} />
+  h2: ({ className, ...props }: HTMLProps<HTMLHeadingElement>) => (
+    <h2 className={`text-2xl font-bold my-3 ${className || ''}`} {...props} />
   ),
-  h3: ({ node, ...props }: React.HTMLProps<HTMLHeadingElement>) => (
-    <h3 className="text-lg font-bold mt-4 mb-2" {...props} />
+  h3: ({ className, ...props }: HTMLProps<HTMLHeadingElement>) => (
+    <h3 className={`text-xl font-bold my-2 ${className || ''}`} {...props} />
   ),
-  
   // Code blocks
-  code: ({ node, inline, ...props }: React.HTMLProps<HTMLElement> & ExtraProps) => {
-    const className = props.className || '';
-    return inline ? (
-      <code className="px-1 py-0.5 bg-muted rounded font-mono text-sm" {...props} />
+  code: ({ className, inline, ...props }: HTMLProps<HTMLElement> & ExtraProps) => (
+    inline ? (
+      <code className={`bg-muted px-1 py-0.5 rounded text-sm ${className || ''}`} {...props} />
     ) : (
-      <pre className="p-4 bg-muted rounded-md overflow-x-auto my-4">
-        <code className={`${className} font-mono text-sm`} {...props} />
-      </pre>
-    );
-  },
-  
-  // Links and other elements
-  a: ({ node, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
-    <a className="text-primary hover:underline" target="_blank" rel="noopener noreferrer" {...props} />
+      <code
+        className={`block bg-muted p-3 rounded-md overflow-x-auto text-sm ${className || ''}`}
+        {...props}
+      />
+    )
   ),
-  blockquote: ({ node, ...props }: React.HTMLProps<HTMLQuoteElement>) => (
-    <blockquote className="pl-4 border-l-4 border-muted-foreground/20 italic my-4" {...props} />
+  // Links
+  a: ({ className, href, ...props }: AnchorHTMLAttributes<HTMLAnchorElement>) => (
+    <a href={href} className={`text-primary hover:underline ${className || ''}`} target="_blank" rel="noopener noreferrer" {...props} />
   ),
-  hr: ({ node, ...props }: React.HTMLProps<HTMLHRElement>) => (
-    <hr className="my-6 border-t-2 border-border" {...props} />
+  blockquote: ({ className, ...props }: HTMLProps<HTMLQuoteElement>) => (
+    <blockquote className={`border-l-4 border-muted pl-4 italic my-2 ${className || ''}`} {...props} />
+  ),
+  hr: ({ className, ...props }: HTMLProps<HTMLHRElement>) => (
+    <hr className={`my-4 border-t border-border ${className || ''}`} {...props} />
   ),
 };
 
-// Sanitizer function for HTML content
-export const sanitizeMarkdownHtml = (html: string): string => {
-  return sanitizeHtml(html);
-};
+export default markdownComponents;
