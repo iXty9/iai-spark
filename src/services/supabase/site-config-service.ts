@@ -5,7 +5,7 @@ export interface SiteConfigEnv {
   supabaseUrl: string;
   supabaseAnonKey: string;
   siteHost?: string;
-  lastUpdated?: string;
+  lastUpdated: string; // Changed from optional to required
   [key: string]: any;
 }
 
@@ -14,7 +14,7 @@ export interface SiteConfig {
   supabaseUrl: string;
   supabaseAnonKey: string;
   siteHost: string;
-  lastUpdated?: string;
+  lastUpdated: string; // This is required
   [key: string]: any;
 }
 

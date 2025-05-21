@@ -8,5 +8,12 @@ export interface LogOptions {
   pageSize?: number;
   userId?: string;
   roleFilter?: string;
+  lastConnection?: string;
+  connectionInfo?: Record<string, any>;
+  isInitialized?: boolean;
+  environment?: string;
+  endpoint?: string;
+  isDev?: boolean;
+  error?: any;
   [key: string]: any;
 }

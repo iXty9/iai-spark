@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { ConfigStatusIndicator } from './ConfigStatusIndicator';
 import { generateConfigFile } from '@/utils/config-generator';
 import { writeConfigToLocalStorage, readConfigFromLocalStorage } from '@/services/site-config/site-config-file-service';
-import { SiteConfigEnv, SiteConfig } from '@/services/supabase/site-config-service';
+import { SiteConfig } from '@/services/supabase/site-config-service';
 import { Download, RefreshCw, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -63,7 +63,7 @@ export function ConfigurationDashboard({ onConfigSaved }) {
       const config: SiteConfig = {
         ...state,
         siteHost: window.location.hostname || 'localhost',
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString()  // Ensure lastUpdated is provided
       };
       const saved = writeConfigToLocalStorage(config);
       if (saved) {
