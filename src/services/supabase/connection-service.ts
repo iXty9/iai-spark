@@ -1,155 +1,132 @@
 
+import { getStoredConfig, saveConfig, clearConfig, getEnvironmentInfo } from '@/config/supabase-config';
+import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/utils/logging';
-import { supabase, getResolvedClient } from '@/integrations/supabase/client';
-import { getStoredConfig } from '@/config/supabase-config';
-import { SupabaseConfig } from '@/config/supabase/types';
 
-// Fix line where Number() is used incorrectly
-// Replace:
-// const timeoutMs = Number(config.timeout || 5000);
-// With:
-const timeoutMs = config?.timeout ? Number(config.timeout) : 5000;
+// Cache the client instance
+let supabaseClient: any = null;
 
 /**
- * Supabase client instance cache
+ * Helper function to safely work with Supabase client
  */
-let supabaseClientInstance: any = null;
+export const withSupabase = async <T>(fn: (client: any) => Promise<T>): Promise<T> => {
+  const client = await getSupabaseClient();
+  if (!client) throw new Error('Supabase client not available');
+  return await fn(client);
+};
 
 /**
- * Reset the Supabase client instance
- * Forces a new client to be created on next request
+ * Create a new Supabase client using stored configuration
+ */
+export async function getSupabaseClient(): Promise<any> {
+  // Return cached client if available
+  if (supabaseClient) return supabaseClient;
+  
+  try {
+    const config = getStoredConfig();
+    if (!config || !config.url || !config.anonKey) {
+      logger.warn('No valid Supabase configuration found', { module: 'connection-service' });
+      return null;
+    }
+
+    // Ensure we're using valid string values
+    const url = String(config.url);
+    const anonKey = String(config.anonKey);
+
+    // Create a new client with the configuration
+    supabaseClient = createClient(url, anonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        storageKey: 'supabase_auth_token',
+      }
+    });
+
+    // Update connection info
+    const connectionId = generateConnectionId();
+    localStorage.setItem('supabase_connection_id', connectionId);
+    localStorage.setItem('last_connection_time', new Date().toISOString());
+
+    logger.info('Supabase client initialized', {
+      url: url.split('//')[1], 
+      connectionId,
+      module: 'connection-service'
+    });
+    
+    return supabaseClient;
+  } catch (error) {
+    logger.error('Error initializing Supabase client', error, { module: 'connection-service' });
+    return null;
+  }
+}
+
+/**
+ * Generate a unique connection ID
+ */
+export function generateConnectionId(): string {
+  const envInfo = getEnvironmentInfo();
+  const randomPart = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  const timestamp = Date.now().toString(36);
+  return `${envInfo.id.substring(0, 3)}-${timestamp}-${randomPart}`;
+}
+
+/**
+ * Reset the cached Supabase client - forces a new client on next getSupabaseClient call
  */
 export function resetSupabaseClient(): void {
-  supabaseClientInstance = null;
+  supabaseClient = null;
   logger.info('Supabase client reset', { module: 'connection-service' });
 }
 
 /**
- * Get Supabase client instance
- * Returns the cached instance or creates a new one
- */
-export async function getSupabaseClient(): Promise<any> {
-  if (supabaseClientInstance) {
-    return supabaseClientInstance;
-  }
-
-  try {
-    supabaseClientInstance = await supabase;
-    return supabaseClientInstance;
-  } catch (error) {
-    logger.error('Error getting Supabase client', error, { module: 'connection-service' });
-    throw error;
-  }
-}
-
-/**
- * Test Supabase connection with provided credentials
- */
-export async function testSupabaseConnection(url: string, anonKey: string): Promise<ConnectionTestResult> {
-  try {
-    // Implementation details
-    logger.info('Testing Supabase connection', { 
-      module: 'connection-service',
-      url: url.split('//')[1] // Log domain only for security
-    });
-
-    // Return success for now
-    return { 
-      isConnected: true,
-      hasPermission: true,
-      message: 'Connection successful'
-    };
-  } catch (error) {
-    logger.error('Connection test failed', error, { module: 'connection-service' });
-    return {
-      isConnected: false,
-      hasPermission: false,
-      message: error instanceof Error ? error.message : String(error)
-    };
-  }
-}
-
-/**
- * Check if current path should bypass connection redirection
- */
-export function shouldBypassRedirect(path: string): boolean {
-  // Paths that should never be redirected from, even if config is missing
-  const NON_REDIRECTABLE_PATHS = [
-    '/initialize',
-    '/supabase-auth',
-    '/admin/connection'
-  ];
-  
-  return NON_REDIRECTABLE_PATHS.some(nonRedirectPath => 
-    path === nonRedirectPath || path.startsWith(`${nonRedirectPath}/`)
-  );
-}
-
-/**
- * Get connection information
- */
-export function getConnectionInfo(): {
-  hasStoredConfig: boolean;
-  url?: string;
-  lastConnection?: string;
-  environment?: string;
-} {
-  const config = getStoredConfig();
-  return {
-    hasStoredConfig: !!config,
-    url: config?.url,
-    lastConnection: config?.lastConnection,
-    environment: process.env.NODE_ENV
-  };
-}
-
-/**
- * Check if connection is healthy
- */
-export async function checkConnectionHealth(): Promise<boolean> {
-  try {
-    const client = await getSupabaseClient();
-    if (!client) return false;
-    
-    // Try a simple query to see if connection is healthy
-    const { error } = await client
-      .from('app_settings')
-      .select('key')
-      .limit(1);
-    
-    // Connection is good if there's no error or if it's just a "table not found" error
-    return !error || error.code === '42P01';
-  } catch (error) {
-    logger.error('Connection health check failed', error, { module: 'connection-service' });
-    return false;
-  }
-}
-
-/**
- * Check if public bootstrap config is available
- */
-export async function checkPublicBootstrapConfig(): Promise<boolean> {
-  try {
-    // Attempt to read config
-    const config = getStoredConfig();
-    if (!config || !config.url || !config.anonKey) {
-      return false;
-    }
-
-    // Check connection health
-    return await checkConnectionHealth();
-  } catch (error) {
-    logger.error('Error checking bootstrap config', error, { module: 'connection-service' });
-    return false;
-  }
-}
-
-/**
- * Connection test result interface
+ * Test connection to Supabase
  */
 export interface ConnectionTestResult {
   isConnected: boolean;
-  hasPermission: boolean;
-  message: string;
-  error?: any;
+  error?: string;
+  details?: any;
+}
+
+export async function testSupabaseConnection(url: string, key: string): Promise<ConnectionTestResult> {
+  try {
+    const testClient = createClient(url, key);
+    const { data, error } = await testClient.from('app_settings').select('*').limit(1);
+    
+    if (error) {
+      return {
+        isConnected: false,
+        error: error.message,
+        details: { code: error.code, hint: error.hint }
+      };
+    }
+    
+    return { isConnected: true, details: { tableExists: !!data } };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { isConnected: false, error: errorMessage };
+  }
+}
+
+/**
+ * Check if current route should bypass redirect
+ */
+export function shouldBypassRedirect(path: string): boolean {
+  // Use an explicit conversion to number instead of Number()
+  const now = parseInt(new Date().getTime().toString(), 10);
+  
+  // List of paths that should bypass redirect
+  const bypassPaths = [
+    '/supabase-auth',
+    '/setup',
+    '/reset-connection',
+    '/initialize'
+  ];
+  
+  // Add debugging paths
+  if (process.env.NODE_ENV === 'development') {
+    bypassPaths.push('/debug');
+    bypassPaths.push('/dev');
+  }
+  
+  return bypassPaths.some(bp => path.startsWith(bp));
 }

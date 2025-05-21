@@ -1,86 +1,70 @@
 
 import DOMPurify from 'dompurify';
-import MarkdownIt from 'markdown-it';
-import { highlight } from 'shiki';
+import { ReactNode } from 'react';
 
-// Initialize MarkdownIt with syntax highlighting
-const md = MarkdownIt({
-  highlight: (code, lang) => {
-    if (lang) {
-      return highlight(code, { lang, theme: 'github-dark' })
-        .then(html => `<pre class="shiki shiki-themes github-dark">${html}</pre>`);
-    }
-    return '<pre class="hljs">' + md.utils.escapeHtml(code) + '</pre>';
-  },
-  html: true, // Enable HTML tags in source
-  linkify: true, // Autoconvert URL-like text to links
-});
+// Configure DOMPurify
+const purifyConfig = {
+  ADD_TAGS: ['iframe'],
+  ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling'],
+};
 
-// Configure DOMPurify with trusted types if available
-const configureDOMPurify = () => {
-  if (typeof window !== 'undefined') {
-    // Check if trustedTypes is available in the browser
-    const hasTrustedTypes = 
-      typeof window !== 'undefined' && 
-      window.trustedTypes !== undefined;
+// Safe HTML sanitization with type checks
+export const sanitizeHtml = (html: string): string => {
+  // Check if trustedTypes is available in the window object
+  if (typeof window !== 'undefined' && 'trustedTypes' in window) {
+    // Using optional chaining and type checking
+    const trustedTypesWindow = window as Window & {
+      trustedTypes?: {
+        createPolicy: (name: string, rules: any) => {
+          createHTML: (html: string) => any;
+        };
+      };
+    };
 
-    if (hasTrustedTypes) {
+    if (trustedTypesWindow.trustedTypes) {
       try {
-        const tt = window.trustedTypes;
-        const policy = tt.createPolicy?.('markdown-html', {
-          createHTML: (string: string) => string
+        // Create a policy if it doesn't exist
+        const policy = trustedTypesWindow.trustedTypes.createPolicy('purify', {
+          createHTML: (html: string) => html
         });
-        
-        DOMPurify.setConfig({
-          RETURN_TRUSTED_TYPE: true,
-          TRUSTED_TYPES_POLICY: policy ?? tt.defaultPolicy
-        });
+
+        return DOMPurify.sanitize(policy.createHTML(html), purifyConfig);
       } catch (e) {
-        console.error('Error configuring DOMPurify with TrustedTypes:', e);
+        // If policy already exists or other error, fallback to regular sanitization
+        return DOMPurify.sanitize(html, purifyConfig);
       }
     }
   }
+  
+  // Default sanitization if trustedTypes not available
+  return DOMPurify.sanitize(html, purifyConfig);
 };
 
-// Fix window.trustedTypes type issue by extending Window interface
-declare global {
-  interface Window {
-    trustedTypes?: {
-      createPolicy?: (name: string, rules: { createHTML: (s: string) => string }) => any;
-      defaultPolicy?: any;
-    };
-  }
-}
-
-// Initialize DOMPurify configuration
-configureDOMPurify();
-
-/**
- * Render markdown to HTML and sanitize it
- */
-export const renderMarkdown = (markdown: string): string => {
-  try {
-    const html = md.render(markdown);
-    if (typeof window !== 'undefined') {
-      return DOMPurify.sanitize(html) as string;
-    }
-    return html;
-  } catch (error) {
-    console.error("Failed to render markdown:", error);
-    return `<p>Error rendering markdown: ${String(error)}</p>`;
-  }
+// Code block renderer
+export const CodeBlock = ({ children, className }: { children: ReactNode, className?: string }) => {
+  return (
+    <pre className={`${className || ''} p-4 bg-gray-800 text-white rounded-md overflow-x-auto my-4`}>
+      <code>{children}</code>
+    </pre>
+  );
 };
 
-// Export markdown components for React integration
-export const markdownComponents = {
-  // Basic components for React Markdown integration
-  p: (props: any) => <p className="mb-4" {...props} />,
-  h1: (props: any) => <h1 className="text-3xl font-bold mb-4 mt-6" {...props} />,
-  h2: (props: any) => <h2 className="text-2xl font-bold mb-3 mt-5" {...props} />,
-  h3: (props: any) => <h3 className="text-xl font-bold mb-3 mt-4" {...props} />,
-  ul: (props: any) => <ul className="list-disc pl-6 mb-4" {...props} />,
-  ol: (props: any) => <ol className="list-decimal pl-6 mb-4" {...props} />,
-  li: (props: any) => <li className="mb-1" {...props} />,
-  a: (props: any) => <a className="text-blue-600 hover:underline" {...props} />,
-  blockquote: (props: any) => <blockquote className="border-l-4 border-gray-200 pl-4 italic my-4" {...props} />
+// Link renderer with security attributes
+export const SafeLink = ({ href, children }: { href: string, children: ReactNode }) => {
+  // Determine if the link is external
+  const isExternal = href && (
+    href.startsWith('http://') || 
+    href.startsWith('https://') || 
+    href.startsWith('//')
+  );
+
+  return (
+    <a 
+      href={href}
+      className="text-blue-500 hover:text-blue-700 underline"
+      {...(isExternal ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+    >
+      {children}
+    </a>
+  );
 };

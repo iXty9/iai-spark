@@ -1,39 +1,40 @@
 
 export interface AppSettings {
-  key: string;
-  value: string;
-  app_name?: string;
-  site_title?: string;
-  avatar_url?: string;
-  default_theme_settings?: any;
+  app_name: string;
+  site_title: string;
+  app_description?: string;
+  primary_color?: string;
+  accent_color?: string;
+  allow_signups?: boolean;
+  require_email_verification?: boolean;
+  max_upload_size_mb?: number;
+  ga_tracking_id?: string;
+  enable_social_login?: boolean;
+  favicon_url?: string;
+  logo_url?: string;
+  [key: string]: any;
 }
 
-export type SettingValueType = string | boolean | number | Record<string, any> | null;
-
-export interface GeneralSetting {
-  key: string;
-  value: SettingValueType;
-  description?: string;
-  category?: string;
-  is_public?: boolean;
-  created_at?: string;
-  updated_at?: string;
+export interface ConnectionSettings {
+  url: string;
+  anonKey: string;
+  serviceKey?: string;
+  lastConnection?: string;
+  isInitialized?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  environment?: string;
+  [key: string]: any;
 }
 
 export interface WebhookSettings {
-  id?: string;
+  enabled: boolean;
   url: string;
   secret?: string;
-  is_active: boolean;
-  events: string[];
-  created_at?: string;
-  updated_at?: string;
+  events?: string[];
+  headers?: Record<string, string>;
+  retries?: number;
+  timeout_ms?: number;
 }
 
-export enum WebhookEvent {
-  MESSAGE_CREATED = 'message.created',
-  USER_CREATED = 'user.created',
-  USER_UPDATED = 'user.updated',
-  SESSION_CREATED = 'session.created',
-  SESSION_DELETED = 'session.deleted'
-}
+export type AdminSettingsKey = 'app' | 'connection' | 'webhooks';

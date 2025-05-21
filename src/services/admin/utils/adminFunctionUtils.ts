@@ -1,11 +1,106 @@
-import { withSupabase } from '@/utils/supabase-helpers';
 
-// Update functions that directly use supabase client
-export async function invokeFunctionWithServiceKey(functionName: string, body: any = {}): Promise<any> {
-  return withSupabase(async (client) => {
-    // Function implementation using client.functions.invoke
-    return client.functions.invoke(functionName, {
-      body: JSON.stringify(body)
+import { withSupabase } from '@/services/supabase/connection-service';
+import { logger } from '@/utils/logging';
+
+/**
+ * Call an admin edge function
+ * @param functionName The name of the function to call
+ * @param payload The payload to send to the function
+ * @returns 
+ */
+export const callAdminFunction = async (functionName: string, payload: any) => {
+  try {
+    return await withSupabase(async (client) => {
+      const { data, error } = await client.functions.invoke(functionName, {
+        body: JSON.stringify(payload),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (error) {
+        logger.error(`Error calling admin function ${functionName}`, error, {
+          module: 'admin-function-utils',
+          payload,
+        });
+        throw error;
+      }
+
+      return data;
     });
-  });
-}
+  } catch (error) {
+    logger.error(`Error in callAdminFunction ${functionName}`, error, {
+      module: 'admin-function-utils',
+      payload,
+    });
+    throw error;
+  }
+};
+
+/**
+ * Verify current user has admin capabilities
+ */
+export const verifyAdminUser = async () => {
+  try {
+    return await withSupabase(async (client) => {
+      // Get the current session
+      const { data: sessionData, error: sessionError } = await client.auth.getSession();
+      if (sessionError) throw sessionError;
+
+      if (!sessionData.session?.user) {
+        throw new Error('User not authenticated');
+      }
+
+      const userId = sessionData.session.user.id;
+
+      // Check if user has admin role
+      const { data: roleData, error: roleError } = await client
+        .from('user_roles')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('role', 'admin');
+
+      if (roleError) throw roleError;
+      return roleData && roleData.length > 0;
+    });
+  } catch (error) {
+    logger.error('Error verifying admin user', error, { module: 'admin-function-utils' });
+    return false;
+  }
+};
+
+/**
+ * Call a Supabase Edge Function with admin permissions
+ */
+export const callEdgeFunction = async (functionName: string, payload: any = {}, headers: Record<string, string> = {}) => {
+  try {
+    return await withSupabase(async (client) => {
+      // Verify the user has admin rights first
+      const isAdmin = await verifyAdminUser();
+      if (!isAdmin) {
+        throw new Error('Permission denied: Admin access required');
+      }
+
+      // Call the function
+      const response = await client.functions.invoke(functionName, {
+        body: JSON.stringify(payload),
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers
+        },
+      });
+
+      if (response.error) {
+        throw new Error(`Edge function error: ${response.error.message}`);
+      }
+
+      return response.data;
+    });
+  } catch (error) {
+    logger.error(`Error calling edge function ${functionName}`, error, {
+      module: 'admin-function-utils',
+      payload,
+    });
+    throw error;
+  }
+};

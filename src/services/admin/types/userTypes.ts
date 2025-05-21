@@ -1,45 +1,67 @@
 
-import { StatusType } from './statusTypes';
+export enum UserStatus {
+  ACTIVE = 'active',
+  SUSPENDED = 'suspended',
+  PENDING = 'pending',
+  DELETED = 'deleted'
+}
 
-export type UserRole = 'admin' | 'moderator' | 'user' | 'guest';
-
-export interface UserProfile {
+export interface User {
   id: string;
   email: string;
   username?: string;
-  full_name?: string;
+  first_name?: string;
+  last_name?: string;
   avatar_url?: string;
-  status: StatusType;
-  role?: UserRole;
+  status: UserStatus;
+  roles: string[];
   created_at: string;
-  last_sign_in_at?: string;
-}
-
-export interface UsersFetchOptions {
-  page?: number;
-  limit?: number;
-  sortBy?: string;
-  sortDirection?: 'asc' | 'desc';
-  status?: StatusType;
-  role?: UserRole;
-  searchQuery?: string;
+  last_sign_in?: string;
 }
 
 export interface UsersSearchOptions {
   query: string;
-  status?: StatusType;
-  role?: UserRole;
+  field?: 'email' | 'username' | 'name';
+  status?: UserStatus;
+  role?: string;
 }
 
-export interface UsersPaginationMetadata {
+export interface UsersFetchOptions {
+  page?: number;
+  perPage?: number;
+  searchQuery?: string; // Added searchQuery
+  status?: UserStatus;
+  role?: string;
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
+}
+
+export interface UserManagementState {
+  users: User[];
+  loading: boolean;
+  error: Error | null;
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalCount: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+  connectionStatus: boolean;
+  selectedUser: User | null;
+  dialog: {
+    type: string;
+    isOpen: boolean;
+    data: any;
+  };
+  updatingRole: boolean;
   currentPage: number;
-  totalPages: number;
-  totalCount: number;
-  hasNextPage: boolean;
-  hasPreviousPage: boolean;
-}
-
-export interface UsersFetchResult {
-  users: UserProfile[];
-  metadata: UsersPaginationMetadata;
+  setCurrentPage: (page: number) => void;
+  setSelectedUser: (user: User | null) => void;
+  setDialog: (dialog: { type: string; isOpen: boolean; data: any }) => void;
+  fetchUserList: (options?: UsersFetchOptions) => Promise<void>;
+  removeUser: (userId: string) => Promise<boolean>;
+  changeUserStatus: (userId: string, status: UserStatus, reason?: string) => Promise<boolean>;
+  assignRole: (userId: string, role: string) => Promise<boolean>;
+  removeRole: (userId: string, role: string) => Promise<boolean>;
 }

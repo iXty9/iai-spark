@@ -1,287 +1,103 @@
-import { withSupabase } from '@/utils/supabase-helpers';
+
+import { withSupabase } from './connection-service';
 import { logger } from '@/utils/logging';
 
-// Create storage buckets if they don't exist
-export async function ensureStorageBucketsExist(): Promise<boolean> {
+/**
+ * Base service for managing storage buckets and files
+ */
+
+/**
+ * Create a new storage bucket
+ */
+export async function createBucket(bucketName: string, isPublic: boolean = false) {
   try {
-    return withSupabase(async (client) => {
-      const requiredBuckets = ['avatars', 'public', 'private'];
-      let allSuccess = true;
+    return await withSupabase(async (client) => {
+      const { data, error } = await client.storage.createBucket(bucketName, {
+        public: isPublic,
+      });
       
-      for (const bucket of requiredBuckets) {
-        try {
-          const { data: buckets } = await client.storage.listBuckets();
-          const bucketExists = buckets?.some(b => b.name === bucket);
-          
-          if (!bucketExists) {
-            const { error } = await client.storage.createBucket(bucket, {
-              public: bucket === 'public'
-            });
-            
-            if (error) {
-              logger.error(`Failed to create bucket '${bucket}'`, error);
-              allSuccess = false;
-            } else {
-              logger.info(`Created bucket '${bucket}'`);
-            }
-          }
-        } catch (err) {
-          logger.error(`Error working with bucket '${bucket}'`, err);
-          allSuccess = false;
-        }
-      }
-      
-      return allSuccess;
+      if (error) throw error;
+      return data;
     });
-  } catch (err) {
-    logger.error('Error ensuring storage buckets exist', err);
-    return false;
+  } catch (error) {
+    logger.error('Error creating bucket', error, { module: 'storage-service', bucketName });
+    throw error;
   }
 }
 
-// Storage service functions using withSupabase helper
-
 /**
- * Upload a file to storage
+ * Upload a file to a storage bucket
  */
 export async function uploadFile(
   bucketName: string,
   filePath: string,
   file: File,
-  options?: { upsert?: boolean }
-): Promise<string | null> {
+  options?: { cacheControl?: string; upsert?: boolean }
+) {
   try {
     return await withSupabase(async (client) => {
       const { data, error } = await client.storage
         .from(bucketName)
-        .upload(filePath, file, {
-          upsert: options?.upsert || false,
-        });
-
-      if (error) {
-        logger.error('Failed to upload file', error);
-        return null;
-      }
-
-      // Get public URL for the file
-      const { data: urlData } = client.storage
-        .from(bucketName)
-        .getPublicUrl(data.path);
-
-      return urlData.publicUrl;
-    });
-  } catch (error) {
-    logger.error('Error uploading file', error);
-    return null;
-  }
-}
-
-/**
- * Download a file from storage
- */
-export async function downloadFile(
-  bucketName: string,
-  filePath: string
-): Promise<Blob | null> {
-  try {
-    return await withSupabase(async (client) => {
-      const { data, error } = await client.storage
-        .from(bucketName)
-        .download(filePath);
-
-      if (error) {
-        logger.error('Failed to download file', error);
-        return null;
-      }
-
+        .upload(filePath, file, options);
+      
+      if (error) throw error;
       return data;
     });
   } catch (error) {
-    logger.error('Error downloading file', error);
-    return null;
+    logger.error('Error uploading file', error, { module: 'storage-service', bucketName, filePath });
+    throw error;
   }
 }
 
 /**
  * Get a public URL for a file
  */
-export async function getPublicUrl(
-  bucketName: string,
-  filePath: string
-): Promise<string | null> {
+export async function getPublicUrl(bucketName: string, filePath: string) {
   try {
     return await withSupabase(async (client) => {
-      const { data } = client.storage
-        .from(bucketName)
-        .getPublicUrl(filePath);
-
+      const { data } = client.storage.from(bucketName).getPublicUrl(filePath);
       return data.publicUrl;
     });
   } catch (error) {
-    logger.error('Error getting public URL', error);
-    return null;
+    logger.error('Error getting public URL', error, { module: 'storage-service', bucketName, filePath });
+    throw error;
   }
 }
 
 /**
- * List files in a bucket
+ * List all files in a bucket or folder
  */
-export async function listFiles(
-  bucketName: string,
-  folderPath?: string
-): Promise<string[] | null> {
+export async function listFiles(bucketName: string, folderPath?: string) {
   try {
     return await withSupabase(async (client) => {
       const { data, error } = await client.storage
         .from(bucketName)
         .list(folderPath || '');
-
-      if (error) {
-        logger.error('Failed to list files', error);
-        return null;
-      }
-
-      return data.map(file => file.name);
+      
+      if (error) throw error;
+      return data;
     });
   } catch (error) {
-    logger.error('Error listing files', error);
-    return null;
+    logger.error('Error listing files', error, { module: 'storage-service', bucketName, folderPath });
+    throw error;
   }
 }
 
 /**
- * Delete a file from storage
+ * Download a file from storage
  */
-export async function deleteFile(
-  bucketName: string,
-  filePath: string
-): Promise<boolean> {
-  try {
-    return await withSupabase(async (client) => {
-      const { error } = await client.storage
-        .from(bucketName)
-        .remove([filePath]);
-
-      if (error) {
-        logger.error('Failed to delete file', error);
-        return false;
-      }
-
-      return true;
-    });
-  } catch (error) {
-    logger.error('Error deleting file', error);
-    return false;
-  }
-}
-
-/**
- * Create a signed URL for temporary access
- */
-export async function createSignedUrl(
-  bucketName: string,
-  filePath: string,
-  expiresIn: number = 60
-): Promise<string | null> {
+export async function downloadFile(bucketName: string, filePath: string) {
   try {
     return await withSupabase(async (client) => {
       const { data, error } = await client.storage
         .from(bucketName)
-        .createSignedUrl(filePath, expiresIn);
-
-      if (error) {
-        logger.error('Failed to create signed URL', error);
-        return null;
-      }
-
-      return data.signedUrl;
+        .download(filePath);
+      
+      if (error) throw error;
+      return data;
     });
   } catch (error) {
-    logger.error('Error creating signed URL', error);
-    return null;
-  }
-}
-
-/**
- * Move a file within storage
- */
-export async function moveFile(
-  bucketName: string,
-  fromPath: string,
-  toPath: string
-): Promise<boolean> {
-  try {
-    return await withSupabase(async (client) => {
-      const { error } = await client.storage
-        .from(bucketName)
-        .move(fromPath, toPath);
-
-      if (error) {
-        logger.error('Failed to move file', error);
-        return false;
-      }
-
-      return true;
-    });
-  } catch (error) {
-    logger.error('Error moving file', error);
-    return false;
-  }
-}
-
-/**
- * Copy a file within storage
- */
-export async function copyFile(
-  bucketName: string,
-  fromPath: string,
-  toPath: string
-): Promise<boolean> {
-  try {
-    return await withSupabase(async (client) => {
-      const { error } = await client.storage
-        .from(bucketName)
-        .copy(fromPath, toPath);
-
-      if (error) {
-        logger.error('Failed to copy file', error);
-        return false;
-      }
-
-      return true;
-    });
-  } catch (error) {
-    logger.error('Error copying file', error);
-    return false;
-  }
-}
-
-/**
- * Check if a file exists
- */
-export async function fileExists(
-  bucketName: string,
-  filePath: string
-): Promise<boolean> {
-  try {
-    return await withSupabase(async (client) => {
-      // Try to get file metadata - if it succeeds, file exists
-      const { data, error } = await client.storage
-        .from(bucketName)
-        .list('', {
-          limit: 1,
-          offset: 0,
-          search: filePath
-        });
-
-      if (error || !data || data.length === 0) {
-        return false;
-      }
-
-      return data.some(file => file.name === filePath);
-    });
-  } catch (error) {
-    logger.error('Error checking if file exists', error);
-    return false;
+    logger.error('Error downloading file', error, { module: 'storage-service', bucketName, filePath });
+    throw error;
   }
 }

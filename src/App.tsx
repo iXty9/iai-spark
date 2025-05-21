@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   BrowserRouter as Router,
@@ -5,8 +6,7 @@ import {
   Routes,
   Navigate
 } from 'react-router-dom';
-import { Auth } from '@supabase/auth-ui-react';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
+// Import a custom auth UI component instead of the Supabase one
 import { supabase } from './integrations/supabase/client';
 import { Account } from './components/Account';
 import { Home } from './components/Home';
@@ -14,7 +14,6 @@ import { AdminPanel } from './components/AdminPanel';
 import { Initialize } from './components/Initialize';
 import { Connection } from './components/Connection';
 import { Profile } from './components/Profile';
-import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react';
 import { AuthRequired } from './components/AuthRequired';
 import { AdminRequired } from './components/AdminRequired';
 import { SiteConfigSetup } from './components/SiteConfigSetup';
@@ -25,7 +24,37 @@ import { getEnvironmentInfo } from './config/supabase-config';
 import { logger } from './utils/logging';
 import { eventBus, AppEvents } from './utils/event-bus';
 
-// Add Profile props interface
+// Create a simple Auth component to replace the Supabase one
+const Auth = ({
+  supabaseClient,
+  appearance,
+  providers,
+  redirectTo
+}: {
+  supabaseClient: any;
+  appearance: any;
+  providers: string[];
+  redirectTo: string;
+}) => {
+  return (
+    <div className="p-4 border rounded">
+      <h2 className="text-xl mb-4">Authentication</h2>
+      <p className="mb-4">Please sign in or register to continue.</p>
+      <div className="space-y-4">
+        <button className="w-full p-2 bg-blue-500 text-white rounded" 
+          onClick={() => supabaseClient.auth.signInWithOAuth({ provider: 'github', options: { redirectTo } })}>
+          Sign in with GitHub
+        </button>
+        <button className="w-full p-2 bg-red-500 text-white rounded"
+          onClick={() => supabaseClient.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } })}>
+          Sign in with Google
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Define ProfileProps interface
 interface ProfileProps {
   session: any;
   onAvatarChange: (url: string) => void;
@@ -33,8 +62,7 @@ interface ProfileProps {
 
 function App() {
   const [isInitialized, setIsInitialized] = useState(false);
-  const [session, setSession] = useState(null);
-  const supabaseClient = useSupabaseClient();
+  const [session, setSession] = useState<any>(null);
   const { state: bootstrapState, error: bootstrapError } = useBootstrap();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
@@ -44,19 +72,19 @@ function App() {
   };
 
   useEffect(() => {
-    supabaseClient.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
 
-    supabaseClient.auth.onAuthStateChange((_event, session) => {
+    supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
-  }, [supabaseClient]);
+  }, []);
 
   useEffect(() => {
     const checkInit = async () => {
       try {
-        const { data, error } = await supabaseClient
+        const { data, error } = await supabase
           .from('app_settings')
           .select('value')
           .eq('key', 'is_initialized')
@@ -77,7 +105,7 @@ function App() {
     };
 
     checkInit();
-  }, [session, supabaseClient]);
+  }, [session]);
 
   useEffect(() => {
     // Publish app mounted event
@@ -89,7 +117,8 @@ function App() {
     };
   }, []);
 
-  if (bootstrapState !== 'COMPLETE') {
+  // Compare bootstrapState as a string instead of enum
+  if (bootstrapState !== "COMPLETE") {
     return <BootstrapScreen state={bootstrapState} error={bootstrapError} />;
   }
 
@@ -102,8 +131,8 @@ function App() {
             <div className="container" style={{ padding: '50px 0 100px 0' }}>
               {!session ? (
                 <Auth
-                  supabaseClient={supabaseClient}
-                  appearance={{ theme: ThemeSupa }}
+                  supabaseClient={supabase}
+                  appearance={{ theme: 'dark' }}
                   providers={['github', 'google']}
                   redirectTo={`${window.location.origin}/profile`}
                 />

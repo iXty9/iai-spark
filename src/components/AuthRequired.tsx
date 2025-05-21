@@ -1,10 +1,39 @@
 
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useSession } from '@supabase/auth-helpers-react';
+import { supabase } from '@/integrations/supabase/client';
 
 export const AuthRequired = ({ children }: { children: React.ReactNode }) => {
-  const session = useSession();
+  // Create a local state instead of using useSession hook
+  const [session, setSession] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    // Check if user is authenticated
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+      setLoading(false);
+    };
+    
+    checkSession();
+    
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+      }
+    );
+    
+    // Cleanup subscription
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   if (!session) {
     return <Navigate to="/supabase-auth" />;
