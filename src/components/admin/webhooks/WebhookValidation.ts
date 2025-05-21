@@ -38,3 +38,7 @@ export interface WebhookFormErrors {
 export const WebhookSettings = {
   validate: validateWebhookSettings
 };
+
+// Export a separate type for easier type checking
+export type WebhookSettingsType = typeof WebhookSettings;
+
