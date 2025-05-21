@@ -38,7 +38,7 @@ export function validateWebhookSettings(formData: WebhookSettingsType): Record<s
 }
 
 /**
- * Types for form errors
+ * Interface for form errors
  */
 export interface WebhookFormErrors {
   url?: string;

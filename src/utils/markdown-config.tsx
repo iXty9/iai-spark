@@ -1,3 +1,4 @@
+
 import React from 'react';
 import DOMPurify from 'dompurify';
 
@@ -14,29 +15,22 @@ if (typeof window !== 'undefined') {
     FORBID_TAGS: ['style', 'script'],
   });
   
-  // Create trusted types policy if supported by browser
-  if (window.trustedTypes && window.trustedTypes.createPolicy) {
-    if (!window.trustedTypes.defaultPolicy) {
-      window.trustedTypes.createPolicy('default', {
-        createHTML: (string) => string
-      });
+  // Only try to use trustedTypes if the browser supports it
+  if (typeof window !== 'undefined' && 
+      'trustedTypes' in window && 
+      window.trustedTypes && 
+      typeof window.trustedTypes.createPolicy === 'function') {
+    try {
+      // Create policy only if no default policy exists
+      if (!window.trustedTypes.defaultPolicy) {
+        window.trustedTypes.createPolicy('default', {
+          createHTML: (string: string) => string
+        });
+      }
+    } catch (e) {
+      console.error('Error creating trusted types policy', e);
     }
   }
-}
-
-// Add type guards for trustedTypes
-interface WindowWithTrustedTypes extends Window {
-  trustedTypes?: {
-    createPolicy: (name: string, rules: any) => any;
-  };
-}
-
-// Use the type guard
-const windowWithTrustedTypes = window as WindowWithTrustedTypes;
-
-// Replace direct trustedTypes access with type guarded version
-if (typeof windowWithTrustedTypes.trustedTypes !== 'undefined') {
-  // Use windowWithTrustedTypes.trustedTypes instead
 }
 
 export const markdownComponents = {

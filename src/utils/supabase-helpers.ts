@@ -1,5 +1,5 @@
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, getResolvedClient } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
 
 /**
@@ -8,7 +8,14 @@ import { logger } from '@/utils/logging';
  */
 export async function withSupabase(callback: (client: any) => Promise<any>) {
   try {
-    const client = await supabase;
+    // First try to get the already resolved client (sync)
+    let client = getResolvedClient();
+    
+    if (!client) {
+      // If not available, wait for the async client
+      client = await supabase;
+    }
+    
     if (!client) {
       throw new Error('Supabase client not available');
     }

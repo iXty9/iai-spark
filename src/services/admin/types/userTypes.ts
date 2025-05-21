@@ -16,7 +16,7 @@ export interface UsersFetchOptions {
   page?: number;
   pageSize?: number;
   roleFilter?: UserRole;
-  searchQuery?: string; // Added searchQuery property
+  searchQuery?: string;
 }
 
 export interface UsersFetchResult {

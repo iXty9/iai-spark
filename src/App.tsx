@@ -19,6 +19,12 @@ import { bootstrapManager } from "@/services/supabase/bootstrap/bootstrap-manage
 import { getSupabaseClient } from "@/services/supabase/client-provider";
 import "./App.css";
 
+// Define the ProfileProps interface
+export interface ProfileProps {
+  session: any;
+  onAvatarChange: (url: string) => void;
+}
+
 function App() {
   // State to track client initialization
   const [clientInitialized, setClientInitialized] = useState<boolean>(false);
