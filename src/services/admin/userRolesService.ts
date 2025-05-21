@@ -1,61 +1,90 @@
 
-import { withSupabase } from '../supabase/connection-service';
-import { logger } from '@/utils/logging';
+import { withSupabase } from '@/services/supabase/connection-service';
 
-export async function getUserRoles(userId: string) {
+/**
+ * Assign a role to a user
+ */
+export const assignRole = async (userId: string, role: string): Promise<boolean> => {
   try {
-    return await withSupabase(async (client) => {
-      const { data, error } = await client
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId);
-      
-      if (error) throw error;
-      return data?.map(r => r.role) || [];
-    });
-  } catch (error) {
-    logger.error('Error fetching user roles', error, { module: 'user-roles-service', userId });
-    return [];
-  }
-}
-
-export async function addUserRole(userId: string, role: string) {
-  try {
-    return await withSupabase(async (client) => {
+    const result = await withSupabase(async (client) => {
       const { data, error } = await client
         .from('user_roles')
         .insert([{ user_id: userId, role }]);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error assigning role:', error);
+        return false;
+      }
+      
       return true;
     });
+    
+    return result;
   } catch (error) {
-    logger.error('Error adding user role', error, { module: 'user-roles-service', userId, role });
+    console.error('Error in assignRole:', error);
     return false;
   }
-}
+};
 
-export async function removeUserRole(userId: string, role: string) {
+/**
+ * Remove a role from a user
+ */
+export const removeRole = async (userId: string, role: string): Promise<boolean> => {
   try {
-    return await withSupabase(async (client) => {
-      const { error } = await client
+    const result = await withSupabase(async (client) => {
+      const { data, error } = await client
         .from('user_roles')
         .delete()
         .eq('user_id', userId)
         .eq('role', role);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error removing role:', error);
+        return false;
+      }
+      
       return true;
     });
+    
+    return result;
   } catch (error) {
-    logger.error('Error removing user role', error, { module: 'user-roles-service', userId, role });
+    console.error('Error in removeRole:', error);
     return false;
   }
-}
+};
 
-export async function hasRole(userId: string, role: string) {
+/**
+ * Update a user's role
+ */
+export const updateUserRole = async (userId: string, role: string): Promise<boolean> => {
   try {
-    return await withSupabase(async (client) => {
+    // First remove existing roles
+    await withSupabase(async (client) => {
+      const { error } = await client
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
+      
+      if (error) {
+        console.error('Error removing existing roles:', error);
+        return false;
+      }
+    });
+    
+    // Then add the new role
+    return await assignRole(userId, role);
+  } catch (error) {
+    console.error('Error in updateUserRole:', error);
+    return false;
+  }
+};
+
+/**
+ * Check if a user has a specific role
+ */
+export const checkUserRole = async (userId: string, role: string): Promise<boolean> => {
+  try {
+    const result = await withSupabase(async (client) => {
       const { data, error } = await client
         .from('user_roles')
         .select('*')
@@ -63,41 +92,28 @@ export async function hasRole(userId: string, role: string) {
         .eq('role', role)
         .single();
       
-      if (error && error.code !== 'PGRST116') {
-        throw error;
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No rows returned is not really an error
+          return false;
+        }
+        console.error('Error checking user role:', error);
+        return false;
       }
       
       return !!data;
     });
+    
+    return result;
   } catch (error) {
-    logger.error('Error checking user role', error, { module: 'user-roles-service', userId, role });
+    console.error('Error in checkUserRole:', error);
     return false;
   }
-}
+};
 
-export async function updateUserRole(userId: string, oldRole: string, newRole: string) {
-  try {
-    return await withSupabase(async (client) => {
-      // First, delete the old role
-      const { error: removeError } = await client
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId)
-        .eq('role', oldRole);
-      
-      if (removeError) throw removeError;
-      
-      // Then, add the new role
-      const { error: addError } = await client
-        .from('user_roles')
-        .insert([{ user_id: userId, role: newRole }]);
-      
-      if (addError) throw addError;
-      
-      return true;
-    });
-  } catch (error) {
-    logger.error('Error updating user role', error, { module: 'user-roles-service', userId, oldRole, newRole });
-    return false;
-  }
-}
+/**
+ * Check if a user is an admin
+ */
+export const checkIsAdmin = async (userId: string): Promise<boolean> => {
+  return await checkUserRole(userId, 'admin');
+};

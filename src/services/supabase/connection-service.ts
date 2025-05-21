@@ -79,6 +79,43 @@ export function resetSupabaseClient(): void {
 }
 
 /**
+ * Retrieve information about the current Supabase connection
+ */
+export function getConnectionInfo() {
+  const config = getStoredConfig();
+  const hasStoredConfig = !!(config && config.url && config.anonKey);
+  
+  let url = '';
+  if (hasStoredConfig && config?.url) {
+    // Only show the domain part of the URL for security
+    try {
+      const urlObj = new URL(config.url);
+      url = urlObj.hostname;
+    } catch (e) {
+      url = 'invalid-url';
+    }
+  }
+
+  // Get the last connection timestamp or "never"
+  let lastConnection = 'never';
+  try {
+    const storedTime = localStorage.getItem('last_connection_time');
+    if (storedTime) {
+      lastConnection = storedTime;
+    }
+  } catch (e) {
+    logger.warn('Error getting last connection time', { module: 'connection-service' });
+  }
+  
+  return {
+    hasStoredConfig,
+    url,
+    lastConnection,
+    environment: getEnvironmentInfo(),
+  };
+}
+
+/**
  * Test connection to Supabase
  */
 export interface ConnectionTestResult {

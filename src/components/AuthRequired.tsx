@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { withSupabase } from '@/services/supabase/connection-service';
 
 export const AuthRequired = ({ children }: { children: React.ReactNode }) => {
   // Create a local state instead of using useSession hook
@@ -11,23 +11,45 @@ export const AuthRequired = ({ children }: { children: React.ReactNode }) => {
   React.useEffect(() => {
     // Check if user is authenticated
     const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-      setLoading(false);
+      try {
+        await withSupabase(async (client) => {
+          const { data } = await client.auth.getSession();
+          setSession(data.session);
+
+          // Set up auth state change listener
+          const { data: { subscription } } = client.auth.onAuthStateChange(
+            (_event: any, session: any) => {
+              setSession(session);
+            }
+          );
+
+          // Store cleanup function
+          const cleanup = () => {
+            subscription.unsubscribe();
+          };
+
+          // Return cleanup for effect hook
+          return cleanup;
+        });
+      } catch (error) {
+        console.error("Authentication error:", error);
+      } finally {
+        setLoading(false);
+      }
     };
     
-    checkSession();
+    const authPromise = checkSession();
     
-    // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-      }
-    );
-    
-    // Cleanup subscription
+    // Cleanup function for the effect
     return () => {
-      subscription.unsubscribe();
+      // Since we can't directly return the async cleanup, we use a flag approach
+      let isCleaned = false;
+      authPromise.then((cleanup) => {
+        if (typeof cleanup === 'function' && !isCleaned) {
+          cleanup();
+        }
+      });
+      isCleaned = true;
     };
   }, []);
 

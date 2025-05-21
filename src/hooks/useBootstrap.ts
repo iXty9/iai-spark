@@ -1,35 +1,50 @@
 
 import { useState, useEffect } from 'react';
-import { bootstrapManager } from '../services/supabase/bootstrap/bootstrap-manager';
-import { BootstrapContext } from '../services/supabase/bootstrap/bootstrap-states';
-import { eventBus, AppEvents } from '../utils/event-bus';
+import { executeBootstrap, initBootstrapContext, BootstrapState } from '../services/supabase/bootstrap-state-machine';
 
-export function useBootstrap() {
-  const initialContext = bootstrapManager.getContext();
-  const [context, setContext] = useState<BootstrapContext>(initialContext);
+/**
+ * Hook to manage the bootstrap process for Supabase connection
+ */
+export const useBootstrap = () => {
+  const [state, setState] = useState<string>('INITIAL');
+  const [error, setError] = useState<string | null>(null);
+  const [errorType, setErrorType] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    const subscriptions = [
-      eventBus.subscribe(AppEvents.BOOTSTRAP_COMPLETED, (ctx: BootstrapContext) => {
-        setContext(ctx);
-      }),
-      eventBus.subscribe(AppEvents.BOOTSTRAP_FAILED, (ctx: BootstrapContext) => {
-        setContext(ctx);
-      })
-    ];
-
-    return () => {
-      subscriptions.forEach(sub => sub.unsubscribe());
+    const startBootstrap = async () => {
+      try {
+        const initialContext = initBootstrapContext();
+        setRetryCount(initialContext.retryCount);
+        
+        const result = await executeBootstrap(initialContext, (ctx) => {
+          setState(ctx.state);
+          setError(ctx.error || null);
+          setErrorType(ctx.errorType || null);
+          setRetryCount(ctx.retryCount);
+        });
+        
+        setState(result.state);
+        setError(result.error || null);
+        setErrorType(result.errorType || null);
+      } catch (e) {
+        console.error('Bootstrap error:', e);
+        setState('ERROR');
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setIsLoading(false);
+      }
     };
+    
+    startBootstrap();
   }, []);
 
   return {
-    state: context.state,
-    error: context.error,
-    errorType: context.errorType,
-    configSource: context.configSource,
-    retryCount: context.retryCount,
-    lastAttempt: context.lastAttempt,
-    lastSuccess: context.lastSuccess,
+    state,
+    error,
+    errorType,
+    isLoading,
+    retryCount,
   };
-}
+};
