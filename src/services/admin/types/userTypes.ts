@@ -18,15 +18,20 @@ export interface User {
   first_name?: string;
   last_name?: string;
   avatar_url?: string;
-  status: UserStatus;
-  roles: string[];
+  status?: UserStatus;
+  roles?: string[];
   created_at: string;
   last_sign_in?: string;
+  role?: string;
+  display_name?: string;
+  last_sign_in_at?: string;
 }
 
 export interface UserWithRole extends User {
   role: string;
   last_sign_in_at?: string;
+  status?: UserStatus;
+  roles?: string[];
 }
 
 export interface UsersSearchOptions {
@@ -86,4 +91,10 @@ export interface UserManagementState {
   confirmRoleUpdate: (role: string) => Promise<void>;
   resetEnvironmentConfig: () => void;
   reinitializeConnection: () => void;
+  totalPages?: number;
+  roleFilter?: string;
+  setRoleFilter?: (filter: string) => void;
+  totalCount?: number;
+  searchQuery?: string;
+  setSearchQuery?: (query: string) => void;
 }

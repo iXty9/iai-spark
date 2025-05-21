@@ -1,5 +1,5 @@
 
-import { withSupabase } from '@/utils/supabase-helpers';
+import { withSupabase } from '@/services/supabase/connection-service';
 import { logger } from '@/utils/logging';
 import { UserRole, UsersFetchResult, UsersFetchOptions } from './types/userTypes';
 import { LogOptions } from '@/types/logger';
@@ -58,7 +58,7 @@ export async function fetchUsers(options?: UsersFetchOptions): Promise<UsersFetc
           module: 'user-service',
           pageSize,
           totalCount: count
-        });
+        } as LogOptions);
         throw error;
       }
       
@@ -70,13 +70,12 @@ export async function fetchUsers(options?: UsersFetchOptions): Promise<UsersFetc
       
       return {
         users,
-        count: count || 0,
-        totalCount: count || 0
+        count: count || 0
       };
     });
   } catch (error) {
     logger.error('Failed to fetch users', error, { module: 'user-service' });
-    return { users: [], count: 0, totalCount: 0 };
+    return { users: [], count: 0 };
   }
 }
 

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { logger } from '@/utils/logging';
 import { withSupabase } from '@/services/supabase/connection-service';
@@ -23,16 +24,23 @@ export function useUserManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<string>('created_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+  const [dialog, setDialog] = useState<{type: string; isOpen: boolean; data: any}>({
+    type: "",
+    isOpen: false,
+    data: null
+  });
+  const [updatingRole, setUpdatingRole] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState(false);
   const [availableRoles, setAvailableRoles] = useState<string[]>([
     'admin', 'moderator', 'user'
   ]);
+
+  // Calculate totalPages from totalCount and pageSize
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -50,8 +58,8 @@ export function useUserManagement() {
         }
         
         // Apply role filter if selected
-        if (selectedRole) {
-          query = query.eq('role', selectedRole);
+        if (roleFilter) {
+          query = query.eq('role', roleFilter);
         }
         
         // Apply sorting
@@ -71,6 +79,7 @@ export function useUserManagement() {
       
       setUsers(result.data || []);
       setTotalCount(result.count || 0);
+      setConnectionStatus(true);
       
       logger.info('Users fetched successfully', { 
         module: 'user-management',
@@ -81,11 +90,12 @@ export function useUserManagement() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch users';
       setError(errorMessage);
+      setConnectionStatus(false);
       logger.error('Error fetching users', err, { module: 'user-management' });
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, searchQuery, selectedRole, sortColumn, sortDirection]);
+  }, [currentPage, pageSize, searchQuery, roleFilter, sortColumn, sortDirection]);
 
   const fetchRoles = useCallback(async () => {
     try {
@@ -125,7 +135,7 @@ export function useUserManagement() {
       ));
       
       toast.success(`User role updated to ${newRole}`);
-      logger.info('User role updated', { module: 'user-management', userId, newRole });
+      logger.info('User role updated', { module: 'user-management', userId });
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update user role';
@@ -203,7 +213,10 @@ export function useUserManagement() {
   }, [fetchRoles]);
 
   // Additional functions for the hook return value
-  const fetchAndSetUsers = async (options = {}) => {
+  const fetchAndSetUsers = async (resetPage = false) => {
+    if (resetPage) {
+      setCurrentPage(1);
+    }
     setLoading(true);
     try {
       await fetchUsers();
@@ -216,13 +229,23 @@ export function useUserManagement() {
     }
   };
 
-  const confirmRoleUpdate = async (userId: string, role: string) => {
+  const confirmRoleUpdate = async (role: string) => {
+    if (!selectedUser) return;
+    
+    setUpdatingRole(true);
     try {
-      const success = await updateUserRole(userId, role);
-      return success;
+      const success = await updateUserRole(selectedUser.id, role);
+      if (success) {
+        setDialog({ type: "", isOpen: false, data: null });
+      }
     } catch (error) {
-      logger.error('Error confirming role update', error, { module: 'user-management', userId, role });
-      return false;
+      logger.error('Error confirming role update', error, { 
+        module: 'user-management', 
+        userId: selectedUser.id, 
+        role 
+      });
+    } finally {
+      setUpdatingRole(false);
     }
   };
 
@@ -263,21 +286,20 @@ export function useUserManagement() {
     setPageSize,
     searchQuery,
     setSearchQuery,
-    selectedRole,
-    setSelectedRole,
+    roleFilter,
+    setRoleFilter,
     sortColumn,
     setSortColumn,
     sortDirection,
     setSortDirection,
     selectedUser,
     setSelectedUser,
-    isDeleteModalOpen,
-    setIsDeleteModalOpen,
-    isEditModalOpen,
-    setIsEditModalOpen,
-    isRoleModalOpen,
-    setIsRoleModalOpen,
+    dialog,
+    setDialog,
+    updatingRole,
     availableRoles,
+    connectionStatus,
+    totalPages,
     fetchUsers,
     updateUserRole,
     deleteUser,

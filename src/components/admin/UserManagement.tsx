@@ -9,6 +9,7 @@ import { EnvironmentSettingsDialog } from './users/EnvironmentSettingsDialog';
 import { PromoteDialog, DemoteDialog } from './users/RoleDialogs';
 import { Loader } from 'lucide-react';
 import { useUserManagement } from '@/hooks/admin/useUserManagement';
+import { UserWithRole } from '@/services/admin/types/userTypes';
 
 export function UserManagement() {
   const {
@@ -60,7 +61,7 @@ export function UserManagement() {
   if (error) {
     return (
       <ConnectionStatusPanel
-        error={error.message}
+        error={error}
         connectionStatus={connectionStatus}
         onRetry={() => fetchAndSetUsers(false)}
         onOpenEnvironmentSettings={() => setDialog({ type: "environment", isOpen: true, data: null })}
@@ -72,22 +73,22 @@ export function UserManagement() {
     <div className="space-y-4">
       {/* Header with search and filters */}
       <UserManagementHeader
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        roleFilter={roleFilter}
-        setRoleFilter={setRoleFilter}
+        searchQuery={searchQuery || ''}
+        setSearchQuery={setSearchQuery || (() => {})}
+        roleFilter={roleFilter || ''}
+        setRoleFilter={setRoleFilter || (() => {})}
         pageSize={pageSize}
         setPageSize={setPageSize}
         onSearch={() => fetchAndSetUsers(true)}
         onRefresh={() => fetchAndSetUsers(false)}
         loading={loading}
-        connectionInfo={connectionStatus ? connectionStatus : { environmentId: 'unknown' }}
+        connectionInfo={connectionStatus ? { environmentId: 'unknown' } : null}
         onOpenEnvironmentSettings={() => setDialog({ type: "environment", isOpen: true, data: null })}
       />
 
       {/* Users Table */}
       <UsersTable
-        users={users}
+        users={users as unknown as UserWithRole[]}
         onPromoteUser={u => { setSelectedUser(u); setDialog({ type: "promote", isOpen: true, data: null }); }}
         onDemoteUser={u => { setSelectedUser(u); setDialog({ type: "demote", isOpen: true, data: null }); }}
         isLoading={loading}
@@ -96,13 +97,13 @@ export function UserManagement() {
       {/* Pagination */}
       <UserManagementPagination
         currentPage={currentPage}
-        totalPages={totalPages}
+        totalPages={totalPages || 1}
         onPageChange={setCurrentPage}
       />
 
       {/* Dialogs */}
       <PromoteDialog
-        user={dialog.type === "promote" ? selectedUser : null}
+        user={dialog.type === "promote" ? selectedUser as unknown as UserWithRole : null}
         isUpdating={updatingRole}
         isOpen={dialog.type === "promote"}
         onOpenChange={v => !v && setDialog({ type: "", isOpen: false, data: null })}
@@ -110,7 +111,7 @@ export function UserManagement() {
       />
       
       <DemoteDialog
-        user={dialog.type === "demote" ? selectedUser : null}
+        user={dialog.type === "demote" ? selectedUser as unknown as UserWithRole : null}
         isUpdating={updatingRole}
         isOpen={dialog.type === "demote"}
         onOpenChange={v => !v && setDialog({ type: "", isOpen: false, data: null })}
@@ -121,7 +122,7 @@ export function UserManagement() {
       <EnvironmentSettingsDialog
         isOpen={dialog.type === "environment"}
         onClose={() => setDialog({ type: "", isOpen: false, data: null })}
-        connectionStatus={connectionStatus}
+        connectionStatus={connectionStatus ? { url: "", hasStoredConfig: false, lastConnection: "", environment: { id: "unknown" } } : null}
         onResetConfig={resetEnvironmentConfig}
         onReinitialize={reinitializeConnection}
       />

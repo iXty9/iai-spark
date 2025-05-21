@@ -6,5 +6,7 @@ export interface LogOptions {
   function?: string;
   totalCount?: number;
   pageSize?: number;
+  userId?: string;
+  roleFilter?: string;
   [key: string]: any;
 }

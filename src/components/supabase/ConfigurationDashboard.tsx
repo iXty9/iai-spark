@@ -1,3 +1,5 @@
+
+// Just updating the necessary part that handles the SiteConfigEnv to SiteConfig conversion
 import React, { useState, useEffect } from 'react';
 import {
   Card, CardContent, CardDescription, CardFooter,
@@ -10,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { ConfigStatusIndicator } from './ConfigStatusIndicator';
 import { generateConfigFile } from '@/utils/config-generator';
 import { writeConfigToLocalStorage, readConfigFromLocalStorage } from '@/services/site-config/site-config-file-service';
-import { SiteConfigEnv } from '@/services/supabase/site-config-service';
+import { SiteConfigEnv, SiteConfig } from '@/services/supabase/site-config-service';
 import { Download, RefreshCw, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -58,9 +60,9 @@ export function ConfigurationDashboard({ onConfigSaved }) {
     if (!hasFields) return handleMissingFields();
     setIsSubmitting(true);
     try {
-      const config: SiteConfigEnv = {
+      const config: SiteConfig = {
         ...state,
-        siteHost: window.location.hostname,
+        siteHost: window.location.hostname || 'localhost',
         lastUpdated: new Date().toISOString()
       };
       const saved = writeConfigToLocalStorage(config);
