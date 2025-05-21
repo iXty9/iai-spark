@@ -1,31 +1,24 @@
 
-// Define user roles
-export type UserRole = 'admin' | 'user';
+export type UserRole = 'admin' | 'moderator' | 'user';
 
-// User with role information
 export interface UserWithRole {
   id: string;
   email: string;
-  created_at: string;
-  role: UserRole;
-  last_sign_in_at?: string;
-  user_metadata?: any;
   username?: string;
+  full_name?: string;
+  avatar_url?: string;
+  role: UserRole;
+  created_at: string;
+  last_sign_in_at?: string;
 }
 
-// Options for fetching users
 export interface UsersFetchOptions {
   page?: number;
   pageSize?: number;
-  roleFilter?: UserRole | 'all';
+  roleFilter?: UserRole;
+  searchQuery?: string; // Added searchQuery property
 }
 
-// Options for searching users
-export interface UsersSearchOptions extends UsersFetchOptions {
-  searchQuery: string;
-}
-
-// Result of user fetch operations
 export interface UsersFetchResult {
   users: UserWithRole[];
   totalCount: number;

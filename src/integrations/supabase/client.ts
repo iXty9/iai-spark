@@ -5,19 +5,32 @@ import { getSupabaseClient, isClientReady } from '@/services/supabase/client-pro
 import { isTabVisible } from '@/utils/visibility-tracker'; // Import from visibility-tracker
 import { logger } from '@/utils/logging';
 
-// Export the client getter function - properly awaited to make it synchronous
+// Create and export a singleton instance
+let resolvedClient: any = null;
+
+// Export the client getter function with proper await handling
 export const supabase = (async function() {
+  // Return cached instance if available
+  if (resolvedClient) {
+    return resolvedClient;
+  }
+
   try {
     // Try to get the client
-    const client = await getSupabaseClient();
+    resolvedClient = await getSupabaseClient();
     
     // Return the client or null
-    return client;
+    return resolvedClient;
   } catch (error) {
     logger.error('Error getting Supabase client', error, { module: 'supabase-client' });
     return null;
   }
 })();
+
+// Add a helper function to get the client synchronously if already resolved
+export function getResolvedClient() {
+  return resolvedClient;
+}
 
 // Add safety check functions
 export function isClientAvailable(): boolean {

@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { WebhookSettingsForm } from './WebhookSettingsForm';
-import { WebhookSettings as WebhookSettingsType } from './WebhookValidation';
+import { WebhookSettingsType } from './WebhookValidation';
 
 export function WebhookSettings() {
   const { toast } = useToast();

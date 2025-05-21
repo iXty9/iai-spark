@@ -3,6 +3,16 @@
 import { isValidUrl } from '@/utils/security';
 
 /**
+ * Type for webhook settings
+ */
+export interface WebhookSettingsType {
+  authenticated_webhook_url?: string;
+  anonymous_webhook_url?: string;
+  debug_webhook_url?: string;
+  [key: string]: string | undefined;
+}
+
+/**
  * Validate webhook URL
  */
 export function validateWebhookUrl(url: string): boolean {
@@ -12,14 +22,17 @@ export function validateWebhookUrl(url: string): boolean {
 /**
  * Validate webhook settings form
  */
-export function validateWebhookSettings(formData: any): Record<string, string> {
+export function validateWebhookSettings(formData: WebhookSettingsType): Record<string, string> {
   const errors: Record<string, string> = {};
   
-  if (!formData.url) {
-    errors.url = "Webhook URL is required";
-  } else if (!validateWebhookUrl(formData.url)) {
-    errors.url = "Please enter a valid URL";
-  }
+  // Validate all URL fields
+  Object.entries(formData).forEach(([key, value]) => {
+    if (key.includes('webhook_url') && value) {
+      if (!validateWebhookUrl(value)) {
+        errors[key] = "Please enter a valid URL";
+      }
+    }
+  });
   
   return errors;
 }
@@ -29,16 +42,15 @@ export function validateWebhookSettings(formData: any): Record<string, string> {
  */
 export interface WebhookFormErrors {
   url?: string;
+  authenticated_webhook_url?: string;
+  anonymous_webhook_url?: string;
+  debug_webhook_url?: string;
   [key: string]: string | undefined;
 }
 
 /**
- * Export settings component for imports in other files
+ * Export settings namespace for organization
  */
 export const WebhookSettings = {
   validate: validateWebhookSettings
 };
-
-// Export a separate type for easier type checking
-export type WebhookSettingsType = typeof WebhookSettings;
-

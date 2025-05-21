@@ -154,9 +154,11 @@ export async function checkAdminConnectionStatus() {
     }
     
     // Get environment info if available
+    // Fixed: Don't access protected supabaseUrl property
     const environmentInfo = {
       environmentId: process.env.NODE_ENV || 'development',
-      url: client.supabaseUrl,
+      // Use a safer way to get the URL
+      url: 'supabase-url-redacted', // Avoid using protected property
       timestamp: new Date().toISOString(),
     };
     

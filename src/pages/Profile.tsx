@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Avatar,
@@ -12,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { Loader2 } from 'lucide-react';
 
-interface ProfileProps {
+export interface ProfileProps {
   session: any;
   onAvatarChange: (url: string) => void;
 }
@@ -105,9 +106,8 @@ export default function Profile({ session, onAvatarChange }: ProfileProps) {
         updated_at: new Date().toISOString(),
       }
 
-      let { error } = await client.from('profiles').upsert(updates, {
-        returning: 'minimal', // Don't return the value after inserting
-      })
+      // Fixed: Remove the 'returning' option which was causing the error
+      let { error } = await client.from('profiles').upsert(updates);
 
       if (error) {
         throw error
