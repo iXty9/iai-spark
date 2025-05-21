@@ -12,7 +12,7 @@ export const AuthRequired = ({ children }: { children: React.ReactNode }) => {
     // Check if user is authenticated
     const checkSession = async () => {
       try {
-        await withSupabase(async (client) => {
+        const cleanup = await withSupabase(async (client) => {
           const { data } = await client.auth.getSession();
           setSession(data.session);
 
@@ -23,14 +23,13 @@ export const AuthRequired = ({ children }: { children: React.ReactNode }) => {
             }
           );
 
-          // Store cleanup function
-          const cleanup = () => {
+          // Return cleanup function
+          return () => {
             subscription.unsubscribe();
           };
-
-          // Return cleanup for effect hook
-          return cleanup;
         });
+        
+        return cleanup;
       } catch (error) {
         console.error("Authentication error:", error);
       } finally {
@@ -38,13 +37,13 @@ export const AuthRequired = ({ children }: { children: React.ReactNode }) => {
       }
     };
     
-    const authPromise = checkSession();
+    const authPromiseResult = checkSession();
     
     // Cleanup function for the effect
     return () => {
       // Since we can't directly return the async cleanup, we use a flag approach
       let isCleaned = false;
-      authPromise.then((cleanup) => {
+      authPromiseResult.then((cleanup) => {
         if (typeof cleanup === 'function' && !isCleaned) {
           cleanup();
         }

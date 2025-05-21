@@ -6,6 +6,11 @@ export enum UserStatus {
   DELETED = 'deleted'
 }
 
+export enum UserRole {
+  ADMIN = 'admin',
+  USER = 'user'
+}
+
 export interface User {
   id: string;
   email: string;
@@ -19,6 +24,11 @@ export interface User {
   last_sign_in?: string;
 }
 
+export interface UserWithRole extends User {
+  role: string;
+  last_sign_in_at?: string;
+}
+
 export interface UsersSearchOptions {
   query: string;
   field?: 'email' | 'username' | 'name';
@@ -26,14 +36,21 @@ export interface UsersSearchOptions {
   role?: string;
 }
 
+export interface UsersFetchResult {
+  users: UserWithRole[];
+  count: number;
+}
+
 export interface UsersFetchOptions {
   page?: number;
   perPage?: number;
-  searchQuery?: string; // Added searchQuery
+  searchQuery?: string;
   status?: UserStatus;
   role?: string;
   sortBy?: string;
   sortDirection?: 'asc' | 'desc';
+  pageSize?: number;
+  roleFilter?: string;
 }
 
 export interface UserManagementState {
@@ -64,4 +81,8 @@ export interface UserManagementState {
   changeUserStatus: (userId: string, status: UserStatus, reason?: string) => Promise<boolean>;
   assignRole: (userId: string, role: string) => Promise<boolean>;
   removeRole: (userId: string, role: string) => Promise<boolean>;
+  fetchAndSetUsers: (resetPage?: boolean) => void;
+  confirmRoleUpdate: (role: string) => Promise<void>;
+  resetEnvironmentConfig: () => void;
+  reinitializeConnection: () => void;
 }

@@ -11,7 +11,7 @@ export const AdminRequired = ({ children }: { children: React.ReactNode }) => {
   React.useEffect(() => {
     const checkAdmin = async () => {
       try {
-        await withSupabase(async (client) => {
+        const cleanup = await withSupabase(async (client) => {
           // Check if user is authenticated
           const { data } = await client.auth.getSession();
           setSession(data.session);
@@ -54,6 +54,8 @@ export const AdminRequired = ({ children }: { children: React.ReactNode }) => {
             subscription.unsubscribe();
           };
         });
+        
+        return cleanup;
       } catch (error) {
         console.error("Admin authorization error:", error);
         setIsAdmin(false);
@@ -62,13 +64,13 @@ export const AdminRequired = ({ children }: { children: React.ReactNode }) => {
       }
     };
     
-    const adminPromise = checkAdmin();
+    const adminPromiseResult = checkAdmin();
     
     // Cleanup function for the effect
     return () => {
       // Since we can't directly return the async cleanup, we use a flag approach
       let isCleaned = false;
-      adminPromise.then((cleanup) => {
+      adminPromiseResult.then((cleanup) => {
         if (typeof cleanup === 'function' && !isCleaned) {
           cleanup();
         }

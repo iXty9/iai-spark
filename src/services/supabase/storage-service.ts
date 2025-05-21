@@ -1,51 +1,91 @@
-
-import { withSupabase } from './connection-service';
+import { withSupabase } from '@/utils/supabase-helpers';
 import { logger } from '@/utils/logging';
 
 /**
- * Base service for managing storage buckets and files
+ * Storage service for Supabase
  */
 
 /**
- * Create a new storage bucket
+ * Ensure required storage buckets exist
  */
-export async function createBucket(bucketName: string, isPublic: boolean = false) {
+export async function ensureStorageBucketsExist(): Promise<boolean> {
   try {
-    return await withSupabase(async (client) => {
-      const { data, error } = await client.storage.createBucket(bucketName, {
-        public: isPublic,
-      });
+    const result = await withSupabase(async (client) => {
+      const requiredBuckets = [
+        'avatars',
+        'profiles',
+        'uploads',
+        'system'
+      ];
       
-      if (error) throw error;
-      return data;
+      // Get list of existing buckets
+      const { data: existingBuckets, error: listError } = await client.storage.listBuckets();
+      
+      if (listError) {
+        logger.error('Error listing storage buckets:', listError, { module: 'storage-service' });
+        return false;
+      }
+      
+      // Create any missing buckets
+      for (const bucket of requiredBuckets) {
+        const exists = existingBuckets?.some(b => b.name === bucket);
+        
+        if (!exists) {
+          logger.info(`Creating missing bucket: ${bucket}`, { module: 'storage-service' });
+          
+          const { error } = await client.storage.createBucket(bucket, {
+            public: bucket === 'system' ? false : true
+          });
+          
+          if (error) {
+            logger.error(`Error creating bucket ${bucket}:`, error, { module: 'storage-service' });
+            return false;
+          }
+        }
+      }
+      
+      return true;
     });
+    
+    return result;
   } catch (error) {
-    logger.error('Error creating bucket', error, { module: 'storage-service', bucketName });
-    throw error;
+    logger.error('Error ensuring storage buckets exist:', error);
+    return false;
   }
 }
 
 /**
- * Upload a file to a storage bucket
+ * Upload a file to a bucket
  */
 export async function uploadFile(
-  bucketName: string,
-  filePath: string,
+  bucket: string, 
+  path: string, 
   file: File,
-  options?: { cacheControl?: string; upsert?: boolean }
-) {
+  options = { upsert: true }
+): Promise<{ url: string | null, error: Error | null }> {
   try {
-    return await withSupabase(async (client) => {
+    const result = await withSupabase(async (client) => {
       const { data, error } = await client.storage
-        .from(bucketName)
-        .upload(filePath, file, options);
+        .from(bucket)
+        .upload(path, file, options);
+        
+      if (error) {
+        logger.error(`Error uploading file to ${bucket}/${path}:`, error, { module: 'storage-service' });
+        return { url: null, error };
+      }
       
-      if (error) throw error;
-      return data;
+      // Get public URL for the uploaded file
+      const { data: { publicUrl } } = client.storage
+        .from(bucket)
+        .getPublicUrl(data.path);
+        
+      return { url: publicUrl, error: null };
     });
+    
+    return result;
   } catch (error) {
-    logger.error('Error uploading file', error, { module: 'storage-service', bucketName, filePath });
-    throw error;
+    logger.error('Error in uploadFile:', error);
+    return { url: null, error: error instanceof Error ? error : new Error('Unknown error') };
   }
 }
 

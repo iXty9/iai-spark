@@ -60,10 +60,10 @@ export function UserManagement() {
   if (error) {
     return (
       <ConnectionStatusPanel
-        error={error}
+        error={error.message}
         connectionStatus={connectionStatus}
         onRetry={() => fetchAndSetUsers(false)}
-        onOpenEnvironmentSettings={() => setDialog('environment')}
+        onOpenEnvironmentSettings={() => setDialog({ type: "environment", isOpen: true, data: null })}
       />
     );
   }
@@ -81,15 +81,15 @@ export function UserManagement() {
         onSearch={() => fetchAndSetUsers(true)}
         onRefresh={() => fetchAndSetUsers(false)}
         loading={loading}
-        connectionInfo={connectionStatus?.environmentInfo}
-        onOpenEnvironmentSettings={() => setDialog('environment')}
+        connectionInfo={connectionStatus ? connectionStatus : { environmentId: 'unknown' }}
+        onOpenEnvironmentSettings={() => setDialog({ type: "environment", isOpen: true, data: null })}
       />
 
       {/* Users Table */}
       <UsersTable
         users={users}
-        onPromoteUser={u => { setSelectedUser(u); setDialog("promote"); }}
-        onDemoteUser={u => { setSelectedUser(u); setDialog("demote"); }}
+        onPromoteUser={u => { setSelectedUser(u); setDialog({ type: "promote", isOpen: true, data: null }); }}
+        onDemoteUser={u => { setSelectedUser(u); setDialog({ type: "demote", isOpen: true, data: null }); }}
         isLoading={loading}
       />
 
@@ -102,25 +102,25 @@ export function UserManagement() {
 
       {/* Dialogs */}
       <PromoteDialog
-        user={dialog === "promote" ? selectedUser : null}
+        user={dialog.type === "promote" ? selectedUser : null}
         isUpdating={updatingRole}
-        isOpen={dialog === "promote"}
-        onOpenChange={v => !v && setDialog(null)}
+        isOpen={dialog.type === "promote"}
+        onOpenChange={v => !v && setDialog({ type: "", isOpen: false, data: null })}
         onConfirm={() => confirmRoleUpdate('admin')}
       />
       
       <DemoteDialog
-        user={dialog === "demote" ? selectedUser : null}
+        user={dialog.type === "demote" ? selectedUser : null}
         isUpdating={updatingRole}
-        isOpen={dialog === "demote"}
-        onOpenChange={v => !v && setDialog(null)}
+        isOpen={dialog.type === "demote"}
+        onOpenChange={v => !v && setDialog({ type: "", isOpen: false, data: null })}
         onConfirm={() => confirmRoleUpdate('user')}
       />
       
       {/* Environment settings dialog */}
       <EnvironmentSettingsDialog
-        isOpen={dialog === "environment"}
-        onClose={() => setDialog(null)}
+        isOpen={dialog.type === "environment"}
+        onClose={() => setDialog({ type: "", isOpen: false, data: null })}
         connectionStatus={connectionStatus}
         onResetConfig={resetEnvironmentConfig}
         onReinitialize={reinitializeConnection}

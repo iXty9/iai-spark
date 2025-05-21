@@ -12,6 +12,11 @@ export interface AppSettings {
   enable_social_login?: boolean;
   favicon_url?: string;
   logo_url?: string;
+  avatar_url?: string;
+  default_theme_settings?: string;
+  // Legacy keys
+  key?: string;
+  value?: string;
   [key: string]: any;
 }
 
@@ -38,3 +43,10 @@ export interface WebhookSettings {
 }
 
 export type AdminSettingsKey = 'app' | 'connection' | 'webhooks';
+
+export interface ConnectionConfig {
+  url: string;
+  anonKey: string;
+  serviceKey?: string;
+  lastConnection?: string;
+}

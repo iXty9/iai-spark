@@ -1,6 +1,94 @@
-
-import { withSupabase } from '@/services/supabase/connection-service';
+import { withSupabase } from '@/utils/supabase-helpers';
 import { logger } from '@/utils/logging';
+
+interface LogOptions {
+  module: string;
+  [key: string]: any;
+}
+
+/**
+ * Generic admin function wrapper with proper error handling and logging
+ */
+export const executeAdminFunction = async <T>(
+  functionName: string,
+  operation: () => Promise<T>,
+  options: LogOptions = { module: 'admin-function' }
+): Promise<T> => {
+  try {
+    // Log the function call
+    logger.info(`Executing admin function: ${functionName}`, { 
+      module: options.module,
+      function: functionName,
+      ...options
+    });
+    
+    // Execute the provided operation
+    const result = await operation();
+    
+    // Log success
+    logger.info(`Admin function executed successfully: ${functionName}`, { 
+      module: options.module,
+      function: functionName,
+      ...options
+    });
+    
+    return result;
+  } catch (error) {
+    // Log error with details
+    logger.error(`Admin function error in ${functionName}:`, error, {
+      module: options.module,
+      function: functionName,
+      ...options
+    });
+    
+    // Rethrow to allow caller to handle
+    throw error;
+  }
+};
+
+/**
+ * Execute a Supabase RPC function with proper error handling and logging
+ */
+export const executeRPC = async <T = any>(
+  functionName: string,
+  params: Record<string, any> = {},
+  options: LogOptions = { module: 'rpc-function' }
+): Promise<T> => {
+  return executeAdminFunction<T>(
+    functionName,
+    async () => {
+      return await withSupabase(async (client) => {
+        const { data, error } = await client.rpc(functionName, params);
+        
+        if (error) {
+          throw error;
+        }
+        
+        return data as T;
+      });
+    },
+    options
+  );
+};
+
+/**
+ * Safely execute a database operation with proper error handling and logging
+ */
+export const executeDatabaseOperation = async <T = any>(
+  operationName: string,
+  operation: (client: any) => Promise<T>,
+  options: LogOptions = { module: 'database-operation' }
+): Promise<T> => {
+  return executeAdminFunction<T>(
+    operationName,
+    async () => {
+      return await withSupabase(async (client) => {
+        return await operation(client);
+      });
+    },
+    options
+  );
+};
 
 /**
  * Call an admin edge function
