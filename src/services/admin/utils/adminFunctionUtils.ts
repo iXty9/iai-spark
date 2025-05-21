@@ -94,3 +94,51 @@ export async function invokeAdminFunction(action: string, params: any = {}): Pro
     throw error;
   }
 }
+
+/**
+ * Call a Supabase Edge Function with proper error handling
+ */
+export async function callAdminFunction<T = any>(
+  functionName: string,
+  payload?: any
+): Promise<T> {
+  try {
+    // Use our helper to get the client safely
+    return await withSupabase(async (client) => {
+      const { data, error } = await client.functions.invoke(functionName, {
+        body: payload
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      return data;
+    });
+  } catch (error) {
+    logger.error(`Error calling admin function ${functionName}`, error);
+    throw error;
+  }
+}
+
+/**
+ * Check if the current user has admin access
+ */
+export async function checkAdminAccess(): Promise<boolean> {
+  try {
+    // Use our helper to get the client safely
+    return await withSupabase(async (client) => {
+      const { data: { session }, error } = await client.auth.getSession();
+      
+      if (error || !session) {
+        return false;
+      }
+
+      const { data: roleData } = await client.functions.invoke('check-admin-access');
+      return !!roleData?.isAdmin;
+    });
+  } catch (error) {
+    logger.error('Error checking admin access', error);
+    return false;
+  }
+}

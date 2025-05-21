@@ -1,131 +1,174 @@
+import React, { useState, useEffect } from 'react';
+import {
+  BrowserRouter as Router,
+  Route,
+  Routes,
+  Navigate
+} from 'react-router-dom';
+import { Auth } from '@supabase/auth-ui-react';
+import { ThemeSupa } from '@supabase/auth-ui-shared';
+import { supabase } from './integrations/supabase/client';
+import { Account } from './components/Account';
+import { Home } from './components/Home';
+import { AdminPanel } from './components/AdminPanel';
+import { Initialize } from './components/Initialize';
+import { Connection } from './components/Connection';
+import { Profile } from './components/Profile';
+import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react';
+import { AuthRequired } from './components/AuthRequired';
+import { AdminRequired } from './components/AdminRequired';
+import { SiteConfigSetup } from './components/SiteConfigSetup';
+import { SiteConfigRequired } from './components/SiteConfigRequired';
+import { BootstrapScreen } from './components/BootstrapScreen';
+import { useBootstrap } from './hooks/useBootstrap';
+import { getEnvironmentInfo } from './config/supabase-config';
+import { logger } from './utils/logging';
+import { eventBus, AppEvents } from './utils/event-bus';
 
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import Profile from "./pages/Profile";
-import Settings from "./pages/Settings";
-import Admin from "./pages/Admin";
-import NotFound from "./pages/NotFound";
-import SupabaseAuth from "./pages/SupabaseAuth";
-import Initialize from "./pages/Initialize";
-import { Toaster } from "@/components/ui/sonner";
-import { BootstrapProvider } from "@/components/supabase/BootstrapProvider";
-import { ThemeProvider } from "@/hooks/use-theme";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { useEffect, useState } from "react";
-import { logger } from "@/utils/logging";
-import { eventBus, AppEvents } from "@/utils/event-bus";
-import { bootstrapManager } from "@/services/supabase/bootstrap/bootstrap-manager";
-import { getSupabaseClient } from "@/services/supabase/client-provider";
-import "./App.css";
-
-// Define the ProfileProps interface
-export interface ProfileProps {
+// Add Profile props interface
+interface ProfileProps {
   session: any;
   onAvatarChange: (url: string) => void;
 }
 
 function App() {
-  // State to track client initialization
-  const [clientInitialized, setClientInitialized] = useState<boolean>(false);
-  
-  // Initialize app when mounted
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [session, setSession] = useState(null);
+  const supabaseClient = useSupabaseClient();
+  const { state: bootstrapState, error: bootstrapError } = useBootstrap();
+
   useEffect(() => {
-    const initializeApp = async () => {
-      logger.info("Starting app initialization process", { module: 'app-init' });
-      
-      // Signal app mounted
-      eventBus.publish(AppEvents.APP_MOUNTED, {
-        timestamp: new Date().toISOString()
-      });
-      
+    supabaseClient.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    supabaseClient.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+  }, [supabaseClient]);
+
+  useEffect(() => {
+    const checkInit = async () => {
       try {
-        // Start bootstrap process
-        bootstrapManager.startBootstrap();
-        
-        // Listen for bootstrap completion
-        const bootstrapSubscription = eventBus.subscribe(
-          AppEvents.BOOTSTRAP_COMPLETED,
-          () => {
-            logger.info("Bootstrap process completed", { module: 'app-init' });
-            
-            // Initialize client
-            getSupabaseClient().then(() => {
-              setClientInitialized(true);
-            }).catch(err => {
-              logger.error("Error initializing client:", err, { module: 'app-init' });
-              setClientInitialized(true); // Still mark as initialized to allow rendering
-            });
-          }
-        );
-        
-        // Listen for bootstrap failure - still render app with error state
-        const bootstrapFailedSubscription = eventBus.subscribe(
-          AppEvents.BOOTSTRAP_FAILED,
-          () => {
-            logger.warn("Bootstrap process failed, but still rendering app", { module: 'app-init' });
-            setClientInitialized(true);
-          }
-        );
-        
-        // Also set a timeout to prevent hanging
-        const timeoutId = setTimeout(() => {
-          logger.warn("Bootstrap timed out, rendering app anyway", { module: 'app-init' });
-          setClientInitialized(true);
-        }, 5000);
-        
-        // Clean up
-        return () => {
-          bootstrapSubscription.unsubscribe();
-          bootstrapFailedSubscription.unsubscribe();
-          clearTimeout(timeoutId);
-          
-          // Signal app unmount
-          eventBus.publish(AppEvents.APP_UNMOUNTED, {
-            timestamp: new Date().toISOString()
-          });
-        };
-      } catch (err) {
-        // Log error but continue rendering the app
-        logger.error("Error during app initialization:", err, { module: 'app-init' });
-        setClientInitialized(true); // Still mark as initialized to allow rendering
+        const { data, error } = await supabaseClient
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'is_initialized')
+          .single();
+
+        if (error) {
+          logger.error('Error fetching initialization status', error, { module: 'app' });
+          setIsInitialized(false);
+        } else if (data && data.value === 'true') {
+          setIsInitialized(true);
+        } else {
+          setIsInitialized(false);
+        }
+      } catch (e) {
+        logger.error('Unexpected error checking initialization', e, { module: 'app' });
+        setIsInitialized(false);
       }
     };
-    
-    initializeApp();
+
+    checkInit();
+  }, [session, supabaseClient]);
+
+  useEffect(() => {
+    // Publish app mounted event
+    eventBus.publish(AppEvents.APP_MOUNTED, {});
+
+    // Cleanup on unmount
+    return () => {
+      eventBus.publish(AppEvents.APP_UNMOUNTED, {});
+    };
   }, []);
 
-  // Render simple loading state while client initializes
-  if (!clientInitialized) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Initializing application...</p>
-        </div>
-      </div>
-    );
+  if (bootstrapState !== 'COMPLETE') {
+    return <BootstrapScreen state={bootstrapState} error={bootstrapError} />;
   }
 
   return (
     <Router>
-      <BootstrapProvider>
-        <AuthProvider>
-          <ThemeProvider>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/supabase-auth" element={<SupabaseAuth />} />
-              <Route path="/initialize" element={<Initialize />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            <Toaster />
-          </ThemeProvider>
-        </AuthProvider>
-      </BootstrapProvider>
+      <Routes>
+        <Route
+          path="/supabase-auth"
+          element={
+            <div className="container" style={{ padding: '50px 0 100px 0' }}>
+              {!session ? (
+                <Auth
+                  supabaseClient={supabaseClient}
+                  appearance={{ theme: ThemeSupa }}
+                  providers={['github', 'google']}
+                  redirectTo={`${window.location.origin}/profile`}
+                />
+              ) : (
+                <Navigate to="/profile" />
+              )}
+            </div>
+          }
+        />
+        <Route
+          path="/initialize"
+          element={
+            <SiteConfigRequired>
+              <Initialize />
+            </SiteConfigRequired>
+          }
+        />
+        <Route
+          path="/admin/connection"
+          element={
+            <AdminRequired>
+              <Connection />
+            </AdminRequired>
+          }
+        />
+        <Route
+          path="/"
+          element={
+            <SiteConfigRequired>
+              <Home />
+            </SiteConfigRequired>
+          }
+        />
+        <Route
+          path="/account"
+          element={
+            <AuthRequired>
+              <SiteConfigRequired>
+                <Account session={session} />
+              </SiteConfigRequired>
+            </AuthRequired>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <AdminRequired>
+              <SiteConfigRequired>
+                <AdminPanel />
+              </SiteConfigRequired>
+            </AdminRequired>
+          }
+        />
+        <Route
+          path="/setup"
+          element={
+            <SiteConfigSetup />
+          }
+        />
+        <Route 
+          path="/profile" 
+          element={
+            <AuthRequired>
+              <Profile 
+                session={session} 
+                onAvatarChange={(url) => console.log('Avatar updated:', url)}
+              />
+            </AuthRequired>
+          } 
+        />
+      </Routes>
     </Router>
   );
 }

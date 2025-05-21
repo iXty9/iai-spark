@@ -1,19 +1,28 @@
-import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
+import { withSupabase } from '@/utils/supabase-helpers';
+
+/**
+ * App settings interface
+ */
+interface AppSettings {
+  key: string;
+  value: string;
+}
 
 /**
  * Fetch all settings
  */
 export async function fetchAllSettings() {
   try {
-    const client = await supabase;
-    if (!client) throw new Error('Supabase client not available');
-    
-    const { data, error } = await client
-      .from('app_settings')
-      .select('*')
-      .order('key', { ascending: true });
+    const { data, error } = await withSupabase(async (client) => {
+      if (!client) throw new Error('Supabase client not available');
       
+      return await client
+        .from('app_settings')
+        .select('*')
+        .order('key', { ascending: true });
+    });
+    
     if (error) throw error;
     return data || [];
   } catch (error) {
@@ -27,21 +36,22 @@ export async function fetchAllSettings() {
  */
 export async function createSetting(key: string, value: string, description?: string) {
   try {
-    const client = await supabase;
-    if (!client) throw new Error('Supabase client not available');
-    
-    const { data, error } = await client
-      .from('app_settings')
-      .insert({
-        key,
-        value,
-        description: description || '',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
+    const { data, error } = await withSupabase(async (client) => {
+      if (!client) throw new Error('Supabase client not available');
       
+      return await client
+        .from('app_settings')
+        .insert({
+          key,
+          value,
+          description: description || '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+    });
+    
     if (error) throw error;
     return data;
   } catch (error) {
@@ -55,14 +65,15 @@ export async function createSetting(key: string, value: string, description?: st
  */
 export async function deleteSetting(settingId: string) {
   try {
-    const client = await supabase;
-    if (!client) throw new Error('Supabase client not available');
-    
-    const { error } = await client
-      .from('app_settings')
-      .delete()
-      .eq('id', settingId);
+    const { error } = await withSupabase(async (client) => {
+      if (!client) throw new Error('Supabase client not available');
       
+      return await client
+        .from('app_settings')
+        .delete()
+        .eq('id', settingId);
+    });
+    
     if (error) throw error;
     return true;
   } catch (error) {
@@ -76,19 +87,20 @@ export async function deleteSetting(settingId: string) {
  */
 export async function updateSetting(settingId: string, updates: { key?: string; value?: string; description?: string }) {
   try {
-    const client = await supabase;
-    if (!client) throw new Error('Supabase client not available');
-    
-    const { data, error } = await client
-      .from('app_settings')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', settingId)
-      .select()
-      .single();
+    const { data, error } = await withSupabase(async (client) => {
+      if (!client) throw new Error('Supabase client not available');
       
+      return await client
+        .from('app_settings')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', settingId)
+        .select()
+        .single();
+    });
+    
     if (error) throw error;
     return data;
   } catch (error) {
@@ -102,23 +114,24 @@ export async function updateSetting(settingId: string, updates: { key?: string; 
  */
 export async function getAppSettingsMap(): Promise<Record<string, string>> {
   try {
-    const result = await supabase
-      .from('app_settings')
-      .select('key, value');
-      
-    if (result.error) {
-      logger.error('Error fetching app settings map:', result.error);
-      return {};
-    }
-    
-    const settingsMap: Record<string, string> = {};
-    if (result.data) {
-      result.data.forEach(row => {
-        settingsMap[row.key] = row.value;
-      });
-    }
-    
-    return settingsMap;
+    return await withSupabase(async (client) => {
+      const { data, error } = await client
+        .from('app_settings')
+        .select('key, value');
+
+      if (error) {
+        logger.error('Error fetching app settings map:', error);
+        throw error;
+      }
+
+      const settingsMap: Record<string, string> = {};
+      if (data) {
+        data.forEach(row => {
+          settingsMap[row.key] = row.value;
+        });
+      }
+      return settingsMap;
+    });
   } catch (error) {
     logger.error('Unexpected error in getAppSettingsMap:', error);
     return {};
@@ -130,23 +143,24 @@ export async function getAppSettingsMap(): Promise<Record<string, string>> {
  */
 export async function fetchAppSettings(): Promise<AppSettings> {
   try {
-    const result = await supabase
-      .from('app_settings')
-      .select('key, value');
-      
-    if (result.error) {
-      logger.error('Error fetching app settings:', result.error);
-      return {};
-    }
-    
-    const settings: AppSettings = {};
-    if (result.data) {
-      result.data.forEach(row => {
-        settings[row.key] = row.value;
-      });
-    }
-    
-    return settings;
+    return await withSupabase(async (client) => {
+      const { data, error } = await client
+        .from('app_settings')
+        .select('key, value');
+
+      if (error) {
+        logger.error('Error fetching app settings:', error);
+        throw error;
+      }
+
+      const settings: AppSettings = {};
+      if (data) {
+        data.forEach(row => {
+          settings[row.key] = row.value;
+        });
+      }
+      return settings;
+    });
   } catch (error) {
     logger.error('Unexpected error in fetchAppSettings:', error);
     return {};
@@ -159,11 +173,15 @@ export async function fetchAppSettings(): Promise<AppSettings> {
 export async function updateAppSetting(key: string, value: string): Promise<boolean> {
   try {
     // Check if setting exists
-    const existingResult = await supabase
-      .from('app_settings')
-      .select('id')
-      .eq('key', key);
+    const existingResult = await withSupabase(async (client) => {
+      if (!client) throw new Error('Supabase client not available');
       
+      return await client
+        .from('app_settings')
+        .select('id')
+        .eq('key', key);
+    });
+    
     if (existingResult.error) {
       logger.error(`Error checking if setting ${key} exists:`, existingResult.error);
       return false;
@@ -173,15 +191,23 @@ export async function updateAppSetting(key: string, value: string): Promise<bool
     
     if (existingResult.data && existingResult.data.length > 0) {
       // Update existing setting
-      result = await supabase
-        .from('app_settings')
-        .update({ value })
-        .eq('key', key);
+      result = await withSupabase(async (client) => {
+        if (!client) throw new Error('Supabase client not available');
+        
+        return await client
+          .from('app_settings')
+          .update({ value })
+          .eq('key', key);
+      });
     } else {
       // Insert new setting
-      result = await supabase
-        .from('app_settings')
-        .insert({ key, value });
+      result = await withSupabase(async (client) => {
+        if (!client) throw new Error('Supabase client not available');
+        
+        return await client
+          .from('app_settings')
+          .insert({ key, value });
+      });
     }
     
     if (result.error) {
