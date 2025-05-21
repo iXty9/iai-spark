@@ -49,4 +49,5 @@ export interface ConnectionConfig {
   anonKey: string;
   serviceKey?: string;
   lastConnection?: string;
+  isInitialized?: boolean;
 }

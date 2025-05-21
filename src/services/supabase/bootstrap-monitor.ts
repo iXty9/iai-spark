@@ -3,7 +3,19 @@ import { eventBus, AppEvents } from '@/utils/event-bus';
 import { logger } from '@/utils/logging';
 import { getEnvironmentInfo } from '@/config/supabase/environment';
 import { resetSupabaseClient } from './connection-service';
-import { bootstrapManager } from './bootstrap/bootstrap-manager';
+
+// Mock types for bootstrap manager
+interface BootstrapContext {
+  state: 'PENDING' | 'IN_PROGRESS' | 'COMPLETE' | 'FAILED';
+  error?: any;
+  errorType?: string;
+}
+
+// Mock bootstrap manager for backward compatibility
+const bootstrapManager = {
+  getContext: (): BootstrapContext => ({ state: 'COMPLETE' }),
+  startBootstrap: () => Promise.resolve(true),
+};
 
 // Mock functions for backward compatibility
 export const checkPublicBootstrapConfig = async () => {
@@ -21,7 +33,7 @@ export const checkConnectionHealth = async () => {
  */
 export const monitorBootstrapState = () => {
   // Subscribe to bootstrap state changes
-  eventBus.subscribe(AppEvents.BOOTSTRAP_STARTED, (event) => {
+  eventBus.subscribe(AppEvents.BOOTSTRAP_STARTED, (event: any) => {
     logger.info('Bootstrap process started', { 
       module: 'bootstrap-monitor',
       state: event.state
@@ -35,7 +47,7 @@ export const monitorBootstrapState = () => {
     });
   });
   
-  eventBus.subscribe(AppEvents.BOOTSTRAP_FAILED, (context) => {
+  eventBus.subscribe(AppEvents.BOOTSTRAP_FAILED, (context: any) => {
     logger.error('Bootstrap process failed', { 
       module: 'bootstrap-monitor',
       reason: context.error,

@@ -1,223 +1,136 @@
 import { logger } from '@/utils/logging';
 import { withSupabase } from '@/utils/supabase-helpers';
+import { AppSettings } from './types';
 
 /**
- * App settings interface
+ * Saves app settings to the database
+ * @param settings Application settings to save
  */
-interface AppSettings {
-  key: string;
-  value: string;
-}
-
-/**
- * Fetch all settings
- */
-export async function fetchAllSettings() {
-  try {
-    const { data, error } = await withSupabase(async (client) => {
-      if (!client) throw new Error('Supabase client not available');
-      
-      return await client
-        .from('app_settings')
-        .select('*')
-        .order('key', { ascending: true });
-    });
-    
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    logger.error('Error fetching settings', error);
-    return [];
-  }
-}
-
-/**
- * Create a new setting
- */
-export async function createSetting(key: string, value: string, description?: string) {
-  try {
-    const { data, error } = await withSupabase(async (client) => {
-      if (!client) throw new Error('Supabase client not available');
-      
-      return await client
-        .from('app_settings')
-        .insert({
-          key,
-          value,
-          description: description || '',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-    });
-    
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    logger.error('Error creating setting', error);
-    throw error;
-  }
-}
-
-/**
- * Delete a setting
- */
-export async function deleteSetting(settingId: string) {
-  try {
-    const { error } = await withSupabase(async (client) => {
-      if (!client) throw new Error('Supabase client not available');
-      
-      return await client
-        .from('app_settings')
-        .delete()
-        .eq('id', settingId);
-    });
-    
-    if (error) throw error;
-    return true;
-  } catch (error) {
-    logger.error('Error deleting setting', error);
-    throw error;
-  }
-}
-
-/**
- * Update a setting
- */
-export async function updateSetting(settingId: string, updates: { key?: string; value?: string; description?: string }) {
-  try {
-    const { data, error } = await withSupabase(async (client) => {
-      if (!client) throw new Error('Supabase client not available');
-      
-      return await client
-        .from('app_settings')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', settingId)
-        .select()
-        .single();
-    });
-    
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    logger.error('Error updating setting', error);
-    throw error;
-  }
-}
-
-/**
- * Fetch all app settings as a key-value map
- */
-export async function getAppSettingsMap(): Promise<Record<string, string>> {
+export async function saveAppSettings(settings: AppSettings): Promise<boolean> {
   try {
     return await withSupabase(async (client) => {
-      const { data, error } = await client
-        .from('app_settings')
-        .select('key, value');
-
-      if (error) {
-        logger.error('Error fetching app settings map:', error);
-        throw error;
-      }
-
-      const settingsMap: Record<string, string> = {};
-      if (data) {
-        data.forEach(row => {
-          settingsMap[row.key] = row.value;
-        });
-      }
-      return settingsMap;
+      // Convert the settings object to key-value pairs
+      const settingsArray = Object.entries(settings).map(([key, value]) => ({
+        key,
+        value: typeof value === 'string' ? value : JSON.stringify(value),
+      }));
+      
+      // For each setting, upsert it to the app_settings table
+      const promises = settingsArray.map(async ({ key, value }) => {
+        // Check if the setting already exists
+        const { data: existingSetting } = await client
+          .from('app_settings')
+          .select('id')
+          .eq('key', key)
+          .single();
+          
+        if (existingSetting) {
+          // Update existing setting
+          const { error } = await client
+            .from('app_settings')
+            .update({ value })
+            .eq('id', existingSetting.id);
+          
+          if (error) {
+            logger.error(`Failed to update app setting: ${key}`, error, { module: 'settings' });
+            return false;
+          }
+        } else {
+          // Insert new setting
+          const { error } = await client
+            .from('app_settings')
+            .insert({ key, value });
+            
+          if (error) {
+            logger.error(`Failed to insert app setting: ${key}`, error, { module: 'settings' });
+            return false;
+          }
+        }
+        
+        return true;
+      });
+      
+      // Wait for all operations to complete
+      const results = await Promise.all(promises);
+      
+      // Return true only if all operations succeeded
+      return results.every((result) => result === true);
     });
   } catch (error) {
-    logger.error('Unexpected error in getAppSettingsMap:', error);
-    return {};
+    logger.error('Failed to save app settings', error, { module: 'settings' });
+    return false;
   }
 }
 
 /**
- * Fetch all application settings
+ * Retrieves app settings from the database
  */
 export async function fetchAppSettings(): Promise<AppSettings> {
   try {
     return await withSupabase(async (client) => {
       const { data, error } = await client
         .from('app_settings')
-        .select('key, value');
-
+        .select('key, value')
+        .in('key', [
+          'app_name',
+          'site_title',
+          'app_description',
+          'primary_color',
+          'accent_color',
+          'allow_signups',
+          'require_email_verification',
+          'max_upload_size_mb',
+          'ga_tracking_id',
+          'enable_social_login',
+          'favicon_url',
+          'logo_url',
+          'avatar_url',
+          'default_theme_settings'
+        ]);
+        
       if (error) {
-        logger.error('Error fetching app settings:', error);
+        logger.error('Failed to fetch app settings', error, { module: 'settings' });
         throw error;
       }
-
-      const settings: AppSettings = {};
-      if (data) {
-        data.forEach(row => {
-          settings[row.key] = row.value;
-        });
-      }
-      return settings;
-    });
-  } catch (error) {
-    logger.error('Unexpected error in fetchAppSettings:', error);
-    return {};
-  }
-}
-
-/**
- * Update a single application setting
- */
-export async function updateAppSetting(key: string, value: string): Promise<boolean> {
-  try {
-    // Check if setting exists
-    const existingResult = await withSupabase(async (client) => {
-      if (!client) throw new Error('Supabase client not available');
       
-      return await client
-        .from('app_settings')
-        .select('id')
-        .eq('key', key);
+      // Convert the array of key-value pairs to a settings object
+      const settings = data.reduce((acc, { key, value }) => {
+        // Try to parse JSON values
+        let parsedValue = value;
+        try {
+          // Only attempt to parse if value looks like JSON
+          if (value && (value.startsWith('{') || value.startsWith('[') || value === 'true' || value === 'false' || !isNaN(Number(value)))) {
+            parsedValue = JSON.parse(value);
+          }
+        } catch {
+          // Keep the original value if parsing fails
+        }
+        
+        return {
+          ...acc,
+          [key]: parsedValue,
+        };
+      }, {} as AppSettings);
+      
+      // Set default values for required fields
+      const defaultSettings: AppSettings = {
+        app_name: 'Ixty AI',
+        site_title: 'Ixty AI - The Everywhere Intelligent Assistant',
+        key: '',
+        value: '',
+        ...settings
+      };
+      
+      return defaultSettings;
     });
-    
-    if (existingResult.error) {
-      logger.error(`Error checking if setting ${key} exists:`, existingResult.error);
-      return false;
-    }
-    
-    let result;
-    
-    if (existingResult.data && existingResult.data.length > 0) {
-      // Update existing setting
-      result = await withSupabase(async (client) => {
-        if (!client) throw new Error('Supabase client not available');
-        
-        return await client
-          .from('app_settings')
-          .update({ value })
-          .eq('key', key);
-      });
-    } else {
-      // Insert new setting
-      result = await withSupabase(async (client) => {
-        if (!client) throw new Error('Supabase client not available');
-        
-        return await client
-          .from('app_settings')
-          .insert({ key, value });
-      });
-    }
-    
-    if (result.error) {
-      logger.error(`Error updating setting ${key}:`, result.error);
-      return false;
-    }
-    
-    return true;
   } catch (error) {
-    logger.error(`Unexpected error updating setting ${key}:`, error);
-    return false;
+    logger.error('Failed to fetch app settings', error, { module: 'settings' });
+    // Return default settings if fetch fails
+    return {
+      app_name: 'Ixty AI',
+      site_title: 'Ixty AI - The Everywhere Intelligent Assistant',
+      key: '',
+      value: ''
+    };
   }
 }

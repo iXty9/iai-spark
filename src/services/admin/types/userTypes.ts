@@ -39,6 +39,7 @@ export interface UsersSearchOptions {
 export interface UsersFetchResult {
   users: UserWithRole[];
   count: number;
+  totalCount?: number;
 }
 
 export interface UsersFetchOptions {

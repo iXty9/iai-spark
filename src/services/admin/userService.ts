@@ -1,213 +1,153 @@
+
 import { withSupabase } from '@/utils/supabase-helpers';
 import { logger } from '@/utils/logging';
 import { UserRole, UsersFetchResult, UsersFetchOptions } from './types/userTypes';
-import { eventBus, AppEvents } from '@/utils/event-bus';
+import { LogOptions } from '@/types/logger';
 
 /**
- * Fetch users with optional filtering, sorting and pagination
+ * Fetches users with pagination and filtering options
  */
-export const fetchUsers = async (options: UsersFetchOptions = {}): Promise<UsersFetchResult> => {
+export async function fetchUsers(options?: UsersFetchOptions): Promise<UsersFetchResult> {
+  const {
+    page = 1,
+    perPage = 10,
+    searchQuery = '',
+    status,
+    role,
+    sortBy = 'created_at',
+    sortDirection = 'desc',
+    pageSize = perPage,
+    roleFilter = role
+  } = options || {};
+  
+  const from = (page - 1) * perPage;
+  const to = from + perPage - 1;
+  
   try {
-    return await withSupabase(async (client) => {
-      // Destructure options with defaults
-      const { 
-        page = 1, 
-        pageSize = 10, 
-        searchQuery = '', 
-        roleFilter = 'all',
-        sortBy = 'created_at', 
-        sortDirection = 'desc' 
-      } = options;
+    return await withSupabase(async (supabaseClient) => {
+      // Start with the base query
+      let query = supabaseClient.from('profiles').select('*, user_roles(role)', { count: 'exact' });
       
-      // Calculate pagination
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-
-      // Start building query
-      let query = client.from('profiles')
-        .select(`
-          id,
-          email:auth.users!profiles.id(email),
-          username,
-          first_name, 
-          last_name,
-          avatar_url,
-          created_at:auth.users!profiles.id(created_at),
-          last_sign_in_at:auth.users!profiles.id(last_sign_in_at),
-          role:user_roles(role)
-        `, { count: 'exact' });
-      
-      // Add search filtering if provided
+      // Apply filters
       if (searchQuery) {
-        // Try to match against email, username, or name
-        query = query.or(`username.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%,auth.users.email.ilike.%${searchQuery}%`);
+        query = query.or(`email.ilike.%${searchQuery}%,username.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`);
       }
       
-      // Add role filtering if not 'all'
-      if (roleFilter && roleFilter !== 'all') {
-        // Join with user_roles to filter by role
-        // This needs to be handled differently depending on the role we're filtering for
-        if (roleFilter === 'admin') {
-          query = query.in('id', client.from('user_roles').select('user_id').eq('role', 'admin'));
-        } else if (roleFilter === 'user') {
-          // For users without admin role, this is more complex
-          // Get all non-admin users (those not in the admin role list)
-          query = query.not('id', 'in', client.from('user_roles').select('user_id').eq('role', 'admin'));
-        }
+      if (status) {
+        query = query.eq('status', status);
       }
-
-      // Add sorting
-      query = query.order(sortBy, { ascending: sortDirection === 'asc' });
       
-      // Add pagination
+      if (roleFilter) {
+        // Filter by role using a join with user_roles table
+        query = query.eq('user_roles.role', roleFilter);
+      }
+      
+      // Apply sorting
+      if (sortBy && sortDirection) {
+        query = query.order(sortBy, { ascending: sortDirection === 'asc' });
+      }
+      
+      // Apply pagination
       query = query.range(from, to);
       
-      // Execute query
+      // Execute the query
       const { data, error, count } = await query;
       
       if (error) {
-        logger.error('Error fetching users:', error, { 
-          module: 'userService',
+        logger.error('Error fetching users', error, { 
+          module: 'user-service',
           pageSize,
-          roleFilter,
-          searchQuery
+          totalCount: count
         });
         throw error;
       }
       
-      // Process the data to flatten nested JSON
-      const processedUsers = data.map(user => ({
-        id: user.id,
-        email: user.email,
-        username: user.username || '',
-        first_name: user.first_name || '',
-        last_name: user.last_name || '',
-        avatar_url: user.avatar_url || '',
-        created_at: user.created_at,
-        last_sign_in_at: user.last_sign_in_at,
-        // Extract role from the nested array
-        role: user.role?.length > 0 ? user.role[0].role : 'user'
+      // Transform the data to match UserWithRole interface
+      const users = data.map(user => ({
+        ...user,
+        role: user.user_roles?.role || ''
       }));
-            
+      
       return {
-        users: processedUsers,
-        count: count || 0
+        users,
+        count: count || 0,
+        totalCount: count || 0
       };
     });
   } catch (error) {
-    logger.error('Error in fetchUsers function:', error);
-    return { users: [], count: 0 };
-  }
-};
-
-/**
- * Search users based on provided criteria
- */
-export async function searchUsers(options: UsersFetchOptions): Promise<UsersFetchResult> {
-  try {
-    const client = await supabase;
-    if (!client) throw new Error('Supabase client not available');
-    
-    const {
-      searchQuery = '',
-      page = 1, 
-      pageSize = 10,
-      roleFilter,
-    } = options;
-    
-    // Calculate offset
-    const offset = (page - 1) * pageSize;
-    
-    // Build query
-    let query = client
-      .from('profiles')
-      .select('*, user_roles!inner(*)', { count: 'exact' });
-    
-    // Apply filters
-    if (searchQuery) {
-      query = query.or(`email.ilike.%${searchQuery}%,username.ilike.%${searchQuery}%`);
-    }
-    
-    if (roleFilter) {
-      query = query.eq('user_roles.role', roleFilter);
-    }
-    
-    // Apply pagination
-    query = query
-      .order('created_at', { ascending: false })
-      .range(offset, offset + pageSize - 1);
-    
-    // Execute query
-    const { data, error, count } = await query;
-    
-    if (error) throw error;
-    
-    // Map data to UserWithRole interface
-    const users = (data || []).map(item => ({
-      id: item.id,
-      email: item.email || '',
-      username: item.username || '',
-      full_name: item.full_name || '',
-      avatar_url: item.avatar_url || '',
-      role: item.user_roles?.role || 'user',
-      created_at: item.created_at,
-      last_sign_in_at: item.last_sign_in_at,
-    }));
-    
-    return {
-      users,
-      totalCount: count || users.length,
-    };
-  } catch (error) {
-    logger.error('Error searching users', error);
-    throw error;
+    logger.error('Failed to fetch users', error, { module: 'user-service' });
+    return { users: [], count: 0, totalCount: 0 };
   }
 }
 
 /**
- * Update user role
+ * Assigns a role to a user
  */
-export async function updateUserRole(userId: string, role: UserRole): Promise<boolean> {
-  if (!userId) throw new Error('User ID is required');
-  
+export async function assignUserRole(userId: string, role: UserRole): Promise<boolean> {
   try {
-    const client = await supabase;
-    if (!client) throw new Error('Supabase client not available');
-    
-    // First check if user already has the role
-    const { data: existingRole } = await client
-      .from('user_roles')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-    
-    if (existingRole) {
-      // Update existing role
-      const { error } = await client
+    return await withSupabase(async (supabaseClient) => {
+      // First check if the user already has this role
+      const { data: existingRole } = await supabaseClient
         .from('user_roles')
-        .update({ role })
-        .eq('user_id', userId);
-        
-      if (error) throw error;
-    } else {
-      // Insert new role
-      const { error } = await client
+        .select('*')
+        .eq('user_id', userId)
+        .eq('role', role)
+        .single();
+      
+      if (existingRole) {
+        // Role already exists
+        return true;
+      }
+      
+      // Remove existing roles if assigning admin role (exclusive role)
+      if (role === UserRole.ADMIN) {
+        await supabaseClient
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId);
+      }
+      
+      // Add the new role
+      const { error } = await supabaseClient
         .from('user_roles')
-        .insert({
-          user_id: userId,
-          role: role,
-          created_at: new Date().toISOString()
-        });
-        
-      if (error) throw error;
-    }
-    
-    // Publish event for role update
-    eventBus.publish(AppEvents.USER_UPDATED, { userId, role });
-    
-    return true;
+        .insert({ user_id: userId, role });
+      
+      if (error) {
+        logger.error(`Error assigning role ${role} to user ${userId}`, error, { module: 'user-service' });
+        return false;
+      }
+      
+      logger.info(`Assigned role ${role} to user ${userId}`, { module: 'user-service' });
+      return true;
+    });
   } catch (error) {
-    logger.error('Error updating user role', error);
-    throw error;
+    logger.error(`Failed to assign role ${role} to user ${userId}`, error, { module: 'user-service' });
+    return false;
+  }
+}
+
+/**
+ * Removes a role from a user
+ */
+export async function removeUserRole(userId: string, role: string): Promise<boolean> {
+  try {
+    return await withSupabase(async (supabaseClient) => {
+      const { error } = await supabaseClient
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId)
+        .eq('role', role);
+      
+      if (error) {
+        logger.error(`Error removing role ${role} from user ${userId}`, error, { module: 'user-service' });
+        return false;
+      }
+      
+      logger.info(`Removed role ${role} from user ${userId}`, { module: 'user-service' });
+      return true;
+    });
+  } catch (error) {
+    logger.error(`Failed to remove role ${role} from user ${userId}`, error, { module: 'user-service' });
+    return false;
   }
 }

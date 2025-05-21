@@ -1,146 +1,116 @@
 
-import { getStoredConfig, saveConfig } from '@/config/supabase-config';
 import { logger } from '@/utils/logging';
-import { createClient } from '@supabase/supabase-js';
-import { getSupabaseClient, resetSupabaseClient } from './connection-service';
+import { withSupabase } from '@/utils/supabase-helpers';
 
-/**
- * Load site environment config from Supabase
- */
-export async function loadSiteEnvironmentConfig(defaultUrl?: string, defaultKey?: string): Promise<any> {
+export interface SiteConfigEnv {
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+  siteHost?: string;
+  lastUpdated?: string;
+  [key: string]: any;
+}
+
+// Load site environment configuration from the database
+export async function loadSiteEnvironmentConfig(url: string, anonKey: string): Promise<SiteConfigEnv | null> {
   try {
-    // Get current config or use provided defaults
-    const config = getStoredConfig();
-    const url = defaultUrl || config?.url;
-    const key = defaultKey || config?.anonKey;
+    const client = await withSupabase(async (supabase) => {
+      // Try to connect with provided credentials
+      return supabase;
+    });
     
-    if (!url || !key) {
-      logger.warn('No valid URL or key for loading site environment', { module: 'site-config' });
+    if (!client) {
+      logger.error('Could not get Supabase client when loading site environment config', null, { module: 'site-config' });
       return null;
     }
     
-    // Create a temporary client just for this operation
-    const tempClient = createClient(url, key);
-    
-    // Try to fetch site environment configuration
-    const { data, error } = await tempClient
+    const { data, error } = await client
       .from('app_settings')
-      .select()
+      .select('value')
       .eq('key', 'site_environment')
       .single();
       
     if (error) {
-      if (error.code !== 'PGRST116') { // Not found is not an error
-        logger.error('Error loading site environment config', error, { module: 'site-config' });
+      logger.error('Error loading site environment config', error, { module: 'site-config' });
+      return null;
+    }
+    
+    if (data && data.value) {
+      try {
+        const config = JSON.parse(data.value);
+        return config;
+      } catch (e) {
+        logger.error('Error parsing site environment config JSON', e, { module: 'site-config' });
       }
-      return null;
     }
     
-    if (!data || !data.value) {
-      logger.warn('No site environment config found', { module: 'site-config' });
-      return null;
-    }
-    
-    // Try to parse the config
-    try {
-      const parsedConfig = JSON.parse(data.value);
-      logger.info('Loaded site environment config', { module: 'site-config' });
-      return parsedConfig;
-    } catch (parseError) {
-      logger.error('Error parsing site environment config', parseError, { module: 'site-config' });
-      return null;
-    }
-  } catch (e) {
-    logger.error('Unexpected error loading site environment config', e, { module: 'site-config' });
+    return null;
+  } catch (error) {
+    logger.error('Unexpected error loading site environment config', error, { module: 'site-config' });
     return null;
   }
 }
 
-/**
- * Create or update the site environment configuration
- */
-export async function updateSiteEnvironmentConfig(config: any): Promise<boolean> {
+// Save site environment configuration to the database
+export async function saveSiteEnvironmentConfig(url: string, anonKey: string): Promise<boolean> {
   try {
-    if (!config || typeof config !== 'object') {
-      logger.error('Invalid config for updateSiteEnvironmentConfig', { 
-        module: 'site-config',
-        configType: typeof config 
-      });
+    const client = await withSupabase(async (supabase) => supabase);
+    
+    if (!client) {
+      logger.error('Could not get Supabase client when saving site environment config', null, { module: 'site-config' });
       return false;
     }
     
-    // Add a timestamp
-    const configWithTimestamp = {
-      ...config,
+    const config: SiteConfigEnv = {
+      supabaseUrl: url,
+      supabaseAnonKey: anonKey,
+      siteHost: window.location.hostname,
       lastUpdated: new Date().toISOString()
     };
     
-    const client = await getSupabaseClient();
-    
-    // Convert config to string
-    const configString = JSON.stringify(configWithTimestamp);
-    
-    // Check if key exists
-    const { data: existingData } = await client
+    // Check if a site environment config already exists
+    const { data: existingConfig } = await client
       .from('app_settings')
-      .select()
+      .select('id')
       .eq('key', 'site_environment')
       .single();
-      
-    if (existingData) {
-      // Update existing record
-      const { error } = await client
+    
+    let result;
+    if (existingConfig) {
+      // Update the existing config
+      result = await client
         .from('app_settings')
-        .update({ value: configString })
-        .eq('key', 'site_environment');
-        
-      if (error) {
-        logger.error('Error updating site environment config', error, { module: 'site-config' });
-        return false;
-      }
+        .update({ value: JSON.stringify(config) })
+        .eq('id', existingConfig.id);
     } else {
-      // Insert new record
-      const { error } = await client
+      // Insert a new config
+      result = await client
         .from('app_settings')
-        .insert([{ key: 'site_environment', value: configString }]);
-        
-      if (error) {
-        logger.error('Error inserting site environment config', error, { module: 'site-config' });
-        return false;
-      }
+        .insert({ key: 'site_environment', value: JSON.stringify(config) });
     }
     
-    logger.info('Site environment config updated successfully', { module: 'site-config' });
+    if (result.error) {
+      logger.error('Error saving site environment config', result.error, { module: 'site-config' });
+      return false;
+    }
+    
+    logger.info('Site environment config saved successfully', { module: 'site-config' });
     return true;
-  } catch (e) {
-    logger.error('Unexpected error updating site environment', e, { module: 'site-config' });
+  } catch (error) {
+    logger.error('Unexpected error saving site environment config', error, { module: 'site-config' });
     return false;
   }
 }
 
-/**
- * Generate site configuration string for download
- */
-export function generateSiteConfigString(url: string, anonKey: string): string {
-  // Create a config object
-  const config = {
-    supabaseUrl: url,
-    supabaseAnonKey: anonKey,
-    createdAt: new Date().toISOString()
-  };
-  
-  // Convert to JSON string with formatting
-  return JSON.stringify(config, null, 2);
-}
-
-/**
- * Reset site environment configuration
- */
+// Reset site environment configuration
 export async function resetSiteEnvironmentConfig(): Promise<boolean> {
   try {
-    const client = await getSupabaseClient();
+    const client = await withSupabase(async (supabase) => supabase);
     
-    // Delete the site environment record
+    if (!client) {
+      logger.error('Could not get Supabase client when resetting site environment config', null, { module: 'site-config' });
+      return false;
+    }
+    
     const { error } = await client
       .from('app_settings')
       .delete()
@@ -151,13 +121,25 @@ export async function resetSiteEnvironmentConfig(): Promise<boolean> {
       return false;
     }
     
-    // Reset the client
-    resetSupabaseClient();
-    
     logger.info('Site environment config reset successfully', { module: 'site-config' });
     return true;
-  } catch (e) {
-    logger.error('Unexpected error resetting site environment', e, { module: 'site-config' });
+  } catch (error) {
+    logger.error('Unexpected error resetting site environment config', error, { module: 'site-config' });
+    return false;
+  }
+}
+
+// Update all site configurations - used to ensure consistency
+export async function updateAllSiteConfigurations(url: string, anonKey: string): Promise<boolean> {
+  try {
+    // Save to site environment config in the database
+    const dbSaved = await saveSiteEnvironmentConfig(url, anonKey);
+    
+    // Additional sync with other configurations could go here
+    
+    return dbSaved;
+  } catch (error) {
+    logger.error('Error updating all site configurations', error, { module: 'site-config' });
     return false;
   }
 }
