@@ -6,7 +6,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, Info, Database, Loader2, Cloud, AlertCircle } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { SupabaseConnectionForm } from '@/components/supabase/SupabaseConnectionForm';
-import { getConnectionInfo, resetSupabaseClient, testSupabaseConnection } from '@/services/supabase/connection-service';
+import { getConnectionInfo, resetSupabaseClient } from '@/services/supabase/connection-service';
 import { saveConfig, getStoredConfig, clearConfig } from '@/config/supabase-config';
 import { fetchConnectionConfig } from '@/services/admin/settingsService';
 import { ShareConfigDialog } from '@/components/supabase/ShareConfigDialog';
@@ -14,7 +14,8 @@ import { loadSiteEnvironmentConfig } from '@/services/supabase/site-config-servi
 import { fetchStaticSiteConfig } from '@/services/site-config/site-config-file-service';
 import { logger } from '@/utils/logging';
 
-// Import the ConnectionTestResult type - just import the type, not the function again
+// Import the ConnectionTestResult type and testSupabaseConnection function
+import { testSupabaseConnection } from '@/services/supabase/connection-service';
 import type { ConnectionTestResult } from '@/services/supabase/connection-service';
 
 export default function SupabaseAuth() {

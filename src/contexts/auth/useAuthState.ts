@@ -36,7 +36,7 @@ export function useAuthState() {
         setUser(data.session?.user ?? null);
         
         // Subscribe to auth changes
-        const { data: listener } = client.auth.onAuthStateChange(
+        const { data: { subscription } } = client.auth.onAuthStateChange(
           async (event: AuthChangeEvent, session) => {
             logger.debug('Auth state changed', { event });
             setUser(session?.user ?? null);
@@ -74,8 +74,8 @@ export function useAuthState() {
           }
         );
         
-        // Save the listener for cleanup
-        authListenerRef.current = listener;
+        // Save the listener for cleanup - Fix the type mismatch here
+        authListenerRef.current = { unsubscribe: subscription.unsubscribe };
         
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Authentication error');
@@ -90,7 +90,12 @@ export function useAuthState() {
     // Cleanup on component unmount
     return () => {
       if (authListenerRef.current) {
-        authListenerRef.current.unsubscribe();
+        try {
+          authListenerRef.current.unsubscribe();
+        } catch (error) {
+          logger.error('Error unsubscribing from auth state', error);
+        }
+        authListenerRef.current = null;
       }
     };
   }, []);

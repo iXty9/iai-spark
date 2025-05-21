@@ -137,3 +137,39 @@ export async function updatePassword(password: string): Promise<User | null> {
     throw error;
   }
 }
+
+// Add these new function exports to match what's being imported in AuthContext.tsx
+/**
+ * Sign in wrapper for AuthContext
+ */
+export async function signIn(email: string, password: string): Promise<void> {
+  await signInWithEmail(email, password);
+}
+
+/**
+ * Sign up wrapper for AuthContext
+ */
+export async function signUp(email: string, password: string, username: string, options?: { phone_number?: string, first_name?: string, last_name?: string }): Promise<void> {
+  const metadata = {
+    username,
+    ...options
+  };
+  await signUpWithEmail(email, password, metadata);
+}
+
+/**
+ * Update profile
+ */
+export async function updateProfile(client: any, userId: string, data: Partial<any>): Promise<void> {
+  try {
+    const { error } = await client
+      .from('profiles')
+      .update(data)
+      .eq('id', userId);
+    
+    if (error) throw error;
+  } catch (error) {
+    logger.error("Error updating profile", error);
+    throw error;
+  }
+}
