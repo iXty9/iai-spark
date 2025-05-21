@@ -8,18 +8,18 @@ import { useToast } from '@/hooks/use-toast';
 import { updateAppSetting } from '@/services/admin/settingsService';
 import { WebhookUrlFormField } from './WebhookUrlFormField';
 import { 
-  WebhookSettingsType, 
+  WebhookSettings, 
   WebhookFormErrors, 
   validateWebhookSettings 
 } from './WebhookValidation';
 
 interface WebhookSettingsFormProps {
-  initialSettings: WebhookSettingsType;
+  initialSettings: WebhookSettings;
 }
 
 export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProps) {
   const { toast } = useToast();
-  const [settings, setSettings] = useState<WebhookSettingsType>(initialSettings);
+  const [settings, setSettings] = useState<WebhookSettings>(initialSettings);
   const [errors, setErrors] = useState<WebhookFormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
 
@@ -32,7 +32,7 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
     }));
     
     // Clear error when field is edited
-    if (errors[name]) {
+    if (errors[name as keyof WebhookFormErrors]) {
       setErrors(prev => ({
         ...prev,
         [name]: undefined
@@ -57,9 +57,9 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
     
     setIsSaving(true);
     try {
-      await updateAppSetting('authenticated_webhook_url', settings.authenticated_webhook_url || '');
-      await updateAppSetting('anonymous_webhook_url', settings.anonymous_webhook_url || '');
-      await updateAppSetting('debug_webhook_url', settings.debug_webhook_url || '');
+      await updateAppSetting('authenticated_webhook_url', settings.authenticated_webhook_url);
+      await updateAppSetting('anonymous_webhook_url', settings.anonymous_webhook_url);
+      await updateAppSetting('debug_webhook_url', settings.debug_webhook_url);
       
       toast({
         title: "Webhook settings saved",
@@ -91,7 +91,7 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
           id="authenticated_webhook_url"
           name="authenticated_webhook_url"
           label="Authenticated Webhook URL"
-          value={settings.authenticated_webhook_url || ''}
+          value={settings.authenticated_webhook_url}
           onChange={handleChange}
           placeholder="Enter authenticated webhook URL"
           error={errors.authenticated_webhook_url}
@@ -101,7 +101,7 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
           id="anonymous_webhook_url"
           name="anonymous_webhook_url"
           label="Anonymous Webhook URL"
-          value={settings.anonymous_webhook_url || ''}
+          value={settings.anonymous_webhook_url}
           onChange={handleChange}
           placeholder="Enter anonymous webhook URL"
           error={errors.anonymous_webhook_url}
@@ -111,7 +111,7 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
           id="debug_webhook_url"
           name="debug_webhook_url"
           label="Debug Webhook URL"
-          value={settings.debug_webhook_url || ''}
+          value={settings.debug_webhook_url}
           onChange={handleChange}
           placeholder="Enter debug webhook URL"
           error={errors.debug_webhook_url}

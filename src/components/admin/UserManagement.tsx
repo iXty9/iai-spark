@@ -9,7 +9,6 @@ import { EnvironmentSettingsDialog } from './users/EnvironmentSettingsDialog';
 import { PromoteDialog, DemoteDialog } from './users/RoleDialogs';
 import { Loader } from 'lucide-react';
 import { useUserManagement } from '@/hooks/admin/useUserManagement';
-import { UserWithRole } from '@/services/admin/types/userTypes';
 
 export function UserManagement() {
   const {
@@ -64,7 +63,7 @@ export function UserManagement() {
         error={error}
         connectionStatus={connectionStatus}
         onRetry={() => fetchAndSetUsers(false)}
-        onOpenEnvironmentSettings={() => setDialog({ type: "environment", isOpen: true, data: null })}
+        onOpenEnvironmentSettings={() => setDialog('environment')}
       />
     );
   }
@@ -73,56 +72,56 @@ export function UserManagement() {
     <div className="space-y-4">
       {/* Header with search and filters */}
       <UserManagementHeader
-        searchQuery={searchQuery || ''}
-        setSearchQuery={setSearchQuery || (() => {})}
-        roleFilter={roleFilter || ''}
-        setRoleFilter={setRoleFilter || (() => {})}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        roleFilter={roleFilter}
+        setRoleFilter={setRoleFilter}
         pageSize={pageSize}
         setPageSize={setPageSize}
         onSearch={() => fetchAndSetUsers(true)}
         onRefresh={() => fetchAndSetUsers(false)}
         loading={loading}
-        connectionInfo={connectionStatus ? { environmentId: 'unknown' } : null}
-        onOpenEnvironmentSettings={() => setDialog({ type: "environment", isOpen: true, data: null })}
+        connectionInfo={connectionStatus?.environmentInfo}
+        onOpenEnvironmentSettings={() => setDialog('environment')}
       />
 
       {/* Users Table */}
       <UsersTable
-        users={users as unknown as UserWithRole[]}
-        onPromoteUser={u => { setSelectedUser(u); setDialog({ type: "promote", isOpen: true, data: null }); }}
-        onDemoteUser={u => { setSelectedUser(u); setDialog({ type: "demote", isOpen: true, data: null }); }}
+        users={users}
+        onPromoteUser={u => { setSelectedUser(u); setDialog("promote"); }}
+        onDemoteUser={u => { setSelectedUser(u); setDialog("demote"); }}
         isLoading={loading}
       />
 
       {/* Pagination */}
       <UserManagementPagination
         currentPage={currentPage}
-        totalPages={totalPages || 1}
+        totalPages={totalPages}
         onPageChange={setCurrentPage}
       />
 
       {/* Dialogs */}
       <PromoteDialog
-        user={dialog.type === "promote" ? selectedUser as unknown as UserWithRole : null}
+        user={dialog === "promote" ? selectedUser : null}
         isUpdating={updatingRole}
-        isOpen={dialog.type === "promote"}
-        onOpenChange={v => !v && setDialog({ type: "", isOpen: false, data: null })}
+        isOpen={dialog === "promote"}
+        onOpenChange={v => !v && setDialog(null)}
         onConfirm={() => confirmRoleUpdate('admin')}
       />
       
       <DemoteDialog
-        user={dialog.type === "demote" ? selectedUser as unknown as UserWithRole : null}
+        user={dialog === "demote" ? selectedUser : null}
         isUpdating={updatingRole}
-        isOpen={dialog.type === "demote"}
-        onOpenChange={v => !v && setDialog({ type: "", isOpen: false, data: null })}
+        isOpen={dialog === "demote"}
+        onOpenChange={v => !v && setDialog(null)}
         onConfirm={() => confirmRoleUpdate('user')}
       />
       
       {/* Environment settings dialog */}
       <EnvironmentSettingsDialog
-        isOpen={dialog.type === "environment"}
-        onClose={() => setDialog({ type: "", isOpen: false, data: null })}
-        connectionStatus={connectionStatus ? { url: "", hasStoredConfig: false, lastConnection: "", environment: { id: "unknown" } } : null}
+        isOpen={dialog === "environment"}
+        onClose={() => setDialog(null)}
+        connectionStatus={connectionStatus}
         onResetConfig={resetEnvironmentConfig}
         onReinitialize={reinitializeConnection}
       />

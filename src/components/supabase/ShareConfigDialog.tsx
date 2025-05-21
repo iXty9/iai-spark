@@ -66,14 +66,7 @@ export function ShareConfigDialog({ url, anonKey }: ShareConfigDialogProps) {
   const handleSaveToSiteEnvironment = async () => {
     setSavingSiteConfig(true);
     try {
-      const config = {
-        supabaseUrl: url,
-        supabaseAnonKey: anonKey,
-        siteHost: window.location.hostname,
-        lastUpdated: new Date().toISOString()
-      };
-      
-      const success = await saveSiteEnvironmentConfig(config);
+      const success = await saveSiteEnvironmentConfig(url, anonKey);
       
       if (success) {
         setSiteConfigSaved(true);

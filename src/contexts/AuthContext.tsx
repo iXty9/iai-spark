@@ -1,93 +1,116 @@
 
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { Session, User } from '@supabase/supabase-js';
-import { getSupabaseClient } from '@/services/supabase/client-provider';
+import { createContext, useContext, useEffect, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { AuthContextType } from './auth/types';
+import { useAuthState } from './auth/useAuthState';
 import { signIn, signUp, signOut, updateProfile } from './auth/authOperations';
 import { logger } from '@/utils/logging';
-import { eventBus, AppEvents } from '@/utils/event-bus';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  // Auth state
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [lastError, setLastError] = useState<Error | null>(null);
-  
-  // Refs for tracking state
+  const {
+    session,
+    setSession,
+    user,
+    setUser,
+    profile,
+    setProfile,
+    isLoading,
+    setIsLoading,
+    fetchProfile,
+    lastError,
+    resetAuthState,
+    currentUserId
+  } = useAuthState();
+
   const authStateChanges = useRef<number>(0);
   const initialSessionCheckRef = useRef(false);
   const authSubscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
-  const currentUserId = useRef<string | null>(null);
-  const supabaseReadyRef = useRef<boolean>(false);
+  const clientAvailableRef = useRef<boolean>(false);
   
-  // Reset auth state
-  const resetAuthState = () => {
-    setSession(null);
-    setUser(null);
-    setProfile(null);
-    currentUserId.current = null;
-  };
+  // Limit logging for production
+  const shouldLog = process.env.NODE_ENV === 'development';
   
-  // Fetch user profile
-  const fetchProfile = async (userId: string) => {
-    try {
-      const client = await getSupabaseClient();
-      if (!client) {
-        logger.error('Supabase client not available when fetching profile', null, { module: 'auth' });
-        return;
-      }
-      
-      const { data, error } = await client
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-      
-      if (error) {
-        logger.error('Error fetching profile:', error, { module: 'auth' });
-        return;
-      }
-      
-      if (data) {
-        setProfile(data);
-      } else {
-        logger.warn('No profile found for user', { userId }, { module: 'auth' });
-      }
-    } catch (error) {
-      logger.error('Unexpected error fetching profile:', error, { module: 'auth' });
-    }
-  };
-  
-  // Listen for client initialization
+  // First, check if Supabase client is valid before proceeding with auth setup
   useEffect(() => {
-    const clientInitSubscription = eventBus.subscribe(AppEvents.CLIENT_INITIALIZED, async () => {
-      logger.info('Supabase client initialized, setting up auth', null, { module: 'auth' });
-      supabaseReadyRef.current = true;
-      
+    // Check if Supabase client is available and properly initialized
+    const checkClientAvailability = () => {
       try {
-        const client = await getSupabaseClient();
-        if (!client) {
-          logger.error('Supabase client not available after initialization event', null, { module: 'auth' });
-          setIsLoading(false);
-          return;
+        // Safely check if client exists and has necessary properties
+        if (supabase && typeof supabase === 'object' && supabase.auth) {
+          clientAvailableRef.current = true;
+          return true;
         }
+        return false;
+      } catch (error) {
+        logger.error('Error checking Supabase client availability', error, { module: 'auth' });
+        return false;
+      }
+    };
+    
+    // Try to check availability immediately
+    const isAvailable = checkClientAvailability();
+    
+    // If not available immediately, set up retry mechanism
+    if (!isAvailable) {
+      logger.warn('Supabase client not immediately available, will retry', null, { module: 'auth' });
+      
+      // Set up retry interval (every 500ms)
+      const retryInterval = setInterval(() => {
+        const retryResult = checkClientAvailability();
         
-        // Set up auth state change listener
-        const { data: { subscription } } = client.auth.onAuthStateChange(
+        if (retryResult) {
+          logger.info('Supabase client became available', null, { module: 'auth' });
+          clearInterval(retryInterval);
+        }
+      }, 500);
+      
+      // Clean up interval on unmount
+      return () => {
+        clearInterval(retryInterval);
+      };
+    }
+  }, []);
+
+  // Set up auth state listener and cleanup on unmount - only when client is available
+  useEffect(() => {
+    // Skip if client isn't available
+    if (!clientAvailableRef.current) {
+      return;
+    }
+    
+    // Create connection ID for debugging if it doesn't exist
+    if (!localStorage.getItem('supabase_connection_id')) {
+      localStorage.setItem('supabase_connection_id', `conn_${Date.now().toString(36)}`);
+    }
+    
+    // Get connection ID to log along with auth events
+    const connectionId = localStorage.getItem('supabase_connection_id') || 'unknown';
+    
+    // Only log in development 
+    if (shouldLog) {
+      logger.info('AuthProvider mounted', { 
+        connectionId 
+      }, { module: 'auth' });
+    }
+    
+    try {
+      // Set up auth state change listener with safeguards
+      if (supabase && supabase.auth) {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
           (event, newSession) => {
             authStateChanges.current++;
             
-            logger.info('Auth state changed', {
-              event,
-              changeCount: authStateChanges.current,
-              hasSession: !!newSession,
-              userId: newSession?.user?.id,
-              connectionId: localStorage.getItem('supabase_connection_id') || 'unknown'
-            }, { module: 'auth', throttle: true });
+            if (shouldLog) {
+              logger.info('Auth state changed', {
+                event,
+                changeCount: authStateChanges.current,
+                hasSession: !!newSession,
+                userId: newSession?.user?.id,
+                connectionId
+              }, { module: 'auth', throttle: true });
+            }
             
             if (event === 'SIGNED_OUT') {
               logger.info('User signed out, clearing auth state', null, { module: 'auth' });
@@ -111,25 +134,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
           }
         );
-        
+
         // Store subscription for cleanup
         authSubscriptionRef.current = subscription;
+      } else {
+        logger.warn('Supabase auth not available for subscription', null, { module: 'auth' });
+      }
+
+      // Initial session check - only once
+      if (!initialSessionCheckRef.current && supabase && supabase.auth) {
+        initialSessionCheckRef.current = true;
         
-        // Initial session check - only once
-        if (!initialSessionCheckRef.current) {
-          initialSessionCheckRef.current = true;
-          
-          const { data: { session: initialSession }, error } = await client.auth.getSession();
-          
+        supabase.auth.getSession().then(({ data: { session: initialSession }, error }) => {
           if (error) {
-            logger.error('Error during initial session check:', error, { module: 'auth' });
+            logger.error('Error during initial session check:', error);
           }
           
-          logger.info('Initial session check', {
-            hasSession: !!initialSession,
-            userId: initialSession?.user?.id,
-            connectionId: localStorage.getItem('supabase_connection_id') || 'unknown'
-          }, { module: 'auth' });
+          if (shouldLog) {
+            logger.info('Initial session check', {
+              hasSession: !!initialSession,
+              userId: initialSession?.user?.id,
+              connectionId
+            }, { module: 'auth' });
+          }
           
           setSession(initialSession);
           setUser(initialSession?.user ?? null);
@@ -141,48 +168,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               fetchProfile(initialSession.user.id);
             }, 0);
           }
-        }
-        
-        // Auth is ready
-        setIsLoading(false);
-        eventBus.publish(AppEvents.AUTH_INITIALIZED, { timestamp: new Date().toISOString() });
-      } catch (error) {
-        logger.error('Error setting up auth state', error, { module: 'auth' });
-        setIsLoading(false);
-      }
-    });
-    
-    // Check if client is already ready
-    getSupabaseClient().then(client => {
-      if (client) {
-        supabaseReadyRef.current = true;
-        eventBus.publish(AppEvents.CLIENT_INITIALIZED, { timestamp: new Date().toISOString() });
+          setIsLoading(false);
+        });
       } else {
-        // If we reached this point and still don't have a client after a while, 
-        // reset loading state to prevent UI from hanging
-        setTimeout(() => {
-          if (isLoading) {
-            logger.warn('Auth still loading after timeout, forcing state change', null, { module: 'auth' });
-            setIsLoading(false);
-          }
-        }, 5000);
+        // If we can't check session, still mark as not loading to allow UI to render
+        setIsLoading(false);
       }
-    });
-    
-    // Client error handling
-    const clientErrorSubscription = eventBus.subscribe(AppEvents.CLIENT_ERROR, () => {
-      // On client error, reset auth state if we were previously ready
-      if (supabaseReadyRef.current) {
-        logger.warn('Client error detected, resetting auth state', null, { module: 'auth' });
-        resetAuthState();
-        supabaseReadyRef.current = false;
-      }
-    });
-    
+    } catch (error) {
+      logger.error('Error setting up auth state', error, { module: 'auth' });
+      setIsLoading(false);
+    }
+
     // Cleanup subscription on unmount
     return () => {
-      clientInitSubscription.unsubscribe();
-      clientErrorSubscription.unsubscribe();
+      if (shouldLog) {
+        logger.info('AuthProvider unmounting, cleaning up subscription', 
+          null, { module: 'auth' });
+      }
       
       if (authSubscriptionRef.current) {
         try {
@@ -193,7 +195,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         authSubscriptionRef.current = null;
       }
     };
-  }, [isLoading, session]);
+  }, [
+    setSession, 
+    setUser, 
+    setProfile, 
+    setIsLoading, 
+    fetchProfile, 
+    session, 
+    shouldLog,
+    resetAuthState, 
+    currentUserId
+  ]);
+
+  // Debug log for initial auth state
+  useEffect(() => {
+    if (shouldLog && !isLoading) {
+      const connectionId = localStorage.getItem('supabase_connection_id') || 'unknown';
+      logger.info('Auth state initialized', {
+        isLoading,
+        hasUser: !!user,
+        userId: user?.id,
+        connectionId
+      }, { module: 'auth', once: true });
+    }
+  }, [isLoading, user, shouldLog]);
 
   // Handle profile updates
   const handleUpdateProfile = async (data: Partial<any>) => {
@@ -203,14 +228,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
     
     try {
-      const client = await getSupabaseClient();
-      if (!client) throw new Error('Supabase client not available');
-      
-      await updateProfile(client, user.id, data);
+      await updateProfile(supabase, user.id, data);
       // Update local state with new profile data
       setProfile(prev => prev ? { ...prev, ...data } : null);
     } catch (error) {
-      logger.error('Profile update failed:', error, { module: 'auth' });
+      logger.error('Profile update failed:', error);
       throw error;
     }
   };

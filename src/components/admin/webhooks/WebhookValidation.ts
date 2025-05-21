@@ -1,56 +1,50 @@
 
-// Import the security utility directly
+import { z } from 'zod';
 import { isValidUrl } from '@/utils/security';
 
-/**
- * Type for webhook settings
- */
-export interface WebhookSettingsType {
+// Schema for webhook URL validation
+export const webhookUrlSchema = z.string().refine(
+  (url) => !url || isValidUrl(url, ['ixty.ai'], ['https:']),
+  {
+    message: 'URL must be a valid HTTPS URL from ixty.ai domain',
+  }
+);
+
+export interface WebhookSettings {
+  authenticated_webhook_url: string;
+  anonymous_webhook_url: string;
+  debug_webhook_url: string;
+}
+
+export interface WebhookFormErrors {
   authenticated_webhook_url?: string;
   anonymous_webhook_url?: string;
   debug_webhook_url?: string;
-  [key: string]: string | undefined;
 }
 
-/**
- * Validate webhook URL
- */
-export function validateWebhookUrl(url: string): boolean {
-  return isValidUrl(url);
-}
+export const validateWebhookUrl = (name: string, value: string): string | null => {
+  try {
+    webhookUrlSchema.parse(value);
+    return null;
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return error.errors[0]?.message || 'Invalid URL';
+    }
+    return 'Invalid URL';
+  }
+};
 
-/**
- * Validate webhook settings form
- */
-export function validateWebhookSettings(formData: WebhookSettingsType): Record<string, string> {
-  const errors: Record<string, string> = {};
+export const validateWebhookSettings = (settings: WebhookSettings): WebhookFormErrors => {
+  const errors: WebhookFormErrors = {};
   
-  // Validate all URL fields
-  Object.entries(formData).forEach(([key, value]) => {
-    if (key.includes('webhook_url') && value) {
-      if (!validateWebhookUrl(value)) {
-        errors[key] = "Please enter a valid URL";
+  Object.entries(settings).forEach(([key, value]) => {
+    if (value) {
+      const error = validateWebhookUrl(key, value);
+      if (error && key in settings) {
+        errors[key as keyof WebhookSettings] = error;
       }
     }
   });
   
   return errors;
-}
-
-/**
- * Interface for form errors
- */
-export interface WebhookFormErrors {
-  url?: string;
-  authenticated_webhook_url?: string;
-  anonymous_webhook_url?: string;
-  debug_webhook_url?: string;
-  [key: string]: string | undefined;
-}
-
-/**
- * Export settings namespace for organization
- */
-export const WebhookSettings = {
-  validate: validateWebhookSettings
 };

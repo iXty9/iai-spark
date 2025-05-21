@@ -1,104 +1,141 @@
 
-import { useEffect, useState, useRef } from 'react';
-import { User, AuthChangeEvent } from '@supabase/supabase-js';
+import { useState, useRef, useCallback } from 'react';
+import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
-import { eventBus, AppEvents } from '@/utils/event-bus';
+import { debounce } from '@/utils/functions';
 
-export function useAuthState() {
+// Define explicit types for Supabase responses 
+export interface ProfileData {
+  id: string;
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+  avatar_url?: string;
+  theme_settings?: string;
+  [key: string]: any;
+}
+
+export const useAuthState = () => {
+  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const authListenerRef = useRef<{ unsubscribe: () => void } | null>(null);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [lastError, setLastError] = useState<Error | null>(null);
+  
+  // Use refs to prevent excessive state updates and race conditions
+  const isFetchingProfileRef = useRef<boolean>(false);
+  const currentUserIdRef = useRef<string | null>(null);
+  const fetchAttemptsRef = useRef<number>(0);
+  const maxRetries = 3;
 
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        setLoading(true);
+  // Debounced fetch profile function to prevent multiple rapid calls
+  const debouncedFetchProfile = useCallback(
+    debounce((userId: string) => {
+      fetchProfile(userId);
+    }, 300), 
+    []
+  );
+
+  const fetchProfile = async (userId: string) => {
+    // Prevent concurrent fetch requests for the same profile or duplicate fetches
+    if (isFetchingProfileRef.current || !userId || currentUserIdRef.current !== userId) {
+      logger.debug('Profile fetch skipped', {
+        reason: !userId ? 'No userId provided' : 
+                isFetchingProfileRef.current ? 'Already fetching' : 
+                'User ID changed',
+        requestedId: userId,
+        currentId: currentUserIdRef.current
+      });
+      return;
+    }
+    
+    try {
+      isFetchingProfileRef.current = true;
+      fetchAttemptsRef.current++;
+      
+      logger.info('Fetching profile', { 
+        attempt: fetchAttemptsRef.current, 
+        userId 
+      }, { module: 'auth', throttle: true });
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      // Handle error case
+      if (error) {
+        logger.error('Profile fetch error:', {
+          error,
+          attempt: fetchAttemptsRef.current,
+          userId
+        }, { module: 'auth' });
         
-        // Initialize the client
-        const client = await supabase;
-        if (!client) {
-          setError('Supabase client not available');
-          setLoading(false);
-          return;
-        }
-        
-        // Get the current session
-        const { data, error } = await client.auth.getSession();
-        if (error) {
-          setError(error.message);
-          setLoading(false);
-          return;
-        }
-        
-        // Set the user if we have a session
-        setUser(data.session?.user ?? null);
-        
-        // Subscribe to auth changes
-        const { data: { subscription } } = client.auth.onAuthStateChange(
-          async (event: AuthChangeEvent, session) => {
-            logger.debug('Auth state changed', { event });
-            setUser(session?.user ?? null);
-            
-            // Publish auth events to the event bus
-            if (event === 'SIGNED_IN') {
-              eventBus.publish(AppEvents.USER_SIGNED_IN, { user: session?.user });
-              
-              // Try to ensure the user has a profile
-              try {
-                if (session?.user?.id) {
-                  const { error: profileError } = await client
-                    .from('profiles')
-                    .select('id')
-                    .eq('id', session.user.id)
-                    .single();
-                    
-                  // If the profile doesn't exist, create it
-                  if (profileError && profileError.code === 'PGRST116') {
-                    await client.from('profiles').insert({
-                      id: session.user.id,
-                      username: session.user.email || session.user.id,
-                      updated_at: new Date().toISOString()
-                    });
-                  }
-                }
-              } catch (err) {
-                logger.error('Error ensuring user profile exists', err);
-              }
-            } else if (event === 'SIGNED_OUT') {
-              eventBus.publish(AppEvents.USER_SIGNED_OUT, {});
-            } else if (event === 'USER_UPDATED') {
-              eventBus.publish(AppEvents.USER_UPDATED, { user: session?.user });
+        setLastError(error);
+
+        // Retry logic for specific errors, only if user ID hasn't changed
+        if (fetchAttemptsRef.current < maxRetries && currentUserIdRef.current === userId) {
+          logger.info('Scheduling profile fetch retry', { 
+            attempt: fetchAttemptsRef.current,
+            userId
+          }, { module: 'auth' });
+          
+          setTimeout(() => {
+            // Only retry if the user ID is still the same
+            if (currentUserIdRef.current === userId) {
+              fetchProfile(userId);
             }
-          }
-        );
-        
-        // Save the listener for cleanup - Fix the type mismatch here
-        authListenerRef.current = { unsubscribe: subscription.unsubscribe };
-        
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Authentication error');
-        logger.error('Auth initialization error', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    initAuth();
-    
-    // Cleanup on component unmount
-    return () => {
-      if (authListenerRef.current) {
-        try {
-          authListenerRef.current.unsubscribe();
-        } catch (error) {
-          logger.error('Error unsubscribing from auth state', error);
+          }, Math.pow(2, fetchAttemptsRef.current) * 1000); // Exponential backoff
+          return;
         }
-        authListenerRef.current = null;
       }
-    };
+
+      // Process the data if it exists
+      if (data) {
+        logger.info('Profile fetched successfully', {
+          userId,
+          timestamp: new Date().toISOString()
+        }, { module: 'auth', throttle: true });
+        
+        setProfile(data as ProfileData);
+        setLastError(null);
+        // Reset fetch attempts on success
+        fetchAttemptsRef.current = 0;
+      } else {
+        logger.warn('No profile data found for user', { userId }, { module: 'auth' });
+      }
+    } catch (error) {
+      logger.error('Unexpected error in fetchProfile:', error);
+      setLastError(error as Error);
+    } finally {
+      isFetchingProfileRef.current = false;
+    }
+  };
+
+  const resetAuthState = useCallback(() => {
+    setSession(null);
+    setUser(null);
+    setProfile(null);
+    setLastError(null);
+    currentUserIdRef.current = null;
+    fetchAttemptsRef.current = 0;
+    isFetchingProfileRef.current = false;
   }, []);
 
-  return { user, loading, error };
-}
+  return {
+    session,
+    setSession,
+    user,
+    setUser,
+    profile,
+    setProfile,
+    isLoading,
+    setIsLoading,
+    fetchProfile: debouncedFetchProfile,
+    lastError,
+    resetAuthState,
+    currentUserId: currentUserIdRef,
+  };
+};

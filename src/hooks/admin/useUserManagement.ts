@@ -1,309 +1,156 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { logger } from '@/utils/logging';
-import { withSupabase } from '@/services/supabase/connection-service';
-import { resetSupabaseClient } from '@/services/supabase/connection-service';
+import { useToast } from '@/hooks/use-toast';
+import {
+  UserWithRole, UserRole, UsersFetchOptions, UsersSearchOptions, UsersFetchResult
+} from '@/services/admin/types/userTypes';
+import { fetchUsers, searchUsers, updateUserRole } from '@/services/admin/userService';
+import { checkIsAdmin } from '@/services/admin/userRolesService';
+import { checkAdminConnectionStatus } from '@/services/admin/roleService';
 import { clearAllEnvironmentConfigs } from '@/config/supabase-config';
-import { toast } from 'sonner';
-
-export interface User {
-  id: string;
-  email: string;
-  role: string;
-  created_at: string;
-  last_sign_in?: string;
-  display_name?: string;
-  avatar_url?: string;
-}
 
 export function useUserManagement() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const [users, setUsers] = useState<UserWithRole[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [totalCount, setTotalCount] = useState(0);
+  const [connectionStatus, setConnectionStatus] = useState<any>(null);
+
+  const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
+  const [dialog, setDialog] = useState<"promote" | "demote" | "environment" | null>(null);
+  const [updatingRole, setUpdatingRole] = useState(false);
+
+  // Pagination + Filter
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<string | null>(null);
-  const [sortColumn, setSortColumn] = useState<string>('created_at');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [dialog, setDialog] = useState<{type: string; isOpen: boolean; data: any}>({
-    type: "",
-    isOpen: false,
-    data: null
-  });
-  const [updatingRole, setUpdatingRole] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState(false);
-  const [availableRoles, setAvailableRoles] = useState<string[]>([
-    'admin', 'moderator', 'user'
-  ]);
+  const [roleFilter, setRoleFilter] = useState('all');
 
-  // Calculate totalPages from totalCount and pageSize
-  const totalPages = Math.ceil(totalCount / pageSize);
-
-  const fetchUsers = useCallback(async () => {
+  // Universal fetcher
+  const fetchAndSetUsers = useCallback(async (search = false) => {
     setLoading(true);
     setError(null);
-    
     try {
-      const result = await withSupabase(async (client) => {
-        let query = client
-          .from('profiles')
-          .select('id, email, role, created_at, last_sign_in, display_name, avatar_url', { count: 'exact' });
-        
-        // Apply search filter if provided
-        if (searchQuery) {
-          query = query.or(`email.ilike.%${searchQuery}%,display_name.ilike.%${searchQuery}%`);
-        }
-        
-        // Apply role filter if selected
-        if (roleFilter) {
-          query = query.eq('role', roleFilter);
-        }
-        
-        // Apply sorting
-        query = query.order(sortColumn, { ascending: sortDirection === 'asc' });
-        
-        // Apply pagination
-        const from = (currentPage - 1) * pageSize;
-        const to = from + pageSize - 1;
-        query = query.range(from, to);
-        
-        const { data, error, count } = await query;
-        
-        if (error) throw error;
-        
-        return { data, count };
+      const fn = search ? searchUsers : fetchUsers;
+      const { users: usersData, totalCount } = await fn({
+        searchQuery,
+        page: search ? 1 : currentPage,
+        pageSize,
+        roleFilter: roleFilter !== 'all' ? roleFilter as UserRole : undefined,
       });
-      
-      setUsers(result.data || []);
-      setTotalCount(result.count || 0);
-      setConnectionStatus(true);
-      
-      logger.info('Users fetched successfully', { 
-        module: 'user-management',
-        count: result.count,
-        page: currentPage,
-        pageSize
+      setUsers(usersData);
+      setTotalPages(Math.ceil(totalCount / pageSize) || 1);
+      if (search) setCurrentPage(1);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to load users.');
+      toast({
+        variant: "destructive",
+        title: search ? "Search failed" : "Failed to load users",
+        description: search
+          ? "Error searching users. Please check your connection and try again."
+          : "Error loading user data. Please try again.",
       });
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch users';
-      setError(errorMessage);
-      setConnectionStatus(false);
-      logger.error('Error fetching users', err, { module: 'user-management' });
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, searchQuery, roleFilter, sortColumn, sortDirection]);
+  }, [searchQuery, currentPage, pageSize, roleFilter, toast]);
 
-  const fetchRoles = useCallback(async () => {
-    try {
-      const result = await withSupabase(async (client) => {
-        const { data, error } = await client
-          .from('roles')
-          .select('name')
-          .order('name');
+  // Check connection status on component mount
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        const status = await checkAdminConnectionStatus();
+        setConnectionStatus(status);
         
-        if (error) throw error;
-        return data;
-      });
-      
-      if (result && result.length > 0) {
-        setAvailableRoles(result.map(r => r.name));
+        // If there are connection issues, show appropriate error
+        if (!status.isConnected) {
+          setError('Database connection error. Please check your Supabase configuration.');
+        } else if (!status.isAuthenticated) {
+          setError('Authentication error. Please sign in again.');
+        } else if (!status.isAdmin) {
+          setError('Access denied. You do not have admin privileges.');
+        } else if (!status.functionAvailable) {
+          setError('Admin functions not available. This may indicate a cross-environment configuration issue.');
+        } else {
+          // Only fetch users if connection status is good
+          fetchAndSetUsers(false);
+        }
+      } catch (e) {
+        console.error("Error checking connection status:", e);
+        setError('Failed to check connection status. Please try again.');
+        setLoading(false);
       }
-    } catch (err) {
-      logger.error('Error fetching roles', err, { module: 'user-management' });
-      // Fall back to default roles if fetch fails
-    }
-  }, []);
-
-  const updateUserRole = async (userId: string, newRole: string) => {
-    try {
-      await withSupabase(async (client) => {
-        const { error } = await client
-          .from('profiles')
-          .update({ role: newRole })
-          .eq('id', userId);
-        
-        if (error) throw error;
-      });
-      
-      // Update local state
-      setUsers(users.map(user => 
-        user.id === userId ? { ...user, role: newRole } : user
-      ));
-      
-      toast.success(`User role updated to ${newRole}`);
-      logger.info('User role updated', { module: 'user-management', userId });
-      return true;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update user role';
-      toast.error(errorMessage);
-      logger.error('Error updating user role', err, { module: 'user-management', userId });
-      return false;
-    }
-  };
-
-  const deleteUser = async (userId: string) => {
-    try {
-      await withSupabase(async (client) => {
-        // First delete auth user
-        const { error: authError } = await client.auth.admin.deleteUser(userId);
-        if (authError) throw authError;
-        
-        // Then delete profile
-        const { error: profileError } = await client
-          .from('profiles')
-          .delete()
-          .eq('id', userId);
-        
-        if (profileError) throw profileError;
-      });
-      
-      // Update local state
-      setUsers(users.filter(user => user.id !== userId));
-      
-      toast.success('User deleted successfully');
-      logger.info('User deleted', { module: 'user-management', userId });
-      return true;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete user';
-      toast.error(errorMessage);
-      logger.error('Error deleting user', err, { module: 'user-management', userId });
-      return false;
-    }
-  };
-
-  const updateUserProfile = async (userId: string, data: Partial<User>) => {
-    try {
-      await withSupabase(async (client) => {
-        const { error } = await client
-          .from('profiles')
-          .update(data)
-          .eq('id', userId);
-        
-        if (error) throw error;
-      });
-      
-      // Update local state
-      setUsers(users.map(user => 
-        user.id === userId ? { ...user, ...data } : user
-      ));
-      
-      toast.success('User profile updated');
-      logger.info('User profile updated', { module: 'user-management', userId });
-      return true;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update user profile';
-      toast.error(errorMessage);
-      logger.error('Error updating user profile', err, { module: 'user-management', userId });
-      return false;
-    }
-  };
-
-  // Load users on initial render and when dependencies change
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
-
-  // Load roles on initial render
-  useEffect(() => {
-    fetchRoles();
-  }, [fetchRoles]);
-
-  // Additional functions for the hook return value
-  const fetchAndSetUsers = async (resetPage = false) => {
-    if (resetPage) {
-      setCurrentPage(1);
-    }
-    setLoading(true);
-    try {
-      await fetchUsers();
-      return users;
-    } catch (error) {
-      logger.error('Error in fetchAndSetUsers', error, { module: 'user-management' });
-      return [];
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const confirmRoleUpdate = async (role: string) => {
-    if (!selectedUser) return;
+    };
     
+    checkConnection();
+  }, [fetchAndSetUsers]);
+
+  // Role update: promote or demote
+  const confirmRoleUpdate = async (role: UserRole) => {
+    if (!selectedUser) return;
     setUpdatingRole(true);
     try {
-      const success = await updateUserRole(selectedUser.id, role);
-      if (success) {
-        setDialog({ type: "", isOpen: false, data: null });
-      }
-    } catch (error) {
-      logger.error('Error confirming role update', error, { 
-        module: 'user-management', 
-        userId: selectedUser.id, 
-        role 
+      await updateUserRole(selectedUser.id, role);
+      setUsers(users =>
+        users.map(u => u.id === selectedUser.id ? { ...u, role } : u));
+      toast({
+        title: "User role updated",
+        description: `${selectedUser.email} is now a${role === 'admin' ? 'n' : ''} ${role}.`,
+      });
+    } catch (e: any) {
+      toast({
+        variant: "destructive",
+        title: "Failed to update user role",
+        description: e?.message || "There was an error updating the user role.",
       });
     } finally {
       setUpdatingRole(false);
+      setDialog(null);
+      setSelectedUser(null);
     }
+  };
+  
+  // Reset environment configuration
+  const resetEnvironmentConfig = () => {
+    clearAllEnvironmentConfigs();
+    toast({
+      title: "Configuration Reset",
+      description: "All environment-specific configurations have been cleared. Please refresh the page.",
+    });
+    // Close dialog
+    setDialog(null);
+    // Force page reload after a short delay
+    setTimeout(() => {
+      window.location.reload();
+    }, 1500);
   };
 
-  const resetEnvironmentConfig = async () => {
-    try {
-      clearAllEnvironmentConfigs();
-      toast.success('Environment configurations reset');
-      logger.info('Environment configurations reset', { module: 'user-management' });
-      return true;
-    } catch (error) {
-      logger.error('Error resetting environment config', error, { module: 'user-management' });
-      toast.error('Failed to reset environment configurations');
-      return false;
-    }
-  };
-
-  const reinitializeConnection = async () => {
-    try {
-      resetSupabaseClient();
-      toast.success('Connection reinitialized');
-      logger.info('Connection reinitialized', { module: 'user-management' });
-      return true;
-    } catch (error) {
-      logger.error('Error reinitializing connection', error, { module: 'user-management' });
-      toast.error('Failed to reinitialize connection');
-      return false;
-    }
-  };
+  const reinitializeConnection = useCallback(() => {
+    setDialog(null);
+    window.location.href = window.location.pathname + "?force_init=true";
+  }, []);
 
   return {
     users,
     loading,
     error,
-    totalCount,
+    connectionStatus,
+    selectedUser,
+    setSelectedUser,
+    dialog,
+    setDialog,
+    updatingRole,
     currentPage,
     setCurrentPage,
+    totalPages,
     pageSize,
     setPageSize,
     searchQuery,
     setSearchQuery,
     roleFilter,
     setRoleFilter,
-    sortColumn,
-    setSortColumn,
-    sortDirection,
-    setSortDirection,
-    selectedUser,
-    setSelectedUser,
-    dialog,
-    setDialog,
-    updatingRole,
-    availableRoles,
-    connectionStatus,
-    totalPages,
-    fetchUsers,
-    updateUserRole,
-    deleteUser,
-    updateUserProfile,
     fetchAndSetUsers,
     confirmRoleUpdate,
     resetEnvironmentConfig,

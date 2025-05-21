@@ -1,5 +1,5 @@
 
-import { withSupabase } from '@/utils/supabase-helpers';
+import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
 
 export interface ProfileData {
@@ -18,20 +18,18 @@ export interface ProfileData {
  */
 export async function fetchProfile(userId: string) {
   try {
-    return await withSupabase(async (supabase) => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select()
-        .eq('id', userId)
-        .single();
-      
-      if (error) {
-        logger.error('Error fetching profile:', error);
-        return null;
-      }
-      
-      return data;
-    });
+    const { data, error } = await supabase
+      .from('profiles')
+      .select()
+      .eq('id', userId)
+      .single();
+    
+    if (error) {
+      logger.error('Error fetching profile:', error);
+      return null;
+    }
+    
+    return data;
   } catch (error) {
     logger.error('Unexpected error fetching profile:', error);
     return null;
@@ -48,20 +46,18 @@ export async function updateProfile(
   updates: Partial<ProfileData>
 ) {
   try {
-    return await withSupabase(async (supabase) => {
-      const result = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', userId);
-        
-      if (result.error) {
-        logger.error('Error updating profile:', result.error);
-        return { success: false, error: result.error };
-      }
+    const result = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', userId);
       
-      logger.info('Profile updated successfully');
-      return { success: true };
-    });
+    if (result.error) {
+      logger.error('Error updating profile:', result.error);
+      return { success: false, error: result.error };
+    }
+    
+    logger.info('Profile updated successfully');
+    return { success: true };
   } catch (error) {
     logger.error('Unexpected error updating profile:', error);
     return { success: false, error };

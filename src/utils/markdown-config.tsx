@@ -1,75 +1,109 @@
-
 import React from 'react';
 import DOMPurify from 'dompurify';
-import { HTMLProps, AnchorHTMLAttributes, OlHTMLAttributes } from 'react';
 
-// Fix for trustedTypes not being available in all environments
-let sanitizeHTML: (html: string) => string;
-
-// Create a sanitizer that works in browsers with and without Trusted Types
-if (typeof window !== 'undefined') {
-  // Initialize DOMPurify
-  sanitizeHTML = (html: string) => {
-    return DOMPurify.sanitize(html);
-  };
-} else {
-  // Server-side rendering fallback
-  sanitizeHTML = (html: string) => html;
-}
-
-// Extra props for markdown components
-interface ExtraProps {
-  ordered?: boolean;
-  inline?: boolean;
-  // Adding node to satisfy TypeScript
+interface MarkdownComponentProps {
   node?: any;
+  children?: React.ReactNode;
+  [key: string]: any;
 }
 
-// Export the components that will be used to render markdown
+// Configure DOMPurify if in browser environment
+if (typeof window !== 'undefined') {
+  DOMPurify.setConfig({
+    ADD_ATTR: ['target', 'rel'],
+    FORBID_TAGS: ['style', 'script'],
+  });
+  
+  // Create trusted types policy if supported by browser
+  if (window.trustedTypes && window.trustedTypes.createPolicy) {
+    if (!window.trustedTypes.defaultPolicy) {
+      window.trustedTypes.createPolicy('default', {
+        createHTML: (string) => string
+      });
+    }
+  }
+}
+
 export const markdownComponents = {
-  // Basic elements
-  ul: ({ className, ...props }: HTMLProps<HTMLUListElement> & ExtraProps) => (
-    <ul className={`list-disc pl-6 my-4 ${className || ''}`} {...props} />
+  a: ({ node, ...props }: MarkdownComponentProps) => (
+    <a 
+      {...props} 
+      target="_blank" 
+      rel="noopener noreferrer"
+      className="text-primary underline hover:text-primary/80 transition-colors"
+    />
   ),
-  ol: ({ className, ...props }: OlHTMLAttributes<HTMLOListElement> & ExtraProps) => (
-    <ol className={`list-decimal pl-6 my-4 ${className || ''}`} {...props} />
+  h1: ({ node, ...props }: MarkdownComponentProps) => <h1 {...props} className="text-xl font-bold my-2" />,
+  h2: ({ node, ...props }: MarkdownComponentProps) => <h2 {...props} className="text-lg font-bold my-2" />,
+  h3: ({ node, ...props }: MarkdownComponentProps) => <h3 {...props} className="text-md font-bold my-1.5" />,
+  p: ({ node, ...props }: MarkdownComponentProps) => <p {...props} className="my-1" />,
+  ul: ({ node, ...props }: MarkdownComponentProps) => <ul {...props} className="list-disc pl-5 my-2" />,
+  ol: ({ node, ...props }: MarkdownComponentProps) => <ol {...props} className="list-decimal pl-5 my-2" />,
+  li: ({ node, ...props }: MarkdownComponentProps) => <li {...props} className="my-0.5" />,
+  hr: ({ node, ...props }: MarkdownComponentProps) => <hr {...props} className="my-2 border-muted" />,
+  blockquote: ({ node, ...props }: MarkdownComponentProps) => (
+    <blockquote 
+      {...props} 
+      className="border-l-4 border-primary/30 pl-4 italic my-2 text-muted-foreground" 
+    />
   ),
-  li: ({ className, ...props }: HTMLProps<HTMLLIElement>) => (
-    <li className={`my-1 ${className || ''}`} {...props} />
+  table: ({ node, ...props }: MarkdownComponentProps) => (
+    <div className="overflow-x-auto my-2 rounded-md border border-border">
+      <table {...props} className="min-w-full divide-y divide-border" />
+    </div>
   ),
-  p: ({ className, ...props }: HTMLProps<HTMLParagraphElement>) => (
-    <p className={`my-2 ${className || ''}`} {...props} />
+  thead: ({ node, ...props }: MarkdownComponentProps) => <thead {...props} className="bg-muted" />,
+  tbody: ({ node, ...props }: MarkdownComponentProps) => <tbody {...props} className="divide-y divide-border" />,
+  tr: ({ node, ...props }: MarkdownComponentProps) => <tr {...props} className="hover:bg-muted/50 transition-colors" />,
+  th: ({ node, ...props }: MarkdownComponentProps) => (
+    <th {...props} className="px-3 py-1.5 text-left text-xs font-medium uppercase tracking-wider" />
   ),
-  h1: ({ className, ...props }: HTMLProps<HTMLHeadingElement>) => (
-    <h1 className={`text-3xl font-bold my-4 ${className || ''}`} {...props} />
-  ),
-  h2: ({ className, ...props }: HTMLProps<HTMLHeadingElement>) => (
-    <h2 className={`text-2xl font-bold my-3 ${className || ''}`} {...props} />
-  ),
-  h3: ({ className, ...props }: HTMLProps<HTMLHeadingElement>) => (
-    <h3 className={`text-xl font-bold my-2 ${className || ''}`} {...props} />
-  ),
-  // Code blocks
-  code: ({ className, inline, ...props }: HTMLProps<HTMLElement> & ExtraProps) => (
-    inline ? (
-      <code className={`bg-muted px-1 py-0.5 rounded text-sm ${className || ''}`} {...props} />
+  td: ({ node, ...props }: MarkdownComponentProps) => <td {...props} className="px-3 py-1.5 whitespace-nowrap" />,
+  img: ({ node, ...props }: MarkdownComponentProps) => {
+    const [imgError, setImgError] = React.useState(false);
+    
+    const handleError = () => {
+      console.log("Image failed to load:", props.src);
+      setImgError(true);
+    };
+    
+    // Sanitize the src attribute to prevent XSS
+    const sanitizedSrc = props.src ? DOMPurify.sanitize(props.src.toString()) : '';
+    
+    return imgError ? (
+      <div className="max-w-full p-4 text-center border border-muted rounded-md my-2 bg-muted/30">
+        <p className="text-sm text-muted-foreground">Image could not be loaded</p>
+        <p className="text-xs text-muted-foreground mt-1 break-all">
+          {sanitizedSrc.substring(0, 50)}...
+        </p>
+      </div>
     ) : (
-      <code
-        className={`block bg-muted p-3 rounded-md overflow-x-auto text-sm ${className || ''}`}
-        {...props}
+      <img 
+        {...props} 
+        src={sanitizedSrc}
+        className="max-w-full h-auto rounded-md my-2" 
+        alt={props.alt || "Image"} 
+        loading="lazy"
+        onError={handleError}
+        crossOrigin="anonymous" 
+        referrerPolicy="no-referrer"
+        width={props.width || "auto"}
+        height={props.height || "auto"}
       />
-    )
+    );
+  },
+  pre: ({ node, ...props }: MarkdownComponentProps) => (
+    <pre {...props} className="bg-muted p-4 rounded-md overflow-x-auto my-2" />
   ),
-  // Links
-  a: ({ className, href, ...props }: AnchorHTMLAttributes<HTMLAnchorElement>) => (
-    <a href={href} className={`text-primary hover:underline ${className || ''}`} target="_blank" rel="noopener noreferrer" {...props} />
+  code: ({ node, inline, className, ...props }: MarkdownComponentProps & { inline?: boolean }) => (
+    inline ? 
+      <code {...props} className="font-mono text-sm bg-muted px-1.5 py-0.5 rounded" /> :
+      <code {...props} className="block p-0 bg-transparent text-current rounded-none font-mono" />
   ),
-  blockquote: ({ className, ...props }: HTMLProps<HTMLQuoteElement>) => (
-    <blockquote className={`border-l-4 border-muted pl-4 italic my-2 ${className || ''}`} {...props} />
+  details: ({ node, ...props }: MarkdownComponentProps) => (
+    <details {...props} className="my-2 p-2 bg-muted/50 rounded-md" />
   ),
-  hr: ({ className, ...props }: HTMLProps<HTMLHRElement>) => (
-    <hr className={`my-4 border-t border-border ${className || ''}`} {...props} />
+  summary: ({ node, ...props }: MarkdownComponentProps) => (
+    <summary {...props} className="cursor-pointer font-medium p-1" />
   ),
 };
-
-export default markdownComponents;

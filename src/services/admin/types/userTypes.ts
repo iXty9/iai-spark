@@ -1,100 +1,32 @@
 
-export enum UserStatus {
-  ACTIVE = 'active',
-  SUSPENDED = 'suspended',
-  PENDING = 'pending',
-  DELETED = 'deleted'
-}
+// Define user roles
+export type UserRole = 'admin' | 'user';
 
-export enum UserRole {
-  ADMIN = 'admin',
-  USER = 'user'
-}
-
-export interface User {
+// User with role information
+export interface UserWithRole {
   id: string;
   email: string;
-  username?: string;
-  first_name?: string;
-  last_name?: string;
-  avatar_url?: string;
-  status?: UserStatus;
-  roles?: string[];
   created_at: string;
-  last_sign_in?: string;
-  role?: string;
-  display_name?: string;
+  role: UserRole;
   last_sign_in_at?: string;
+  user_metadata?: any;
+  username?: string;
 }
 
-export interface UserWithRole extends User {
-  role: string;
-  last_sign_in_at?: string;
-  status?: UserStatus;
-  roles?: string[];
-}
-
-export interface UsersSearchOptions {
-  query: string;
-  field?: 'email' | 'username' | 'name';
-  status?: UserStatus;
-  role?: string;
-}
-
-export interface UsersFetchResult {
-  users: UserWithRole[];
-  count: number;
-  totalCount?: number;
-}
-
+// Options for fetching users
 export interface UsersFetchOptions {
   page?: number;
-  perPage?: number;
-  searchQuery?: string;
-  status?: UserStatus;
-  role?: string;
-  sortBy?: string;
-  sortDirection?: 'asc' | 'desc';
   pageSize?: number;
-  roleFilter?: string;
+  roleFilter?: UserRole | 'all';
 }
 
-export interface UserManagementState {
-  users: User[];
-  loading: boolean;
-  error: Error | null;
-  pagination: {
-    currentPage: number;
-    totalPages: number;
-    totalCount: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
-  };
-  connectionStatus: boolean;
-  selectedUser: User | null;
-  dialog: {
-    type: string;
-    isOpen: boolean;
-    data: any;
-  };
-  updatingRole: boolean;
-  currentPage: number;
-  setCurrentPage: (page: number) => void;
-  setSelectedUser: (user: User | null) => void;
-  setDialog: (dialog: { type: string; isOpen: boolean; data: any }) => void;
-  fetchUserList: (options?: UsersFetchOptions) => Promise<void>;
-  removeUser: (userId: string) => Promise<boolean>;
-  changeUserStatus: (userId: string, status: UserStatus, reason?: string) => Promise<boolean>;
-  assignRole: (userId: string, role: string) => Promise<boolean>;
-  removeRole: (userId: string, role: string) => Promise<boolean>;
-  fetchAndSetUsers: (resetPage?: boolean) => void;
-  confirmRoleUpdate: (role: string) => Promise<void>;
-  resetEnvironmentConfig: () => void;
-  reinitializeConnection: () => void;
-  totalPages?: number;
-  roleFilter?: string;
-  setRoleFilter?: (filter: string) => void;
-  totalCount?: number;
-  searchQuery?: string;
-  setSearchQuery?: (query: string) => void;
+// Options for searching users
+export interface UsersSearchOptions extends UsersFetchOptions {
+  searchQuery: string;
+}
+
+// Result of user fetch operations
+export interface UsersFetchResult {
+  users: UserWithRole[];
+  totalCount: number;
 }

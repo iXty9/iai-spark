@@ -158,13 +158,13 @@ const Initialize = () => {
         description: updated
           ? 'Your configuration has been saved to site-config.json'
           : 'Setup completed but could not update site-config.json',
-        variant: updated ? "default" : "destructive"
+        variant: updated ? undefined : 'warning'
       });
     } catch {
       toast({
         title: 'Warning',
         description: 'Setup completed but could not update site-config.json',
-        variant: "destructive"
+        variant: 'warning'
       });
     }
     localStorage.removeItem(INIT_STATE_KEY);

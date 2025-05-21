@@ -1,131 +1,103 @@
+
+import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
-import { withSupabase } from '@/services/supabase/connection-service';
 import { AppSettings } from './types';
 
-// Add the required functions
-export function getAppSettingsMap() {
-  return {};
-}
-
-export async function updateAppSetting(key: string, value: string) {
-  return true;
+/**
+ * Fetch all app settings as a key-value map
+ */
+export async function getAppSettingsMap(): Promise<Record<string, string>> {
+  try {
+    const result = await supabase
+      .from('app_settings')
+      .select('key, value');
+      
+    if (result.error) {
+      logger.error('Error fetching app settings map:', result.error);
+      return {};
+    }
+    
+    const settingsMap: Record<string, string> = {};
+    if (result.data) {
+      result.data.forEach(row => {
+        settingsMap[row.key] = row.value;
+      });
+    }
+    
+    return settingsMap;
+  } catch (error) {
+    logger.error('Unexpected error in getAppSettingsMap:', error);
+    return {};
+  }
 }
 
 /**
  * Fetch all application settings
  */
-export async function fetchAppSettings(): Promise<AppSettings | null> {
+export async function fetchAppSettings(): Promise<AppSettings> {
   try {
-    return await withSupabase(async (client) => {
-      const { data, error } = await client
-        .from('app_settings')
-        .select('*');
+    const result = await supabase
+      .from('app_settings')
+      .select('key, value');
       
-      if (error) {
-        throw error;
-      }
-      
-      if (!data || data.length === 0) {
-        return null;
-      }
-      
-      // Convert array of settings to a single object
-      const settings: AppSettings = {
-        app_name: 'My App',
-        site_title: 'My Site',
-      };
-      
-      data.forEach((setting) => {
-        if (setting.key && setting.value !== undefined) {
-          settings[setting.key] = setting.value;
-        }
-      });
-      
-      return settings;
-    });
-  } catch (error) {
-    logger.error('Error fetching app settings', error, { module: 'settings' });
-    return null;
-  }
-}
-
-/**
- * Update application settings
- */
-export async function updateAppSettings(settings: Partial<AppSettings>): Promise<boolean> {
-  try {
-    return await withSupabase(async (client) => {
-      // Convert settings object to array of key-value pairs
-      const settingsArray = Object.entries(settings).map(([key, value]) => ({
-        key,
-        value: value?.toString() || '',
-      }));
-      
-      // Upsert settings
-      const { error } = await client
-        .from('app_settings')
-        .upsert(settingsArray, { onConflict: 'key' });
-      
-      if (error) {
-        throw error;
-      }
-      
-      logger.info('App settings updated successfully', { 
-        module: 'settings',
-        count: settingsArray.length
-      });
-      
-      return true;
-    });
-  } catch (error) {
-    logger.error('Error updating app settings', error, { module: 'settings' });
-    return false;
-  }
-}
-
-/**
- * Get a specific app setting
- */
-export async function getAppSetting(key: string): Promise<string | null> {
-  try {
-    return await withSupabase(async (client) => {
-      const { data, error } = await client
-        .from('app_settings')
-        .select('value')
-        .eq('key', key)
-        .single();
-      
-      if (error) {
-        throw error;
-      }
-      
-      return data?.value || null;
-    });
-  } catch (error) {
-    logger.error(`Error fetching app setting: ${key}`, error, { module: 'settings' });
-    return null;
-  }
-}
-
-/**
- * Initialize default app settings if they don't exist
- */
-export async function initializeDefaultSettings(): Promise<boolean> {
-  try {
-    const defaultSettings: AppSettings = {
-      app_name: 'My Application',
-      site_title: 'Welcome to My Application',
-      app_description: 'A powerful application built with Supabase',
-      primary_color: '#3b82f6',
-      accent_color: '#10b981',
-      allow_signups: true,
-      require_email_verification: true,
-      max_upload_size_mb: 10,
-    };
+    if (result.error) {
+      logger.error('Error fetching app settings:', result.error);
+      return {};
+    }
     
-    return await updateAppSettings(defaultSettings);
+    const settings: AppSettings = {};
+    if (result.data) {
+      result.data.forEach(row => {
+        settings[row.key] = row.value;
+      });
+    }
+    
+    return settings;
   } catch (error) {
-    logger.error('Error initializing default settings', error, { module: 'settings' });
+    logger.error('Unexpected error in fetchAppSettings:', error);
+    return {};
+  }
+}
+
+/**
+ * Update a single application setting
+ */
+export async function updateAppSetting(key: string, value: string): Promise<boolean> {
+  try {
+    // Check if setting exists
+    const existingResult = await supabase
+      .from('app_settings')
+      .select('id')
+      .eq('key', key);
+      
+    if (existingResult.error) {
+      logger.error(`Error checking if setting ${key} exists:`, existingResult.error);
+      return false;
+    }
+    
+    let result;
+    
+    if (existingResult.data && existingResult.data.length > 0) {
+      // Update existing setting
+      result = await supabase
+        .from('app_settings')
+        .update({ value })
+        .eq('key', key);
+    } else {
+      // Insert new setting
+      result = await supabase
+        .from('app_settings')
+        .insert({ key, value });
+    }
+    
+    if (result.error) {
+      logger.error(`Error updating setting ${key}:`, result.error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    logger.error(`Unexpected error updating setting ${key}:`, error);
     return false;
   }
 }

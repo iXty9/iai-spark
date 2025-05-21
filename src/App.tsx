@@ -1,225 +1,126 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import { Auth } from './components/auth/CustomAuth';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
-import { Account } from './components/Account';
-import { Home } from './components/Home';
-import { AdminPanel } from './components/AdminPanel';
-import { Initialize } from './components/Initialize';
-import { Connection } from './components/Connection';
-import { Profile } from './components/Profile';
-import { withSupabase, getSupabaseClient } from './services/supabase/connection-service';
-import { AuthRequired } from './components/AuthRequired';
-import { AdminRequired } from './components/AdminRequired';
-import { SiteConfigSetup } from './components/SiteConfigSetup';
-import { SiteConfigRequired } from './components/SiteConfigRequired';
-import { BootstrapScreen } from './components/BootstrapScreen';
-import { useBootstrap, BootstrapState } from './hooks/useBootstrap';
-import { logger } from './utils/logging';
-import { eventBus, AppEvents } from './utils/event-bus';
+
+import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import Index from "./pages/Index";
+import Auth from "./pages/Auth";
+import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
+import Admin from "./pages/Admin";
+import NotFound from "./pages/NotFound";
+import SupabaseAuth from "./pages/SupabaseAuth";
+import Initialize from "./pages/Initialize";
+import { Toaster } from "@/components/ui/sonner";
+import { BootstrapProvider } from "@/components/supabase/BootstrapProvider";
+import { ThemeProvider } from "@/hooks/use-theme";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { useEffect, useState } from "react";
+import { bootstrapMonitor } from "@/services/supabase/bootstrap-monitor";
+import { checkPublicBootstrapConfig } from "@/services/supabase/connection-service";
+import { logger } from "@/utils/logging";
+import "./App.css";
 
 function App() {
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [session, setSession] = useState<any>(null);
-  const [supabaseClient, setSupabaseClient] = useState<any>(null);
-  const { state: bootstrapState, error: bootstrapError, handleRetry } = useBootstrap();
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  // State to track client initialization
+  const [clientInitialized, setClientInitialized] = useState<boolean>(false);
+  // Track tab visibility for smarter initialization
+  const [isTabVisible, setIsTabVisible] = useState<boolean>(true);
   
-  const handleAvatarChange = (url: string) => {
-    setAvatarUrl(url);
-    console.log('Avatar URL updated:', url);
-  };
-
-  // Initialize Supabase client
+  // Monitor tab visibility
   useEffect(() => {
-    const initClient = async () => {
-      try {
-        const client = await getSupabaseClient();
-        setSupabaseClient(client);
-        logger.info('Supabase client initialized', { module: 'app' });
-      } catch (error) {
-        logger.error('Failed to initialize Supabase client', error, { module: 'app' });
-      }
+    const handleVisibilityChange = () => {
+      setIsTabVisible(document.visibilityState === 'visible');
     };
     
-    // Only initialize the client if bootstrap is complete
-    if (bootstrapState === BootstrapState.COMPLETE) {
-      initClient();
-    }
-  }, [bootstrapState]);
-  
-  // Set up authentication listeners
-  useEffect(() => {
-    if (!supabaseClient) return;
+    // Set initial value
+    setIsTabVisible(document.visibilityState === 'visible');
     
-    const checkAuth = async () => {
-      try {
-        const { data } = await supabaseClient.auth.getSession();
-        setSession(data.session);
-        
-        // Set up auth state change listener
-        const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
-          (_event: any, session: any) => {
-            setSession(session);
-          }
-        );
-        
-        // Return cleanup function
-        return () => {
-          subscription.unsubscribe();
-        };
-      } catch (error) {
-        logger.error('Auth error:', error, { module: 'app' });
-      }
-    };
+    // Add listener
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     
-    const authSubscription = checkAuth();
-    
-    // Cleanup function
+    // Cleanup
     return () => {
-      authSubscription.then((cleanup: any) => {
-        if (typeof cleanup === 'function') {
-          cleanup();
-        }
-      });
-    };
-  }, [supabaseClient]);
-
-  // Check if app is initialized
-  useEffect(() => {
-    if (!supabaseClient || !session) return;
-    
-    const checkInit = async () => {
-      try {
-        const { data, error } = await supabaseClient
-          .from('app_settings')
-          .select('value')
-          .eq('key', 'is_initialized')
-          .single();
-        
-        if (error) {
-          logger.error('Error fetching initialization status', error, {
-            module: 'app'
-          });
-          setIsInitialized(false);
-        } else if (data && data.value === 'true') {
-          setIsInitialized(true);
-        } else {
-          setIsInitialized(false);
-        }
-      } catch (e) {
-        logger.error('Unexpected error checking initialization', e, {
-          module: 'app'
-        });
-        setIsInitialized(false);
-      }
-    };
-    
-    checkInit();
-  }, [session, supabaseClient]);
-
-  // Event bus setup
-  useEffect(() => {
-    // Publish app mounted event
-    eventBus.publish(AppEvents.APP_MOUNTED, {});
-    
-    // Cleanup on unmount
-    return () => {
-      eventBus.publish(AppEvents.APP_UNMOUNTED, {});
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
+  
+  // Safe initialization - Handle with care to prevent recursion
+  useEffect(() => {
+    // Skip initialization if tab is not visible
+    if (!isTabVisible) {
+      logger.info("Delaying app initialization until tab becomes visible", { module: 'app-init' });
+      return;
+    }
+    
+    const initializeApp = async () => {
+      try {
+        logger.info("Starting app initialization process", { module: 'app-init' });
+        
+        // Try to check config without causing auth errors
+        const hasConfig = await checkPublicBootstrapConfig().catch(err => {
+          logger.error("Initial bootstrap check failed:", err, { module: 'app-init' });
+          return false;
+        });
+        
+        logger.info("Initial bootstrap check complete", { 
+          hasConfig, 
+          module: 'app-init' 
+        });
+        
+        setClientInitialized(true);
+        
+        // Only start monitor if we've safely initialized and have config
+        if (hasConfig) {
+          bootstrapMonitor.start();
+        } else {
+          logger.info("Bootstrap monitor not started - no configuration found", {
+            module: 'app-init'
+          });
+        }
+      } catch (err) {
+        // Log error but continue rendering the app
+        logger.error("Error during app initialization:", err, { module: 'app-init' });
+        setClientInitialized(true); // Still mark as initialized to allow rendering
+      }
+    };
+    
+    initializeApp();
+    
+    // Clean up monitor on unmount
+    return () => {
+      bootstrapMonitor.stop();
+    };
+  }, [isTabVisible]);
 
-  // Show bootstrap screen if bootstrap not complete
-  if (bootstrapState !== BootstrapState.COMPLETE) {
-    return <BootstrapScreen state={bootstrapState} error={bootstrapError} onRetry={handleRetry} />;
+  // Render simple loading state while client initializes
+  if (!clientInitialized) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto"></div>
+          <p className="mt-2 text-muted-foreground">Initializing application...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <Router>
-      <Routes>
-        <Route 
-          path="/supabase-auth" 
-          element={
-            <div className="container" style={{ padding: '50px 0 100px 0' }}>
-              {!session ? (
-                <Auth 
-                  supabaseClient={supabaseClient} 
-                  appearance={{ theme: ThemeSupa }}
-                  providers={['github', 'google']}
-                  redirectTo={`${window.location.origin}/profile`}
-                />
-              ) : (
-                <Navigate to="/profile" />
-              )}
-            </div>
-          } 
-        />
-        
-        <Route 
-          path="/initialize" 
-          element={
-            <SiteConfigRequired>
-              <Initialize />
-            </SiteConfigRequired>
-          } 
-        />
-        
-        <Route 
-          path="/admin/connection" 
-          element={
-            <AdminRequired>
-              <Connection />
-            </AdminRequired>
-          } 
-        />
-        
-        <Route 
-          path="/" 
-          element={
-            <SiteConfigRequired>
-              <Home />
-            </SiteConfigRequired>
-          } 
-        />
-        
-        <Route 
-          path="/account" 
-          element={
-            <AuthRequired>
-              <SiteConfigRequired>
-                <Account session={session} />
-              </SiteConfigRequired>
-            </AuthRequired>
-          } 
-        />
-        
-        <Route 
-          path="/profile" 
-          element={
-            <AuthRequired>
-              <SiteConfigRequired>
-                <Profile session={session} onAvatarChange={handleAvatarChange} />
-              </SiteConfigRequired>
-            </AuthRequired>
-          } 
-        />
-        
-        <Route 
-          path="/admin" 
-          element={
-            <AdminRequired>
-              <SiteConfigRequired>
-                <AdminPanel />
-              </SiteConfigRequired>
-            </AdminRequired>
-          } 
-        />
-        
-        <Route 
-          path="/setup" 
-          element={<SiteConfigSetup />} 
-        />
-      </Routes>
+      <BootstrapProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/supabase-auth" element={<SupabaseAuth />} />
+              <Route path="/initialize" element={<Initialize />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <Toaster />
+          </ThemeProvider>
+        </AuthProvider>
+      </BootstrapProvider>
     </Router>
   );
 }

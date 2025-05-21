@@ -1,68 +1,212 @@
-
 import { logger } from '@/utils/logging';
+import { generateTemplateConfig, writeConfigToLocalStorage } from '@/services/site-config/site-config-file-service';
+import { SiteConfigEnv } from '@/services/supabase/site-config-service';
 
-// Define the SiteConfigEnv interface here to avoid circular imports
-export interface SiteConfigEnv {
-  supabaseUrl: string;
-  supabaseAnonKey: string;
-  siteHost?: string;
-  lastUpdated?: string;
-  [key: string]: any;
-}
-
-// Check if we have a valid configuration
-export function hasValidConfiguration(): boolean {
+/**
+ * Generate a configuration file with the provided values
+ * This can be used during development or initial setup
+ */
+export async function generateConfigFile(
+  supabaseUrl: string,
+  supabaseAnonKey: string,
+  outputPath?: string
+): Promise<boolean> {
   try {
-    // Implementation would go here
-    // This is just a stub to satisfy imports
+    // Validate inputs
+    if (!supabaseUrl || !supabaseAnonKey) {
+      logger.error('Cannot generate config with empty values', {
+        module: 'config-generator'
+      });
+      return false;
+    }
+    
+    const config = {
+      ...generateTemplateConfig(),
+      supabaseUrl: supabaseUrl.trim(),
+      supabaseAnonKey: supabaseAnonKey.trim(),
+      lastUpdated: new Date().toISOString()
+    };
+    
+    // Save to localStorage as a fallback
+    const siteConfig: SiteConfigEnv = {
+      supabaseUrl: config.supabaseUrl,
+      supabaseAnonKey: config.supabaseAnonKey,
+      siteHost: config.siteHost,
+      lastUpdated: config.lastUpdated
+    };
+    
+    writeConfigToLocalStorage(siteConfig);
+    
+    // In a browser environment, we can't write to the filesystem directly
+    // So we'll create a downloadable file
+    if (typeof window !== 'undefined' && !outputPath) {
+      const jsonContent = JSON.stringify(config, null, 2);
+      const blob = new Blob([jsonContent], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      // Create a download link
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'site-config.json';
+      a.click();
+      
+      // Clean up
+      URL.revokeObjectURL(url);
+      
+      logger.info('Configuration file generated and downloaded', {
+        module: 'config-generator'
+      });
+      
+      return true;
+    }
+    
+    // For Node.js environments or when outputPath is provided
+    // This would be used in build scripts or server-side code
+    if (outputPath && typeof process !== 'undefined') {
+      // This would require the fs module in Node.js
+      // Since this is a browser application, we'll just log a message
+      logger.info('Would write configuration to file (server-side)', {
+        module: 'config-generator',
+        outputPath,
+        config
+      });
+    }
+    
     return true;
   } catch (error) {
-    logger.error('Error checking configuration', error);
+    logger.error('Error generating configuration file', {
+      module: 'config-generator',
+      error: error instanceof Error ? error.message : String(error)
+    });
     return false;
   }
 }
 
 /**
- * Generates a site-config.json file for download
+ * Check if the current environment has valid configuration
  */
-export async function generateConfigFile(
-  supabaseUrl: string,
-  supabaseAnonKey: string
-): Promise<boolean> {
+export function hasValidConfiguration(): boolean {
   try {
-    const config: SiteConfigEnv = {
-      supabaseUrl,
-      supabaseAnonKey,
-      siteHost: window.location.hostname,
-      lastUpdated: new Date().toISOString()
-    };
+    // Check environment variables
+    const hasEnvVars = !!(
+      import.meta.env.VITE_SUPABASE_URL && 
+      import.meta.env.VITE_SUPABASE_ANON_KEY
+    );
     
-    // Convert the config to a pretty-printed JSON string
-    const configJson = JSON.stringify(config, null, 2);
+    // Check localStorage
+    let hasLocalStorage = false;
+    if (typeof localStorage !== 'undefined') {
+      const config = localStorage.getItem('site-config');
+      if (config) {
+        try {
+          const parsed = JSON.parse(config);
+          hasLocalStorage = !!(parsed.supabaseUrl && parsed.supabaseAnonKey);
+        } catch (e) {
+          // Invalid JSON
+        }
+      }
+    }
     
-    // Create a Blob containing the JSON
-    const blob = new Blob([configJson], { type: 'application/json' });
-    
-    // Create a download link for the blob
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'site-config.json';
-    
-    // Trigger the download
-    document.body.appendChild(link);
-    link.click();
-    
-    // Clean up
-    setTimeout(() => {
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    }, 100);
-    
-    logger.info('Site config file generated and downloaded', { module: 'config-generator' });
-    return true;
+    return hasEnvVars || hasLocalStorage;
   } catch (error) {
-    logger.error('Error generating site config file', error, { module: 'config-generator' });
+    logger.error('Error checking configuration', {
+      module: 'config-generator',
+      error: error instanceof Error ? error.message : String(error)
+    });
     return false;
+  }
+}
+
+/**
+ * Get detailed configuration status from all sources
+ * This is useful for displaying to users
+ */
+export async function getConfigurationStatus(): Promise<{
+  isValid: boolean;
+  sources: {
+    staticFile: boolean;
+    localStorage: boolean;
+    environment: boolean;
+  };
+  details: {
+    staticFile: string | null;
+    localStorage: string | null;
+    environment: string | null;
+  };
+}> {
+  try {
+    // Check static file
+    let staticFileConfig = null;
+    try {
+      const response = await fetch('/site-config.json', { 
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        staticFileConfig = data.supabaseUrl && data.supabaseAnonKey ? 
+          `${data.supabaseUrl.substring(0, 15)}...` : null;
+      }
+    } catch (e) {
+      // File not found or invalid
+    }
+    
+    // Check localStorage
+    let localStorageConfig = null;
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const data = localStorage.getItem('site-config');
+        if (data) {
+          const parsed = JSON.parse(data);
+          localStorageConfig = parsed.supabaseUrl && parsed.supabaseAnonKey ? 
+            `${parsed.supabaseUrl.substring(0, 15)}...` : null;
+        }
+      } catch (e) {
+        // Invalid JSON
+      }
+    }
+    
+    // Check environment variables
+    const envConfig = !!(
+      import.meta.env.VITE_SUPABASE_URL && 
+      import.meta.env.VITE_SUPABASE_ANON_KEY
+    ) ? `${import.meta.env.VITE_SUPABASE_URL.substring(0, 15)}...` : null;
+    
+    const hasStaticFile = !!staticFileConfig;
+    const hasLocalStorage = !!localStorageConfig;
+    const hasEnvVars = !!envConfig;
+    
+    return {
+      isValid: hasStaticFile || hasLocalStorage || hasEnvVars,
+      sources: {
+        staticFile: hasStaticFile,
+        localStorage: hasLocalStorage,
+        environment: hasEnvVars
+      },
+      details: {
+        staticFile: staticFileConfig,
+        localStorage: localStorageConfig,
+        environment: envConfig
+      }
+    };
+  } catch (error) {
+    logger.error('Error getting configuration status', {
+      module: 'config-generator',
+      error: error instanceof Error ? error.message : String(error)
+    });
+    
+    return {
+      isValid: false,
+      sources: {
+        staticFile: false,
+        localStorage: false,
+        environment: false
+      },
+      details: {
+        staticFile: null,
+        localStorage: null,
+        environment: null
+      }
+    };
   }
 }

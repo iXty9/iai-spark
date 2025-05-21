@@ -1,175 +1,201 @@
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from "@/hooks/use-toast";
+import { getConnectionInfo } from '@/services/supabase/connection-service';
 
-import { supabase } from "@/integrations/supabase/client";
-import { User, AuthError, Provider } from "@supabase/supabase-js";
-import { logger } from "@/utils/logging";
+const API_TIMEOUT = 30000; // 30 seconds
 
-/**
- * Sign in with email and password
- */
-export async function signInWithEmail(email: string, password: string): Promise<User | null> {
+export const signIn = async (email: string, password: string) => {
   try {
-    const client = await supabase;
-    if (!client) throw new Error("Supabase client not available");
+    const connectionInfo = getConnectionInfo();
+    console.log(`Attempting login with connection ID: ${connectionInfo.connectionId}`);
+    console.log('Connection details:', connectionInfo);
     
-    const { data, error } = await client.auth.signInWithPassword({
+    const authPromise = supabase.auth.signInWithPassword({
       email,
-      password
+      password,
     });
     
-    if (error) throw error;
-    return data.user;
-  } catch (error) {
-    logger.error("Error signing in with email", error);
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Login request timed out after 30 seconds")), API_TIMEOUT);
+    });
+    
+    const { data, error } = await Promise.race([authPromise, timeoutPromise]) as any;
+
+    if (error) {
+      console.error('Login error details:', { 
+        message: error.message,
+        code: error.code,
+        status: error.status,
+        connectionId: connectionInfo.connectionId,
+        environment: connectionInfo.environment
+      });
+      
+      toast({
+        variant: "destructive",
+        title: "Login failed",
+        description: error.message,
+      });
+      throw error;
+    }
+    
+    console.log(`Login successful with connection ID: ${connectionInfo.connectionId}`);
+    return data;
+  } catch (error: any) {
+    console.error('Error during sign in:', error);
+    
+    // Get connection information for debug purposes
+    const connectionInfo = getConnectionInfo();
+    console.error('Connection details during error:', connectionInfo);
+    
+    const errorMessage = error.message || "Login failed. Please try again later.";
+    toast({
+      variant: "destructive",
+      title: "Login error",
+      description: errorMessage,
+    });
+    
     throw error;
   }
-}
+};
 
-/**
- * Sign up with email and password
- */
-export async function signUpWithEmail(email: string, password: string, metadata?: { [key: string]: any }): Promise<User | null> {
+export const signUp = async (
+  email: string, 
+  password: string, 
+  username: string, 
+  options?: { phone_number?: string, full_name?: string }
+) => {
   try {
-    const client = await supabase;
-    if (!client) throw new Error("Supabase client not available");
+    // Handle the case when supabase might be the fallback object
+    if (typeof supabase.auth.signUp !== 'function') {
+      toast({
+        variant: "destructive",
+        title: "Signup failed",
+        description: "The authentication service is not available. Please initialize the application.",
+      });
+      throw new Error("Authentication service not available");
+    }
     
-    const { data, error } = await client.auth.signUp({
+    const authPromise = supabase.auth.signUp({
       email,
       password,
       options: {
-        data: metadata
+        data: {
+          username,
+          phone_number: options?.phone_number,
+          full_name: options?.full_name,
+        },
+      },
+    });
+    
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Registration request timed out after 3 minutes")), API_TIMEOUT);
+    });
+    
+    const { error } = await Promise.race([authPromise, timeoutPromise]) as any;
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Signup failed",
+        description: error.message,
+      });
+      throw error;
+    }
+    
+    toast({
+      title: "Account created",
+      description: "Please check your email to confirm your account.",
+    });
+  } catch (error: any) {
+    console.error('Error during sign up:', error);
+    
+    const errorMessage = error.message || "Sign up failed. Please try again later.";
+    toast({
+      variant: "destructive",
+      title: "Registration error",
+      description: errorMessage,
+    });
+    
+    throw error;
+  }
+};
+
+export const signOut = async () => {
+  try {
+    console.log('Signing out user...');
+    
+    localStorage.removeItem('supabase.auth.token');
+    ['sb-refresh-token', 'sb-access-token', 'supabase.auth.expires_at', 'supabase.auth.refreshToken'].forEach(key => {
+      try {
+        localStorage.removeItem(key);
+      } catch (e) {
+        console.warn(`Failed to remove ${key} from localStorage:`, e);
       }
     });
     
-    if (error) throw error;
-    return data.user;
-  } catch (error) {
-    logger.error("Error signing up with email", error);
-    throw error;
-  }
-}
-
-/**
- * Sign out
- */
-export async function signOut(): Promise<void> {
-  try {
-    const client = await supabase;
-    if (!client) throw new Error("Supabase client not available");
-    
-    const { error } = await client.auth.signOut();
-    if (error) throw error;
-  } catch (error) {
-    logger.error("Error signing out", error);
-    throw error;
-  }
-}
-
-/**
- * Get current user
- */
-export async function getCurrentUser(): Promise<User | null> {
-  try {
-    const client = await supabase;
-    if (!client) return null;
-    
-    const { data, error } = await client.auth.getUser();
-    if (error) return null;
-    return data.user;
-  } catch (error) {
-    logger.error("Error getting current user", error);
-    return null;
-  }
-}
-
-/**
- * Refresh session
- */
-export async function refreshSession(): Promise<User | null> {
-  try {
-    const client = await supabase;
-    if (!client) return null;
-    
-    const { data, error } = await client.auth.refreshSession();
-    if (error) return null;
-    return data.user;
-  } catch (error) {
-    logger.error("Error refreshing session", error);
-    return null;
-  }
-}
-
-/**
- * Send password reset email
- */
-export async function sendPasswordResetEmail(email: string): Promise<boolean> {
-  try {
-    const client = await supabase;
-    if (!client) throw new Error("Supabase client not available");
-    
-    const { error } = await client.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`
+    Object.keys(localStorage).forEach(key => {
+      if (key.includes('supabase') || key.startsWith('sb-')) {
+        try {
+          localStorage.removeItem(key);
+        } catch (e) {
+          console.warn(`Failed to remove ${key} from localStorage:`, e);
+        }
+      }
     });
     
-    if (error) throw error;
-    return true;
-  } catch (error) {
-    logger.error("Error sending password reset email", error);
-    throw error;
-  }
-}
-
-/**
- * Update password
- */
-export async function updatePassword(password: string): Promise<User | null> {
-  try {
-    const client = await supabase;
-    if (!client) throw new Error("Supabase client not available");
-    
-    const { data, error } = await client.auth.updateUser({
-      password
+    const { error } = await supabase.auth.signOut({
+      scope: 'global'
     });
     
-    if (error) throw error;
-    return data.user;
-  } catch (error) {
-    logger.error("Error updating password", error);
-    throw error;
+    if (error) {
+      console.error('Error during sign out API call:', error);
+      toast({
+        variant: "default",
+        title: "Signed out",
+        description: "You have been signed out. Some cleanup may happen in the background.",
+      });
+    } else {
+      console.log('User has been signed out successfully, auth state cleared');
+      toast({
+        variant: "default",
+        title: "Signed out",
+        description: "You have been signed out successfully",
+      });
+    }
+  } catch (error: any) {
+    console.error('Error during sign out process:', error);
+    toast({
+      variant: "default",
+      title: "Signed out",
+      description: "You have been signed out locally. Some cleanup may happen in the background.",
+    });
   }
-}
+};
 
-// Add these new function exports to match what's being imported in AuthContext.tsx
-/**
- * Sign in wrapper for AuthContext
- */
-export async function signIn(email: string, password: string): Promise<void> {
-  await signInWithEmail(email, password);
-}
-
-/**
- * Sign up wrapper for AuthContext
- */
-export async function signUp(email: string, password: string, username: string, options?: { phone_number?: string, first_name?: string, last_name?: string }): Promise<void> {
-  const metadata = {
-    username,
-    ...options
-  };
-  await signUpWithEmail(email, password, metadata);
-}
-
-/**
- * Update profile
- */
-export async function updateProfile(client: any, userId: string, data: Partial<any>): Promise<void> {
+export const updateProfile = async (supabase: any, userId: string, data: Partial<any>) => {
   try {
-    const { error } = await client
+    if (!userId) throw new Error('No user logged in');
+
+    const { error } = await supabase
       .from('profiles')
       .update(data)
       .eq('id', userId);
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Update failed",
+        description: error.message,
+      });
+      throw error;
+    }
     
-    if (error) throw error;
-  } catch (error) {
-    logger.error("Error updating profile", error);
+    toast({
+      title: "Profile updated",
+      description: "Your profile has been updated successfully.",
+    });
+  } catch (error: any) {
+    console.error('Error updating profile:', error);
     throw error;
   }
-}
+};

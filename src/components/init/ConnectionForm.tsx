@@ -54,12 +54,7 @@ export function ConnectionForm({ onSuccess }: ConnectionFormProps) {
           if (saveToSiteEnv) {
             setIsSavingToSiteEnv(true);
             try {
-              await saveSiteEnvironmentConfig({
-                supabaseUrl: url,
-                supabaseAnonKey: anonKey,
-                siteHost: window.location.hostname,
-                lastUpdated: new Date().toISOString()
-              });
+              await saveSiteEnvironmentConfig(url, anonKey);
             } catch (err) {
               console.error("Failed to save to site environment during initialization:", err);
             } finally {
