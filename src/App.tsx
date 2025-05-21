@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import { Auth } from './components/auth/CustomAuth'; // Use our custom Auth component
+import { Auth } from './components/auth/CustomAuth';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { Account } from './components/Account';
 import { Home } from './components/Home';
@@ -15,7 +14,7 @@ import { AdminRequired } from './components/AdminRequired';
 import { SiteConfigSetup } from './components/SiteConfigSetup';
 import { SiteConfigRequired } from './components/SiteConfigRequired';
 import { BootstrapScreen } from './components/BootstrapScreen';
-import { useBootstrap } from './hooks/useBootstrap';
+import { useBootstrap, BootstrapState } from './hooks/useBootstrap';
 import { logger } from './utils/logging';
 import { eventBus, AppEvents } from './utils/event-bus';
 
@@ -23,7 +22,7 @@ function App() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [session, setSession] = useState<any>(null);
   const [supabaseClient, setSupabaseClient] = useState<any>(null);
-  const { state: bootstrapState, error: bootstrapError } = useBootstrap();
+  const { state: bootstrapState, error: bootstrapError, handleRetry } = useBootstrap();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   
   const handleAvatarChange = (url: string) => {
@@ -34,12 +33,20 @@ function App() {
   // Initialize Supabase client
   useEffect(() => {
     const initClient = async () => {
-      const client = await getSupabaseClient();
-      setSupabaseClient(client);
+      try {
+        const client = await getSupabaseClient();
+        setSupabaseClient(client);
+        logger.info('Supabase client initialized', { module: 'app' });
+      } catch (error) {
+        logger.error('Failed to initialize Supabase client', error, { module: 'app' });
+      }
     };
     
-    initClient();
-  }, []);
+    // Only initialize the client if bootstrap is complete
+    if (bootstrapState === BootstrapState.COMPLETE) {
+      initClient();
+    }
+  }, [bootstrapState]);
   
   // Set up authentication listeners
   useEffect(() => {
@@ -123,8 +130,8 @@ function App() {
   }, []);
 
   // Show bootstrap screen if bootstrap not complete
-  if (bootstrapState !== 'COMPLETE') {
-    return <BootstrapScreen state={bootstrapState} error={bootstrapError} />;
+  if (bootstrapState !== BootstrapState.COMPLETE) {
+    return <BootstrapScreen state={bootstrapState} error={bootstrapError} onRetry={handleRetry} />;
   }
 
   return (
