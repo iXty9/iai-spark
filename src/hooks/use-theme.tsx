@@ -27,11 +27,15 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const { profile, updateProfile } = useAuth();
+  const authContext = useAuth();
   const [theme, setTheme] = useState<Theme>('light');
   const [isThemeLoaded, setIsThemeLoaded] = useState<boolean>(false);
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const [backgroundOpacity, setBackgroundOpacity] = useState<number>(0.5);
+  
+  // Safely access profile and updateProfile, handling case where auth isn't ready
+  const profile = authContext?.profile || null;
+  const updateProfile = authContext?.updateProfile || (() => Promise.resolve());
   
   // Load theme - simplified logic
   useEffect(() => {
@@ -117,7 +121,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const handleThemeChange = (newTheme: Theme) => {
     setTheme(newTheme);
     
-    if (profile) {
+    if (profile && updateProfile) {
       let themeSettings;
       try {
         themeSettings = profile.theme_settings ? JSON.parse(profile.theme_settings) : {};
@@ -161,7 +165,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     const currentTheme = theme === 'light' ? defaultLight : defaultDark;
     applyThemeChanges(currentTheme);
     
-    if (profile) {
+    if (profile && updateProfile) {
       let themeSettings;
       try {
         themeSettings = profile.theme_settings ? JSON.parse(profile.theme_settings) : {};
@@ -202,7 +206,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         applyThemeChanges(currentThemeColors);
       }
       
-      if (profile) {
+      if (profile && updateProfile) {
         updateProfile({ theme_settings: themeJson });
       }
       
@@ -272,7 +276,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     setBackgroundImage(image);
     setBackgroundOpacity(opacity);
     
-    if (profile) {
+    if (profile && updateProfile) {
       let themeSettings;
       try {
         themeSettings = profile.theme_settings ? JSON.parse(profile.theme_settings) : {};
