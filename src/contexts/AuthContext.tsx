@@ -5,6 +5,8 @@ import { AuthContextType } from './auth/types';
 import { useAuthState } from './auth/useAuthState';
 import { signIn, signUp, signOut, updateProfile } from './auth/authOperations';
 import { logger } from '@/utils/logging';
+import { bootstrapPhases, BootstrapPhase } from '@/services/bootstrap/bootstrap-phases';
+import { clientManager, ClientStatus } from '@/services/supabase/client-manager';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -27,122 +29,88 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const authStateChanges = useRef<number>(0);
   const initialSessionCheckRef = useRef(false);
   const authSubscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
-  const clientAvailableRef = useRef<boolean>(false);
+  const bootstrapReadyRef = useRef<boolean>(false);
   
   // Limit logging for production
   const shouldLog = process.env.NODE_ENV === 'development';
   
-  // First, check if Supabase client is valid before proceeding with auth setup
+  // Wait for bootstrap to complete before initializing auth
   useEffect(() => {
-    // Check if Supabase client is available and properly initialized
-    const checkClientAvailability = () => {
-      try {
-        // Safely check if client exists and has necessary properties
-        if (supabase && typeof supabase === 'object' && supabase.auth) {
-          clientAvailableRef.current = true;
-          return true;
-        }
-        return false;
-      } catch (error) {
-        logger.error('Error checking Supabase client availability', error, { module: 'auth' });
-        return false;
+    const unsubscribe = bootstrapPhases.subscribe((state) => {
+      const wasReady = bootstrapReadyRef.current;
+      bootstrapReadyRef.current = state.phase === BootstrapPhase.COMPLETE;
+      
+      // If bootstrap just became ready, initialize auth
+      if (!wasReady && bootstrapReadyRef.current) {
+        logger.info('Bootstrap completed, initializing auth', { module: 'auth' });
+        initializeAuth();
       }
-    };
-    
-    // Try to check availability immediately
-    const isAvailable = checkClientAvailability();
-    
-    // If not available immediately, set up retry mechanism
-    if (!isAvailable) {
-      logger.warn('Supabase client not immediately available, will retry', null, { module: 'auth' });
       
-      // Set up retry interval (every 500ms)
-      const retryInterval = setInterval(() => {
-        const retryResult = checkClientAvailability();
-        
-        if (retryResult) {
-          logger.info('Supabase client became available', null, { module: 'auth' });
-          clearInterval(retryInterval);
-        }
-      }, 500);
-      
-      // Clean up interval on unmount
-      return () => {
-        clearInterval(retryInterval);
-      };
-    }
+      // If bootstrap failed or needs setup, stop loading
+      if (state.phase === BootstrapPhase.ERROR || state.phase === BootstrapPhase.NEEDS_SETUP) {
+        setIsLoading(false);
+      }
+    });
+    
+    return unsubscribe;
   }, []);
 
-  // Set up auth state listener and cleanup on unmount - only when client is available
-  useEffect(() => {
-    // Skip if client isn't available
-    if (!clientAvailableRef.current) {
+  // Initialize auth when bootstrap is ready
+  const initializeAuth = () => {
+    // Check if client is ready
+    const clientState = clientManager.getState();
+    if (clientState.status !== ClientStatus.READY || !clientState.client) {
+      logger.warn('Client not ready for auth initialization', { 
+        module: 'auth',
+        clientStatus: clientState.status 
+      });
+      setIsLoading(false);
       return;
     }
-    
-    // Create connection ID for debugging if it doesn't exist
-    if (!localStorage.getItem('supabase_connection_id')) {
-      localStorage.setItem('supabase_connection_id', `conn_${Date.now().toString(36)}`);
-    }
-    
-    // Get connection ID to log along with auth events
-    const connectionId = localStorage.getItem('supabase_connection_id') || 'unknown';
-    
-    // Only log in development 
-    if (shouldLog) {
-      logger.info('AuthProvider mounted', { 
-        connectionId 
-      }, { module: 'auth' });
-    }
-    
+
     try {
-      // Set up auth state change listener with safeguards
-      if (supabase && supabase.auth) {
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          (event, newSession) => {
-            authStateChanges.current++;
+      // Set up auth state change listener
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        (event, newSession) => {
+          authStateChanges.current++;
+          
+          if (shouldLog) {
+            logger.info('Auth state changed', {
+              event,
+              changeCount: authStateChanges.current,
+              hasSession: !!newSession,
+              userId: newSession?.user?.id,
+            }, { module: 'auth', throttle: true });
+          }
+          
+          if (event === 'SIGNED_OUT') {
+            logger.info('User signed out, clearing auth state', null, { module: 'auth' });
+            resetAuthState();
+          } else {
+            const sessionChanged = JSON.stringify(newSession) !== JSON.stringify(session);
             
-            if (shouldLog) {
-              logger.info('Auth state changed', {
-                event,
-                changeCount: authStateChanges.current,
-                hasSession: !!newSession,
-                userId: newSession?.user?.id,
-                connectionId
-              }, { module: 'auth', throttle: true });
-            }
-            
-            if (event === 'SIGNED_OUT') {
-              logger.info('User signed out, clearing auth state', null, { module: 'auth' });
-              resetAuthState();
-            } else {
-              const sessionChanged = JSON.stringify(newSession) !== JSON.stringify(session);
+            if (sessionChanged) {
+              setSession(newSession);
+              setUser(newSession?.user ?? null);
               
-              if (sessionChanged) {
-                setSession(newSession);
-                setUser(newSession?.user ?? null);
+              if (newSession?.user && currentUserId.current !== newSession.user.id) {
+                currentUserId.current = newSession.user.id;
                 
-                if (newSession?.user && currentUserId.current !== newSession.user.id) {
-                  currentUserId.current = newSession.user.id;
-                  
-                  // Use setTimeout to avoid auth recursion issues
-                  setTimeout(() => {
-                    fetchProfile(newSession.user.id);
-                  }, 0);
-                }
+                // Use setTimeout to avoid auth recursion issues
+                setTimeout(() => {
+                  fetchProfile(newSession.user.id);
+                }, 0);
               }
             }
           }
-        );
+        }
+      );
 
-        // Store subscription for cleanup
-        authSubscriptionRef.current = subscription;
-      } else {
-        logger.warn('Supabase auth not available for subscription', null, { module: 'auth' });
-      }
+      // Store subscription for cleanup
+      authSubscriptionRef.current = subscription;
 
       // Initial session check - only once
-      if (!initialSessionCheckRef.current && supabase && supabase.auth) {
+      if (!initialSessionCheckRef.current) {
         initialSessionCheckRef.current = true;
         
         supabase.auth.getSession().then(({ data: { session: initialSession }, error }) => {
@@ -154,7 +122,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             logger.info('Initial session check', {
               hasSession: !!initialSession,
               userId: initialSession?.user?.id,
-              connectionId
             }, { module: 'auth' });
           }
           
@@ -163,23 +130,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           
           if (initialSession?.user) {
             currentUserId.current = initialSession.user.id;
-            // Use setTimeout to avoid auth recursion issues
             setTimeout(() => {
               fetchProfile(initialSession.user.id);
             }, 0);
           }
           setIsLoading(false);
         });
-      } else {
-        // If we can't check session, still mark as not loading to allow UI to render
-        setIsLoading(false);
       }
     } catch (error) {
       logger.error('Error setting up auth state', error, { module: 'auth' });
       setIsLoading(false);
     }
+  };
 
-    // Cleanup subscription on unmount
+  // Cleanup subscription on unmount
+  useEffect(() => {
     return () => {
       if (shouldLog) {
         logger.info('AuthProvider unmounting, cleaning up subscription', 
@@ -195,30 +160,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         authSubscriptionRef.current = null;
       }
     };
-  }, [
-    setSession, 
-    setUser, 
-    setProfile, 
-    setIsLoading, 
-    fetchProfile, 
-    session, 
-    shouldLog,
-    resetAuthState, 
-    currentUserId
-  ]);
-
-  // Debug log for initial auth state
-  useEffect(() => {
-    if (shouldLog && !isLoading) {
-      const connectionId = localStorage.getItem('supabase_connection_id') || 'unknown';
-      logger.info('Auth state initialized', {
-        isLoading,
-        hasUser: !!user,
-        userId: user?.id,
-        connectionId
-      }, { module: 'auth', once: true });
-    }
-  }, [isLoading, user, shouldLog]);
+  }, []);
 
   // Handle profile updates
   const handleUpdateProfile = async (data: Partial<any>) => {

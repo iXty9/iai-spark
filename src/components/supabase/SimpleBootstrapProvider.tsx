@@ -2,11 +2,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCcw, Settings, CheckCircle } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Loader2, RefreshCcw, Settings, CheckCircle, Database, Shield } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { logger } from '@/utils/logging';
-import { simpleBootstrap } from '@/services/supabase/simple-bootstrap';
-import { configState, ConfigStatus, ConfigState } from '@/services/config/config-state-manager';
+import { bootstrapOrchestrator } from '@/services/bootstrap/bootstrap-orchestrator';
+import { bootstrapPhases, BootstrapPhase, BootstrapState } from '@/services/bootstrap/bootstrap-phases';
 
 interface SimpleBootstrapProviderProps {
   children: React.ReactNode;
@@ -20,7 +21,7 @@ const PROTECTED_ROUTES = [
 ];
 
 export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderProps) {
-  const [state, setState] = useState<ConfigState>(configState.getState());
+  const [state, setState] = useState<BootstrapState>(bootstrapPhases.getState());
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   
   const navigate = useNavigate();
@@ -31,22 +32,22 @@ export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderPro
     return PROTECTED_ROUTES.some(route => location.pathname.startsWith(route));
   }, [location.pathname]);
   
-  // Subscribe to config state changes
+  // Subscribe to bootstrap state changes
   useEffect(() => {
-    const unsubscribe = configState.subscribe((newState) => {
+    const unsubscribe = bootstrapPhases.subscribe((newState) => {
       setState(newState);
       
-      // Show success message when config becomes ready
-      if (newState.status === ConfigStatus.READY && state.status !== ConfigStatus.READY) {
+      // Show success message when bootstrap completes
+      if (newState.phase === BootstrapPhase.COMPLETE && state.phase !== BootstrapPhase.COMPLETE) {
         setShowSuccessMessage(true);
         setTimeout(() => setShowSuccessMessage(false), 3000);
       }
     });
     
     return unsubscribe;
-  }, [state.status]);
+  }, [state.phase]);
   
-  // Run bootstrap on mount - simplified logic
+  // Run bootstrap on mount - only if not on protected route
   useEffect(() => {
     if (isProtectedRoute()) {
       logger.info('Skipping bootstrap on protected route', {
@@ -56,32 +57,32 @@ export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderPro
       return;
     }
 
-    // Only bootstrap if we're in loading state
-    if (state.status === ConfigStatus.LOADING) {
-      simpleBootstrap.bootstrap();
+    // Only bootstrap if we haven't started or need to retry
+    if (state.phase === BootstrapPhase.NOT_STARTED || state.phase === BootstrapPhase.ERROR) {
+      bootstrapOrchestrator.bootstrap();
     }
-  }, [location.pathname, isProtectedRoute, state.status]);
+  }, [location.pathname, isProtectedRoute, state.phase]);
 
   // Auto-redirect to setup when needed
   useEffect(() => {
-    if (state.status === ConfigStatus.NEEDS_SETUP && !isProtectedRoute()) {
+    if (state.phase === BootstrapPhase.NEEDS_SETUP && !isProtectedRoute()) {
       navigate('/initialize');
     }
-  }, [state.status, navigate, isProtectedRoute]);
+  }, [state.phase, navigate, isProtectedRoute]);
 
   // Handle retry
   const handleRetry = useCallback(() => {
-    simpleBootstrap.bootstrap();
+    bootstrapOrchestrator.bootstrap();
   }, []);
 
-  // Handle manual setup
+  // Handle setup
   const handleSetup = useCallback(() => {
     navigate('/initialize');
   }, [navigate]);
 
   // Handle reset and setup
   const handleReset = useCallback(() => {
-    simpleBootstrap.reset();
+    bootstrapOrchestrator.reset();
     navigate('/initialize?force_init=true');
   }, [navigate]);
 
@@ -90,81 +91,135 @@ export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderPro
     return <>{children}</>;
   }
 
-  // Render based on status
-  switch (state.status) {
-    case ConfigStatus.LOADING:
-      return (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center space-y-4">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-            <p>Loading configuration...</p>
-          </div>
-        </div>
-      );
+  // Get phase display info
+  const getPhaseInfo = () => {
+    switch (state.phase) {
+      case BootstrapPhase.LOADING_CONFIG:
+        return { icon: Database, label: 'Loading configuration...' };
+      case BootstrapPhase.CONFIG_LOADED:
+        return { icon: CheckCircle, label: 'Configuration loaded' };
+      case BootstrapPhase.INITIALIZING_CLIENT:
+        return { icon: Database, label: 'Initializing database client...' };
+      case BootstrapPhase.CLIENT_READY:
+        return { icon: CheckCircle, label: 'Database client ready' };
+      case BootstrapPhase.INITIALIZING_AUTH:
+        return { icon: Shield, label: 'Initializing authentication...' };
+      case BootstrapPhase.AUTH_READY:
+        return { icon: CheckCircle, label: 'Authentication ready' };
+      case BootstrapPhase.COMPLETE:
+        return { icon: CheckCircle, label: 'Application ready' };
+      default:
+        return { icon: Loader2, label: 'Starting...' };
+    }
+  };
 
-    case ConfigStatus.ERROR:
-      return (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="max-w-md w-full space-y-4">
-            <Alert variant="destructive">
-              <AlertTitle>Connection Error</AlertTitle>
-              <AlertDescription>
-                {state.error || 'Failed to connect to the database'}
-              </AlertDescription>
-            </Alert>
-            
-            <div className="flex flex-col space-y-2">
-              <Button onClick={handleRetry} variant="outline" className="w-full">
-                <RefreshCcw className="mr-2 h-4 w-4" />
-                Try Again
-              </Button>
-              
-              <Button onClick={handleReset} className="w-full">
-                <Settings className="mr-2 h-4 w-4" />
-                Reconfigure
-              </Button>
-            </div>
-          </div>
+  // Render based on phase
+  if (state.phase === BootstrapPhase.NOT_STARTED || 
+      state.phase === BootstrapPhase.LOADING_CONFIG ||
+      state.phase === BootstrapPhase.CONFIG_LOADED ||
+      state.phase === BootstrapPhase.INITIALIZING_CLIENT ||
+      state.phase === BootstrapPhase.CLIENT_READY ||
+      state.phase === BootstrapPhase.INITIALIZING_AUTH ||
+      state.phase === BootstrapPhase.AUTH_READY) {
+    
+    const phaseInfo = getPhaseInfo();
+    const IconComponent = phaseInfo.icon;
+    
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4 max-w-md">
+          <IconComponent className={`h-8 w-8 mx-auto text-primary ${
+            phaseInfo.icon === Loader2 ? 'animate-spin' : ''
+          }`} />
+          <p className="text-lg font-medium">{phaseInfo.label}</p>
+          <Progress value={state.progress} className="w-full" />
+          <p className="text-sm text-muted-foreground">
+            Progress: {state.progress}%
+          </p>
+          {state.configSource && (
+            <p className="text-xs text-muted-foreground">
+              Config source: {state.configSource}
+            </p>
+          )}
         </div>
-      );
+      </div>
+    );
+  }
 
-    case ConfigStatus.NEEDS_SETUP:
-      return (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="max-w-md w-full space-y-4">
-            <Alert>
-              <Settings className="h-4 w-4" />
-              <AlertTitle>Setup Required</AlertTitle>
-              <AlertDescription>
-                Please configure your database connection to continue.
-              </AlertDescription>
-            </Alert>
+  if (state.phase === BootstrapPhase.ERROR) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="max-w-md w-full space-y-4">
+          <Alert variant="destructive">
+            <AlertTitle>Bootstrap Error</AlertTitle>
+            <AlertDescription>
+              {state.error || 'Failed to initialize the application'}
+            </AlertDescription>
+          </Alert>
+          
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Progress reached: {state.progress}%
+            </p>
+            {state.configSource && (
+              <p className="text-sm text-muted-foreground">
+                Config source: {state.configSource}
+              </p>
+            )}
+          </div>
+          
+          <div className="flex flex-col space-y-2">
+            <Button onClick={handleRetry} variant="outline" className="w-full">
+              <RefreshCcw className="mr-2 h-4 w-4" />
+              Try Again
+            </Button>
             
-            <Button onClick={handleSetup} className="w-full">
+            <Button onClick={handleReset} className="w-full">
               <Settings className="mr-2 h-4 w-4" />
-              Setup Application
+              Reconfigure
             </Button>
           </div>
         </div>
-      );
-
-    case ConfigStatus.READY:
-    default:
-      return (
-        <>
-          {showSuccessMessage && (
-            <div className="fixed bottom-4 right-4 max-w-sm z-50">
-              <Alert className="bg-green-50 border-green-200 text-green-800 shadow-lg">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <AlertTitle>Connected</AlertTitle>
-                <AlertDescription>
-                  Ready to use
-                </AlertDescription>
-              </Alert>
-            </div>
-          )}
-          {children}
-        </>
-      );
+      </div>
+    );
   }
+
+  if (state.phase === BootstrapPhase.NEEDS_SETUP) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="max-w-md w-full space-y-4">
+          <Alert>
+            <Settings className="h-4 w-4" />
+            <AlertTitle>Setup Required</AlertTitle>
+            <AlertDescription>
+              Please configure your database connection to continue.
+            </AlertDescription>
+          </Alert>
+          
+          <Button onClick={handleSetup} className="w-full">
+            <Settings className="mr-2 h-4 w-4" />
+            Setup Application
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Bootstrap complete - show app
+  return (
+    <>
+      {showSuccessMessage && (
+        <div className="fixed bottom-4 right-4 max-w-sm z-50">
+          <Alert className="bg-green-50 border-green-200 text-green-800 shadow-lg">
+            <CheckCircle className="h-4 w-4 text-green-500" />
+            <AlertTitle>Ready</AlertTitle>
+            <AlertDescription>
+              Application initialized successfully
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+      {children}
+    </>
+  );
 }

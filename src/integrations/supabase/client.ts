@@ -1,17 +1,17 @@
 
-import { getSupabaseClient } from '@/services/supabase/simplified-connection-service';
+import { clientManager } from '@/services/supabase/client-manager';
 
-// Create a proxy object that always returns the current client
+// Create a more reliable proxy that always returns the current client
 const supabaseProxy = new Proxy({} as any, {
   get(target, prop) {
     // Get the current client instance
-    const client = getSupabaseClient();
+    const client = clientManager.getClient();
     
     if (!client) {
       // Return a function that throws an error for method calls
       if (typeof prop === 'string') {
-        return () => {
-          throw new Error(`Supabase client not available. Property: ${prop}`);
+        return (...args: any[]) => {
+          throw new Error(`Supabase client not available. Property: ${prop}. Please ensure the application is properly initialized.`);
         };
       }
       return undefined;
@@ -33,4 +33,4 @@ const supabaseProxy = new Proxy({} as any, {
 export const supabase = supabaseProxy;
 
 // Export the client getter function for direct access
-export const getClient = getSupabaseClient;
+export const getClient = () => clientManager.getClient();
