@@ -5,17 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCcw, Settings, CheckCircle } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { logger } from '@/utils/logging';
-import { simpleBootstrap, BootstrapResult } from '@/services/supabase/simple-bootstrap';
+import { simpleBootstrap } from '@/services/supabase/simple-bootstrap';
+import { configState, ConfigStatus, ConfigState } from '@/services/config/config-state-manager';
 
 interface SimpleBootstrapProviderProps {
   children: React.ReactNode;
-}
-
-enum BootstrapStatus {
-  CHECKING = 'checking',
-  SUCCESS = 'success',
-  FAILED = 'failed',
-  NEEDS_SETUP = 'needs_setup'
 }
 
 // Routes that should never be redirected from
@@ -26,8 +20,7 @@ const PROTECTED_ROUTES = [
 ];
 
 export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderProps) {
-  const [status, setStatus] = useState<BootstrapStatus>(BootstrapStatus.CHECKING);
-  const [result, setResult] = useState<BootstrapResult | null>(null);
+  const [state, setState] = useState<ConfigState>(configState.getState());
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   
   const navigate = useNavigate();
@@ -38,72 +31,49 @@ export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderPro
     return PROTECTED_ROUTES.some(route => location.pathname.startsWith(route));
   }, [location.pathname]);
   
-  // Main bootstrap function
-  const runBootstrap = useCallback(async () => {
+  // Subscribe to config state changes
+  useEffect(() => {
+    const unsubscribe = configState.subscribe((newState) => {
+      setState(newState);
+      
+      // Show success message when config becomes ready
+      if (newState.status === ConfigStatus.READY && state.status !== ConfigStatus.READY) {
+        setShowSuccessMessage(true);
+        setTimeout(() => setShowSuccessMessage(false), 3000);
+      }
+    });
+    
+    return unsubscribe;
+  }, [state.status]);
+  
+  // Run bootstrap on mount and when location changes
+  useEffect(() => {
     if (isProtectedRoute()) {
       logger.info('Skipping bootstrap on protected route', {
         module: 'simple-bootstrap-provider',
         path: location.pathname
       });
-      setStatus(BootstrapStatus.SUCCESS);
       return;
     }
 
-    setStatus(BootstrapStatus.CHECKING);
-    
-    try {
-      const bootstrapResult = await simpleBootstrap.bootstrap();
-      setResult(bootstrapResult);
-      
-      if (bootstrapResult.success) {
-        setStatus(BootstrapStatus.SUCCESS);
-        setShowSuccessMessage(true);
-        
-        // Hide success message after 3 seconds
-        setTimeout(() => setShowSuccessMessage(false), 3000);
-        
-        logger.info('Bootstrap completed successfully', {
-          module: 'simple-bootstrap-provider',
-          source: bootstrapResult.source
-        });
-      } else {
-        if (bootstrapResult.error?.includes('No valid configuration found') ||
-            bootstrapResult.error?.includes('Force init requested') ||
-            bootstrapResult.error?.includes('Config reset requested')) {
-          setStatus(BootstrapStatus.NEEDS_SETUP);
-        } else {
-          setStatus(BootstrapStatus.FAILED);
-        }
-        
-        logger.warn('Bootstrap failed', {
-          module: 'simple-bootstrap-provider',
-          error: bootstrapResult.error,
-          source: bootstrapResult.source
-        });
-      }
-    } catch (error) {
-      setStatus(BootstrapStatus.FAILED);
-      setResult({ success: false, error: String(error) });
-      logger.error('Bootstrap error', error, { module: 'simple-bootstrap-provider' });
+    // Only bootstrap if we're not already ready or loading
+    if (state.status === ConfigStatus.LOADING || 
+        (state.status === ConfigStatus.ERROR && Date.now() - state.lastUpdated > 5000)) {
+      simpleBootstrap.bootstrap();
     }
-  }, [isProtectedRoute, location.pathname]);
-
-  // Run bootstrap on mount and when location changes
-  useEffect(() => {
-    runBootstrap();
-  }, [runBootstrap]);
+  }, [location.pathname, isProtectedRoute, state.status, state.lastUpdated]);
 
   // Auto-redirect to setup when needed
   useEffect(() => {
-    if (status === BootstrapStatus.NEEDS_SETUP && !isProtectedRoute()) {
+    if (state.status === ConfigStatus.NEEDS_SETUP && !isProtectedRoute()) {
       navigate('/initialize');
     }
-  }, [status, navigate, isProtectedRoute]);
+  }, [state.status, navigate, isProtectedRoute]);
 
   // Handle retry
   const handleRetry = useCallback(() => {
-    runBootstrap();
-  }, [runBootstrap]);
+    simpleBootstrap.bootstrap();
+  }, []);
 
   // Handle manual setup
   const handleSetup = useCallback(() => {
@@ -122,8 +92,8 @@ export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderPro
   }
 
   // Render based on status
-  switch (status) {
-    case BootstrapStatus.CHECKING:
+  switch (state.status) {
+    case ConfigStatus.LOADING:
       return (
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center space-y-4">
@@ -133,14 +103,14 @@ export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderPro
         </div>
       );
 
-    case BootstrapStatus.FAILED:
+    case ConfigStatus.ERROR:
       return (
         <div className="flex items-center justify-center min-h-screen">
           <div className="max-w-md w-full space-y-4">
             <Alert variant="destructive">
               <AlertTitle>Connection Error</AlertTitle>
               <AlertDescription>
-                {result?.error || 'Failed to connect to the database'}
+                {state.error || 'Failed to connect to the database'}
               </AlertDescription>
             </Alert>
             
@@ -159,7 +129,7 @@ export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderPro
         </div>
       );
 
-    case BootstrapStatus.NEEDS_SETUP:
+    case ConfigStatus.NEEDS_SETUP:
       return (
         <div className="flex items-center justify-center min-h-screen">
           <div className="max-w-md w-full space-y-4">
@@ -180,7 +150,7 @@ export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderPro
         </div>
       );
 
-    case BootstrapStatus.SUCCESS:
+    case ConfigStatus.READY:
     default:
       return (
         <>
@@ -190,7 +160,7 @@ export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderPro
                 <CheckCircle className="h-4 w-4 text-green-500" />
                 <AlertTitle>Connected</AlertTitle>
                 <AlertDescription>
-                  Successfully connected using {result?.source || 'configuration'}
+                  Successfully connected using {state.source || 'configuration'}
                 </AlertDescription>
               </Alert>
             </div>

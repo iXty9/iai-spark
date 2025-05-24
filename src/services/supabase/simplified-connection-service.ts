@@ -1,13 +1,13 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { getStoredConfig } from '@/config/supabase-config';
 import { logger } from '@/utils/logging';
+import { configState, ConfigStatus } from '@/services/config/config-state-manager';
 
 // Simple singleton holder for Supabase client
 let supabaseInstance: SupabaseClient | null = null;
 
 /**
- * Simplified connection service - no complex caching, monitoring, or fallbacks
+ * Simplified connection service using unified config state
  */
 
 export async function testSupabaseConnection(url: string, anonKey: string): Promise<{
@@ -60,16 +60,19 @@ export async function getSupabaseClient(): Promise<SupabaseClient | null> {
   }
 
   try {
-    // Get configuration
-    const config = getStoredConfig();
+    // Get configuration from state manager
+    const state = configState.getState();
     
-    if (!config?.url || !config?.anonKey) {
-      logger.warn('No valid config for Supabase client', { module: 'simplified-connection' });
+    if (state.status !== ConfigStatus.READY || !state.config?.url || !state.config?.anonKey) {
+      logger.warn('No valid config for Supabase client', { 
+        module: 'simplified-connection',
+        status: state.status
+      });
       return null;
     }
 
     // Create new client
-    supabaseInstance = createClient(config.url, config.anonKey, {
+    supabaseInstance = createClient(state.config.url, state.config.anonKey, {
       auth: {
         storage: localStorage,
         persistSession: true,
@@ -80,7 +83,8 @@ export async function getSupabaseClient(): Promise<SupabaseClient | null> {
 
     logger.info('Supabase client created', { 
       module: 'simplified-connection',
-      url: config.url.split('//')[1] // Log domain only for security
+      url: state.config.url.split('//')[1], // Log domain only for security
+      source: state.source
     });
 
     return supabaseInstance;
