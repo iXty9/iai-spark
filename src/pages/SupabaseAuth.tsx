@@ -149,9 +149,9 @@ const SupabaseAuth = () => {
             </Button>
           </div>
         </CardContent>
-      </div>
-    );
-  }
+      </Card>
+    </div>
+  );
 };
 
 export default SupabaseAuth;
