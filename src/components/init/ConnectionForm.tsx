@@ -11,10 +11,13 @@ import { saveSiteEnvironmentConfig } from '@/services/supabase/site-config-servi
 import { Switch } from '@/components/ui/switch';
 
 interface ConnectionFormProps {
-  onSuccess: (url: string, anonKey: string, serviceKey: string) => void;
+  onSuccess: (config: any) => void;
+  onError?: (error: string) => void;
+  isLoading?: boolean;
+  setIsLoading?: (loading: boolean) => void;
 }
 
-export function ConnectionForm({ onSuccess }: ConnectionFormProps) {
+export function ConnectionForm({ onSuccess, onError, isLoading, setIsLoading }: ConnectionFormProps) {
   const [url, setUrl] = useState('');
   const [anonKey, setAnonKey] = useState('');
   const [serviceKey, setServiceKey] = useState('');
@@ -35,13 +38,15 @@ export function ConnectionForm({ onSuccess }: ConnectionFormProps) {
     
     setIsTesting(true);
     setError(null);
+    if (onError) onError('');
     
     try {
       const connectionValid = await testSupabaseConnection(url, anonKey);
       
       if (connectionValid) {
         // First call the onSuccess callback to handle localStorage storage
-        onSuccess(url, anonKey, serviceKey);
+        const config = { url, anonKey, serviceKey };
+        onSuccess(config);
         
         // Then try to save to database
         setIsSavingToDb(true);
@@ -68,10 +73,14 @@ export function ConnectionForm({ onSuccess }: ConnectionFormProps) {
           setIsSavingToDb(false);
         }
       } else {
-        setError('Could not connect to Supabase with the provided credentials. Please check your URL and keys.');
+        const errorMsg = 'Could not connect to Supabase with the provided credentials. Please check your URL and keys.';
+        setError(errorMsg);
+        if (onError) onError(errorMsg);
       }
     } catch (err: any) {
-      setError(`Connection error: ${err.message || 'Unknown error'}`);
+      const errorMsg = `Connection error: ${err.message || 'Unknown error'}`;
+      setError(errorMsg);
+      if (onError) onError(errorMsg);
     } finally {
       setIsTesting(false);
     }

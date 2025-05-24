@@ -1,3 +1,4 @@
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { logger } from '@/utils/logging';
 
@@ -87,3 +88,29 @@ class ConnectionService {
 }
 
 export const connectionService = new ConnectionService();
+
+// Export helper functions for backward compatibility
+export function testSupabaseConnection(url: string, anonKey: string): Promise<boolean> {
+  return connectionService.initialize({ url, anonKey }).then(() => true).catch(() => false);
+}
+
+export function getConnectionInfo() {
+  return {
+    connectionId: 'default',
+    environment: 'development',
+    hasStoredConfig: !!connectionService.getConfig()
+  };
+}
+
+export function resetSupabaseClient(): void {
+  connectionService.disconnect();
+}
+
+export function getSupabaseClient(): SupabaseClient | null {
+  return connectionService.getClient();
+}
+
+export function shouldBypassRedirect(pathname: string): boolean {
+  const bypassRoutes = ['/initialize', '/auth/error', '/api/', '/debug'];
+  return bypassRoutes.some(route => pathname.startsWith(route));
+}

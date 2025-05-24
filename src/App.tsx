@@ -16,7 +16,8 @@ import { SimpleBootstrapProvider } from '@/components/supabase/SimpleBootstrapPr
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      suspense: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnWindowFocus: false,
     },
   },
 });
