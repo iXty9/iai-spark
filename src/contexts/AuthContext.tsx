@@ -29,46 +29,83 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const authStateChanges = useRef<number>(0);
   const initialSessionCheckRef = useRef(false);
   const authSubscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
-  const bootstrapReadyRef = useRef<boolean>(false);
+  const systemReadyRef = useRef<boolean>(false);
   
   // Limit logging for production
   const shouldLog = process.env.NODE_ENV === 'development';
   
-  // Wait for bootstrap to complete before initializing auth
+  // Monitor system readiness (both bootstrap and client)
   useEffect(() => {
-    const unsubscribe = bootstrapPhases.subscribe((state) => {
-      const wasReady = bootstrapReadyRef.current;
-      bootstrapReadyRef.current = state.phase === BootstrapPhase.COMPLETE;
+    const unsubscribeBootstrap = bootstrapPhases.subscribe((bootstrapState) => {
+      const unsubscribeClient = clientManager.subscribe((clientState) => {
+        const wasReady = systemReadyRef.current;
+        const isReady = bootstrapState.phase === BootstrapPhase.COMPLETE && 
+                       clientState.status === ClientStatus.READY && 
+                       clientState.client !== null;
+        
+        systemReadyRef.current = isReady;
+        
+        // If system just became ready, initialize auth
+        if (!wasReady && isReady) {
+          logger.info('System ready, initializing auth', { 
+            module: 'auth',
+            bootstrapPhase: bootstrapState.phase,
+            clientStatus: clientState.status
+          });
+          initializeAuth();
+        }
+        
+        // If system failed, stop loading
+        if (bootstrapState.phase === BootstrapPhase.ERROR || 
+            clientState.status === ClientStatus.ERROR) {
+          logger.warn('System error detected, stopping auth loading', {
+            module: 'auth',
+            bootstrapPhase: bootstrapState.phase,
+            clientStatus: clientState.status,
+            bootstrapError: bootstrapState.error,
+            clientError: clientState.error
+          });
+          setIsLoading(false);
+        }
+        
+        // If needs setup, stop loading
+        if (bootstrapState.phase === BootstrapPhase.NEEDS_SETUP) {
+          setIsLoading(false);
+        }
+      });
       
-      // If bootstrap just became ready, initialize auth
-      if (!wasReady && bootstrapReadyRef.current) {
-        logger.info('Bootstrap completed, initializing auth', { module: 'auth' });
-        initializeAuth();
-      }
-      
-      // If bootstrap failed or needs setup, stop loading
-      if (state.phase === BootstrapPhase.ERROR || state.phase === BootstrapPhase.NEEDS_SETUP) {
-        setIsLoading(false);
-      }
+      return unsubscribeClient;
     });
     
-    return unsubscribe;
+    return unsubscribeBootstrap;
   }, []);
 
-  // Initialize auth when bootstrap is ready
+  // Initialize auth when system is ready
   const initializeAuth = () => {
-    // Check if client is ready
+    // Double-check system readiness
     const clientState = clientManager.getState();
-    if (clientState.status !== ClientStatus.READY || !clientState.client) {
-      logger.warn('Client not ready for auth initialization', { 
+    const bootstrapState = bootstrapPhases.getState();
+    
+    if (clientState.status !== ClientStatus.READY || 
+        !clientState.client || 
+        bootstrapState.phase !== BootstrapPhase.COMPLETE) {
+      logger.warn('Auth initialization called but system not ready', { 
         module: 'auth',
-        clientStatus: clientState.status 
+        clientStatus: clientState.status,
+        bootstrapPhase: bootstrapState.phase,
+        hasClient: !!clientState.client
       });
       setIsLoading(false);
       return;
     }
 
     try {
+      // Clean up existing subscription
+      if (authSubscriptionRef.current) {
+        authSubscriptionRef.current.unsubscribe();
+        authSubscriptionRef.current = null;
+      }
+
       // Set up auth state change listener
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         (event, newSession) => {
@@ -86,7 +123,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (event === 'SIGNED_OUT') {
             logger.info('User signed out, clearing auth state', null, { module: 'auth' });
             resetAuthState();
-          } else {
+          } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             const sessionChanged = JSON.stringify(newSession) !== JSON.stringify(session);
             
             if (sessionChanged) {
@@ -109,7 +146,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Store subscription for cleanup
       authSubscriptionRef.current = subscription;
 
-      // Initial session check - only once
+      // Initial session check - only once per system initialization
       if (!initialSessionCheckRef.current) {
         initialSessionCheckRef.current = true;
         
@@ -142,6 +179,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setIsLoading(false);
     }
   };
+
+  // Reset when system is reset
+  useEffect(() => {
+    const unsubscribe = bootstrapPhases.subscribe((state) => {
+      if (state.phase === BootstrapPhase.NOT_STARTED) {
+        // System is being reset, clean up auth
+        if (authSubscriptionRef.current) {
+          authSubscriptionRef.current.unsubscribe();
+          authSubscriptionRef.current = null;
+        }
+        initialSessionCheckRef.current = false;
+        resetAuthState();
+        setIsLoading(true);
+      }
+    });
+    
+    return unsubscribe;
+  }, [resetAuthState, setIsLoading]);
 
   // Cleanup subscription on unmount
   useEffect(() => {

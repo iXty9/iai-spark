@@ -1,14 +1,19 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "@/hooks/use-toast";
-import { getConnectionInfo } from '@/services/supabase/connection-service';
+import { clientManager } from '@/services/supabase/client-manager';
+import { logger } from '@/utils/logging';
 
 const API_TIMEOUT = 30000; // 30 seconds
 
 export const signIn = async (email: string, password: string) => {
   try {
-    const connectionInfo = getConnectionInfo();
-    console.log(`Attempting login with connection ID: ${connectionInfo.connectionId}`);
-    console.log('Connection details:', connectionInfo);
+    // Ensure client is ready
+    const client = clientManager.getClient();
+    if (!client) {
+      throw new Error('Authentication service not available. Please ensure the application is properly initialized.');
+    }
+
+    logger.info('Attempting login', { module: 'auth-operations', email: email.substring(0, 3) + '***' });
     
     const authPromise = supabase.auth.signInWithPassword({
       email,
@@ -22,13 +27,7 @@ export const signIn = async (email: string, password: string) => {
     const { data, error } = await Promise.race([authPromise, timeoutPromise]) as any;
 
     if (error) {
-      console.error('Login error details:', { 
-        message: error.message,
-        code: error.code,
-        status: error.status,
-        connectionId: connectionInfo.connectionId,
-        environment: connectionInfo.environment
-      });
+      logger.error('Login error', error, { module: 'auth-operations' });
       
       toast({
         variant: "destructive",
@@ -38,14 +37,10 @@ export const signIn = async (email: string, password: string) => {
       throw error;
     }
     
-    console.log(`Login successful with connection ID: ${connectionInfo.connectionId}`);
+    logger.info('Login successful', { module: 'auth-operations', userId: data.user?.id });
     return data;
   } catch (error: any) {
-    console.error('Error during sign in:', error);
-    
-    // Get connection information for debug purposes
-    const connectionInfo = getConnectionInfo();
-    console.error('Connection details during error:', connectionInfo);
+    logger.error('Error during sign in', error, { module: 'auth-operations' });
     
     const errorMessage = error.message || "Login failed. Please try again later.";
     toast({
@@ -65,14 +60,10 @@ export const signUp = async (
   options?: { phone_number?: string, full_name?: string }
 ) => {
   try {
-    // Handle the case when supabase might be the fallback object
-    if (typeof supabase.auth.signUp !== 'function') {
-      toast({
-        variant: "destructive",
-        title: "Signup failed",
-        description: "The authentication service is not available. Please initialize the application.",
-      });
-      throw new Error("Authentication service not available");
+    // Ensure client is ready
+    const client = clientManager.getClient();
+    if (!client) {
+      throw new Error('Authentication service not available. Please ensure the application is properly initialized.');
     }
     
     const authPromise = supabase.auth.signUp({
@@ -88,7 +79,7 @@ export const signUp = async (
     });
     
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("Registration request timed out after 3 minutes")), API_TIMEOUT);
+      setTimeout(() => reject(new Error("Registration request timed out after 30 seconds")), API_TIMEOUT);
     });
     
     const { error } = await Promise.race([authPromise, timeoutPromise]) as any;
@@ -107,7 +98,7 @@ export const signUp = async (
       description: "Please check your email to confirm your account.",
     });
   } catch (error: any) {
-    console.error('Error during sign up:', error);
+    logger.error('Error during sign up', error, { module: 'auth-operations' });
     
     const errorMessage = error.message || "Sign up failed. Please try again later.";
     toast({
@@ -122,14 +113,15 @@ export const signUp = async (
 
 export const signOut = async () => {
   try {
-    console.log('Signing out user...');
+    logger.info('Signing out user', { module: 'auth-operations' });
     
+    // Clear localStorage auth data
     localStorage.removeItem('supabase.auth.token');
     ['sb-refresh-token', 'sb-access-token', 'supabase.auth.expires_at', 'supabase.auth.refreshToken'].forEach(key => {
       try {
         localStorage.removeItem(key);
       } catch (e) {
-        console.warn(`Failed to remove ${key} from localStorage:`, e);
+        logger.warn(`Failed to remove ${key} from localStorage`, e, { module: 'auth-operations' });
       }
     });
     
@@ -138,7 +130,7 @@ export const signOut = async () => {
         try {
           localStorage.removeItem(key);
         } catch (e) {
-          console.warn(`Failed to remove ${key} from localStorage:`, e);
+          logger.warn(`Failed to remove ${key} from localStorage`, e, { module: 'auth-operations' });
         }
       }
     });
@@ -148,14 +140,14 @@ export const signOut = async () => {
     });
     
     if (error) {
-      console.error('Error during sign out API call:', error);
+      logger.error('Error during sign out API call', error, { module: 'auth-operations' });
       toast({
         variant: "default",
         title: "Signed out",
         description: "You have been signed out. Some cleanup may happen in the background.",
       });
     } else {
-      console.log('User has been signed out successfully, auth state cleared');
+      logger.info('User signed out successfully', { module: 'auth-operations' });
       toast({
         variant: "default",
         title: "Signed out",
@@ -163,7 +155,7 @@ export const signOut = async () => {
       });
     }
   } catch (error: any) {
-    console.error('Error during sign out process:', error);
+    logger.error('Error during sign out process', error, { module: 'auth-operations' });
     toast({
       variant: "default",
       title: "Signed out",
@@ -195,7 +187,7 @@ export const updateProfile = async (supabase: any, userId: string, data: Partial
       description: "Your profile has been updated successfully.",
     });
   } catch (error: any) {
-    console.error('Error updating profile:', error);
+    logger.error('Error updating profile', error, { module: 'auth-operations' });
     throw error;
   }
 };

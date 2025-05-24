@@ -8,6 +8,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { logger } from '@/utils/logging';
 import { bootstrapOrchestrator } from '@/services/bootstrap/bootstrap-orchestrator';
 import { bootstrapPhases, BootstrapPhase, BootstrapState } from '@/services/bootstrap/bootstrap-phases';
+import { clientManager, ClientStatus } from '@/services/supabase/client-manager';
+import { ReAuthButton } from '@/components/auth/ReAuthButton';
 
 interface SimpleBootstrapProviderProps {
   children: React.ReactNode;
@@ -22,7 +24,9 @@ const PROTECTED_ROUTES = [
 
 export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderProps) {
   const [state, setState] = useState<BootstrapState>(bootstrapPhases.getState());
+  const [clientState, setClientState] = useState(clientManager.getState());
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showReAuth, setShowReAuth] = useState(false);
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -41,6 +45,23 @@ export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderPro
       if (newState.phase === BootstrapPhase.COMPLETE && state.phase !== BootstrapPhase.COMPLETE) {
         setShowSuccessMessage(true);
         setTimeout(() => setShowSuccessMessage(false), 3000);
+      }
+    });
+    
+    return unsubscribe;
+  }, [state.phase]);
+
+  // Subscribe to client state changes
+  useEffect(() => {
+    const unsubscribe = clientManager.subscribe((newClientState) => {
+      setClientState(newClientState);
+      
+      // Show re-auth option if client is ready but auth might have issues
+      if (newClientState.status === ClientStatus.READY && 
+          state.phase === BootstrapPhase.COMPLETE) {
+        setShowReAuth(true);
+      } else {
+        setShowReAuth(false);
       }
     });
     
@@ -85,6 +106,12 @@ export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderPro
     bootstrapOrchestrator.reset();
     navigate('/initialize?force_init=true');
   }, [navigate]);
+
+  // Handle successful re-authentication
+  const handleReAuthSuccess = useCallback(() => {
+    setShowSuccessMessage(true);
+    setTimeout(() => setShowSuccessMessage(false), 3000);
+  }, []);
 
   // Skip loading/error states for protected routes
   if (isProtectedRoute()) {
@@ -141,6 +168,11 @@ export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderPro
               Config source: {state.configSource}
             </p>
           )}
+          {clientState.status !== ClientStatus.NOT_INITIALIZED && (
+            <p className="text-xs text-muted-foreground">
+              Client: {clientState.status}
+            </p>
+          )}
         </div>
       </div>
     );
@@ -166,6 +198,11 @@ export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderPro
                 Config source: {state.configSource}
               </p>
             )}
+            {clientState.error && (
+              <p className="text-sm text-muted-foreground">
+                Client error: {clientState.error}
+              </p>
+            )}
           </div>
           
           <div className="flex flex-col space-y-2">
@@ -178,6 +215,13 @@ export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderPro
               <Settings className="mr-2 h-4 w-4" />
               Reconfigure
             </Button>
+
+            {showReAuth && (
+              <ReAuthButton 
+                onSuccess={handleReAuthSuccess}
+                className="w-full"
+              />
+            )}
           </div>
         </div>
       </div>

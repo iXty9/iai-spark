@@ -4,10 +4,11 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, CheckCircle, AlertTriangle, Home } from 'lucide-react';
+import { Loader2, CheckCircle, AlertTriangle, Home, RefreshCcw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { logger } from '@/utils/logging';
-import { testSupabaseConnection } from '@/services/supabase/simplified-connection-service';
+import { clientManager, ClientStatus } from '@/services/supabase/client-manager';
+import { bootstrapPhases, BootstrapPhase } from '@/services/bootstrap/bootstrap-phases';
 
 const SupabaseAuth = () => {
   const [searchParams] = useSearchParams();
@@ -16,10 +17,28 @@ const SupabaseAuth = () => {
   const [isProcessing, setIsProcessing] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [needsBootstrap, setNeedsBootstrap] = useState(false);
 
   useEffect(() => {
     const processAuthCallback = async () => {
       try {
+        // Check if client is ready
+        const clientState = clientManager.getState();
+        const bootstrapState = bootstrapPhases.getState();
+        
+        if (clientState.status !== ClientStatus.READY || bootstrapState.phase !== BootstrapPhase.COMPLETE) {
+          logger.warn('Auth callback attempted but system not ready', {
+            module: 'auth-callback',
+            clientStatus: clientState.status,
+            bootstrapPhase: bootstrapState.phase
+          });
+          
+          setNeedsBootstrap(true);
+          setError('System not ready for authentication. Please wait for initialization to complete.');
+          setIsProcessing(false);
+          return;
+        }
+
         // Check for error parameters
         const error = searchParams.get('error');
         const errorDescription = searchParams.get('error_description');
@@ -31,34 +50,48 @@ const SupabaseAuth = () => {
           return;
         }
         
-        // Check for successful auth
+        // Check for successful auth tokens
         const accessToken = searchParams.get('access_token');
         const refreshToken = searchParams.get('refresh_token');
         
-        if (accessToken) {
-          logger.info('Auth callback successful', { module: 'auth-callback' });
-          setSuccess(true);
+        if (accessToken && refreshToken) {
+          logger.info('Auth callback successful with tokens', { module: 'auth-callback' });
           
-          // Test connection
-          try {
-            const result = await testSupabaseConnection('test', 'test');
-            if (result.isConnected) {
-              logger.info('Connection test passed after auth', { module: 'auth-callback' });
-            }
-          } catch (e) {
-            logger.warn('Connection test failed after auth', e, { module: 'auth-callback' });
+          // Get the client and process the auth
+          const client = clientManager.getClient();
+          if (!client) {
+            throw new Error('Client not available after successful callback');
           }
+
+          // The auth state change should be handled automatically by the AuthContext
+          // We just need to wait for it to process
+          setSuccess(true);
           
           // Redirect after success
           setTimeout(() => {
             navigate('/');
           }, 2000);
         } else {
-          setError('No authentication tokens received');
+          // Handle auth state that might be in session storage
+          const client = clientManager.getClient();
+          if (client) {
+            const { data: { session } } = await client.auth.getSession();
+            if (session) {
+              logger.info('Auth callback with existing session', { module: 'auth-callback' });
+              setSuccess(true);
+              setTimeout(() => {
+                navigate('/');
+              }, 2000);
+            } else {
+              setError('No authentication tokens or session found');
+            }
+          } else {
+            setError('Authentication service not available');
+          }
         }
       } catch (e) {
         logger.error('Error processing auth callback', e, { module: 'auth-callback' });
-        setError('Failed to process authentication');
+        setError(e instanceof Error ? e.message : 'Failed to process authentication');
       } finally {
         setIsProcessing(false);
       }
@@ -66,6 +99,11 @@ const SupabaseAuth = () => {
 
     processAuthCallback();
   }, [searchParams, navigate]);
+
+  // Handle bootstrap retry
+  const handleBootstrapRetry = () => {
+    navigate('/initialize?retry=true');
+  };
 
   if (isProcessing) {
     return (
@@ -81,6 +119,46 @@ const SupabaseAuth = () => {
             <p className="text-muted-foreground">
               Please wait while we complete your authentication...
             </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (needsBootstrap) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-600">
+              <AlertTriangle className="h-5 w-5" />
+              System Not Ready
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Initialization Required</AlertTitle>
+              <AlertDescription>
+                {error || 'The system needs to complete initialization before processing authentication.'}
+              </AlertDescription>
+            </Alert>
+            
+            <div className="flex flex-col gap-2">
+              <Button onClick={handleBootstrapRetry} className="w-full">
+                <RefreshCcw className="mr-2 h-4 w-4" />
+                Initialize System
+              </Button>
+              
+              <Button 
+                onClick={() => navigate('/')} 
+                variant="outline" 
+                className="w-full"
+              >
+                <Home className="mr-2 h-4 w-4" />
+                Return Home
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
