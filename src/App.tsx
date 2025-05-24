@@ -1,7 +1,8 @@
+
 import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from "@/components/theme-provider"
-import { QueryClient, QueryClientProvider } from 'react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/contexts/AuthContext';
 import { SystemSelfHealer } from '@/components/system/SystemSelfHealer';
@@ -11,6 +12,14 @@ import { AuthCallbackPage } from '@/pages/AuthCallbackPage';
 import { ErrorPage } from '@/pages/ErrorPage';
 import { AdminRoutes } from '@/pages/admin/AdminRoutes';
 import { SimpleBootstrapProvider } from '@/components/supabase/SimpleBootstrapProvider';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      suspense: false,
+    },
+  },
+});
 
 function App() {
   return (
@@ -36,13 +45,5 @@ function App() {
     </BrowserRouter>
   );
 }
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      suspense: true,
-    },
-  },
-});
 
 export default App;

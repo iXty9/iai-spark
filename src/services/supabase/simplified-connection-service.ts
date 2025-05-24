@@ -32,7 +32,7 @@ export async function testSupabaseConnection(url: string, anonKey: string): Prom
     });
 
     // Simple connection test
-    const { error } = await testClient.from('app_settings').select('count(*)', { count: 'exact' });
+    const { error } = await testClient.from('app_settings').select('count', { count: 'exact' });
     
     if (error) {
       return {

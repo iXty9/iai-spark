@@ -11,7 +11,6 @@ type Theme = 'light' | 'dark';
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
-  // Add missing properties
   mode: Theme;
   setMode: (mode: Theme) => void;
   resetTheme: () => void;
@@ -28,99 +27,66 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  // State
   const { profile, updateProfile } = useAuth();
   const [theme, setTheme] = useState<Theme>('light');
   const [isThemeLoaded, setIsThemeLoaded] = useState<boolean>(false);
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const [backgroundOpacity, setBackgroundOpacity] = useState<number>(0.5);
   
-  // Load theme from profile or localStorage
+  // Load theme - simplified logic
   useEffect(() => {
     const loadTheme = async () => {
       try {
-        // Always check localStorage first for theme mode (light/dark)
+        // Get stored theme preference
         const storedTheme = localStorage.getItem('theme') as Theme | null;
-        
         if (storedTheme) {
           setTheme(storedTheme);
         }
         
-        // If user is authenticated, try to load theme preferences from profile
+        // Load theme settings from profile or defaults
+        let themeSettings = null;
+        
         if (profile?.theme_settings) {
           try {
-            const themeSettings = JSON.parse(profile.theme_settings);
-            logger.info('Loaded theme settings from profile', { themeSettings });
-            
-            // Check if we should update the theme mode from profile
-            if (themeSettings.mode && !storedTheme) {
-              setTheme(themeSettings.mode);
-            }
-            
-            // Load and apply theme colors
-            if (themeSettings.lightTheme && themeSettings.darkTheme) {
-              // Apply colors for current theme immediately
-              const currentThemeColors = themeSettings.mode === 'dark' ? 
-                themeSettings.darkTheme : themeSettings.lightTheme;
-              
-              applyThemeChanges(currentThemeColors);
-              
-              logger.info('Applied theme colors from profile', { 
-                mode: themeSettings.mode,
-                applied: true
-              });
-            }
-            
-            // Load background if available
-            if (themeSettings.backgroundImage) {
-              setBackgroundImage(themeSettings.backgroundImage);
-            }
-            
-            if (themeSettings.backgroundOpacity !== undefined) {
-              const opacity = parseFloat(themeSettings.backgroundOpacity);
-              if (!isNaN(opacity)) {
-                setBackgroundOpacity(opacity);
-              }
-            }
+            themeSettings = JSON.parse(profile.theme_settings);
           } catch (e) {
-            console.error('Error parsing theme settings from profile:', e);
+            logger.warn('Failed to parse theme settings from profile', e);
           }
-        } else {
-          // If no user profile or no theme settings, try to load default theme from app settings
+        }
+        
+        // If no profile theme, try app defaults
+        if (!themeSettings) {
           try {
             const appSettings = await fetchAppSettings();
             if (appSettings.default_theme_settings) {
-              const defaultTheme = JSON.parse(appSettings.default_theme_settings);
-              
-              // Apply default theme mode if no stored theme
-              if (defaultTheme.mode && !storedTheme) {
-                setTheme(defaultTheme.mode);
-              }
-              
-              // Apply default theme colors
-              if (defaultTheme.lightTheme && defaultTheme.darkTheme) {
-                // Apply colors for current theme immediately
-                const currentThemeColors = defaultTheme.mode === 'dark' ? 
-                  defaultTheme.darkTheme : defaultTheme.lightTheme;
-                  
-                applyThemeChanges(currentThemeColors);
-              }
-              
-              // Apply default background if available and no background from profile
-              if (defaultTheme.backgroundImage && !backgroundImage) {
-                setBackgroundImage(defaultTheme.backgroundImage);
-              }
-              
-              if (defaultTheme.backgroundOpacity !== undefined && backgroundOpacity === 0.5) {
-                const opacity = parseFloat(defaultTheme.backgroundOpacity);
-                if (!isNaN(opacity)) {
-                  setBackgroundOpacity(opacity);
-                }
-              }
+              themeSettings = JSON.parse(appSettings.default_theme_settings);
             }
           } catch (e) {
-            // Fail silently for app settings as they are optional
-            console.log('Could not load default theme from app settings');
+            // Fail silently for app settings
+          }
+        }
+        
+        // Apply theme settings if available
+        if (themeSettings) {
+          if (themeSettings.mode && !storedTheme) {
+            setTheme(themeSettings.mode);
+          }
+          
+          if (themeSettings.lightTheme && themeSettings.darkTheme) {
+            const currentThemeColors = themeSettings.mode === 'dark' ? 
+              themeSettings.darkTheme : themeSettings.lightTheme;
+            applyThemeChanges(currentThemeColors);
+          }
+          
+          if (themeSettings.backgroundImage) {
+            setBackgroundImage(themeSettings.backgroundImage);
+          }
+          
+          if (themeSettings.backgroundOpacity !== undefined) {
+            const opacity = parseFloat(themeSettings.backgroundOpacity);
+            if (!isNaN(opacity)) {
+              setBackgroundOpacity(opacity);
+            }
           }
         }
       } finally {
@@ -131,43 +97,28 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     loadTheme();
   }, [profile]);
   
-  // Apply theme to document when theme changes
+  // Apply theme to document
   useEffect(() => {
     const root = window.document.documentElement;
-    
-    // Remove old class and add new class
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
-    
-    // Store in localStorage
     localStorage.setItem('theme', theme);
-    
-    // Log theme change for debugging
-    logger.info('Theme changed', {
-      theme,
-      timestamp: new Date().toISOString()
-    });
   }, [theme]);
   
-  // Apply background to document
+  // Apply background
   useEffect(() => {
     applyBackgroundImage(backgroundImage, backgroundOpacity);
   }, [backgroundImage, backgroundOpacity]);
   
-  // Mode is an alias for theme
+  // Simplified theme functions
   const mode = theme;
-  const setMode = (newMode: Theme) => {
-    setTheme(newMode);
-  };
+  const setMode = setTheme;
   
-  // Handle theme change
   const handleThemeChange = (newTheme: Theme) => {
     setTheme(newTheme);
     
-    // Update profile if available
     if (profile) {
       let themeSettings;
-      
       try {
         themeSettings = profile.theme_settings ? JSON.parse(profile.theme_settings) : {};
       } catch (e) {
@@ -175,15 +126,13 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       themeSettings.mode = newTheme;
-      
       updateProfile({ theme_settings: JSON.stringify(themeSettings) });
     }
   };
   
-  // Reset theme to defaults
   const resetTheme = () => {
-    // Reset to defaults logic here
-    const defaultLightTheme = {
+    // Reset to system defaults
+    const defaultLight = {
       backgroundColor: "#ffffff",
       primaryColor: "#007bff",
       textColor: "#333333",
@@ -196,7 +145,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       aiTextColor: "#000000"
     };
     
-    const defaultDarkTheme = {
+    const defaultDark = {
       backgroundColor: "#121212",
       primaryColor: "#bb86fc",
       textColor: "#e0e0e0",
@@ -209,82 +158,43 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       aiTextColor: "#ffffff"
     };
     
-    // Apply default for current theme
-    const currentTheme = theme === 'light' ? defaultLightTheme : defaultDarkTheme;
+    const currentTheme = theme === 'light' ? defaultLight : defaultDark;
     applyThemeChanges(currentTheme);
     
-    // Update profile if available
     if (profile) {
       let themeSettings;
-      
       try {
         themeSettings = profile.theme_settings ? JSON.parse(profile.theme_settings) : {};
       } catch (e) {
         themeSettings = {};
       }
       
-      themeSettings.lightTheme = defaultLightTheme;
-      themeSettings.darkTheme = defaultDarkTheme;
-      
+      themeSettings.lightTheme = defaultLight;
+      themeSettings.darkTheme = defaultDark;
       updateProfile({ theme_settings: JSON.stringify(themeSettings) });
     }
-    
-    logger.info('Theme reset to defaults', {
-      theme,
-      timestamp: new Date().toISOString()
-    });
   };
   
-  // Validate theme JSON
   const validateTheme = (themeJson: string): boolean => {
     try {
       const parsedTheme = JSON.parse(themeJson);
-      
-      // Basic validation checks
       const requiredProps = ['lightTheme', 'darkTheme', 'mode'];
-      const hasRequiredProps = requiredProps.every(prop => parsedTheme.hasOwnProperty(prop));
-      
-      if (!hasRequiredProps) return false;
-      
-      // Validate light and dark themes
-      const requiredThemeProps = [
-        'backgroundColor',
-        'primaryColor',
-        'textColor',
-        'accentColor',
-        'userBubbleColor',
-        'aiBubbleColor',
-        'userTextColor',
-        'aiTextColor'
-      ];
-      
-      const hasLightThemeProps = requiredThemeProps.every(
-        prop => parsedTheme.lightTheme.hasOwnProperty(prop)
-      );
-      
-      const hasDarkThemeProps = requiredThemeProps.every(
-        prop => parsedTheme.darkTheme.hasOwnProperty(prop)
-      );
-      
-      return hasLightThemeProps && hasDarkThemeProps;
+      return requiredProps.every(prop => parsedTheme.hasOwnProperty(prop));
     } catch (e) {
       return false;
     }
   };
   
-  // Import theme from JSON
   const importTheme = (themeJson: string): boolean => {
     try {
       if (!validateTheme(themeJson)) return false;
       
       const parsedTheme = JSON.parse(themeJson) as ThemeSettings;
       
-      // Apply theme mode if present
       if (parsedTheme.mode) {
         setTheme(parsedTheme.mode);
       }
       
-      // Apply theme colors for current theme
       const currentThemeColors = theme === 'dark' ? 
         parsedTheme.darkTheme : parsedTheme.lightTheme;
         
@@ -292,7 +202,6 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         applyThemeChanges(currentThemeColors);
       }
       
-      // Update profile if available
       if (profile) {
         updateProfile({ theme_settings: themeJson });
       }
@@ -303,10 +212,8 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
   
-  // Export theme as JSON
   const exportTheme = (): string => {
     try {
-      // Get current theme settings from profile or create default
       let themeSettings: ThemeSettings = {
         mode: theme,
         lightTheme: {
@@ -336,7 +243,6 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         exportDate: new Date().toISOString()
       };
       
-      // Get from profile if available
       if (profile?.theme_settings) {
         try {
           const profileSettings = JSON.parse(profile.theme_settings) as ThemeSettings;
@@ -346,33 +252,28 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
             exportDate: new Date().toISOString()
           };
         } catch (e) {
-          // If parsing fails, use default
+          // Use defaults
         }
       }
       
       return JSON.stringify(themeSettings, null, 2);
     } catch (e) {
       return JSON.stringify({
-        error: "Failed to export theme",
-        message: e instanceof Error ? e.message : String(e)
+        error: "Failed to export theme"
       });
     }
   };
   
-  // Apply theme colors from theme settings (for custom colors)
   const applyThemeColors = (colors: ThemeColors) => {
     applyThemeChanges(colors);
   };
   
-  // Apply background
   const applyBackground = (image: string | null, opacity: number) => {
     setBackgroundImage(image);
     setBackgroundOpacity(opacity);
     
-    // Update profile if available
     if (profile) {
       let themeSettings;
-      
       try {
         themeSettings = profile.theme_settings ? JSON.parse(profile.theme_settings) : {};
       } catch (e) {
@@ -381,7 +282,6 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       
       themeSettings.backgroundImage = image;
       themeSettings.backgroundOpacity = opacity;
-      
       updateProfile({ theme_settings: JSON.stringify(themeSettings) });
     }
   };

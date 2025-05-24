@@ -46,7 +46,7 @@ export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderPro
     return unsubscribe;
   }, [state.status]);
   
-  // Run bootstrap on mount and when location changes
+  // Run bootstrap on mount - simplified logic
   useEffect(() => {
     if (isProtectedRoute()) {
       logger.info('Skipping bootstrap on protected route', {
@@ -56,12 +56,11 @@ export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderPro
       return;
     }
 
-    // Only bootstrap if we're not already ready or loading
-    if (state.status === ConfigStatus.LOADING || 
-        (state.status === ConfigStatus.ERROR && Date.now() - state.lastUpdated > 5000)) {
+    // Only bootstrap if we're in loading state
+    if (state.status === ConfigStatus.LOADING) {
       simpleBootstrap.bootstrap();
     }
-  }, [location.pathname, isProtectedRoute, state.status, state.lastUpdated]);
+  }, [location.pathname, isProtectedRoute, state.status]);
 
   // Auto-redirect to setup when needed
   useEffect(() => {
@@ -98,7 +97,7 @@ export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderPro
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center space-y-4">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-            <p>Checking configuration...</p>
+            <p>Loading configuration...</p>
           </div>
         </div>
       );
@@ -117,12 +116,12 @@ export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderPro
             <div className="flex flex-col space-y-2">
               <Button onClick={handleRetry} variant="outline" className="w-full">
                 <RefreshCcw className="mr-2 h-4 w-4" />
-                Retry Connection
+                Try Again
               </Button>
               
               <Button onClick={handleReset} className="w-full">
                 <Settings className="mr-2 h-4 w-4" />
-                Reset & Configure
+                Reconfigure
               </Button>
             </div>
           </div>
@@ -137,8 +136,7 @@ export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderPro
               <Settings className="h-4 w-4" />
               <AlertTitle>Setup Required</AlertTitle>
               <AlertDescription>
-                This application needs to be configured before you can use it.
-                Please complete the setup process to continue.
+                Please configure your database connection to continue.
               </AlertDescription>
             </Alert>
             
@@ -160,7 +158,7 @@ export function SimpleBootstrapProvider({ children }: SimpleBootstrapProviderPro
                 <CheckCircle className="h-4 w-4 text-green-500" />
                 <AlertTitle>Connected</AlertTitle>
                 <AlertDescription>
-                  Successfully connected using {state.source || 'configuration'}
+                  Ready to use
                 </AlertDescription>
               </Alert>
             </div>
