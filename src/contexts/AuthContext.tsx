@@ -7,6 +7,7 @@ import { signIn, signUp, signOut, updateProfile } from './auth/authOperations';
 import { logger } from '@/utils/logging';
 import { bootstrapPhases, BootstrapPhase } from '@/services/bootstrap/bootstrap-phases';
 import { clientManager, ClientStatus } from '@/services/supabase/client-manager';
+import { ProductionErrorBoundary } from '@/components/error/ProductionErrorBoundary';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -106,39 +107,43 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         authSubscriptionRef.current = null;
       }
 
-      // Set up auth state change listener
+      // Set up auth state change listener with error handling
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         (event, newSession) => {
-          authStateChanges.current++;
-          
-          if (shouldLog) {
-            logger.info('Auth state changed', {
-              event,
-              changeCount: authStateChanges.current,
-              hasSession: !!newSession,
-              userId: newSession?.user?.id,
-            }, { module: 'auth', throttle: true });
-          }
-          
-          if (event === 'SIGNED_OUT') {
-            logger.info('User signed out, clearing auth state', null, { module: 'auth' });
-            resetAuthState();
-          } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            const sessionChanged = JSON.stringify(newSession) !== JSON.stringify(session);
+          try {
+            authStateChanges.current++;
             
-            if (sessionChanged) {
-              setSession(newSession);
-              setUser(newSession?.user ?? null);
+            if (shouldLog) {
+              logger.info('Auth state changed', {
+                event,
+                changeCount: authStateChanges.current,
+                hasSession: !!newSession,
+                userId: newSession?.user?.id,
+              }, { module: 'auth', throttle: true });
+            }
+            
+            if (event === 'SIGNED_OUT') {
+              logger.info('User signed out, clearing auth state', null, { module: 'auth' });
+              resetAuthState();
+            } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+              const sessionChanged = JSON.stringify(newSession) !== JSON.stringify(session);
               
-              if (newSession?.user && currentUserId.current !== newSession.user.id) {
-                currentUserId.current = newSession.user.id;
+              if (sessionChanged) {
+                setSession(newSession);
+                setUser(newSession?.user ?? null);
                 
-                // Use setTimeout to avoid auth recursion issues
-                setTimeout(() => {
-                  fetchProfile(newSession.user.id);
-                }, 0);
+                if (newSession?.user && currentUserId.current !== newSession.user.id) {
+                  currentUserId.current = newSession.user.id;
+                  
+                  // Use setTimeout to avoid auth recursion issues
+                  setTimeout(() => {
+                    fetchProfile(newSession.user.id);
+                  }, 0);
+                }
               }
             }
+          } catch (error) {
+            logger.error('Error in auth state change handler', error, { module: 'auth' });
           }
         }
       );
@@ -172,6 +177,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }, 0);
           }
           setIsLoading(false);
+        }).catch((error) => {
+          logger.error('Error during initial session check', error, { module: 'auth' });
+          setIsLoading(false);
         });
       }
     } catch (error) {
@@ -186,7 +194,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (state.phase === BootstrapPhase.NOT_STARTED) {
         // System is being reset, clean up auth
         if (authSubscriptionRef.current) {
-          authSubscriptionRef.current.unsubscribe();
+          try {
+            authSubscriptionRef.current.unsubscribe();
+          } catch (error) {
+            logger.error('Error unsubscribing during reset', error, { module: 'auth' });
+          }
           authSubscriptionRef.current = null;
         }
         initialSessionCheckRef.current = false;
@@ -217,7 +229,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
-  // Handle profile updates
+  // Handle profile updates with error handling
   const handleUpdateProfile = async (data: Partial<any>) => {
     if (!user) {
       logger.warn('Attempted to update profile without authenticated user', null, { module: 'auth' });
@@ -245,7 +257,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     updateProfile: handleUpdateProfile,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <ProductionErrorBoundary fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-red-600 mb-2">Authentication Error</h2>
+          <p className="text-gray-600">There was a problem with the authentication system.</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Reload Application
+          </button>
+        </div>
+      </div>
+    }>
+      <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+    </ProductionErrorBoundary>
+  );
 };
 
 export const useAuth = () => {
