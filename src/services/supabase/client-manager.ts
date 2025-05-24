@@ -2,6 +2,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { logger } from '@/utils/logging';
 import { SupabaseConfig } from '@/config/supabase/types';
+import { clientLifecycleManager } from './client-lifecycle-manager';
 
 export enum ClientStatus {
   NOT_INITIALIZED = 'not_initialized',
@@ -15,53 +16,29 @@ export interface ClientState {
   client: SupabaseClient | null;
   config: SupabaseConfig | null;
   error: string | null;
-  lastUpdated: number;
+  connectionId: string | null;
 }
 
-type ClientStateListener = (state: ClientState) => void;
+export class ClientManager {
+  private static instance: ClientManager | null = null;
+  private state: ClientState = {
+    status: ClientStatus.NOT_INITIALIZED,
+    client: null,
+    config: null,
+    error: null,
+    connectionId: null
+  };
+  private subscribers: ((state: ClientState) => void)[] = [];
 
-/**
- * Reliable singleton client manager that prevents multiple instances
- * and provides proper lifecycle management
- */
-export class SupabaseClientManager {
-  private static instance: SupabaseClientManager | null = null;
-  private state: ClientState;
-  private listeners: Set<ClientStateListener> = new Set();
-
-  private constructor() {
-    this.state = {
-      status: ClientStatus.NOT_INITIALIZED,
-      client: null,
-      config: null,
-      error: null,
-      lastUpdated: Date.now()
-    };
-  }
-
-  static getInstance(): SupabaseClientManager {
+  static getInstance(): ClientManager {
     if (!this.instance) {
-      this.instance = new SupabaseClientManager();
+      this.instance = new ClientManager();
     }
     return this.instance;
   }
 
   /**
-   * Get current state
-   */
-  getState(): ClientState {
-    return { ...this.state };
-  }
-
-  /**
-   * Get client synchronously (returns null if not ready)
-   */
-  getClient(): SupabaseClient | null {
-    return this.state.client;
-  }
-
-  /**
-   * Initialize client with configuration
+   * Initialize the Supabase client with configuration
    */
   async initialize(config: SupabaseConfig): Promise<boolean> {
     if (this.state.status === ClientStatus.INITIALIZING) {
@@ -71,134 +48,171 @@ export class SupabaseClientManager {
 
     this.updateState({
       status: ClientStatus.INITIALIZING,
-      config,
       error: null
     });
 
     try {
-      // Destroy existing client if any
-      if (this.state.client) {
-        await this.destroy();
-      }
+      // Generate unique connection ID
+      const connectionId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-      // Create new client with proper configuration
+      // Clean up any existing clients
+      clientLifecycleManager.cleanupAllClients();
+
+      // Create new client
       const client = createClient(config.url, config.anonKey, {
         auth: {
-          storage: localStorage,
           persistSession: true,
           autoRefreshToken: true,
+          storage: localStorage,
+          storageKey: 'supabase.auth.token',
           debug: process.env.NODE_ENV === 'development'
+        },
+        realtime: {
+          params: {
+            eventsPerSecond: 10,
+          },
+        },
+        global: {
+          headers: {
+            'x-connection-id': connectionId
+          }
         }
       });
 
-      // Test the client with a simple operation
-      const { error } = await client.auth.getSession();
-      
-      if (error && error.message !== 'Invalid Refresh Token: Refresh Token Not Found') {
-        throw new Error(`Client initialization failed: ${error.message}`);
-      }
+      // Register with lifecycle manager
+      clientLifecycleManager.registerClient(connectionId, client);
+
+      // Store connection info
+      localStorage.setItem('supabase_connection_id', connectionId);
+
+      logger.info('Supabase client initialized successfully', {
+        module: 'client-manager',
+        connectionId,
+        url: config.url.split('//')[1] // Log domain only for security
+      });
 
       this.updateState({
         status: ClientStatus.READY,
         client,
+        config,
+        connectionId,
         error: null
-      });
-
-      logger.info('Supabase client initialized successfully', {
-        module: 'client-manager',
-        url: config.url.split('//')[1] // Log domain only for security
       });
 
       return true;
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown initialization error';
+      
+      logger.error('Failed to initialize Supabase client', error, { module: 'client-manager' });
       
       this.updateState({
         status: ClientStatus.ERROR,
         client: null,
+        config: null,
+        connectionId: null,
         error: errorMessage
       });
 
-      logger.error('Failed to initialize Supabase client', error, { module: 'client-manager' });
       return false;
     }
   }
 
   /**
-   * Destroy current client and reset state
+   * Get the current client instance
    */
-  async destroy(): Promise<void> {
-    if (this.state.client) {
-      try {
-        // Sign out if there's an active session
-        await this.state.client.auth.signOut({ scope: 'local' });
-      } catch (error) {
-        logger.warn('Error during client cleanup', error, { module: 'client-manager' });
-      }
-    }
+  getClient(): SupabaseClient | null {
+    return this.state.client;
+  }
 
-    this.updateState({
-      status: ClientStatus.NOT_INITIALIZED,
-      client: null,
-      config: null,
-      error: null
-    });
+  /**
+   * Get the current state
+   */
+  getState(): ClientState {
+    return { ...this.state };
+  }
 
-    logger.info('Supabase client destroyed', { module: 'client-manager' });
+  /**
+   * Check if client is ready
+   */
+  isReady(): boolean {
+    return this.state.status === ClientStatus.READY && this.state.client !== null;
   }
 
   /**
    * Subscribe to state changes
    */
-  subscribe(listener: ClientStateListener): () => void {
-    this.listeners.add(listener);
+  subscribe(callback: (state: ClientState) => void): () => void {
+    this.subscribers.push(callback);
     
     // Immediately call with current state
-    try {
-      listener(this.getState());
-    } catch (error) {
-      logger.error('Error in client state listener', error, { module: 'client-manager' });
-    }
-
+    callback(this.state);
+    
     // Return unsubscribe function
     return () => {
-      this.listeners.delete(listener);
+      const index = this.subscribers.indexOf(callback);
+      if (index > -1) {
+        this.subscribers.splice(index, 1);
+      }
     };
   }
 
   /**
-   * Update state and notify listeners
+   * Destroy the client and clean up
    */
-  private updateState(updates: Partial<ClientState>): void {
-    const oldState = { ...this.state };
-    this.state = {
-      ...this.state,
-      ...updates,
-      lastUpdated: Date.now()
-    };
+  async destroy(): Promise<void> {
+    logger.info('Destroying Supabase client', { 
+      module: 'client-manager',
+      connectionId: this.state.connectionId
+    });
 
-    // Log significant state changes
-    if (oldState.status !== this.state.status) {
-      logger.info('Client state updated', {
-        module: 'client-manager',
-        oldStatus: oldState.status,
-        newStatus: this.state.status,
-        hasClient: !!this.state.client,
-        error: this.state.error
-      });
+    // Clean up lifecycle manager
+    clientLifecycleManager.cleanupAllClients();
+
+    // Reset state
+    this.updateState({
+      status: ClientStatus.NOT_INITIALIZED,
+      client: null,
+      config: null,
+      connectionId: null,
+      error: null
+    });
+
+    // Clear connection info
+    localStorage.removeItem('supabase_connection_id');
+  }
+
+  /**
+   * Health check for the client
+   */
+  async healthCheck(): Promise<boolean> {
+    if (!this.state.client) {
+      return false;
     }
 
-    // Notify all listeners
-    this.listeners.forEach(listener => {
+    try {
+      // Simple health check - try to get session
+      const { error } = await this.state.client.auth.getSession();
+      return !error;
+    } catch (error) {
+      logger.error('Client health check failed', error, { module: 'client-manager' });
+      return false;
+    }
+  }
+
+  private updateState(updates: Partial<ClientState>): void {
+    this.state = { ...this.state, ...updates };
+    
+    // Notify all subscribers
+    this.subscribers.forEach(callback => {
       try {
-        listener(this.getState());
+        callback(this.state);
       } catch (error) {
-        logger.error('Error in client state listener', error, { module: 'client-manager' });
+        logger.error('Error in client state subscriber', error, { module: 'client-manager' });
       }
     });
   }
 }
 
 // Export singleton instance
-export const clientManager = SupabaseClientManager.getInstance();
+export const clientManager = ClientManager.getInstance();
