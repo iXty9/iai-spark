@@ -1,128 +1,48 @@
-
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import Profile from "./pages/Profile";
-import Settings from "./pages/Settings";
-import Admin from "./pages/Admin";
-import NotFound from "./pages/NotFound";
-import SupabaseAuth from "./pages/SupabaseAuth";
-import Initialize from "./pages/Initialize";
-import { Toaster } from "@/components/ui/sonner";
-import { BootstrapProvider } from "@/components/supabase/BootstrapProvider";
-import { ThemeProvider } from "@/hooks/use-theme";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { useEffect, useState } from "react";
-import { bootstrapMonitor } from "@/services/supabase/bootstrap-monitor";
-import { checkPublicBootstrapConfig } from "@/services/supabase/connection-service";
-import { logger } from "@/utils/logging";
-import "./App.css";
+import React, { Suspense } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { ThemeProvider } from "@/components/theme-provider"
+import { QueryClient, QueryClientProvider } from 'react-query';
+import { Toaster } from "@/components/ui/toaster"
+import { AuthProvider } from '@/contexts/AuthContext';
+import { SystemSelfHealer } from '@/components/system/SystemSelfHealer';
+import { InitializePage } from '@/pages/InitializePage';
+import { ChatPage } from '@/pages/ChatPage';
+import { AuthCallbackPage } from '@/pages/AuthCallbackPage';
+import { ErrorPage } from '@/pages/ErrorPage';
+import { AdminRoutes } from '@/pages/admin/AdminRoutes';
+import { SimpleBootstrapProvider } from '@/components/supabase/SimpleBootstrapProvider';
 
 function App() {
-  // State to track client initialization
-  const [clientInitialized, setClientInitialized] = useState<boolean>(false);
-  // Track tab visibility for smarter initialization
-  const [isTabVisible, setIsTabVisible] = useState<boolean>(true);
-  
-  // Monitor tab visibility
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      setIsTabVisible(document.visibilityState === 'visible');
-    };
-    
-    // Set initial value
-    setIsTabVisible(document.visibilityState === 'visible');
-    
-    // Add listener
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    // Cleanup
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
-  
-  // Safe initialization - Handle with care to prevent recursion
-  useEffect(() => {
-    // Skip initialization if tab is not visible
-    if (!isTabVisible) {
-      logger.info("Delaying app initialization until tab becomes visible", { module: 'app-init' });
-      return;
-    }
-    
-    const initializeApp = async () => {
-      try {
-        logger.info("Starting app initialization process", { module: 'app-init' });
-        
-        // Try to check config without causing auth errors
-        const hasConfig = await checkPublicBootstrapConfig().catch(err => {
-          logger.error("Initial bootstrap check failed:", err, { module: 'app-init' });
-          return false;
-        });
-        
-        logger.info("Initial bootstrap check complete", { 
-          hasConfig, 
-          module: 'app-init' 
-        });
-        
-        setClientInitialized(true);
-        
-        // Only start monitor if we've safely initialized and have config
-        if (hasConfig) {
-          bootstrapMonitor.start();
-        } else {
-          logger.info("Bootstrap monitor not started - no configuration found", {
-            module: 'app-init'
-          });
-        }
-      } catch (err) {
-        // Log error but continue rendering the app
-        logger.error("Error during app initialization:", err, { module: 'app-init' });
-        setClientInitialized(true); // Still mark as initialized to allow rendering
-      }
-    };
-    
-    initializeApp();
-    
-    // Clean up monitor on unmount
-    return () => {
-      bootstrapMonitor.stop();
-    };
-  }, [isTabVisible]);
-
-  // Render simple loading state while client initializes
-  if (!clientInitialized) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Initializing application...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <Router>
-      <BootstrapProvider>
-        <AuthProvider>
-          <ThemeProvider>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/supabase-auth" element={<SupabaseAuth />} />
-              <Route path="/initialize" element={<Initialize />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            <Toaster />
-          </ThemeProvider>
-        </AuthProvider>
-      </BootstrapProvider>
-    </Router>
+    <BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+          <SimpleBootstrapProvider>
+            <AuthProvider>
+              <SystemSelfHealer />
+              <Toaster />
+              <Routes>
+                <Route path="/initialize" element={<InitializePage />} />
+                <Route path="/chat/:chatId?" element={<ChatPage />} />
+                <Route path="/supabase-auth/callback" element={<AuthCallbackPage />} />
+                <Route path="/auth/error" element={<ErrorPage />} />
+                <Route path="/admin/*" element={<AdminRoutes />} />
+                <Route path="*" element={<ChatPage />} />
+              </Routes>
+            </AuthProvider>
+          </SimpleBootstrapProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </BrowserRouter>
   );
 }
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      suspense: true,
+    },
+  },
+});
 
 export default App;
