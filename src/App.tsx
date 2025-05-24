@@ -1,7 +1,8 @@
 
 import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { ThemeProvider } from "@/components/theme-provider"
+import { ThemeProvider as NextThemeProvider } from "@/components/theme-provider"
+import { ThemeProvider } from '@/hooks/use-theme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -26,22 +27,24 @@ function App() {
   return (
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+        <NextThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
           <SimpleBootstrapProvider>
             <AuthProvider>
-              <SystemSelfHealer />
-              <Toaster />
-              <Routes>
-                <Route path="/initialize" element={<InitializePage />} />
-                <Route path="/chat/:chatId?" element={<ChatPage />} />
-                <Route path="/supabase-auth/callback" element={<AuthCallbackPage />} />
-                <Route path="/auth/error" element={<ErrorPage />} />
-                <Route path="/admin/*" element={<AdminRoutes />} />
-                <Route path="*" element={<ChatPage />} />
-              </Routes>
+              <ThemeProvider>
+                <SystemSelfHealer />
+                <Toaster />
+                <Routes>
+                  <Route path="/initialize" element={<InitializePage />} />
+                  <Route path="/chat/:chatId?" element={<ChatPage />} />
+                  <Route path="/supabase-auth/callback" element={<AuthCallbackPage />} />
+                  <Route path="/auth/error" element={<ErrorPage />} />
+                  <Route path="/admin/*" element={<AdminRoutes />} />
+                  <Route path="*" element={<ChatPage />} />
+                </Routes>
+              </ThemeProvider>
             </AuthProvider>
           </SimpleBootstrapProvider>
-        </ThemeProvider>
+        </NextThemeProvider>
       </QueryClientProvider>
     </BrowserRouter>
   );
