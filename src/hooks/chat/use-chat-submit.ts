@@ -167,12 +167,12 @@ export const useChatSubmit = ({
     return handleSubmitWithRetry();
   }, [handleSubmitWithRetry, incrementAttempt]);
 
-  const handleAbortRequest = useCallback(() => {
+  const handleAbortRequestCallback = useCallback(() => {
     return handleAbortRequest(currentRequest, setIsLoading, setSubmitting);
   }, [setIsLoading, setSubmitting]);
 
   return { 
     handleSubmit, 
-    handleAbortRequest 
+    handleAbortRequest: handleAbortRequestCallback 
   };
 };

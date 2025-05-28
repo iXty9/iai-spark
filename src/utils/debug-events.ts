@@ -14,11 +14,11 @@ interface DebugEvent {
   timestamp?: string;
 }
 
-// Early exit for production builds
-if (process.env.NODE_ENV === 'production') {
-  export const emitDebugEvent = () => {};
-} else {
-  // Full debug implementation for development
+// Production-optimized no-op function
+const createNoOpEmitter = () => () => {};
+
+// Development debug event emitter
+const createDevEmitter = () => {
   const eventTracker = {
     lastEvents: new Map<string, { timestamp: number; details: string }>(),
     minInterval: 15000,
@@ -89,7 +89,7 @@ if (process.env.NODE_ENV === 'production') {
     }) as EventListener);
   }
 
-  export const emitDebugEvent = (details: DebugEvent): void => {
+  return (details: DebugEvent): void => {
     if (!eventTracker.isDevModeEnabled) {
       return;
     }
@@ -112,4 +112,9 @@ if (process.env.NODE_ENV === 'production') {
     });
     window.dispatchEvent(event);
   };
-}
+};
+
+// Export the appropriate emitter based on environment
+export const emitDebugEvent = process.env.NODE_ENV === 'production' 
+  ? createNoOpEmitter() 
+  : createDevEmitter();

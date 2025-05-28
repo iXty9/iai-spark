@@ -4,17 +4,25 @@
  * Only logs in development environment with proper filtering and throttling
  */
 
-// Early return for production to avoid all logging overhead
-if (process.env.NODE_ENV === 'production') {
-  // Export no-op logger for production
-  export const logger = {
-    debug: () => {},
-    info: () => {},
-    warn: () => {},
-    error: () => {}
-  };
-} else {
-  // Full logging implementation for development
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+interface LogOptions {
+  throttle?: boolean;
+  once?: boolean;
+  module?: string;
+  [key: string]: any;
+}
+
+// Production-optimized no-op functions
+const createNoOpLogger = () => ({
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+  error: () => {}
+});
+
+// Development logger with full functionality
+const createDevLogger = () => {
   const logTimestamps: Record<string, number> = {};
   const LOG_THROTTLE_MS = 5000;
   const seenLogs = new Set<string>();
@@ -33,15 +41,6 @@ if (process.env.NODE_ENV === 'production') {
       seenLogs.clear();
     }
   }, 60000);
-
-  type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-
-  interface LogOptions {
-    throttle?: boolean;
-    once?: boolean;
-    module?: string;
-    [key: string]: any;
-  }
 
   function log(
     level: LogLevel,
@@ -85,7 +84,7 @@ if (process.env.NODE_ENV === 'production') {
     }
   }
 
-  export const logger = {
+  return {
     debug: (message: string, data?: any, options?: LogOptions) => 
       log('debug', message, data, options),
       
@@ -98,4 +97,9 @@ if (process.env.NODE_ENV === 'production') {
     error: (message: string, data?: any, options?: LogOptions) => 
       log('error', message, data, options)
   };
-}
+};
+
+// Export the appropriate logger based on environment
+export const logger = process.env.NODE_ENV === 'production' 
+  ? createNoOpLogger() 
+  : createDevLogger();
