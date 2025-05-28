@@ -8,8 +8,8 @@ import { Separator } from '@/components/ui/separator';
 import { Loader2, CheckCircle, AlertTriangle, Database, Settings, ArrowLeft } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { logger } from '@/utils/logging';
-import { simpleBootstrap } from '@/services/supabase/simple-bootstrap';
-import { configState, ConfigStatus } from '@/services/config/config-state-manager';
+import { fastBootstrap } from '@/services/bootstrap/fast-bootstrap-service';
+import { fastConfig } from '@/services/config/fast-config-service';
 import { ConnectionForm } from '@/components/init/ConnectionForm';
 import { DatabaseSetupStep } from '@/components/init/DatabaseSetupStep';
 import { AdminSetupForm } from '@/components/init/AdminSetupForm';
@@ -34,23 +34,28 @@ const Initialize = () => {
 
   useEffect(() => {
     // Check if we already have a valid configuration
-    const state = configState.getState();
-    
-    if (!forceInit && state.status === ConfigStatus.READY && state.config) {
-      logger.info('Valid configuration found, redirecting to app', {
-        module: 'initialize',
-        source: state.source
-      });
-      navigate('/');
-      return;
-    }
+    const checkExistingConfig = async () => {
+      if (!forceInit) {
+        const configResult = await fastConfig.loadConfig();
+        
+        if (configResult.success && configResult.config) {
+          logger.info('Valid configuration found, redirecting to app', {
+            module: 'initialize'
+          });
+          navigate('/');
+          return;
+        }
+      }
 
-    // If forced init, reset everything
-    if (forceInit) {
-      simpleBootstrap.reset();
-      setCurrentStep(SetupStep.CONNECTION);
-      setSetupProgress(0);
-    }
+      // If forced init, reset everything
+      if (forceInit) {
+        fastBootstrap.reset();
+        setCurrentStep(SetupStep.CONNECTION);
+        setSetupProgress(0);
+      }
+    };
+
+    checkExistingConfig();
   }, [forceInit, navigate]);
 
   const handleConnectionSuccess = (config: any) => {
@@ -74,22 +79,40 @@ const Initialize = () => {
     });
   };
 
-  const handleAdminSuccess = () => {
+  const handleAdminSuccess = async () => {
     setCurrentStep(SetupStep.COMPLETE);
     setSetupProgress(100);
     setError(null);
     
-    // Save the configuration
-    if (connectionConfig && simpleBootstrap.saveConfig(connectionConfig)) {
-      logger.info('Setup completed successfully', {
-        module: 'initialize'
-      });
-      
-      setTimeout(() => {
-        navigate('/');
-      }, 2000);
+    // Save the configuration and reinitialize
+    if (connectionConfig) {
+      try {
+        // Save to site-config.json via the build service
+        const siteConfigData = {
+          supabaseUrl: connectionConfig.url,
+          supabaseAnonKey: connectionConfig.anonKey
+        };
+        
+        // Write to public/site-config.json (this would normally be done by a build process)
+        // For now, we'll store in localStorage as fallback
+        localStorage.setItem('supabase_config', JSON.stringify(siteConfigData));
+        
+        // Reinitialize the fast bootstrap system
+        await fastBootstrap.initialize();
+        
+        logger.info('Setup completed successfully', {
+          module: 'initialize'
+        });
+        
+        setTimeout(() => {
+          navigate('/');
+        }, 2000);
+      } catch (error) {
+        logger.error('Failed to save configuration', error);
+        setError('Failed to save configuration');
+      }
     } else {
-      setError('Failed to save configuration');
+      setError('No configuration to save');
     }
   };
 

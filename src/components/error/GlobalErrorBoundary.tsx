@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, RefreshCcw, Home, Bug, Shield } from 'lucide-react';
 import { logger } from '@/utils/logging';
-import { unifiedBootstrap } from '@/services/bootstrap/unified-bootstrap-service';
+import { fastBootstrap } from '@/services/bootstrap/fast-bootstrap-service';
 
 interface Props {
   children: ReactNode;
@@ -69,20 +69,19 @@ export class GlobalErrorBoundary extends Component<Props, State> {
         errorId: this.state.errorId 
       });
       
-      const success = await unifiedBootstrap.performRecovery();
+      // Try to reinitialize the fast bootstrap system
+      await fastBootstrap.initialize();
       
-      if (success) {
-        // Wait a moment then try to recover
-        setTimeout(() => {
-          this.setState({
-            hasError: false,
-            error: null,
-            errorInfo: null,
-            errorId: null,
-            recoveryAttempted: false
-          });
-        }, 2000);
-      }
+      // Wait a moment then try to recover
+      setTimeout(() => {
+        this.setState({
+          hasError: false,
+          error: null,
+          errorInfo: null,
+          errorId: null,
+          recoveryAttempted: false
+        });
+      }, 2000);
     } catch (recoveryError) {
       logger.error('Automatic recovery failed', recoveryError, { 
         module: 'global-error-boundary' 
@@ -96,7 +95,7 @@ export class GlobalErrorBoundary extends Component<Props, State> {
 
   handleReset = async () => {
     try {
-      await unifiedBootstrap.reset();
+      fastBootstrap.reset();
       // Clear all application state
       localStorage.clear();
       sessionStorage.clear();

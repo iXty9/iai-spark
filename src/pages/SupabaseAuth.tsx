@@ -8,7 +8,7 @@ import { Loader2, CheckCircle, AlertTriangle, Home, RefreshCcw } from 'lucide-re
 import { useAuth } from '@/contexts/AuthContext';
 import { logger } from '@/utils/logging';
 import { clientManager, ClientStatus } from '@/services/supabase/client-manager';
-import { bootstrapPhases, BootstrapPhase } from '@/services/bootstrap/bootstrap-phases';
+import { fastBootstrap } from '@/services/bootstrap/fast-bootstrap-service';
 
 const SupabaseAuth = () => {
   const [searchParams] = useSearchParams();
@@ -24,13 +24,13 @@ const SupabaseAuth = () => {
       try {
         // Check if client is ready
         const clientState = clientManager.getState();
-        const bootstrapState = bootstrapPhases.getState();
+        const bootstrapStatus = fastBootstrap.getStatus();
         
-        if (clientState.status !== ClientStatus.READY || bootstrapState.phase !== BootstrapPhase.COMPLETE) {
+        if (clientState.status !== ClientStatus.READY || !bootstrapStatus.isReady) {
           logger.warn('Auth callback attempted but system not ready', {
             module: 'auth-callback',
             clientStatus: clientState.status,
-            bootstrapPhase: bootstrapState.phase
+            bootstrapReady: bootstrapStatus.isReady
           });
           
           setNeedsBootstrap(true);

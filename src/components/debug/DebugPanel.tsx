@@ -16,10 +16,9 @@ import {
   Trash2,
   Download
 } from 'lucide-react';
-import { selfHealingBootstrap, BootstrapStatus } from '@/services/bootstrap/self-healing-bootstrap';
-import { unifiedConfig } from '@/services/config/unified-config-service';
+import { fastBootstrap, FastBootstrapStatus } from '@/services/bootstrap/fast-bootstrap-service';
+import { fastConfig } from '@/services/config/fast-config-service';
 import { clientManager } from '@/services/supabase/client-manager';
-import { bootstrapPhases } from '@/services/bootstrap/bootstrap-phases';
 import { logger } from '@/utils/logging';
 import { clearAllEnvironmentConfigs } from '@/config/supabase-config';
 
@@ -29,7 +28,7 @@ interface DebugPanelProps {
 }
 
 export const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
-  const [status, setStatus] = useState<BootstrapStatus | null>(null);
+  const [status, setStatus] = useState<FastBootstrapStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string>('');
 
@@ -37,7 +36,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
   const refreshStatus = async () => {
     setIsLoading(true);
     try {
-      const newStatus = await selfHealingBootstrap.getStatus();
+      const newStatus = fastBootstrap.getStatus();
       setStatus(newStatus);
       setLastUpdate(new Date().toLocaleTimeString());
     } catch (error) {
@@ -54,11 +53,11 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
     }
   }, [isOpen]);
 
-  // Heal system
-  const handleHeal = async () => {
+  // Reinitialize system
+  const handleReinitialize = async () => {
     setIsLoading(true);
     try {
-      const success = await selfHealingBootstrap.performHealing();
+      const success = await fastBootstrap.initialize();
       if (success) {
         await refreshStatus();
       }
@@ -77,36 +76,18 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
     try {
       // Clear all configs
       clearAllEnvironmentConfigs();
-      unifiedConfig.clearCache();
-      unifiedConfig.clearLocalStorage();
       
-      // Reset client manager
-      await clientManager.destroy();
+      // Reset systems
+      fastBootstrap.reset();
       
-      // Reset bootstrap phases
-      bootstrapPhases.reset();
-      
-      // Clear healing data
-      localStorage.removeItem('last_successful_bootstrap');
-      localStorage.removeItem('healing_attempts');
+      // Clear local storage
+      localStorage.clear();
+      sessionStorage.clear();
       
       // Reload page
       window.location.href = '/initialize?force_init=true';
     } catch (error) {
       logger.error('Failed to reset configuration', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Regenerate static config
-  const handleRegenerateStatic = async () => {
-    setIsLoading(true);
-    try {
-      const success = await selfHealingBootstrap.regenerateStaticConfig();
-      if (success) {
-        await refreshStatus();
-      }
     } finally {
       setIsLoading(false);
     }
@@ -119,7 +100,6 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
       status,
       url: window.location.href,
       userAgent: navigator.userAgent,
-      bootstrapPhase: bootstrapPhases.getState(),
       clientState: clientManager.getState(),
       localStorage: Object.keys(localStorage).filter(key => 
         key.includes('supabase') || key.includes('spark')
@@ -167,20 +147,20 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
             <div>
               <h3 className="text-lg font-semibold mb-3">System Status</h3>
               {status ? (
-                <Alert variant={status.isHealthy ? "default" : "destructive"}>
-                  {status.isHealthy ? (
+                <Alert variant={status.isReady ? "default" : "destructive"}>
+                  {status.isReady ? (
                     <CheckCircle className="h-4 w-4" />
                   ) : (
                     <AlertTriangle className="h-4 w-4" />
                   )}
                   <AlertTitle>
-                    System is {status.isHealthy ? 'Healthy' : 'Unhealthy'}
+                    System is {status.isReady ? 'Ready' : 'Not Ready'}
                   </AlertTitle>
                   <AlertDescription>
-                    Last updated: {lastUpdate}
-                    {status.lastSuccessfulBootstrap && (
-                      <div className="mt-2">
-                        Last successful bootstrap: {new Date(status.lastSuccessfulBootstrap).toLocaleString()}
+                    Phase: {status.phase} | Last updated: {lastUpdate}
+                    {status.error && (
+                      <div className="mt-2 text-red-600">
+                        Error: {status.error}
                       </div>
                     )}
                   </AlertDescription>
@@ -194,64 +174,17 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
 
             <Separator />
 
-            {/* Configuration Sources */}
-            <div>
-              <h3 className="text-lg font-semibold mb-3">Configuration Sources</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {status && Object.entries(status.configSources).map(([source, available]) => (
-                  <div key={source} className="text-center">
-                    <Badge variant={available ? "default" : "secondary"} className="mb-2">
-                      {source.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                    </Badge>
-                    <div className="text-sm text-muted-foreground">
-                      {available ? 'Available' : 'Not Available'}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Errors */}
-            {status?.errors && status.errors.length > 0 && (
-              <>
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">Current Issues</h3>
-                  <div className="space-y-2">
-                    {status.errors.map((error, index) => (
-                      <Alert key={index} variant="destructive">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertDescription>{error}</AlertDescription>
-                      </Alert>
-                    ))}
-                  </div>
-                </div>
-                <Separator />
-              </>
-            )}
-
             {/* Actions */}
             <div>
               <h3 className="text-lg font-semibold mb-3">Recovery Actions</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                 <Button 
-                  onClick={handleHeal} 
+                  onClick={handleReinitialize} 
                   disabled={isLoading}
                   className="flex items-center gap-2"
                 >
                   <Settings className="h-4 w-4" />
-                  Auto-Heal
-                </Button>
-                
-                <Button 
-                  onClick={handleRegenerateStatic}
-                  disabled={isLoading}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <FileText className="h-4 w-4" />
-                  Regenerate Static
+                  Reinitialize
                 </Button>
                 
                 <Button 
@@ -286,7 +219,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
                   <strong>Host:</strong> {window.location.hostname}
                 </div>
                 <div>
-                  <strong>Client Instances:</strong> {status?.clientInstances || 'Unknown'}
+                  <strong>Bootstrap Phase:</strong> {status?.phase || 'Unknown'}
                 </div>
               </div>
             </div>
