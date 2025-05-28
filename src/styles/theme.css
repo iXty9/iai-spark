@@ -13,12 +13,13 @@
   --ai-text-color: #000000;
   --link-color: #0EA5E9;
   
-  /* Background image settings - FIXED v4.0 */
+  /* Background image settings - FIXED v5.0 */
   --bg-opacity: 0.5;
   --bg-image-url: none;
   
-  /* Glass UI settings */
+  /* Glass UI settings - More transparent when background is present */
   --glass-opacity: 0.8;
+  --glass-opacity-with-bg: 0.4;
   --glass-blur: 8px;
 
   /* Shadcn/UI theme variables with company branding */
@@ -62,6 +63,10 @@
   --ai-text-color: #ffffff;
   --link-color: #33C3F0;
 
+  /* Glass UI settings for dark mode */
+  --glass-opacity: 0.8;
+  --glass-opacity-with-bg: 0.3;
+
   /* Shadcn/UI dark mode variables */
   --background: 224 71.4% 4.1%;
   --foreground: 210 20% 98%;
@@ -101,13 +106,13 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 
-/* COMPLETELY FIXED Background image handling v4.0 */
+/* COMPLETELY FIXED Background image handling v5.0 */
 body.with-bg-image {
   position: relative;
   /* Background properties are now set directly via JavaScript */
 }
 
-/* FIXED: Corrected background overlay calculation v4.0 - INVERTED OPACITY */
+/* FIXED: Corrected background overlay calculation v5.0 */
 body.with-bg-image::before {
   content: "";
   position: fixed;
@@ -117,12 +122,12 @@ body.with-bg-image::before {
   height: 100%;
   z-index: -1;
   background-color: var(--background-color);
-  /* FIXED: Inverted opacity - higher slider values now show more of the image */
-  opacity: calc(1 - var(--bg-opacity));
+  /* FIXED: Proper opacity calculation - slider controls image visibility */
+  opacity: var(--bg-opacity);
   pointer-events: none;
 }
 
-/* Message bubble styling */
+/* Message bubble styling with opacity variables */
 .user-message-bubble {
   background-color: var(--user-bubble-color);
   color: var(--user-text-color) !important;
@@ -151,7 +156,7 @@ body.with-bg-image::before {
   color: var(--link-color) !important;
 }
 
-/* Glass effect cards */
+/* Glass effect cards - MORE transparent when background image is present */
 .card {
   background-color: rgba(255, 255, 255, var(--glass-opacity));
   backdrop-filter: blur(var(--glass-blur));
@@ -162,6 +167,17 @@ body.with-bg-image::before {
 .dark .card {
   background-color: rgba(18, 18, 18, var(--glass-opacity));
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Enhanced transparency when background image is present */
+body.with-bg-image .card {
+  background-color: rgba(255, 255, 255, var(--glass-opacity-with-bg));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+body.with-bg-image .dark .card {
+  background-color: rgba(18, 18, 18, var(--glass-opacity-with-bg));
 }
 
 /* Loading state for theme changes */

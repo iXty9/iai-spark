@@ -13,17 +13,28 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { logger } from '@/utils/logging';
+import { productionThemeService } from '@/services/production-theme-service';
 
 const Settings = () => {
   const navigate = useNavigate();
-  const { theme, setTheme, lightTheme, darkTheme, backgroundImage, backgroundOpacity, 
-          applyThemeColors, applyBackground, isThemeLoaded } = useTheme();
+  const { theme, lightTheme, darkTheme, backgroundImage, backgroundOpacity, isThemeLoaded } = useTheme();
   const { toast } = useToast();
-  const { profile } = useAuth();
-  
+  const { profile, user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [imageInfo, setImageInfo] = useState({});
+  const [localLightTheme, setLocalLightTheme] = useState(lightTheme);
+  const [localDarkTheme, setLocalDarkTheme] = useState(darkTheme);
+  const [localBackgroundImage, setLocalBackgroundImage] = useState(backgroundImage);
+  const [localBackgroundOpacity, setLocalBackgroundOpacity] = useState(backgroundOpacity);
+
+  // Sync with theme service
+  useEffect(() => {
+    setLocalLightTheme(lightTheme);
+    setLocalDarkTheme(darkTheme);
+    setLocalBackgroundImage(backgroundImage);
+    setLocalBackgroundOpacity(backgroundOpacity);
+  }, [lightTheme, darkTheme, backgroundImage, backgroundOpacity]);
 
   const handleBackgroundImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -41,7 +52,8 @@ const Settings = () => {
     const reader = new FileReader();
     reader.onload = (event) => {
       const imageUrl = event.target?.result as string;
-      applyBackground(imageUrl, backgroundOpacity);
+      setLocalBackgroundImage(imageUrl);
+      productionThemeService.setBackgroundImage(imageUrl);
       setHasChanges(true);
       
       // Set image info
@@ -66,7 +78,8 @@ const Settings = () => {
   };
 
   const handleRemoveBackground = () => {
-    applyBackground(null, backgroundOpacity);
+    setLocalBackgroundImage(null);
+    productionThemeService.setBackgroundImage(null);
     setHasChanges(true);
     setImageInfo({});
     
@@ -80,27 +93,29 @@ const Settings = () => {
 
   const handleOpacityChange = (value: number[]) => {
     const newOpacity = value[0];
-    applyBackground(backgroundImage, newOpacity);
+    setLocalBackgroundOpacity(newOpacity);
+    productionThemeService.setBackgroundOpacity(newOpacity);
     setHasChanges(true);
     logger.info('Background opacity changed', { module: 'settings', opacity: newOpacity });
   };
 
-  // Create adapter functions that match AppearanceSettings interface
-  const handleLightThemeChange = (colorKey: string, value: string) => {
+  const handleLightThemeChange = (colorKey: string, value: string | number) => {
     const updatedTheme: ThemeColors = {
-      ...lightTheme,
+      ...localLightTheme,
       [colorKey]: value
     };
-    applyThemeColors(updatedTheme);
+    setLocalLightTheme(updatedTheme);
+    productionThemeService.setLightTheme(updatedTheme);
     setHasChanges(true);
   };
 
-  const handleDarkThemeChange = (colorKey: string, value: string) => {
+  const handleDarkThemeChange = (colorKey: string, value: string | number) => {
     const updatedTheme: ThemeColors = {
-      ...darkTheme,
+      ...localDarkTheme,
       [colorKey]: value
     };
-    applyThemeColors(updatedTheme);
+    setLocalDarkTheme(updatedTheme);
+    productionThemeService.setDarkTheme(updatedTheme);
     setHasChanges(true);
   };
 
@@ -111,7 +126,6 @@ const Settings = () => {
   const handleSaveSettings = async () => {
     setIsSubmitting(true);
     try {
-      // Settings are automatically saved by the theme service
       setHasChanges(false);
       toast({
         title: "Settings saved",
@@ -131,8 +145,21 @@ const Settings = () => {
   };
 
   const handleResetSettings = () => {
-    applyBackground(null, 0.5);
-    setHasChanges(false);
+    // Reset to defaults
+    const defaultLight = productionThemeService.getState().lightTheme;
+    const defaultDark = productionThemeService.getState().darkTheme;
+    
+    setLocalLightTheme(defaultLight);
+    setLocalDarkTheme(defaultDark);
+    setLocalBackgroundImage(null);
+    setLocalBackgroundOpacity(0.5);
+    
+    productionThemeService.setLightTheme(defaultLight);
+    productionThemeService.setDarkTheme(defaultDark);
+    productionThemeService.setBackgroundImage(null);
+    productionThemeService.setBackgroundOpacity(0.5);
+    
+    setHasChanges(true);
     setImageInfo({});
     
     toast({
@@ -149,7 +176,7 @@ const Settings = () => {
   if (!isThemeLoaded) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4 max-w-6xl mx-auto">
-        <Card className="w-full max-w-4xl p-4 bg-card/90 backdrop-blur-md border shadow-lg">
+        <Card className="w-full max-w-4xl p-4 bg-card/60 backdrop-blur-md border shadow-lg">
           <div className="flex flex-col items-center justify-center p-8 text-center">
             <Loader2 className="h-8 w-8 animate-spin mb-4" />
             <h2 className="text-xl font-medium">Loading settings...</h2>
@@ -178,7 +205,7 @@ const Settings = () => {
         </div>
         
         <div className="grid gap-6">
-          <Card className="bg-card/90 backdrop-blur-md border shadow-lg">
+          <Card className="bg-card/60 backdrop-blur-md border shadow-lg">
             <CardHeader className="pb-2">
               <CardTitle>Appearance</CardTitle>
               <CardDescription>
@@ -190,8 +217,8 @@ const Settings = () => {
                 <TabsContent value="appearance" className="space-y-6 mt-4">
                   <AppearanceSettings
                     theme={theme as 'light' | 'dark'}
-                    lightTheme={lightTheme as ThemeColors}
-                    darkTheme={darkTheme as ThemeColors}
+                    lightTheme={localLightTheme as ThemeColors}
+                    darkTheme={localDarkTheme as ThemeColors}
                     onLightThemeChange={handleLightThemeChange}
                     onDarkThemeChange={handleDarkThemeChange}
                     onResetTheme={handleResetTheme}
@@ -200,8 +227,8 @@ const Settings = () => {
                 
                 <TabsContent value="background" className="space-y-6 mt-4">
                   <BackgroundSettings
-                    backgroundImage={backgroundImage}
-                    backgroundOpacity={backgroundOpacity}
+                    backgroundImage={localBackgroundImage}
+                    backgroundOpacity={localBackgroundOpacity}
                     onBackgroundImageUpload={handleBackgroundImageUpload}
                     onOpacityChange={handleOpacityChange}
                     onRemoveBackground={handleRemoveBackground}

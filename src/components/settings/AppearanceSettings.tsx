@@ -11,8 +11,8 @@ export interface AppearanceSettingsProps {
   theme: 'light' | 'dark';
   lightTheme: ThemeColors;
   darkTheme: ThemeColors;
-  onLightThemeChange: (colorKey: string, value: string) => void;
-  onDarkThemeChange: (colorKey: string, value: string) => void;
+  onLightThemeChange: (colorKey: string, value: string | number) => void;
+  onDarkThemeChange: (colorKey: string, value: string | number) => void;
   onResetTheme: () => void;
 }
 
@@ -25,17 +25,25 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
   onResetTheme
 }) => {
   // Create wrapper functions to adapt the event-based interface to the colorKey/value interface
-  const handleLightThemeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onLightThemeChange(e.target.name, e.target.value);
+  const handleLightThemeChange = (e: React.ChangeEvent<HTMLInputElement> | { name: string; value: any }) => {
+    if ('target' in e) {
+      onLightThemeChange(e.target.name, e.target.value);
+    } else {
+      onLightThemeChange(e.name, e.value);
+    }
   };
   
-  const handleDarkThemeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onDarkThemeChange(e.target.name, e.target.value);
+  const handleDarkThemeChange = (e: React.ChangeEvent<HTMLInputElement> | { name: string; value: any }) => {
+    if ('target' in e) {
+      onDarkThemeChange(e.target.name, e.target.value);
+    } else {
+      onDarkThemeChange(e.name, e.value);
+    }
   };
   
   return (
     <div className="space-y-6">
-      <Card className="bg-card/90 backdrop-blur-sm border shadow-md">
+      <Card className="bg-card/60 backdrop-blur-sm border shadow-md">
         <CardContent className="pt-6">
           <Tabs defaultValue={theme === 'light' ? 'light' : 'dark'}>
             <TabsList className="mb-4 grid grid-cols-2">

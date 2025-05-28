@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useTheme } from '@/hooks/use-theme';
 import { Input } from '@/components/ui/input';
@@ -75,13 +76,21 @@ const ColorInputRow = ({
 
 const OpacitySliderRow = ({
   label, name, value, onChange
-}: { label: string; name: string; value: number; onChange: (name: string, value: number[]) => void; }) => (
+}: { label: string; name: string; value: number; onChange: (name: string, value: number) => void; }) => (
   <div className="space-y-2">
     <div className="flex justify-between">
       <Label htmlFor={name}>{label}</Label>
       <span>{Math.round(value * 100)}%</span>
     </div>
-    <Slider id={name} min={0.1} max={1} step={0.05} value={[value]} onValueChange={val => onChange(name, val)} className="w-full" />
+    <Slider 
+      id={name} 
+      min={0.1} 
+      max={1} 
+      step={0.05} 
+      value={[value]} 
+      onValueChange={(val) => onChange(name, val[0])} 
+      className="w-full" 
+    />
   </div>
 );
 
@@ -122,7 +131,12 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
   const [showContrastChecks, setShowContrastChecks] = useState(true);
 
   const applySuggestion = (name: string, value: string) => onColorChange({ name, value });
-  const handleSliderChange = (name: string, value: number[]) => onColorChange({ name, value: value[0] });
+  
+  // Fixed handleSliderChange function
+  const handleSliderChange = (name: string, value: number) => {
+    onColorChange({ name, value });
+  };
+  
   const c = { ...defaultColors, ...colors };
 
   // Generate contrast data & suggestions in one pass
