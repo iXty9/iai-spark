@@ -1,7 +1,6 @@
 
 import { logger } from '@/utils/logging';
-import { fastConfig } from '@/services/config/fast-config-service';
-import { clientManager } from '@/services/supabase/client-manager';
+import { coordinatedInitService, InitializationStatus } from '@/services/initialization/coordinated-init-service';
 
 export interface FastBootstrapStatus {
   isReady: boolean;
@@ -12,7 +11,7 @@ export interface FastBootstrapStatus {
 }
 
 /**
- * Ultra-fast bootstrap service with no artificial delays or complex orchestration
+ * Fast bootstrap service using coordinated initialization
  */
 export class FastBootstrapService {
   private static instance: FastBootstrapService | null = null;
@@ -35,50 +34,43 @@ export class FastBootstrapService {
     this.isBootstrapping = true;
 
     try {
-      logger.info('Starting fast bootstrap', { module: 'fast-bootstrap' });
+      logger.info('Starting fast bootstrap with coordinated initialization', { module: 'fast-bootstrap' });
       
       this.notifySubscribers({ isReady: false, needsSetup: false, phase: 'loading' });
 
-      // Step 1: Load config directly from site-config.json
-      const configResult = await fastConfig.loadConfig();
+      // Use coordinated initialization
+      const initResult = await coordinatedInitService.initialize();
 
-      if (!configResult.success || !configResult.config) {
-        // Check if we have local storage config (reconnection scenario)
-        const hasLocalConfig = this.checkForLocalConfiguration();
-        
-        if (hasLocalConfig) {
-          logger.info('No valid config found but local config detected, needs reconnection', { module: 'fast-bootstrap' });
-          const reconnectionStatus = { isReady: false, needsSetup: false, needsReconnection: true, phase: 'reconnection' as const };
-          this.notifySubscribers(reconnectionStatus);
-          return reconnectionStatus;
-        } else {
-          logger.info('No valid config found, needs setup', { module: 'fast-bootstrap' });
+      if (initResult.phase === 'error') {
+        // Check if we need setup or reconnection
+        if (initResult.error?.includes('Configuration not found')) {
           const setupStatus = { isReady: false, needsSetup: true, phase: 'setup' as const };
           this.notifySubscribers(setupStatus);
           return setupStatus;
+        } else {
+          const reconnectionStatus = { 
+            isReady: false, 
+            needsSetup: false, 
+            needsReconnection: true, 
+            phase: 'reconnection' as const,
+            error: initResult.error
+          };
+          this.notifySubscribers(reconnectionStatus);
+          return reconnectionStatus;
         }
       }
 
-      // Step 2: Initialize Supabase client directly
-      const clientSuccess = await clientManager.initialize(configResult.config);
-
-      if (!clientSuccess) {
-        const clientState = clientManager.getState();
-        const errorStatus = { 
-          isReady: false, 
-          needsSetup: false, 
-          phase: 'error' as const,
-          error: `Client initialization failed: ${clientState.error}`
-        };
-        this.notifySubscribers(errorStatus);
-        return errorStatus;
+      if (initResult.isComplete) {
+        logger.info('Fast bootstrap completed successfully', { module: 'fast-bootstrap' });
+        const readyStatus = { isReady: true, needsSetup: false, phase: 'ready' as const };
+        this.notifySubscribers(readyStatus);
+        return readyStatus;
       }
 
-      // Step 3: Ready!
-      logger.info('Fast bootstrap completed successfully', { module: 'fast-bootstrap' });
-      const readyStatus = { isReady: true, needsSetup: false, phase: 'ready' as const };
-      this.notifySubscribers(readyStatus);
-      return readyStatus;
+      // Still in progress
+      const loadingStatus = { isReady: false, needsSetup: false, phase: 'loading' as const };
+      this.notifySubscribers(loadingStatus);
+      return loadingStatus;
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -119,9 +111,9 @@ export class FastBootstrapService {
   }
 
   getStatus(): FastBootstrapStatus {
-    const clientState = clientManager.getState();
+    const initStatus = coordinatedInitService.getStatus();
     
-    if (clientState.client) {
+    if (initStatus.isComplete) {
       return { isReady: true, needsSetup: false, phase: 'ready' };
     }
     
@@ -156,7 +148,7 @@ export class FastBootstrapService {
 
   reset(): void {
     this.isBootstrapping = false;
-    clientManager.destroy();
+    coordinatedInitService.reset();
     logger.info('Fast bootstrap reset', { module: 'fast-bootstrap' });
   }
 }

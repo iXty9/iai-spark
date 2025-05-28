@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeColors, ThemeSettings } from '@/types/theme';
@@ -29,7 +28,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const authContext = useAuth();
-  const { isThemeReady, isClientReady } = useThemeInitialization();
+  const { isThemeReady, isClientReady, initializationPhase } = useThemeInitialization();
   
   // Get state from unified controller and background manager
   const [controllerState, setControllerState] = useState(() => unifiedThemeController.getState());
@@ -40,49 +39,28 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const profile = authContext?.profile || null;
   const updateProfile = authContext?.updateProfile || (() => Promise.resolve());
   
-  // Initialize controller when both theme system and client are ready
+  // Initialize when theme system is ready
   useEffect(() => {
-    const initializeController = async () => {
-      if (!isThemeReady || !isClientReady || isThemeLoaded) return;
+    if (!isThemeReady || isThemeLoaded) return;
 
-      try {
-        let userSettings: ThemeSettings | null = null;
-        
-        // Load from user profile if available
-        if (profile?.theme_settings) {
-          try {
-            userSettings = JSON.parse(profile.theme_settings);
-            logger.info('Parsed theme settings from profile', { 
-              module: 'use-theme',
-              hasBackground: !!userSettings?.backgroundImage,
-              backgroundOpacity: userSettings?.backgroundOpacity
-            });
-          } catch (e) {
-            logger.warn('Failed to parse user theme settings:', e, { module: 'use-theme' });
-          }
-        }
-        
-        // Initialize the unified controller with user settings
-        await unifiedThemeController.initialize(userSettings);
-        
-        // Update local state from controller after initialization
-        const newState = unifiedThemeController.getState();
-        setControllerState(newState);
-        setIsThemeLoaded(true);
-        
-        logger.info('Theme context initialized successfully', { 
-          module: 'use-theme',
-          backgroundImage: !!newState.backgroundImage,
-          backgroundOpacity: newState.backgroundOpacity
-        });
-      } catch (error) {
-        logger.error('Error initializing theme context:', error, { module: 'use-theme' });
-        setIsThemeLoaded(true);
-      }
-    };
-
-    initializeController();
-  }, [isThemeReady, isClientReady, profile?.theme_settings, isThemeLoaded]);
+    try {
+      // Theme system is already initialized by coordinated init service
+      // Just sync local state
+      const newState = unifiedThemeController.getState();
+      setControllerState(newState);
+      setIsThemeLoaded(true);
+      
+      logger.info('Theme context synced with initialized system', { 
+        module: 'use-theme',
+        backgroundImage: !!newState.backgroundImage,
+        backgroundOpacity: newState.backgroundOpacity,
+        initializationPhase
+      });
+    } catch (error) {
+      logger.error('Error syncing theme context:', error, { module: 'use-theme' });
+      setIsThemeLoaded(true);
+    }
+  }, [isThemeReady, isThemeLoaded, initializationPhase]);
 
   // Subscribe to controller and background changes
   useEffect(() => {

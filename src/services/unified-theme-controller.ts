@@ -1,7 +1,7 @@
-
 import { ThemeColors, ThemeSettings } from '@/types/theme';
 import { themeService } from '@/services/theme-service';
 import { backgroundStateManager } from '@/services/background-state-manager';
+import { clientManager } from '@/services/supabase/client-manager';
 import { logger } from '@/utils/logging';
 
 export interface ThemeState {
@@ -82,6 +82,21 @@ class UnifiedThemeController {
 
   private async performInitialization(userSettings?: ThemeSettings): Promise<void> {
     try {
+      logger.info('Initializing unified theme controller', { module: 'theme-controller' });
+
+      // Wait for client to be ready before loading user settings
+      const isClientReady = await clientManager.waitForReadiness();
+      if (isClientReady) {
+        logger.info('Client ready, loading user theme settings', { module: 'theme-controller' });
+        
+        // Try to load user settings from profile if client is ready
+        if (!userSettings) {
+          userSettings = await this.loadUserThemeSettings();
+        }
+      } else {
+        logger.warn('Client not ready, using default theme settings', { module: 'theme-controller' });
+      }
+
       // Initialize theme service first
       await themeService.initialize();
 
@@ -123,6 +138,51 @@ class UnifiedThemeController {
       logger.error('Failed to initialize theme controller:', error);
       this.isInitialized = true; // Prevent infinite retries
       this.initializationPromise = null;
+    }
+  }
+
+  private async loadUserThemeSettings(): Promise<ThemeSettings | null> {
+    try {
+      const client = clientManager.getClient();
+      if (!client) {
+        logger.warn('No client available for loading user theme settings', { module: 'theme-controller' });
+        return null;
+      }
+
+      const { data: { user } } = await client.auth.getUser();
+      if (!user) {
+        logger.info('No authenticated user, using defaults', { module: 'theme-controller' });
+        return null;
+      }
+
+      const { data: profile, error } = await client
+        .from('profiles')
+        .select('theme_settings')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        logger.error('Error loading user profile for theme settings:', error, { module: 'theme-controller' });
+        return null;
+      }
+
+      if (profile?.theme_settings) {
+        try {
+          const themeSettings = JSON.parse(profile.theme_settings);
+          logger.info('Loaded theme settings from user profile', { 
+            module: 'theme-controller',
+            hasBackground: !!themeSettings.backgroundImage
+          });
+          return themeSettings;
+        } catch (parseError) {
+          logger.error('Error parsing theme settings from profile:', parseError, { module: 'theme-controller' });
+        }
+      }
+
+      return null;
+    } catch (error) {
+      logger.error('Error loading user theme settings:', error, { module: 'theme-controller' });
+      return null;
     }
   }
 
