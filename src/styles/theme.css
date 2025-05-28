@@ -13,7 +13,7 @@
   --ai-text-color: #000000;
   --link-color: #0EA5E9;
   
-  /* Background image settings - FIXED v3.0 */
+  /* Background image settings - FIXED v4.0 */
   --bg-opacity: 0.5;
   --bg-image-url: none;
   
@@ -101,13 +101,13 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 
-/* COMPLETELY FIXED Background image handling v3.0 */
+/* COMPLETELY FIXED Background image handling v4.0 */
 body.with-bg-image {
   position: relative;
   /* Background properties are now set directly via JavaScript */
 }
 
-/* FIXED: Corrected background overlay calculation v3.0 */
+/* FIXED: Corrected background overlay calculation v4.0 - INVERTED OPACITY */
 body.with-bg-image::before {
   content: "";
   position: fixed;
@@ -117,8 +117,8 @@ body.with-bg-image::before {
   height: 100%;
   z-index: -1;
   background-color: var(--background-color);
-  /* CORRECTED: Higher opacity values = more background color visible over image */
-  opacity: var(--bg-opacity);
+  /* FIXED: Inverted opacity - higher slider values now show more of the image */
+  opacity: calc(1 - var(--bg-opacity));
   pointer-events: none;
 }
 
