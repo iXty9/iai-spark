@@ -1,14 +1,13 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { productionBootstrap, ProductionStatus } from '@/services/bootstrap/production-bootstrap';
-import { clientManager } from '@/services/supabase/client-manager';
+import { unifiedBootstrap, UnifiedBootstrapStatus } from '@/services/bootstrap/unified-bootstrap-service';
 import { logger } from '@/utils/logging';
 import { toast } from '@/hooks/use-toast';
 
 export function ProductionHealthMonitor() {
   const { user } = useAuth();
-  const [lastHealthCheck, setLastHealthCheck] = useState<ProductionStatus | null>(null);
+  const [lastHealthCheck, setLastHealthCheck] = useState<UnifiedBootstrapStatus | null>(null);
   const [consecutiveFailures, setConsecutiveFailures] = useState(0);
 
   useEffect(() => {
@@ -16,15 +15,15 @@ export function ProductionHealthMonitor() {
 
     const performHealthCheck = async () => {
       try {
-        const status = await productionBootstrap.getProductionStatus();
+        const status = await unifiedBootstrap.getStatus();
         setLastHealthCheck(status);
 
-        if (!status.isHealthy) {
+        if (!status.isReady || status.errors.length > 0) {
           setConsecutiveFailures(prev => prev + 1);
           
           // Log health issues but don't spam
           if (consecutiveFailures < 3) {
-            logger.warn('Production health check failed', {
+            logger.warn('Unified health check failed', {
               module: 'health-monitor',
               status,
               consecutiveFailures: consecutiveFailures + 1
@@ -39,15 +38,17 @@ export function ProductionHealthMonitor() {
             });
             
             try {
-              await productionBootstrap.updateStaticConfiguration();
-              setConsecutiveFailures(0);
-              
-              if (process.env.NODE_ENV === 'development') {
-                toast({
-                  title: "System Recovery",
-                  description: "Automatic recovery completed successfully.",
-                  duration: 3000,
-                });
+              const recoverySuccess = await unifiedBootstrap.performRecovery();
+              if (recoverySuccess) {
+                setConsecutiveFailures(0);
+                
+                if (process.env.NODE_ENV === 'development') {
+                  toast({
+                    title: "System Recovery",
+                    description: "Automatic recovery completed successfully.",
+                    duration: 3000,
+                  });
+                }
               }
             } catch (error) {
               logger.error('Automatic recovery failed', error, { module: 'health-monitor' });
@@ -62,14 +63,14 @@ export function ProductionHealthMonitor() {
         }
 
         // Auto-update static config when user is authenticated and system is healthy
-        if (user && status.isHealthy) {
+        if (user && status.isReady) {
           const lastUpdate = localStorage.getItem('last_static_update');
           const now = Date.now();
           const oneHour = 60 * 60 * 1000;
           
           if (!lastUpdate || (now - new Date(lastUpdate).getTime()) > oneHour) {
             logger.info('Performing scheduled static config update', { module: 'health-monitor' });
-            await productionBootstrap.updateStaticConfiguration();
+            await unifiedBootstrap.updateStaticConfiguration();
           }
         }
 
@@ -93,20 +94,6 @@ export function ProductionHealthMonitor() {
     };
   }, [user, consecutiveFailures]);
 
-  // Monitor client health
-  useEffect(() => {
-    const unsubscribe = clientManager.subscribe((clientState) => {
-      if (clientState.status === 'error' && clientState.error) {
-        logger.error('Client manager error detected', clientState.error, { 
-          module: 'health-monitor',
-          clientStatus: clientState.status
-        });
-      }
-    });
-
-    return unsubscribe;
-  }, []);
-
   // This component doesn't render anything visible in production
   if (process.env.NODE_ENV === 'production') {
     return null;
@@ -117,12 +104,16 @@ export function ProductionHealthMonitor() {
     <div className="fixed top-2 left-2 z-30 text-xs">
       {lastHealthCheck && (
         <div className={`px-2 py-1 rounded ${
-          lastHealthCheck.isHealthy 
+          lastHealthCheck.isReady && lastHealthCheck.errors.length === 0
             ? 'bg-green-100 text-green-800' 
             : 'bg-red-100 text-red-800'
         }`}>
-          Health: {lastHealthCheck.isHealthy ? 'OK' : 'FAIL'}
+          Health: {lastHealthCheck.isReady ? 'OK' : 'FAIL'} 
+          {lastHealthCheck.errors.length > 0 && ` (${lastHealthCheck.errors.length} errors)`}
           {consecutiveFailures > 0 && ` (${consecutiveFailures} failures)`}
+          <div className="text-xs opacity-75">
+            Services: {Object.values(lastHealthCheck.services).filter(Boolean).length}/5
+          </div>
         </div>
       )}
     </div>

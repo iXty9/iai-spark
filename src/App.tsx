@@ -6,12 +6,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./hooks/use-theme";
-import { ProductionBootstrapProvider } from "./components/providers/ProductionBootstrapProvider";
-import { ProductionErrorBoundary } from "./components/error/ProductionErrorBoundary";
+import { UnifiedBootstrapProvider } from "./components/providers/UnifiedBootstrapProvider";
+import { GlobalErrorBoundary } from "./components/error/GlobalErrorBoundary";
 import { ProductionHealthMonitor } from "./components/system/ProductionHealthMonitor";
 import { useDebugMode } from "./hooks/useDebugMode";
 import { useEffect } from "react";
-import { productionBootstrap } from "./services/bootstrap/production-bootstrap";
+import { unifiedBootstrap } from "./services/bootstrap/unified-bootstrap-service";
 import { logger } from "./utils/logging";
 import Index from "./pages/Index";
 import Initialize from "./pages/Initialize";
@@ -24,8 +24,10 @@ function AppContent() {
   const { isDebugMode, showDebugPanel, toggleDebugPanel } = useDebugMode();
 
   useEffect(() => {
-    // Start production bootstrap system
-    productionBootstrap.initialize();
+    // Start unified bootstrap system
+    unifiedBootstrap.initialize().catch(error => {
+      logger.error('Failed to initialize unified bootstrap', error, { module: 'app' });
+    });
     
     // Add global error handler
     const handleError = (event: ErrorEvent) => {
@@ -48,14 +50,14 @@ function AppContent() {
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
     return () => {
-      productionBootstrap.cleanup();
+      unifiedBootstrap.cleanup();
       window.removeEventListener('error', handleError);
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
   }, []);
 
   return (
-    <ProductionErrorBoundary>
+    <GlobalErrorBoundary>
       <div className="min-h-screen bg-background">
         <Routes>
           <Route path="/" element={<Index />} />
@@ -93,17 +95,17 @@ function AppContent() {
           </div>
         )}
       </div>
-    </ProductionErrorBoundary>
+    </GlobalErrorBoundary>
   );
 }
 
 function App() {
   return (
-    <ProductionErrorBoundary>
+    <GlobalErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <BrowserRouter>
-            <ProductionBootstrapProvider>
+            <UnifiedBootstrapProvider>
               <AuthProvider>
                 <ThemeProvider>
                   <AppContent />
@@ -111,11 +113,11 @@ function App() {
                   <Sonner />
                 </ThemeProvider>
               </AuthProvider>
-            </ProductionBootstrapProvider>
+            </UnifiedBootstrapProvider>
           </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>
-    </ProductionErrorBoundary>
+    </GlobalErrorBoundary>
   );
 }
 

@@ -1,3 +1,9 @@
+
 {
-  
+  "supabaseUrl": "https://ymtdtzkskjdqlzhjuesk.supabase.co",
+  "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltdGR0emtza2pkcWx6aGp1ZXNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5MjUyNDYsImV4cCI6MjA2MDUwMTI0Nn0.sOQdxH63edhcIgjx6mxjHkeam4IQGViaWYLdFDepIaE",
+  "siteHost": "lovable.app",
+  "lastUpdated": "2025-01-28T00:00:00.000Z",
+  "version": "1.0.0",
+  "environment": "production"
 }
