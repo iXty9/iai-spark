@@ -23,43 +23,50 @@ export const useSettingsState = () => {
   // Local state that mirrors the unified controller
   const [localState, setLocalState] = useState(() => unifiedThemeController.getState());
   
-  // Track if we've loaded from profile to prevent overwrites
-  const hasLoadedFromProfile = useRef(false);
+  // Track initialization more reliably
+  const initializationAttempted = useRef(false);
+  const profileDataLoaded = useRef(false);
 
   // Wait for controller initialization AND load user settings
   useEffect(() => {
     const initializeSettings = async () => {
-      // Wait for controller to be ready
-      if (!unifiedThemeController.initialized) {
-        setTimeout(initializeSettings, 100);
-        return;
-      }
+      // Prevent multiple initialization attempts
+      if (initializationAttempted.current) return;
+      initializationAttempted.current = true;
 
       try {
-        // FIXED: Only load profile data if we haven't already and the controller isn't already initialized with user data
-        if (profile?.theme_settings && !hasLoadedFromProfile.current) {
-          const userSettings = JSON.parse(profile.theme_settings);
-          
-          // Check if controller already has this data (to prevent double-loading)
-          const currentState = unifiedThemeController.getState();
-          const hasUserData = currentState.backgroundImage || 
-                             currentState.backgroundOpacity !== 0.5 ||
-                             currentState.lightTheme.primaryColor !== '#dd3333';
-          
-          if (!hasUserData) {
-            // Update controller with user settings only if it doesn't have user data yet
+        // Wait for controller to be ready first
+        let attempts = 0;
+        const maxAttempts = 50;
+        while (!unifiedThemeController.initialized && attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          attempts++;
+        }
+
+        if (!unifiedThemeController.initialized) {
+          logger.warn('Controller initialization timeout', { module: 'settings' });
+        }
+
+        // Load profile data if available and not already loaded
+        if (profile?.theme_settings && !profileDataLoaded.current) {
+          try {
+            const userSettings = JSON.parse(profile.theme_settings);
+            
+            // Initialize controller with user settings
             await unifiedThemeController.initialize(userSettings);
-            hasLoadedFromProfile.current = true;
+            profileDataLoaded.current = true;
             
             logger.info('Settings loaded from user profile', { 
               module: 'settings',
               backgroundImage: !!userSettings.backgroundImage,
               backgroundOpacity: userSettings.backgroundOpacity
             });
-          } else {
-            hasLoadedFromProfile.current = true;
-            logger.info('Controller already has user data, skipping profile load', { module: 'settings' });
+          } catch (parseError) {
+            logger.error('Failed to parse theme settings from profile:', parseError, { module: 'settings' });
           }
+        } else {
+          // Initialize with defaults if no profile data
+          await unifiedThemeController.initialize();
         }
 
         // Sync our local state with controller
@@ -68,13 +75,13 @@ export const useSettingsState = () => {
         setIsInitialized(true);
         setIsLoading(false);
         
-        logger.info('Settings state initialized', { 
+        logger.info('Settings state initialized successfully', { 
           module: 'settings',
           backgroundImage: !!controllerState.backgroundImage,
           backgroundOpacity: controllerState.backgroundOpacity
         });
       } catch (error) {
-        logger.error('Error initializing settings:', error);
+        logger.error('Error initializing settings:', error, { module: 'settings' });
         setIsLoading(false);
         setIsInitialized(true);
       }
@@ -88,9 +95,12 @@ export const useSettingsState = () => {
     if (!isInitialized) return;
 
     const unsubscribe = unifiedThemeController.subscribe((newState) => {
-      // Only update if this isn't from our own changes (prevent loops)
       setLocalState(newState);
-      logger.info('Settings state updated from controller', { module: 'settings' });
+      logger.info('Settings state updated from controller', { 
+        module: 'settings',
+        backgroundImage: !!newState.backgroundImage,
+        backgroundOpacity: newState.backgroundOpacity
+      });
     });
 
     return unsubscribe;

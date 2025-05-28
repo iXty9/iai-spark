@@ -33,7 +33,6 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   // Get state from unified controller
   const [controllerState, setControllerState] = useState(() => unifiedThemeController.getState());
   const [isThemeLoaded, setIsThemeLoaded] = useState(false);
-  const [initializationStarted, setInitializationStarted] = useState(false);
   
   // Safely access profile and updateProfile with fallbacks
   const profile = authContext?.profile || null;
@@ -42,25 +41,23 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   // Initialize controller when theme system is ready
   useEffect(() => {
     const initializeController = async () => {
-      // Prevent multiple initializations
-      if (!isThemeReady || isThemeLoaded || initializationStarted) return;
-
-      setInitializationStarted(true);
+      // Wait for theme system to be ready
+      if (!isThemeReady || isThemeLoaded) return;
 
       try {
         let userSettings: ThemeSettings | null = null;
         
-        // Try to load from user profile
+        // Load from user profile if available
         if (profile?.theme_settings) {
           try {
             userSettings = JSON.parse(profile.theme_settings);
-            logger.info('Loaded theme from user profile', { 
+            logger.info('Parsed theme settings from profile', { 
               module: 'use-theme',
               hasBackground: !!userSettings?.backgroundImage,
               backgroundOpacity: userSettings?.backgroundOpacity
             });
           } catch (e) {
-            logger.warn('Failed to parse user theme settings', e);
+            logger.warn('Failed to parse user theme settings:', e, { module: 'use-theme' });
           }
         }
         
@@ -70,16 +67,6 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         // Update local state from controller after initialization
         const newState = unifiedThemeController.getState();
         setControllerState(newState);
-        
-        // CRITICAL FIX: Apply background image immediately after initialization
-        if (newState.backgroundImage) {
-          logger.info('Applying saved background image on theme initialization', { 
-            module: 'use-theme',
-            hasImage: !!newState.backgroundImage,
-            opacity: newState.backgroundOpacity
-          });
-        }
-        
         setIsThemeLoaded(true);
         
         logger.info('Theme context initialized successfully', { 
@@ -94,7 +81,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     initializeController();
-  }, [isThemeReady, profile, isThemeLoaded, initializationStarted]);
+  }, [isThemeReady, profile?.theme_settings, isThemeLoaded]);
 
   // Subscribe to controller changes
   useEffect(() => {
@@ -128,15 +115,11 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   };
   
   const resetTheme = () => {
-    // Reset through controller - it will handle admin defaults vs built-in defaults
     logger.info('Resetting theme to defaults', { module: 'use-theme' });
-    
-    // For now, trigger a reload to get fresh defaults
     window.location.reload();
   };
   
   const applyThemeColors = (colors: ThemeColors) => {
-    // Apply through controller for consistency
     if (controllerState.mode === 'light') {
       unifiedThemeController.setLightTheme(colors);
     } else {
@@ -144,7 +127,6 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
   
-  // FIXED: Make applyBackground actually work through the unified controller
   const applyBackground = (image: string | null, opacity: number) => {
     logger.info('Applying background through theme context', { 
       module: 'use-theme',
@@ -152,7 +134,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       opacity
     });
     
-    // Apply through unified controller to ensure consistency
+    // Apply through unified controller immediately
     unifiedThemeController.setBackgroundImage(image);
     unifiedThemeController.setBackgroundOpacity(opacity);
     
@@ -161,6 +143,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         const themeSettings = unifiedThemeController.createThemeSettings();
         updateProfile({ theme_settings: JSON.stringify(themeSettings) });
+        logger.info('Background settings saved to profile', { module: 'use-theme' });
       } catch (error) {
         logger.error('Failed to save background settings:', error);
       }

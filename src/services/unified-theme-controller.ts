@@ -15,6 +15,7 @@ class UnifiedThemeController {
   private state: ThemeState;
   private listeners: Set<(state: ThemeState) => void> = new Set();
   private isInitialized = false;
+  private initializationPromise: Promise<void> | null = null;
 
   constructor() {
     this.state = {
@@ -57,8 +58,21 @@ class UnifiedThemeController {
   }
 
   async initialize(userSettings?: ThemeSettings): Promise<void> {
-    if (this.isInitialized) return;
+    // Return existing promise if initialization is already in progress
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
 
+    // Return immediately if already initialized
+    if (this.isInitialized) {
+      return Promise.resolve();
+    }
+
+    this.initializationPromise = this.performInitialization(userSettings);
+    return this.initializationPromise;
+  }
+
+  private async performInitialization(userSettings?: ThemeSettings): Promise<void> {
     try {
       // Initialize theme service first
       await themeService.initialize();
@@ -77,13 +91,17 @@ class UnifiedThemeController {
           backgroundImage: !!this.state.backgroundImage,
           backgroundOpacity: this.state.backgroundOpacity
         });
+      } else {
+        logger.info('Initialized with default settings', { module: 'theme-controller' });
       }
 
-      // CRITICAL FIX: Apply both theme and background immediately after initialization
+      // Apply theme and background immediately and synchronously
       this.applyCurrentTheme();
-      this.applyBackground();
+      this.applyBackgroundImmediate();
       
       this.isInitialized = true;
+      this.initializationPromise = null;
+      
       logger.info('Unified theme controller initialized and applied', { 
         module: 'theme-controller',
         backgroundImage: !!this.state.backgroundImage,
@@ -92,11 +110,11 @@ class UnifiedThemeController {
     } catch (error) {
       logger.error('Failed to initialize theme controller:', error);
       this.isInitialized = true; // Prevent infinite retries
+      this.initializationPromise = null;
     }
   }
 
   private validateThemeSettings(settings: ThemeSettings): boolean {
-    // Basic validation - could be expanded
     return settings && typeof settings === 'object';
   }
 
@@ -146,16 +164,22 @@ class UnifiedThemeController {
 
   setBackgroundImage(image: string | null): void {
     this.state.backgroundImage = image;
-    this.applyBackground();
+    this.applyBackgroundImmediate();
     this.notifyListeners();
-    logger.info('Background image changed', { module: 'theme-controller', hasImage: !!image });
+    logger.info('Background image changed and applied immediately', { 
+      module: 'theme-controller', 
+      hasImage: !!image 
+    });
   }
 
   setBackgroundOpacity(opacity: number): void {
     this.state.backgroundOpacity = this.normalizeOpacity(opacity);
-    this.applyBackground();
+    this.applyBackgroundImmediate();
     this.notifyListeners();
-    logger.info('Background opacity changed', { module: 'theme-controller', opacity: this.state.backgroundOpacity });
+    logger.info('Background opacity changed and applied immediately', { 
+      module: 'theme-controller', 
+      opacity: this.state.backgroundOpacity 
+    });
   }
 
   updateState(updates: Partial<ThemeState>): void {
@@ -188,7 +212,7 @@ class UnifiedThemeController {
 
     if (changed) {
       this.applyCurrentTheme();
-      this.applyBackground();
+      this.applyBackgroundImmediate();
       this.notifyListeners();
     }
   }
@@ -198,10 +222,32 @@ class UnifiedThemeController {
     themeService.applyThemeImmediate(currentColors, this.state.mode);
   }
 
-  private applyBackground(): void {
-    // ENHANCED: Always apply background, even if null, to ensure proper cleanup
+  private applyBackgroundImmediate(): void {
+    // Apply background synchronously and immediately
     themeService.applyBackground(this.state.backgroundImage, this.state.backgroundOpacity);
-    logger.info('Applied background through theme service', { 
+    
+    // Force immediate DOM update
+    if (this.state.backgroundImage) {
+      // Ensure the image is loaded before applying
+      const img = new Image();
+      img.onload = () => {
+        themeService.applyBackground(this.state.backgroundImage, this.state.backgroundOpacity);
+        logger.info('Background image loaded and applied', { 
+          module: 'theme-controller',
+          hasImage: !!this.state.backgroundImage,
+          opacity: this.state.backgroundOpacity
+        });
+      };
+      img.onerror = () => {
+        logger.warn('Background image failed to load', { module: 'theme-controller' });
+      };
+      img.src = this.state.backgroundImage;
+    } else {
+      // Remove background immediately if no image
+      themeService.applyBackground(null, this.state.backgroundOpacity);
+    }
+    
+    logger.info('Background applied immediately', { 
       module: 'theme-controller',
       hasImage: !!this.state.backgroundImage,
       opacity: this.state.backgroundOpacity
