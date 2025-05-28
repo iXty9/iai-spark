@@ -1,43 +1,32 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, UserRound, ArrowLeft } from 'lucide-react';
+import { Upload, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-// Supported image types
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
-// Form validation schema
 const profileFormSchema = z.object({
-  username: z
-    .string()
+  username: z.string()
     .min(3, "Username must be at least 3 characters")
     .max(50, "Username cannot exceed 50 characters")
     .regex(/^[a-zA-Z0-9_.-]+$/, "Username can only contain letters, numbers, underscores, dots, and hyphens"),
-  first_name: z
-    .string()
-    .max(50, "First name cannot exceed 50 characters")
-    .optional(),
-  last_name: z
-    .string()
-    .max(50, "Last name cannot exceed 50 characters")
-    .optional(),
+  first_name: z.string().max(50, "First name cannot exceed 50 characters").optional(),
+  last_name: z.string().max(50, "Last name cannot exceed 50 characters").optional(),
   phone_country_code: z.string(),
-  phone_number: z
-    .string()
+  phone_number: z.string()
     .regex(/^(\d{3}-\d{3}-\d{4})?$/, "Please enter a valid phone number (XXX-XXX-XXXX)")
     .optional(),
 });
@@ -49,182 +38,99 @@ export default function Profile() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
-  const [phoneCountryCode, setPhoneCountryCode] = useState("+1"); // Default to US
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // Initialize form with profile data
+
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       username: profile?.username || '',
       first_name: profile?.first_name || '',
       last_name: profile?.last_name || '',
-      phone_country_code: "+1",
+      phone_country_code: '+1',
       phone_number: profile?.phone_number || '',
     },
   });
 
   useEffect(() => {
-    if (!user) {
-      navigate('/auth');
-    }
+    if (!user) navigate('/auth');
   }, [user, navigate]);
 
   useEffect(() => {
-    // Update form when profile changes
     if (profile) {
       form.reset({
         username: profile.username || '',
-        first_name: profile?.first_name || '',
-        last_name: profile?.last_name || '',
-        phone_country_code: phoneCountryCode,
+        first_name: profile.first_name || '',
+        last_name: profile.last_name || '',
+        phone_country_code: form.getValues('phone_country_code') || '+1',
         phone_number: profile.phone_number || '',
       });
     }
-  }, [profile, form, phoneCountryCode]);
+  // eslint-disable-next-line
+  }, [profile]);
+
+  const showToast = (type: 'success' | 'error', title: string, description: string) => {
+    toast({
+      variant: type === 'error' ? 'destructive' : undefined,
+      title,
+      description,
+    });
+  };
 
   const onSubmit = async (data: ProfileFormValues) => {
     try {
-      // Combine phone data
-      const updatedProfile = {
-        username: data.username,
-        first_name: data.first_name,
-        last_name: data.last_name,
-        phone_number: data.phone_number,
-        phone_country_code: data.phone_country_code,
-      };
-      
-      await updateProfile(updatedProfile);
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been updated successfully.",
-      });
+      await updateProfile(data);
+      showToast('success', "Profile updated", "Your profile has been updated successfully.");
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to update profile",
-      });
+      showToast('error', "Error", error.message || "Failed to update profile");
     }
   };
 
-  const validateFile = (file: File): string | null => {
-    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
-      return "File must be a valid image type (JPEG, PNG, or WebP)";
+  const uploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type) || file.size > MAX_FILE_SIZE) {
+      showToast('error', "Invalid file",
+        !ACCEPTED_IMAGE_TYPES.includes(file.type)
+        ? "File must be a valid image type (JPEG, PNG, or WebP)"
+        : "File size must be less than 5MB"
+      );
+      fileInputRef.current && (fileInputRef.current.value = '');
+      return;
     }
-    
-    if (file.size > MAX_FILE_SIZE) {
-      return "File size must be less than 5MB";
-    }
-    
-    return null;
-  };
-
-  const uploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    setUploading(true);
     try {
-      if (!event.target.files || event.target.files.length === 0) {
-        return;
-      }
-      
-      const file = event.target.files[0];
-      
-      // Validate file
-      const error = validateFile(file);
-      if (error) {
-        toast({
-          variant: "destructive",
-          title: "Invalid file",
-          description: error,
-        });
-        // Reset file input
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        return;
-      }
-      
-      setUploading(true);
-      
-      // Check if storage API is available
       if (!supabase.storage || typeof supabase.storage.from !== 'function') {
-        throw new Error('Storage API is not available. Please make sure the application is properly initialized.');
+        throw new Error('Storage API not available.');
       }
-      
-      // Generate a secure random filename with file extension
-      const fileExt = file.name.split('.').pop();
-      const randomString = crypto.randomUUID();
-      const filePath = `${user!.id}/${randomString}.${fileExt}`;
-      
-      // Upload the file to Supabase storage
-      const uploadResponse = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file);
-        
-      if (uploadResponse?.error) {
-        throw uploadResponse.error;
-      }
-      
-      // Get the public URL
-      const urlResponse = supabase.storage.from('avatars').getPublicUrl(filePath);
-      
-      if (!urlResponse?.data?.publicUrl) {
-        throw new Error('Failed to get public URL for uploaded file');
-      }
-      
-      // Update the user's profile with the new avatar URL
-      await updateProfile({ avatar_url: urlResponse.data.publicUrl });
-      
-      toast({
-        title: "Avatar updated",
-        description: "Your profile picture has been updated successfully",
-      });
+      const ext = file.name.split('.').pop();
+      const path = `${user!.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file);
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+      if (!data?.publicUrl) throw new Error('Failed to get public URL for uploaded file');
+      await updateProfile({ avatar_url: data.publicUrl });
+      showToast('success', "Avatar updated", "Your profile picture has been updated successfully");
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Upload failed",
-        description: error.message || "There was an error uploading your avatar",
-      });
+      showToast('error', "Upload failed", error.message || "There was an error uploading your avatar");
     } finally {
       setUploading(false);
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      fileInputRef.current && (fileInputRef.current.value = '');
     }
   };
 
-  const handleGoBack = () => {
-    navigate('/');
-  };
-
-  const getInitials = () => {
-    // Try to get initials from first and last name first
-    if (profile?.first_name && profile?.last_name) {
-      return `${profile.first_name.charAt(0)}${profile.last_name.charAt(0)}`.toUpperCase();
-    }
-    
-    // Fall back to username
-    if (profile?.username) {
-      return profile.username.charAt(0).toUpperCase();
-    }
-    
-    // Fall back to email
-    if (user?.email) {
-      return user.email.charAt(0).toUpperCase();
-    }
-    
-    return 'U';
-  };
+  const getInitials = () =>
+    `${profile?.first_name?.[0] ?? ''}${profile?.last_name?.[0] ?? profile?.username?.[0] ?? user?.email?.[0] ?? 'U'}`
+      .toUpperCase();
 
   return (
     <div className="container max-w-2xl py-10">
       <Card className="bg-background/80 backdrop-blur-sm">
         <CardHeader className="relative">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="absolute left-2 top-2" 
-            onClick={handleGoBack}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute left-2 top-2"
+            onClick={() => navigate('/')}
             aria-label="Go back"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -236,13 +142,9 @@ export default function Profile() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="flex flex-col items-center space-y-4">
                 <Avatar className="h-24 w-24">
-                  {profile?.avatar_url ? (
-                    <AvatarImage src={profile.avatar_url} alt={profile?.username || "User"} />
-                  ) : (
-                    <AvatarFallback className="text-lg">
-                      {getInitials()}
-                    </AvatarFallback>
-                  )}
+                  {profile?.avatar_url
+                    ? <AvatarImage src={profile.avatar_url} alt={profile?.username || "User"} />
+                    : <AvatarFallback className="text-lg">{getInitials()}</AvatarFallback>}
                 </Avatar>
                 <Button variant="outline" asChild>
                   <label className="cursor-pointer">
@@ -251,7 +153,7 @@ export default function Profile() {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/png,image/jpeg,image/jpg,image/webp"
+                      accept={ACCEPTED_IMAGE_TYPES.join(',')}
                       onChange={uploadAvatar}
                       disabled={uploading}
                       className="hidden"
@@ -262,62 +164,38 @@ export default function Profile() {
                   Supported formats: JPG, PNG, WebP. Max size: 5MB.
                 </div>
               </div>
-
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="email">Email</Label>
-                  <Input 
-                    id="email" 
-                    value={user?.email || ''} 
-                    disabled 
-                    className="bg-muted"
-                  />
+                  <Input id="email" value={user?.email || ''} disabled className="bg-muted" />
                 </div>
-
                 <FormField
                   control={form.control}
                   name="username"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Username</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
+                      <FormControl><Input {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="first_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>First Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="last_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Last Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {['first_name', 'last_name'].map(name => (
+                    <FormField
+                      key={name}
+                      control={form.control}
+                      name={name as 'first_name' | 'last_name'}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{name === 'first_name' ? 'First Name' : 'Last Name'}</FormLabel>
+                          <FormControl><Input {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ))}
                 </div>
-
                 <FormField
                   control={form.control}
                   name="phone_number"
@@ -329,7 +207,7 @@ export default function Profile() {
                           value={field.value || ''}
                           onChange={field.onChange}
                           countryCode={form.watch('phone_country_code')}
-                          onCountryCodeChange={(code) => form.setValue('phone_country_code', code)}
+                          onCountryCodeChange={code => form.setValue('phone_country_code', code)}
                         />
                       </FormControl>
                       <FormMessage />
@@ -337,14 +215,9 @@ export default function Profile() {
                   )}
                 />
               </div>
-
               <div className="flex justify-between mt-6">
-                <Button variant="outline" onClick={handleGoBack} type="button">
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  Save Changes
-                </Button>
+                <Button variant="outline" type="button" onClick={() => navigate('/')}>Cancel</Button>
+                <Button type="submit">Save Changes</Button>
               </div>
             </form>
           </Form>
