@@ -32,14 +32,14 @@ export const useChat = () => {
     handleAuthLoaded
   } = useChatState();
 
-  const { handleSubmit, handleAbortRequest } = useChatSubmit(
+  const { handleSubmit, handleAbortRequest } = useChatSubmit({
     message,
     setMessage,
     addMessage,
     setIsLoading,
-    !!user,
-    authLoading
-  );
+    isAuthenticated: !!user,
+    isAuthLoading: authLoading
+  });
 
   const { startChat } = useChatInit({
     user,
