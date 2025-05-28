@@ -59,6 +59,24 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     onChange(e.target.value);
   };
 
+  const handleFileAttached = (content: string, fileName: string) => {
+    // For now, we'll append file info to the message
+    // In the future, this could be handled differently based on file type
+    const fileInfo = `[Attached file: ${fileName}]\n\n`;
+    onChange(fileInfo + message);
+  };
+
+  const handleVoiceTranscript = (transcript: string) => {
+    // Append voice transcript to current message
+    const newMessage = message ? `${message} ${transcript}` : transcript;
+    onChange(newMessage);
+    
+    // Focus the textarea after voice input
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  };
+
   return (
     <form 
       ref={formRef}
@@ -94,6 +112,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               }
             }
           }}
+          onFileAttached={handleFileAttached}
+          onVoiceTranscript={handleVoiceTranscript}
         />
       </div>
     </form>
