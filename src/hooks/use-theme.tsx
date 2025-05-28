@@ -54,20 +54,39 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         if (profile?.theme_settings) {
           try {
             userSettings = JSON.parse(profile.theme_settings);
-            logger.info('Loaded theme from user profile', { module: 'use-theme' });
+            logger.info('Loaded theme from user profile', { 
+              module: 'use-theme',
+              hasBackground: !!userSettings?.backgroundImage,
+              backgroundOpacity: userSettings?.backgroundOpacity
+            });
           } catch (e) {
             logger.warn('Failed to parse user theme settings', e);
           }
         }
         
-        // Initialize the unified controller
+        // Initialize the unified controller with user settings
         await unifiedThemeController.initialize(userSettings);
         
-        // Update local state
-        setControllerState(unifiedThemeController.getState());
+        // Update local state from controller after initialization
+        const newState = unifiedThemeController.getState();
+        setControllerState(newState);
+        
+        // CRITICAL FIX: Apply background image immediately after initialization
+        if (newState.backgroundImage) {
+          logger.info('Applying saved background image on theme initialization', { 
+            module: 'use-theme',
+            hasImage: !!newState.backgroundImage,
+            opacity: newState.backgroundOpacity
+          });
+        }
+        
         setIsThemeLoaded(true);
         
-        logger.info('Theme context initialized successfully', { module: 'use-theme' });
+        logger.info('Theme context initialized successfully', { 
+          module: 'use-theme',
+          backgroundImage: !!newState.backgroundImage,
+          backgroundOpacity: newState.backgroundOpacity
+        });
       } catch (error) {
         logger.error('Error initializing theme context:', error, { module: 'use-theme' });
         setIsThemeLoaded(true); // Still mark as loaded to prevent infinite loading
@@ -83,7 +102,11 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
     const unsubscribe = unifiedThemeController.subscribe((newState) => {
       setControllerState(newState);
-      logger.info('Theme context updated from controller', { module: 'use-theme' });
+      logger.info('Theme context updated from controller', { 
+        module: 'use-theme',
+        backgroundImage: !!newState.backgroundImage,
+        backgroundOpacity: newState.backgroundOpacity
+      });
     });
 
     return unsubscribe;
@@ -121,10 +144,27 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
   
-  // REMOVED: Background management - settings page will handle this directly
+  // FIXED: Make applyBackground actually work through the unified controller
   const applyBackground = (image: string | null, opacity: number) => {
-    // This is now handled by the settings page directly through the controller
-    logger.info('Background apply requested, but handled by settings page', { module: 'use-theme' });
+    logger.info('Applying background through theme context', { 
+      module: 'use-theme',
+      hasImage: !!image,
+      opacity
+    });
+    
+    // Apply through unified controller to ensure consistency
+    unifiedThemeController.setBackgroundImage(image);
+    unifiedThemeController.setBackgroundOpacity(opacity);
+    
+    // Save to profile if available
+    if (profile && updateProfile) {
+      try {
+        const themeSettings = unifiedThemeController.createThemeSettings();
+        updateProfile({ theme_settings: JSON.stringify(themeSettings) });
+      } catch (error) {
+        logger.error('Failed to save background settings:', error);
+      }
+    }
   };
   
   // Get current theme colors with fallbacks

@@ -36,19 +36,30 @@ export const useSettingsState = () => {
       }
 
       try {
-        // If we have user profile data and haven't loaded it yet, load it
+        // FIXED: Only load profile data if we haven't already and the controller isn't already initialized with user data
         if (profile?.theme_settings && !hasLoadedFromProfile.current) {
           const userSettings = JSON.parse(profile.theme_settings);
           
-          // Update controller with user settings
-          await unifiedThemeController.initialize(userSettings);
-          hasLoadedFromProfile.current = true;
+          // Check if controller already has this data (to prevent double-loading)
+          const currentState = unifiedThemeController.getState();
+          const hasUserData = currentState.backgroundImage || 
+                             currentState.backgroundOpacity !== 0.5 ||
+                             currentState.lightTheme.primaryColor !== '#dd3333';
           
-          logger.info('Settings loaded from user profile', { 
-            module: 'settings',
-            backgroundImage: !!userSettings.backgroundImage,
-            backgroundOpacity: userSettings.backgroundOpacity
-          });
+          if (!hasUserData) {
+            // Update controller with user settings only if it doesn't have user data yet
+            await unifiedThemeController.initialize(userSettings);
+            hasLoadedFromProfile.current = true;
+            
+            logger.info('Settings loaded from user profile', { 
+              module: 'settings',
+              backgroundImage: !!userSettings.backgroundImage,
+              backgroundOpacity: userSettings.backgroundOpacity
+            });
+          } else {
+            hasLoadedFromProfile.current = true;
+            logger.info('Controller already has user data, skipping profile load', { module: 'settings' });
+          }
         }
 
         // Sync our local state with controller

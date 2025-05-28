@@ -71,11 +71,24 @@ class UnifiedThemeController {
           backgroundImage: userSettings.backgroundImage || null,
           backgroundOpacity: this.normalizeOpacity(userSettings.backgroundOpacity || 0.5)
         };
+        
+        logger.info('Initialized with user settings', { 
+          module: 'theme-controller',
+          backgroundImage: !!this.state.backgroundImage,
+          backgroundOpacity: this.state.backgroundOpacity
+        });
       }
 
+      // CRITICAL FIX: Apply both theme and background immediately after initialization
       this.applyCurrentTheme();
+      this.applyBackground();
+      
       this.isInitialized = true;
-      logger.info('Unified theme controller initialized', { module: 'theme-controller' });
+      logger.info('Unified theme controller initialized and applied', { 
+        module: 'theme-controller',
+        backgroundImage: !!this.state.backgroundImage,
+        backgroundOpacity: this.state.backgroundOpacity
+      });
     } catch (error) {
       logger.error('Failed to initialize theme controller:', error);
       this.isInitialized = true; // Prevent infinite retries
@@ -186,7 +199,13 @@ class UnifiedThemeController {
   }
 
   private applyBackground(): void {
+    // ENHANCED: Always apply background, even if null, to ensure proper cleanup
     themeService.applyBackground(this.state.backgroundImage, this.state.backgroundOpacity);
+    logger.info('Applied background through theme service', { 
+      module: 'theme-controller',
+      hasImage: !!this.state.backgroundImage,
+      opacity: this.state.backgroundOpacity
+    });
   }
 
   createThemeSettings(): ThemeSettings {
