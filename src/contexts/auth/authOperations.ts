@@ -2,12 +2,25 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "@/hooks/use-toast";
 import { logger } from '@/utils/logging';
+import { clientManager } from '@/services/supabase/client-manager';
 
 const API_TIMEOUT = 30000; // 30 seconds
+
+// Helper function to ensure client is ready
+const ensureClientReady = async (): Promise<boolean> => {
+  const isReady = await clientManager.waitForReadiness();
+  if (!isReady) {
+    throw new Error("Authentication service is not available. Please try again or check your connection.");
+  }
+  return true;
+};
 
 export const signIn = async (email: string, password: string) => {
   try {
     logger.info('Attempting login', { module: 'auth-operations', email: email.substring(0, 3) + '***' });
+    
+    // Ensure client is ready before attempting login
+    await ensureClientReady();
     
     const authPromise = supabase.auth.signInWithPassword({
       email,
@@ -23,25 +36,41 @@ export const signIn = async (email: string, password: string) => {
     if (error) {
       logger.error('Login error', error, { module: 'auth-operations' });
       
+      let userMessage = "Login failed. Please try again.";
+      if (error.message?.includes('Invalid login credentials')) {
+        userMessage = "Invalid email or password. Please check your credentials.";
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        userMessage = "Network error. Please check your connection and try again.";
+      } else if (error.message?.includes('timeout')) {
+        userMessage = "Login timed out. Please try again.";
+      }
+      
       toast({
         variant: "destructive",
         title: "Login failed",
-        description: error.message,
+        description: userMessage,
       });
       throw error;
     }
     
     logger.info('Login successful', { module: 'auth-operations', userId: data.user?.id });
+    
+    toast({
+      title: "Welcome back!",
+      description: "You have been successfully logged in.",
+    });
+    
     return data;
   } catch (error: any) {
     logger.error('Error during sign in', error, { module: 'auth-operations' });
     
-    const errorMessage = error.message || "Login failed. Please try again later.";
-    toast({
-      variant: "destructive",
-      title: "Login error",
-      description: errorMessage,
-    });
+    if (!error.message?.includes("Login failed")) {
+      toast({
+        variant: "destructive",
+        title: "Login error",
+        description: error.message || "An unexpected error occurred. Please try again.",
+      });
+    }
     
     throw error;
   }
@@ -54,6 +83,9 @@ export const signUp = async (
   options?: { phone_number?: string, full_name?: string }
 ) => {
   try {
+    // Ensure client is ready before attempting signup
+    await ensureClientReady();
+    
     const authPromise = supabase.auth.signUp({
       email,
       password,
@@ -73,10 +105,17 @@ export const signUp = async (
     const { error } = await Promise.race([authPromise, timeoutPromise]) as any;
 
     if (error) {
+      let userMessage = "Registration failed. Please try again.";
+      if (error.message?.includes('already registered')) {
+        userMessage = "An account with this email already exists. Please try logging in instead.";
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        userMessage = "Network error. Please check your connection and try again.";
+      }
+      
       toast({
         variant: "destructive",
         title: "Signup failed",
-        description: error.message,
+        description: userMessage,
       });
       throw error;
     }
@@ -88,12 +127,13 @@ export const signUp = async (
   } catch (error: any) {
     logger.error('Error during sign up', error, { module: 'auth-operations' });
     
-    const errorMessage = error.message || "Sign up failed. Please try again later.";
-    toast({
-      variant: "destructive",
-      title: "Registration error",
-      description: errorMessage,
-    });
+    if (!error.message?.includes("Signup failed")) {
+      toast({
+        variant: "destructive",
+        title: "Registration error",
+        description: error.message || "Registration failed. Please try again later.",
+      });
+    }
     
     throw error;
   }
@@ -103,7 +143,7 @@ export const signOut = async () => {
   try {
     logger.info('Signing out user', { module: 'auth-operations' });
     
-    // Clear localStorage auth data
+    // Clear localStorage auth data first
     localStorage.removeItem('supabase.auth.token');
     ['sb-refresh-token', 'sb-access-token', 'supabase.auth.expires_at', 'supabase.auth.refreshToken'].forEach(key => {
       try {
@@ -123,31 +163,34 @@ export const signOut = async () => {
       }
     });
     
-    const { error } = await supabase.auth.signOut({
-      scope: 'global'
-    });
-    
-    if (error) {
-      logger.error('Error during sign out API call', error, { module: 'auth-operations' });
-      toast({
-        variant: "default",
-        title: "Signed out",
-        description: "You have been signed out. Some cleanup may happen in the background.",
+    // Try to sign out via API if client is available
+    try {
+      await ensureClientReady();
+      const { error } = await supabase.auth.signOut({
+        scope: 'global'
       });
-    } else {
-      logger.info('User signed out successfully', { module: 'auth-operations' });
-      toast({
-        variant: "default",
-        title: "Signed out",
-        description: "You have been signed out successfully",
-      });
+      
+      if (error) {
+        logger.error('Error during sign out API call', error, { module: 'auth-operations' });
+      } else {
+        logger.info('User signed out successfully', { module: 'auth-operations' });
+      }
+    } catch (clientError) {
+      // If client is not available, local signout is still effective
+      logger.warn('Client not available for API signout, local signout completed', clientError, { module: 'auth-operations' });
     }
+    
+    toast({
+      variant: "default",
+      title: "Signed out",
+      description: "You have been signed out successfully",
+    });
   } catch (error: any) {
     logger.error('Error during sign out process', error, { module: 'auth-operations' });
     toast({
       variant: "default",
       title: "Signed out",
-      description: "You have been signed out locally. Some cleanup may happen in the background.",
+      description: "You have been signed out locally.",
     });
   }
 };
@@ -155,6 +198,8 @@ export const signOut = async () => {
 export const updateProfile = async (supabase: any, userId: string, data: Partial<any>) => {
   try {
     if (!userId) throw new Error('No user logged in');
+
+    await ensureClientReady();
 
     const { error } = await supabase
       .from('profiles')

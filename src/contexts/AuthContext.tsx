@@ -5,12 +5,17 @@ import { AuthContextType } from './auth/types';
 import { useAuthState } from './auth/useAuthState';
 import { signIn, signUp, signOut, updateProfile } from './auth/authOperations';
 import { logger } from '@/utils/logging';
-import { fastBootstrap } from '@/services/bootstrap/fast-bootstrap-service';
+import { clientManager } from '@/services/supabase/client-manager';
 import { ProductionErrorBoundary } from '@/components/error/ProductionErrorBoundary';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+interface AuthProviderProps {
+  children: React.ReactNode;
+  clientReady: boolean;
+}
+
+export const AuthProvider = ({ children, clientReady }: AuthProviderProps) => {
   const {
     session,
     setSession,
@@ -29,64 +34,39 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const authStateChanges = useRef<number>(0);
   const initialSessionCheckRef = useRef(false);
   const authSubscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
-  const systemReadyRef = useRef<boolean>(false);
   
   // Limit logging for production
   const shouldLog = process.env.NODE_ENV === 'development';
   
-  // Monitor system readiness using fast bootstrap
+  // Initialize auth when client becomes ready
   useEffect(() => {
-    const unsubscribe = fastBootstrap.subscribe((status) => {
-      const wasReady = systemReadyRef.current;
-      const isReady = status.isReady;
-      
-      systemReadyRef.current = isReady;
-      
-      // If system just became ready, initialize auth
-      if (!wasReady && isReady) {
-        logger.info('System ready, initializing auth', { 
-          module: 'auth',
-          status: status.phase
-        });
-        initializeAuth();
-      }
-      
-      // If system failed or needs setup, stop loading
-      if (status.phase === 'error' || status.needsSetup) {
-        logger.warn('System error or needs setup, stopping auth loading', {
-          module: 'auth',
-          phase: status.phase,
-          error: status.error
-        });
-        setIsLoading(false);
-      }
-    });
-    
-    return unsubscribe;
-  }, []);
-
-  // Initialize auth when system is ready
-  const initializeAuth = () => {
-    // Double-check system readiness
-    const status = fastBootstrap.getStatus();
-    
-    if (!status.isReady) {
-      logger.warn('Auth initialization called but system not ready', { 
-        module: 'auth',
-        phase: status.phase
-      });
-      setIsLoading(false);
+    if (!clientReady) {
+      logger.info('Client not ready, waiting for initialization', { module: 'auth' });
+      setIsLoading(true);
       return;
     }
 
+    initializeAuth();
+  }, [clientReady]);
+
+  // Initialize auth when client is ready
+  const initializeAuth = async () => {
     try {
+      logger.info('Initializing auth with ready client', { module: 'auth' });
+
       // Clean up existing subscription
       if (authSubscriptionRef.current) {
         authSubscriptionRef.current.unsubscribe();
         authSubscriptionRef.current = null;
       }
 
-      // Set up auth state change listener with error handling
+      // Wait for client to be fully ready
+      const isReady = await clientManager.waitForReadiness();
+      if (!isReady) {
+        throw new Error('Client failed to become ready');
+      }
+
+      // Set up auth state change listener
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         (event, newSession) => {
           try {
@@ -130,36 +110,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Store subscription for cleanup
       authSubscriptionRef.current = subscription;
 
-      // Initial session check - only once per system initialization
+      // Initial session check - only once per client initialization
       if (!initialSessionCheckRef.current) {
         initialSessionCheckRef.current = true;
         
-        supabase.auth.getSession().then(({ data: { session: initialSession }, error }) => {
-          if (error) {
-            logger.error('Error during initial session check:', error);
-          }
-          
-          if (shouldLog) {
-            logger.info('Initial session check', {
-              hasSession: !!initialSession,
-              userId: initialSession?.user?.id,
-            }, { module: 'auth' });
-          }
-          
-          setSession(initialSession);
-          setUser(initialSession?.user ?? null);
-          
-          if (initialSession?.user) {
-            currentUserId.current = initialSession.user.id;
-            setTimeout(() => {
-              fetchProfile(initialSession.user.id);
-            }, 0);
-          }
-          setIsLoading(false);
-        }).catch((error) => {
-          logger.error('Error during initial session check', error, { module: 'auth' });
-          setIsLoading(false);
-        });
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          logger.error('Error during initial session check:', error);
+        }
+        
+        if (shouldLog) {
+          logger.info('Initial session check', {
+            hasSession: !!initialSession,
+            userId: initialSession?.user?.id,
+          }, { module: 'auth' });
+        }
+        
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
+        
+        if (initialSession?.user) {
+          currentUserId.current = initialSession.user.id;
+          setTimeout(() => {
+            fetchProfile(initialSession.user.id);
+          }, 0);
+        }
+        setIsLoading(false);
       }
     } catch (error) {
       logger.error('Error setting up auth state', error, { module: 'auth' });
@@ -167,27 +144,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // Reset when system is reset
+  // Reset when client is reset
   useEffect(() => {
-    const unsubscribe = fastBootstrap.subscribe((status) => {
-      if (status.phase === 'loading') {
-        // System is being reset, clean up auth
-        if (authSubscriptionRef.current) {
-          try {
-            authSubscriptionRef.current.unsubscribe();
-          } catch (error) {
-            logger.error('Error unsubscribing during reset', error, { module: 'auth' });
-          }
-          authSubscriptionRef.current = null;
+    if (!clientReady) {
+      // Client is being reset, clean up auth
+      if (authSubscriptionRef.current) {
+        try {
+          authSubscriptionRef.current.unsubscribe();
+        } catch (error) {
+          logger.error('Error unsubscribing during reset', error, { module: 'auth' });
         }
-        initialSessionCheckRef.current = false;
-        resetAuthState();
-        setIsLoading(true);
+        authSubscriptionRef.current = null;
       }
-    });
-    
-    return unsubscribe;
-  }, [resetAuthState, setIsLoading]);
+      initialSessionCheckRef.current = false;
+      resetAuthState();
+      setIsLoading(true);
+    }
+  }, [clientReady, resetAuthState, setIsLoading]);
 
   // Cleanup subscription on unmount
   useEffect(() => {

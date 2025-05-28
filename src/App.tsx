@@ -37,18 +37,24 @@ const queryClient = new QueryClient({
 function App() {
   const [isAppReady, setIsAppReady] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
+  const [clientReady, setClientReady] = useState(false);
 
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        logger.info('Starting app initialization', { module: 'app' });
+        logger.info('Starting simplified app initialization', { module: 'app' });
         
         // Load configuration
         const configResult = await fastConfig.loadConfig();
         if (configResult.success && configResult.config) {
-          // Initialize client
-          await clientManager.initialize(configResult.config);
-          logger.info('App initialization complete', { module: 'app' });
+          // Initialize client directly
+          const clientInitialized = await clientManager.initialize(configResult.config);
+          if (clientInitialized) {
+            setClientReady(true);
+            logger.info('Client initialized successfully', { module: 'app' });
+          } else {
+            throw new Error('Failed to initialize Supabase client');
+          }
         } else {
           logger.warn('No configuration found, app will show setup', { module: 'app' });
         }
@@ -80,7 +86,7 @@ function App() {
     <ProductionErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <Router>
-          <AuthProvider>
+          <AuthProvider clientReady={clientReady}>
             <ThemeProvider>
               <div className="min-h-screen bg-background text-foreground">
                 <Routes>
