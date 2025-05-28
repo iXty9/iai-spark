@@ -1,13 +1,13 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { unifiedBootstrap, UnifiedBootstrapStatus } from '@/services/bootstrap/unified-bootstrap-service';
+import { optimizedBootstrap, OptimizedBootstrapStatus } from '@/services/bootstrap/optimized-bootstrap-service';
 import { logger } from '@/utils/logging';
 import { toast } from '@/hooks/use-toast';
 
 export function ProductionHealthMonitor() {
   const { user } = useAuth();
-  const [lastHealthCheck, setLastHealthCheck] = useState<UnifiedBootstrapStatus | null>(null);
+  const [lastHealthCheck, setLastHealthCheck] = useState<OptimizedBootstrapStatus | null>(null);
   const [consecutiveFailures, setConsecutiveFailures] = useState(0);
 
   useEffect(() => {
@@ -15,7 +15,7 @@ export function ProductionHealthMonitor() {
 
     const performHealthCheck = async () => {
       try {
-        const status = await unifiedBootstrap.getStatus();
+        const status = await optimizedBootstrap.getStatus();
         setLastHealthCheck(status);
 
         if (!status.isReady || status.errors.length > 0) {
@@ -23,7 +23,7 @@ export function ProductionHealthMonitor() {
           
           // Log health issues but don't spam
           if (consecutiveFailures < 3) {
-            logger.warn('Unified health check failed', {
+            logger.warn('Health check failed', {
               module: 'health-monitor',
               status,
               consecutiveFailures: consecutiveFailures + 1
@@ -32,13 +32,13 @@ export function ProductionHealthMonitor() {
 
           // Auto-recovery attempt after 3 consecutive failures
           if (consecutiveFailures >= 2) {
-            logger.info('Attempting automatic recovery after health failures', {
+            logger.info('Attempting automatic recovery', {
               module: 'health-monitor',
               consecutiveFailures: consecutiveFailures + 1
             });
             
             try {
-              const recoverySuccess = await unifiedBootstrap.performRecovery();
+              const recoverySuccess = await optimizedBootstrap.performRecovery();
               if (recoverySuccess) {
                 setConsecutiveFailures(0);
                 
@@ -62,18 +62,6 @@ export function ProductionHealthMonitor() {
           }
         }
 
-        // Auto-update static config when user is authenticated and system is healthy
-        if (user && status.isReady) {
-          const lastUpdate = localStorage.getItem('last_static_update');
-          const now = Date.now();
-          const oneHour = 60 * 60 * 1000;
-          
-          if (!lastUpdate || (now - new Date(lastUpdate).getTime()) > oneHour) {
-            logger.info('Performing scheduled static config update', { module: 'health-monitor' });
-            await unifiedBootstrap.updateStaticConfiguration();
-          }
-        }
-
       } catch (error) {
         logger.error('Health check error', error, { module: 'health-monitor' });
         setConsecutiveFailures(prev => prev + 1);
@@ -83,8 +71,8 @@ export function ProductionHealthMonitor() {
     // Initial health check
     performHealthCheck();
     
-    // Periodic health checks (every 30 seconds in development, 2 minutes in production)
-    const interval = process.env.NODE_ENV === 'development' ? 30000 : 120000;
+    // Optimized health check intervals (every 60 seconds in development, 5 minutes in production)
+    const interval = process.env.NODE_ENV === 'development' ? 60000 : 300000;
     healthCheckInterval = setInterval(performHealthCheck, interval);
 
     return () => {
@@ -112,7 +100,7 @@ export function ProductionHealthMonitor() {
           {lastHealthCheck.errors.length > 0 && ` (${lastHealthCheck.errors.length} errors)`}
           {consecutiveFailures > 0 && ` (${consecutiveFailures} failures)`}
           <div className="text-xs opacity-75">
-            Services: {Object.values(lastHealthCheck.services).filter(Boolean).length}/5
+            Services: {Object.values(lastHealthCheck.services).filter(Boolean).length}/3
           </div>
         </div>
       )}

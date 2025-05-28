@@ -6,13 +6,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./hooks/use-theme";
-import { UnifiedBootstrapProvider } from "./components/providers/UnifiedBootstrapProvider";
+import { OptimizedBootstrapProvider } from "./components/providers/OptimizedBootstrapProvider";
 import { GlobalErrorBoundary } from "./components/error/GlobalErrorBoundary";
 import { ProductionHealthMonitor } from "./components/system/ProductionHealthMonitor";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { useDebugMode } from "./hooks/useDebugMode";
 import { useEffect } from "react";
-import { unifiedBootstrap } from "./services/bootstrap/unified-bootstrap-service";
+import { optimizedBootstrap } from "./services/bootstrap/optimized-bootstrap-service";
 import { logger } from "./utils/logging";
 import Index from "./pages/Index";
 import Initialize from "./pages/Initialize";
@@ -22,15 +22,22 @@ import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes
+    },
+  },
+});
 
 function AppContent() {
   const { isDebugMode, showDebugPanel, toggleDebugPanel } = useDebugMode();
 
   useEffect(() => {
-    // Start unified bootstrap system
-    unifiedBootstrap.initialize().catch(error => {
-      logger.error('Failed to initialize unified bootstrap', error, { module: 'app' });
+    // Start optimized bootstrap system
+    optimizedBootstrap.initialize().catch(error => {
+      logger.error('Failed to initialize optimized bootstrap', error, { module: 'app' });
     });
     
     // Add global error handler
@@ -54,7 +61,7 @@ function AppContent() {
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
     return () => {
-      unifiedBootstrap.cleanup();
+      optimizedBootstrap.cleanup();
       window.removeEventListener('error', handleError);
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
@@ -126,7 +133,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <BrowserRouter>
-            <UnifiedBootstrapProvider>
+            <OptimizedBootstrapProvider>
               <AuthProvider>
                 <ThemeProvider>
                   <AppContent />
@@ -134,7 +141,7 @@ function App() {
                   <Sonner />
                 </ThemeProvider>
               </AuthProvider>
-            </UnifiedBootstrapProvider>
+            </OptimizedBootstrapProvider>
           </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>

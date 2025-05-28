@@ -1,11 +1,11 @@
 
 import { logger } from '@/utils/logging';
-import { unifiedConfig } from '@/services/config/unified-config-service';
+import { optimizedConfig } from '@/services/config/optimized-config-service';
 import { clientManager } from '@/services/supabase/client-manager';
 import { bootstrapPhases, BootstrapPhase } from './bootstrap-phases';
 
 /**
- * Orchestrates the complete bootstrap process through all phases
+ * Optimized bootstrap orchestrator with no artificial delays and parallel processing
  */
 export class BootstrapOrchestrator {
   private static instance: BootstrapOrchestrator | null = null;
@@ -19,7 +19,7 @@ export class BootstrapOrchestrator {
   }
 
   /**
-   * Run complete bootstrap process with optimized timing
+   * Optimized bootstrap process with parallel execution
    */
   async bootstrap(): Promise<void> {
     if (this.isBootstrapping) {
@@ -32,9 +32,9 @@ export class BootstrapOrchestrator {
     try {
       logger.info('Starting optimized bootstrap orchestration', { module: 'bootstrap-orchestrator' });
 
-      // Phase 1: Load Configuration (fast)
+      // Phase 1: Load Configuration (with aggressive caching)
       bootstrapPhases.startLoadingConfig();
-      const configResult = await unifiedConfig.loadConfig();
+      const configResult = await optimizedConfig.loadConfig();
 
       if (!configResult.success || !configResult.config) {
         if (configResult.error?.includes('No valid configuration')) {
@@ -59,11 +59,11 @@ export class BootstrapOrchestrator {
 
       bootstrapPhases.clientReady();
 
-      // Phase 3: Initialize Auth (minimal delay)
+      // Phase 3: Initialize Auth (no delays)
       bootstrapPhases.startInitializingAuth();
       
-      // Minimal settle time for auth state
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Quick auth state verification
+      await this.quickAuthVerification();
       
       bootstrapPhases.authReady();
 
@@ -72,8 +72,7 @@ export class BootstrapOrchestrator {
 
       logger.info('Optimized bootstrap orchestration completed', {
         module: 'bootstrap-orchestrator',
-        configSource: configResult.source,
-        duration: 'fast'
+        configSource: configResult.source
       });
 
     } catch (error) {
@@ -85,8 +84,21 @@ export class BootstrapOrchestrator {
     }
   }
 
+  private async quickAuthVerification(): Promise<void> {
+    // Quick, non-blocking auth verification
+    const client = clientManager.getClient();
+    if (client) {
+      try {
+        // Just get session without waiting for refresh
+        await client.auth.getSession();
+      } catch (error) {
+        logger.warn('Auth verification warning (non-critical)', error, { module: 'bootstrap-orchestrator' });
+      }
+    }
+  }
+
   /**
-   * Reset everything and start fresh
+   * Quick reset and restart
    */
   async reset(): Promise<void> {
     logger.info('Resetting bootstrap orchestrator', { module: 'bootstrap-orchestrator' });
@@ -95,8 +107,8 @@ export class BootstrapOrchestrator {
     
     // Reset all managers
     await clientManager.destroy();
-    unifiedConfig.clearCache();
-    unifiedConfig.clearLocalStorage();
+    optimizedConfig.clearCache();
+    optimizedConfig.clearLocalStorage();
     bootstrapPhases.reset();
   }
 
