@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { SettingsTabs } from '@/components/settings/SettingsTabs';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
 import { BackgroundSettings } from '@/components/settings/BackgroundSettings';
-import { ThemeImportExport } from '@/components/settings/ThemeImportExport';
 import { useTheme } from '@/hooks/use-theme';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
@@ -101,15 +100,6 @@ const Settings = () => {
     navigate('/');
   };
   
-  const handleImportTheme = (theme: any) => {
-    toast({
-      title: "Theme imported",
-      description: "The new theme has been applied.",
-      duration: 3000,
-    });
-    setHasChanges(true);
-  };
-  
   const handleSetDefault = () => {
     toast({
       title: "Default Theme Set",
@@ -183,13 +173,6 @@ const Settings = () => {
                     onRemoveBackground={handleRemoveBackground}
                     isLoading={isBackgroundLoading}
                     imageInfo={imageInfo}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="import-export" className="space-y-6 mt-4">
-                  <ThemeImportExport 
-                    theme={theme as any}
-                    onImport={handleImportTheme}
                   />
                 </TabsContent>
               </SettingsTabs>

@@ -1,22 +1,26 @@
 
-import React, { ReactNode } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import React from 'react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Palette, Image } from 'lucide-react';
 
 interface SettingsTabsProps {
-  children: ReactNode;
-  defaultValue?: string;
+  children: React.ReactNode;
 }
 
-export function SettingsTabs({ children, defaultValue = "appearance" }: SettingsTabsProps) {
+export const SettingsTabs = ({ children }: SettingsTabsProps) => {
   return (
-    <Tabs defaultValue={defaultValue} className="w-full">
-      <TabsList className="grid w-full grid-cols-3">
-        <TabsTrigger value="appearance">Appearance</TabsTrigger>
-        <TabsTrigger value="background">Background</TabsTrigger>
-        <TabsTrigger value="import-export">Import/Export</TabsTrigger>
+    <Tabs defaultValue="appearance" className="w-full">
+      <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="appearance" className="flex items-center gap-2">
+          <Palette className="h-4 w-4" />
+          <span className="hidden sm:inline">Appearance</span>
+        </TabsTrigger>
+        <TabsTrigger value="background" className="flex items-center gap-2">
+          <Image className="h-4 w-4" />
+          <span className="hidden sm:inline">Background</span>
+        </TabsTrigger>
       </TabsList>
-      
       {children}
     </Tabs>
   );
-}
+};

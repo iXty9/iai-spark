@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeColors, ThemeSettings } from '@/types/theme';
@@ -14,9 +13,6 @@ interface ThemeContextType {
   mode: Theme;
   setMode: (mode: Theme) => void;
   resetTheme: () => void;
-  importTheme: (themeJson: string) => boolean;
-  exportTheme: () => string;
-  validateTheme: (themeJson: string) => boolean;
   isThemeLoaded: boolean;
   applyThemeColors: (colors: ThemeColors) => void;
   applyBackground: (backgroundImage: string | null, opacity: number) => void;
@@ -186,64 +182,6 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
   
-  const validateTheme = (themeJson: string): boolean => {
-    try {
-      const parsedTheme = JSON.parse(themeJson);
-      return themeService.validateThemeSettings(parsedTheme);
-    } catch {
-      return false;
-    }
-  };
-  
-  const importTheme = (themeJson: string): boolean => {
-    try {
-      const parsedTheme = JSON.parse(themeJson) as ThemeSettings;
-      
-      if (!themeService.validateThemeSettings(parsedTheme)) {
-        return false;
-      }
-      
-      // Apply imported theme
-      if (parsedTheme.mode) setTheme(parsedTheme.mode);
-      if (parsedTheme.lightTheme) setLightTheme(parsedTheme.lightTheme);
-      if (parsedTheme.darkTheme) setDarkTheme(parsedTheme.darkTheme);
-      if (parsedTheme.backgroundImage !== undefined) setBackgroundImage(parsedTheme.backgroundImage);
-      if (parsedTheme.backgroundOpacity) {
-        // Fix type conversion here
-        const opacity = typeof parsedTheme.backgroundOpacity === 'string'
-          ? parseFloat(parsedTheme.backgroundOpacity)
-          : parsedTheme.backgroundOpacity;
-        if (!isNaN(opacity)) setBackgroundOpacity(opacity);
-      }
-      
-      // Save to profile if available
-      if (profile && updateProfile) {
-        updateProfile({ theme_settings: themeJson });
-      }
-      
-      return true;
-    } catch {
-      return false;
-    }
-  };
-  
-  const exportTheme = (): string => {
-    try {
-      const themeSettings = themeService.createThemeSettings(
-        theme,
-        lightTheme,
-        darkTheme,
-        backgroundImage,
-        backgroundOpacity
-      );
-      
-      return JSON.stringify(themeSettings, null, 2);
-    } catch (error) {
-      logger.error('Failed to export theme:', error);
-      return JSON.stringify({ error: "Failed to export theme" });
-    }
-  };
-  
   const applyThemeColors = (colors: ThemeColors) => {
     themeService.applyThemeImmediate(colors, theme);
   };
@@ -278,9 +216,6 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         mode,
         setMode,
         resetTheme,
-        importTheme,
-        exportTheme,
-        validateTheme,
         isThemeLoaded: isThemeLoaded && isThemeReady,
         applyThemeColors,
         applyBackground,
