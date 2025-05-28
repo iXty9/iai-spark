@@ -1,0 +1,108 @@
+
+import React, { useEffect, useState, ReactNode } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Loader2, Settings, Database } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { fastBootstrap, FastBootstrapStatus } from '@/services/bootstrap/fast-bootstrap-service';
+import { logger } from '@/utils/logging';
+
+interface FastBootstrapProviderProps {
+  children: ReactNode;
+}
+
+export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ children }) => {
+  const [status, setStatus] = useState<FastBootstrapStatus | null>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Subscribe to status updates
+    const unsubscribe = fastBootstrap.subscribe(setStatus);
+
+    // Start bootstrap immediately
+    fastBootstrap.initialize().catch(error => {
+      logger.error('Failed to initialize fast bootstrap', error);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  // Auto-redirect to setup when needed
+  useEffect(() => {
+    if (status?.needsSetup) {
+      navigate('/initialize');
+    }
+  }, [status?.needsSetup, navigate]);
+
+  // Show app if ready
+  if (status?.isReady) {
+    return <>{children}</>;
+  }
+
+  // Show setup needed
+  if (status?.needsSetup) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <Card className="w-full max-w-md mx-4">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Setup Required
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              Please configure your database connection to continue.
+            </p>
+            <Button onClick={() => navigate('/initialize')} className="w-full">
+              <Settings className="mr-2 h-4 w-4" />
+              Start Setup
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (status?.phase === 'error') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-pink-100">
+        <Card className="w-full max-w-md mx-4">
+          <CardHeader>
+            <CardTitle className="text-red-600">Initialization Error</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {status.error || 'An error occurred during initialization.'}
+            </p>
+            <Button 
+              onClick={() => navigate('/initialize')} 
+              className="w-full"
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Go to Setup
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show minimal loading state
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <Card className="w-full max-w-md mx-4">
+        <CardContent className="pt-6">
+          <div className="flex flex-col items-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            <div className="text-center">
+              <p className="font-medium">Loading Configuration</p>
+              <p className="text-sm text-muted-foreground">Please wait...</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};

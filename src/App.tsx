@@ -6,13 +6,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./hooks/use-theme";
-import { OptimizedBootstrapProvider } from "./components/providers/OptimizedBootstrapProvider";
+import { FastBootstrapProvider } from "./components/providers/FastBootstrapProvider";
 import { GlobalErrorBoundary } from "./components/error/GlobalErrorBoundary";
-import { ProductionHealthMonitor } from "./components/system/ProductionHealthMonitor";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { useDebugMode } from "./hooks/useDebugMode";
 import { useEffect } from "react";
-import { optimizedBootstrap } from "./services/bootstrap/optimized-bootstrap-service";
 import { logger } from "./utils/logging";
 import Index from "./pages/Index";
 import Initialize from "./pages/Initialize";
@@ -35,11 +33,6 @@ function AppContent() {
   const { isDebugMode, showDebugPanel, toggleDebugPanel } = useDebugMode();
 
   useEffect(() => {
-    // Start optimized bootstrap system
-    optimizedBootstrap.initialize().catch(error => {
-      logger.error('Failed to initialize optimized bootstrap', error, { module: 'app' });
-    });
-    
     // Add global error handler
     const handleError = (event: ErrorEvent) => {
       logger.error('Global error caught', {
@@ -61,7 +54,6 @@ function AppContent() {
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
     return () => {
-      optimizedBootstrap.cleanup();
       window.removeEventListener('error', handleError);
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
@@ -93,8 +85,6 @@ function AppContent() {
           />
           <Route path="*" element={<NotFound />} />
         </Routes>
-        
-        <ProductionHealthMonitor />
         
         {/* Debug Panel */}
         {(isDebugMode || showDebugPanel) && (
@@ -133,7 +123,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <BrowserRouter>
-            <OptimizedBootstrapProvider>
+            <FastBootstrapProvider>
               <AuthProvider>
                 <ThemeProvider>
                   <AppContent />
@@ -141,7 +131,7 @@ function App() {
                   <Sonner />
                 </ThemeProvider>
               </AuthProvider>
-            </OptimizedBootstrapProvider>
+            </FastBootstrapProvider>
           </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>
