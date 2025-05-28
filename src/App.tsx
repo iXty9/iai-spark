@@ -49,8 +49,8 @@ function App() {
   return (
     <GlobalErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <FastBootstrapProvider>
-          <Router>
+        <Router>
+          <FastBootstrapProvider>
             <AuthProvider>
               <ThemeProvider>
                 <div className="min-h-screen bg-background text-foreground">
@@ -100,8 +100,8 @@ function App() {
                 </div>
               </ThemeProvider>
             </AuthProvider>
-          </Router>
-        </FastBootstrapProvider>
+          </FastBootstrapProvider>
+        </Router>
       </QueryClientProvider>
     </GlobalErrorBoundary>
   );
