@@ -85,13 +85,22 @@ const Settings = () => {
     logger.info('Background opacity changed', { module: 'settings', opacity: newOpacity });
   };
 
-  const handleLightThemeChange = (newTheme: ThemeColors) => {
-    applyThemeColors(newTheme);
+  // Create adapter functions that match AppearanceSettings interface
+  const handleLightThemeChange = (colorKey: string, value: string) => {
+    const updatedTheme: ThemeColors = {
+      ...lightTheme,
+      [colorKey]: value
+    };
+    applyThemeColors(updatedTheme);
     setHasChanges(true);
   };
 
-  const handleDarkThemeChange = (newTheme: ThemeColors) => {
-    applyThemeColors(newTheme);
+  const handleDarkThemeChange = (colorKey: string, value: string) => {
+    const updatedTheme: ThemeColors = {
+      ...darkTheme,
+      [colorKey]: value
+    };
+    applyThemeColors(updatedTheme);
     setHasChanges(true);
   };
 
