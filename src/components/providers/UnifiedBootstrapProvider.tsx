@@ -41,7 +41,7 @@ export const UnifiedBootstrapProvider: React.FC<UnifiedBootstrapProviderProps> =
         // Wait a moment for state to update
         setTimeout(() => {
           setIsRecovering(false);
-        }, 2000);
+        }, 1000);
       } else {
         setIsRecovering(false);
       }
@@ -91,7 +91,7 @@ export const UnifiedBootstrapProvider: React.FC<UnifiedBootstrapProviderProps> =
     return <>{children}</>;
   }
 
-  // Show loading state for active phases
+  // Show optimized loading state for active phases
   if (status && 
       status.phase !== BootstrapPhase.NEEDS_SETUP && 
       status.phase !== BootstrapPhase.ERROR) {
@@ -136,6 +136,13 @@ export const UnifiedBootstrapProvider: React.FC<UnifiedBootstrapProviderProps> =
                 {phaseInfo.label}
               </AlertDescription>
             </Alert>
+
+            {/* Show timeout message if stuck */}
+            {status?.progress === 40 && (
+              <div className="text-xs text-amber-600 text-center">
+                Taking longer than expected? This may indicate a network issue.
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

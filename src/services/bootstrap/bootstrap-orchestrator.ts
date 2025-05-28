@@ -19,7 +19,7 @@ export class BootstrapOrchestrator {
   }
 
   /**
-   * Run complete bootstrap process
+   * Run complete bootstrap process with optimized timing
    */
   async bootstrap(): Promise<void> {
     if (this.isBootstrapping) {
@@ -30,9 +30,9 @@ export class BootstrapOrchestrator {
     this.isBootstrapping = true;
 
     try {
-      logger.info('Starting bootstrap orchestration', { module: 'bootstrap-orchestrator' });
+      logger.info('Starting optimized bootstrap orchestration', { module: 'bootstrap-orchestrator' });
 
-      // Phase 1: Load Configuration
+      // Phase 1: Load Configuration (fast)
       bootstrapPhases.startLoadingConfig();
       const configResult = await unifiedConfig.loadConfig();
 
@@ -47,7 +47,7 @@ export class BootstrapOrchestrator {
 
       bootstrapPhases.configLoaded(configResult.config, configResult.source || 'unknown');
 
-      // Phase 2: Initialize Client
+      // Phase 2: Initialize Client (optimized)
       bootstrapPhases.startInitializingClient();
       const clientSuccess = await clientManager.initialize(configResult.config);
 
@@ -59,20 +59,21 @@ export class BootstrapOrchestrator {
 
       bootstrapPhases.clientReady();
 
-      // Phase 3: Initialize Auth (prepare for auth state)
+      // Phase 3: Initialize Auth (minimal delay)
       bootstrapPhases.startInitializingAuth();
       
-      // Give a moment for auth state to settle
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Minimal settle time for auth state
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       bootstrapPhases.authReady();
 
-      // Phase 4: Complete
+      // Phase 4: Complete immediately
       bootstrapPhases.complete();
 
-      logger.info('Bootstrap orchestration completed successfully', {
+      logger.info('Optimized bootstrap orchestration completed', {
         module: 'bootstrap-orchestrator',
-        configSource: configResult.source
+        configSource: configResult.source,
+        duration: 'fast'
       });
 
     } catch (error) {

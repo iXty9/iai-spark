@@ -9,6 +9,7 @@ import { ThemeProvider } from "./hooks/use-theme";
 import { UnifiedBootstrapProvider } from "./components/providers/UnifiedBootstrapProvider";
 import { GlobalErrorBoundary } from "./components/error/GlobalErrorBoundary";
 import { ProductionHealthMonitor } from "./components/system/ProductionHealthMonitor";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { useDebugMode } from "./hooks/useDebugMode";
 import { useEffect } from "react";
 import { unifiedBootstrap } from "./services/bootstrap/unified-bootstrap-service";
@@ -17,6 +18,9 @@ import Index from "./pages/Index";
 import Initialize from "./pages/Initialize";
 import Auth from "./pages/Auth";
 import SupabaseAuth from "./pages/SupabaseAuth";
+import Settings from "./pages/Settings";
+import Profile from "./pages/Profile";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +68,23 @@ function AppContent() {
           <Route path="/auth" element={<Auth />} />
           <Route path="/initialize" element={<Initialize />} />
           <Route path="/supabase-auth/callback" element={<SupabaseAuth />} />
+          <Route 
+            path="/settings" 
+            element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/profile" 
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            } 
+          />
+          <Route path="*" element={<NotFound />} />
         </Routes>
         
         <ProductionHealthMonitor />
