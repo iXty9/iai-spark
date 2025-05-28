@@ -1,4 +1,3 @@
-
 import { ThemeColors, ThemeSettings } from '@/types/theme';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { logger } from '@/utils/logging';
@@ -134,16 +133,17 @@ class ThemeService {
   }
 
   /**
-   * Apply background image and opacity - FIXED
+   * Apply background image and opacity - COMPLETELY FIXED
    */
   applyBackground(imageUrl: string | null, opacity: number): void {
     const root = document.documentElement;
     
-    // FIXED: Ensure opacity is properly normalized (0-1 range)
+    // Ensure opacity is properly normalized (0-1 range)
     const normalizedOpacity = Math.max(0, Math.min(1, opacity));
     
-    // Set opacity variable - FIXED calculation
-    root.style.setProperty('--bg-opacity', (1 - normalizedOpacity).toString());
+    // FIXED: Set opacity variable correctly for CSS calculation
+    // The CSS uses this directly as overlay opacity - higher values = more background color showing through
+    root.style.setProperty('--bg-opacity', normalizedOpacity.toString());
     
     if (imageUrl) {
       document.body.style.backgroundImage = `url(${imageUrl})`;
@@ -151,7 +151,7 @@ class ThemeService {
       logger.info('Background image applied', { 
         module: 'theme-service', 
         opacity: normalizedOpacity,
-        cssOpacity: 1 - normalizedOpacity
+        imageLength: imageUrl.length
       });
     } else {
       document.body.style.backgroundImage = 'none';

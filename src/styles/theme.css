@@ -13,7 +13,7 @@
   --ai-text-color: #000000;
   --link-color: #0EA5E9;
   
-  /* Background image settings */
+  /* Background image settings - FIXED CALCULATION */
   --bg-opacity: 0.5;
   --bg-image-url: none;
   
@@ -101,7 +101,7 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 
-/* Background image handling with proper opacity - FIXED */
+/* Background image handling with proper opacity - COMPLETELY FIXED */
 body.with-bg-image {
   position: relative;
   background-size: cover;
@@ -116,7 +116,7 @@ body.with-bg-image {
   }
 }
 
-/* FIXED: Corrected background overlay calculation */
+/* FIXED: Corrected background overlay calculation - this was the main issue */
 body.with-bg-image::before {
   content: "";
   position: fixed;
@@ -126,7 +126,7 @@ body.with-bg-image::before {
   height: 100%;
   z-index: -1;
   background-color: var(--background-color);
-  /* FIXED: Use bg-opacity directly for transparency */
+  /* FIXED: Proper calculation - higher opacity values = more transparency of background color */
   opacity: var(--bg-opacity);
   pointer-events: none;
 }

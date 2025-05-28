@@ -2,7 +2,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeColors, ThemeSettings } from '@/types/theme';
-import { themeService } from '@/services/theme-service';
+import { unifiedThemeController } from '@/services/unified-theme-controller';
 import { useThemeInitialization } from '@/hooks/use-theme-initialization';
 import { logger } from '@/utils/logging';
 
@@ -30,132 +30,70 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const authContext = useAuth();
   const { isThemeReady } = useThemeInitialization();
   
-  const [theme, setTheme] = useState<Theme>(() => {
-    // Get initial theme from localStorage or default to light
-    return themeService.getStoredThemeMode() || 'light';
-  });
-  
-  const [isThemeLoaded, setIsThemeLoaded] = useState<boolean>(false);
-  const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
-  const [backgroundOpacity, setBackgroundOpacity] = useState<number>(0.5);
-  const [lightTheme, setLightTheme] = useState<ThemeColors>(() => 
-    themeService.getDefaultThemeColors('light')
-  );
-  const [darkTheme, setDarkTheme] = useState<ThemeColors>(() => 
-    themeService.getDefaultThemeColors('dark')
-  );
+  // Get state from unified controller
+  const [controllerState, setControllerState] = useState(() => unifiedThemeController.getState());
+  const [isThemeLoaded, setIsThemeLoaded] = useState(false);
   
   // Safely access profile and updateProfile
   const profile = authContext?.profile || null;
   const updateProfile = authContext?.updateProfile || (() => Promise.resolve());
   
-  // Load theme settings when profile is available or theme service is ready
+  // Initialize controller when theme system is ready
   useEffect(() => {
-    const loadThemeSettings = async () => {
-      if (!isThemeReady) return;
+    const initializeController = async () => {
+      if (!isThemeReady || isThemeLoaded) return;
 
       try {
-        let themeSettings: ThemeSettings | null = null;
+        let userSettings: ThemeSettings | null = null;
         
-        // Try to load from user profile first (for signed-in users)
+        // Try to load from user profile
         if (profile?.theme_settings) {
           try {
-            themeSettings = JSON.parse(profile.theme_settings);
+            userSettings = JSON.parse(profile.theme_settings);
             logger.info('Loaded theme from user profile', { module: 'use-theme' });
           } catch (e) {
             logger.warn('Failed to parse user theme settings', e);
           }
         }
         
-        // Fall back to admin defaults (for signed-out users or users without custom themes)
-        if (!themeSettings) {
-          themeSettings = themeService.getAdminDefaults();
-          if (themeSettings) {
-            logger.info('Using admin default theme', { module: 'use-theme' });
-          }
-        }
+        // Initialize the unified controller
+        await unifiedThemeController.initialize(userSettings);
         
-        // Apply theme settings if found
-        if (themeSettings && themeService.validateThemeSettings(themeSettings)) {
-          // Update theme mode if specified
-          if (themeSettings.mode) {
-            setTheme(themeSettings.mode);
-          }
-          
-          // Update theme colors
-          if (themeSettings.lightTheme) {
-            setLightTheme(themeSettings.lightTheme);
-          }
-          if (themeSettings.darkTheme) {
-            setDarkTheme(themeSettings.darkTheme);
-          }
-          
-          // Update background settings - FIXED type handling
-          if (themeSettings.backgroundImage) {
-            setBackgroundImage(themeSettings.backgroundImage);
-          }
-          if (themeSettings.backgroundOpacity !== undefined) {
-            // FIXED: Proper type conversion
-            const opacity = typeof themeSettings.backgroundOpacity === 'string' 
-              ? parseFloat(themeSettings.backgroundOpacity)
-              : themeSettings.backgroundOpacity;
-            if (!isNaN(opacity)) {
-              setBackgroundOpacity(opacity);
-            }
-          }
-          
-          // Apply the current theme immediately
-          const currentColors = themeSettings.mode === 'dark' 
-            ? (themeSettings.darkTheme || darkTheme)
-            : (themeSettings.lightTheme || lightTheme);
-          
-          themeService.applyThemeImmediate(currentColors, themeSettings.mode || theme);
-          
-          // Apply background if present - FIXED opacity handling
-          if (themeSettings.backgroundImage) {
-            const bgOpacity = typeof themeSettings.backgroundOpacity === 'string'
-              ? parseFloat(themeSettings.backgroundOpacity || '0.5')
-              : (themeSettings.backgroundOpacity || 0.5);
-            themeService.applyBackground(themeSettings.backgroundImage, bgOpacity);
-          }
-        }
-        
+        // Update local state
+        setControllerState(unifiedThemeController.getState());
         setIsThemeLoaded(true);
+        
+        logger.info('Theme context initialized successfully', { module: 'use-theme' });
       } catch (error) {
-        logger.error('Error loading theme settings:', error, { module: 'use-theme' });
+        logger.error('Error initializing theme context:', error, { module: 'use-theme' });
         setIsThemeLoaded(true); // Still mark as loaded to prevent infinite loading
       }
     };
 
-    loadThemeSettings();
-  }, [isThemeReady, profile, theme, lightTheme, darkTheme]);
-  
-  // Apply theme changes when theme or colors change
+    initializeController();
+  }, [isThemeReady, profile, isThemeLoaded]);
+
+  // Subscribe to controller changes
   useEffect(() => {
     if (!isThemeLoaded) return;
-    
-    const currentColors = theme === 'dark' ? darkTheme : lightTheme;
-    themeService.applyThemeImmediate(currentColors, theme);
-  }, [theme, lightTheme, darkTheme, isThemeLoaded]);
-  
-  // Apply background when background settings change
-  useEffect(() => {
-    if (!isThemeLoaded) return;
-    themeService.applyBackground(backgroundImage, backgroundOpacity);
-  }, [backgroundImage, backgroundOpacity, isThemeLoaded]);
+
+    const unsubscribe = unifiedThemeController.subscribe((newState) => {
+      setControllerState(newState);
+      logger.info('Theme context updated from controller', { module: 'use-theme' });
+    });
+
+    return unsubscribe;
+  }, [isThemeLoaded]);
   
   // Theme management functions
-  const mode = theme;
-  const setMode = setTheme;
-  
   const handleThemeChange = (newTheme: Theme) => {
-    setTheme(newTheme);
+    unifiedThemeController.setMode(newTheme);
     
+    // Save to profile if available
     if (profile && updateProfile) {
       try {
-        const existingSettings = profile.theme_settings ? JSON.parse(profile.theme_settings) : {};
-        const updatedSettings = { ...existingSettings, mode: newTheme };
-        updateProfile({ theme_settings: JSON.stringify(updatedSettings) });
+        const themeSettings = unifiedThemeController.createThemeSettings();
+        updateProfile({ theme_settings: JSON.stringify(themeSettings) });
       } catch (error) {
         logger.error('Failed to save theme mode:', error);
       }
@@ -163,44 +101,34 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   };
   
   const resetTheme = () => {
-    const adminDefaults = themeService.getAdminDefaults();
+    // Reset through controller - it will handle admin defaults vs built-in defaults
+    const adminDefaults = unifiedThemeController.getState();
     
-    if (adminDefaults) {
-      // Use admin defaults
-      setLightTheme(adminDefaults.lightTheme || themeService.getDefaultThemeColors('light'));
-      setDarkTheme(adminDefaults.darkTheme || themeService.getDefaultThemeColors('dark'));
-      setBackgroundImage(adminDefaults.backgroundImage || null);
-      // FIXED: Proper type conversion for opacity
-      const opacity = typeof adminDefaults.backgroundOpacity === 'string'
-        ? parseFloat(adminDefaults.backgroundOpacity || '0.5')
-        : (adminDefaults.backgroundOpacity || 0.5);
-      setBackgroundOpacity(opacity);
-    } else {
-      // Use built-in defaults
-      setLightTheme(themeService.getDefaultThemeColors('light'));
-      setDarkTheme(themeService.getDefaultThemeColors('dark'));
-      setBackgroundImage(null);
-      setBackgroundOpacity(0.5);
-    }
+    // Just reset to initial defaults - this could be enhanced to reset to admin defaults
+    logger.info('Resetting theme to defaults', { module: 'use-theme' });
+    
+    // For now, trigger a reload to get fresh defaults
+    window.location.reload();
   };
   
   const applyThemeColors = (colors: ThemeColors) => {
-    themeService.applyThemeImmediate(colors, theme);
+    // Apply through controller for consistency
+    if (controllerState.mode === 'light') {
+      unifiedThemeController.setLightTheme(colors);
+    } else {
+      unifiedThemeController.setDarkTheme(colors);
+    }
   };
   
   const applyBackground = (image: string | null, opacity: number) => {
-    setBackgroundImage(image);
-    setBackgroundOpacity(opacity);
+    unifiedThemeController.setBackgroundImage(image);
+    unifiedThemeController.setBackgroundOpacity(opacity);
     
+    // Save to profile if available
     if (profile && updateProfile) {
       try {
-        const existingSettings = profile.theme_settings ? JSON.parse(profile.theme_settings) : {};
-        const updatedSettings = {
-          ...existingSettings,
-          backgroundImage: image,
-          backgroundOpacity: opacity // Keep as number
-        };
-        updateProfile({ theme_settings: JSON.stringify(updatedSettings) });
+        const themeSettings = unifiedThemeController.createThemeSettings();
+        updateProfile({ theme_settings: JSON.stringify(themeSettings) });
       } catch (error) {
         logger.error('Failed to save background settings:', error);
       }
@@ -208,24 +136,24 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   };
   
   // Get current theme colors
-  const currentThemeColors = theme === 'dark' ? darkTheme : lightTheme;
+  const currentThemeColors = controllerState.mode === 'dark' ? controllerState.darkTheme : controllerState.lightTheme;
   
   return (
     <ThemeContext.Provider
       value={{
-        theme,
+        theme: controllerState.mode,
         setTheme: handleThemeChange,
-        mode,
-        setMode,
+        mode: controllerState.mode,
+        setMode: handleThemeChange,
         resetTheme,
         isThemeLoaded: isThemeLoaded && isThemeReady,
         applyThemeColors,
         applyBackground,
-        backgroundImage,
-        backgroundOpacity,
+        backgroundImage: controllerState.backgroundImage,
+        backgroundOpacity: controllerState.backgroundOpacity,
         currentThemeColors,
-        lightTheme,
-        darkTheme,
+        lightTheme: controllerState.lightTheme,
+        darkTheme: controllerState.darkTheme,
       }}
     >
       {children}

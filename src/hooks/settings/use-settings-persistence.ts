@@ -1,9 +1,10 @@
+
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { logger } from '@/utils/logging';
 import { ThemeColors } from '@/types/theme';
-import { applyThemeChanges, applyBackgroundImage, createThemeSettingsObject } from '@/utils/theme-utils';
+import { unifiedThemeController } from '@/services/unified-theme-controller';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 
 export interface UseSettingsPersistenceProps {
@@ -38,13 +39,11 @@ export const useSettingsPersistence = ({
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [defaultThemeSettings, setDefaultThemeSettings] = useState<any>(null);
-  const [isLoadingDefaults, setIsLoadingDefaults] = useState(false);
 
   // Fetch default theme settings on component mount
   useEffect(() => {
     const getDefaultThemeSettings = async () => {
       try {
-        setIsLoadingDefaults(true);
         logger.info('Fetching default theme settings', { module: 'settings' });
         const appSettings = await fetchAppSettings();
         if (appSettings.default_theme_settings) {
@@ -55,43 +54,28 @@ export const useSettingsPersistence = ({
             mode: parsedSettings.mode
           });
           setDefaultThemeSettings(parsedSettings);
-        } else {
-          logger.info('No default theme settings found in app_settings', { module: 'settings' });
         }
       } catch (error) {
         logger.error('Failed to fetch default theme settings', error, { module: 'settings' });
-      } finally {
-        setIsLoadingDefaults(false);
       }
     };
     
     getDefaultThemeSettings();
   }, []);
 
-  // Validate color format
-  const isValidColor = (color: string): boolean => {
-    return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color);
-  };
-
   // Validate theme settings before saving
   const validateThemeSettings = (): boolean => {
-    // Validate both themes regardless of current mode
     const themesToValidate = [lightTheme, darkTheme];
     
     for (const themeToValidate of themesToValidate) {
       const colorProps = [
-        'backgroundColor', 
-        'primaryColor', 
-        'textColor', 
-        'accentColor', 
-        'userBubbleColor', 
-        'aiBubbleColor',
-        'userTextColor',
-        'aiTextColor'
+        'backgroundColor', 'primaryColor', 'textColor', 'accentColor', 
+        'userBubbleColor', 'aiBubbleColor', 'userTextColor', 'aiTextColor'
       ];
       
       for (const prop of colorProps) {
-        if (!isValidColor(themeToValidate[prop as keyof ThemeColors] as string)) {
+        const value = themeToValidate[prop as keyof ThemeColors] as string;
+        if (!/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(value)) {
           toast({
             variant: "destructive",
             title: "Invalid color format",
@@ -114,58 +98,36 @@ export const useSettingsPersistence = ({
     setIsSubmitting(true);
     
     try {
-      const themeSettings = createThemeSettingsObject(
-        theme, 
-        lightTheme, 
-        darkTheme, 
-        backgroundImage, 
-        backgroundOpacity
-      );
+      // Create theme settings from unified controller
+      const themeSettings = unifiedThemeController.createThemeSettings();
       
-      // Apply the background image with the new opacity immediately
-      applyBackgroundImage(backgroundImage, backgroundOpacity);
-      
-      // Apply current theme settings
-      const currentTheme = theme === 'light' ? lightTheme : darkTheme;
-      applyThemeChanges(currentTheme);
+      logger.info('Saving theme settings', { 
+        module: 'settings',
+        backgroundOpacity: backgroundOpacity,
+        hasBackground: !!backgroundImage
+      });
 
       if (user && updateProfile) {
-        // Make sure we stringify the theme settings and keep opacity as number
-        const settingsToSave = {
-          ...themeSettings,
-          backgroundOpacity: backgroundOpacity // Ensure number type
-        };
-        await updateProfile({ theme_settings: JSON.stringify(settingsToSave) });
+        await updateProfile({ theme_settings: JSON.stringify(themeSettings) });
         
-        logger.info('Settings saved successfully', { 
-          module: 'settings',
-          backgroundOpacity: backgroundOpacity,
-          hasBackground: !!backgroundImage
-        });
+        logger.info('Settings saved successfully to profile', { module: 'settings' });
 
         toast({
           title: "Settings saved",
           description: "Your theme settings have been saved successfully",
         });
-        
-        // Reset changes flag after successful save
-        setHasChanges(false);
       } else {
-        // Fallback to localStorage if no updateProfile function is available
-        const settingsToSave = {
-          ...themeSettings,
-          backgroundOpacity: backgroundOpacity
-        };
-        localStorage.setItem('theme_settings', JSON.stringify(settingsToSave));
+        // Fallback to localStorage
+        localStorage.setItem('theme_settings', JSON.stringify(themeSettings));
         
         toast({
           title: "Settings saved",
           description: "Your theme settings have been saved to local storage",
         });
-        
-        // Reset changes flag after successful save
-        setHasChanges(false);
       }
+      
+      // Reset changes flag after successful save
+      setHasChanges(false);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Error saving theme settings:', error, { module: 'settings' });
@@ -190,38 +152,35 @@ export const useSettingsPersistence = ({
     
     try {
       // Try to use admin-set default theme first
-      if (defaultThemeSettings && 
-          defaultThemeSettings.lightTheme && 
-          defaultThemeSettings.darkTheme) {
+      if (defaultThemeSettings?.lightTheme && defaultThemeSettings?.darkTheme) {
+        logger.info('Resetting to admin-set default theme', { module: 'settings' });
         
-        logger.info('Resetting to admin-set default theme', { 
-          module: 'settings', 
-          hasBackground: !!defaultThemeSettings.backgroundImage 
+        // Update unified controller with admin defaults
+        unifiedThemeController.updateState({
+          lightTheme: defaultThemeSettings.lightTheme,
+          darkTheme: defaultThemeSettings.darkTheme,
+          backgroundImage: defaultThemeSettings.backgroundImage || null,
+          backgroundOpacity: typeof defaultThemeSettings.backgroundOpacity === 'string'
+            ? parseFloat(defaultThemeSettings.backgroundOpacity || '0.5')
+            : (defaultThemeSettings.backgroundOpacity || 0.5)
         });
         
-        // Use admin-set default theme
+        // Update local state
         setLightTheme(defaultThemeSettings.lightTheme);
         setDarkTheme(defaultThemeSettings.darkTheme);
-        setBackgroundImage(defaultThemeSettings.backgroundImage);
-        // FIXED: Ensure opacity is number
-        const opacity = typeof defaultThemeSettings.backgroundOpacity === 'string'
-          ? parseFloat(defaultThemeSettings.backgroundOpacity || '0.5')
-          : (defaultThemeSettings.backgroundOpacity || 0.5);
-        setBackgroundOpacity(opacity);
-        
-        // Apply the default theme immediately
-        const currentTheme = theme === 'light' ? defaultThemeSettings.lightTheme : defaultThemeSettings.darkTheme;
-        applyThemeChanges(currentTheme);
-        
-        // Apply background from default theme
-        applyBackgroundImage(defaultThemeSettings.backgroundImage, opacity);
+        setBackgroundImage(defaultThemeSettings.backgroundImage || null);
+        setBackgroundOpacity(
+          typeof defaultThemeSettings.backgroundOpacity === 'string'
+            ? parseFloat(defaultThemeSettings.backgroundOpacity || '0.5')
+            : (defaultThemeSettings.backgroundOpacity || 0.5)
+        );
         
         toast({
           title: "Settings reset",
           description: "Your theme settings have been reset to system defaults",
         });
       } else {
-        // Fall back to hardcoded defaults if no admin defaults exist
+        // Fall back to hardcoded defaults
         resetToHardcodedDefaults();
       }
       
@@ -241,7 +200,7 @@ export const useSettingsPersistence = ({
   
   // Helper function to reset to hardcoded defaults with company branding
   const resetToHardcodedDefaults = () => {
-    logger.info('No admin defaults found, resetting to factory defaults', { module: 'settings' });
+    logger.info('Resetting to factory defaults with company branding', { module: 'settings' });
     
     const defaultLightTheme = {
       backgroundColor: '#ffffff',
@@ -269,17 +228,19 @@ export const useSettingsPersistence = ({
       aiTextColor: '#ffffff'
     };
     
+    // Update unified controller
+    unifiedThemeController.updateState({
+      lightTheme: defaultLightTheme,
+      darkTheme: defaultDarkTheme,
+      backgroundImage: null,
+      backgroundOpacity: 0.5
+    });
+    
+    // Update local state
     setLightTheme(defaultLightTheme);
     setDarkTheme(defaultDarkTheme);
     setBackgroundImage(null);
     setBackgroundOpacity(0.5);
-    
-    // Apply the reset theme immediately
-    const currentTheme = theme === 'light' ? defaultLightTheme : defaultDarkTheme;
-    applyThemeChanges(currentTheme);
-    
-    // Reset background
-    applyBackgroundImage(null, 0.5);
     
     toast({
       title: "Settings reset",
@@ -291,7 +252,6 @@ export const useSettingsPersistence = ({
     isSubmitting,
     setIsSubmitting,
     handleSaveSettings,
-    handleResetSettings,
-    isLoadingDefaults
+    handleResetSettings
   };
 };

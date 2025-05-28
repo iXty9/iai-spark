@@ -1,14 +1,13 @@
 
 import { useState } from 'react';
 import { logger } from '@/utils/logging';
-import { applyBackgroundImage } from '@/utils/theme-utils';
 import { useToast } from '@/hooks/use-toast';
 import { optimizeImage, formatFileSize, estimateDataUrlSize } from '@/utils/image-optimizer';
 
 export interface UseBackgroundActionsProps {
   backgroundImage: string | null;
   backgroundOpacity: number;
-  setBackgroundImage: (image: string | null) => void;
+  setBackgroundImage: (image: string | null, info?: any) => void;
   setBackgroundOpacity: (opacity: number) => void;
 }
 
@@ -20,7 +19,6 @@ export const useBackgroundActions = ({
 }: UseBackgroundActionsProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [thumbnailImage, setThumbnailImage] = useState<string | null>(null);
   const [imageInfo, setImageInfo] = useState<{
     originalSize?: string;
     optimizedSize?: string;
@@ -67,20 +65,18 @@ export const useBackgroundActions = ({
           // Estimate optimized size
           const optimizedSize = formatFileSize(estimateDataUrlSize(optimizedImageUrl));
           
-          // Update state with optimized image
-          setBackgroundImage(optimizedImageUrl);
-          
-          // Set image info for display
-          setImageInfo({
+          const newImageInfo = {
             originalSize,
             optimizedSize,
             width,
             height
-          });
+          };
           
-          // Apply background preview immediately
-          applyBackgroundImage(optimizedImageUrl, backgroundOpacity);
-          logger.info('Background image uploaded, optimized and previewed', { 
+          // Update state - this will automatically apply via unified controller
+          setBackgroundImage(optimizedImageUrl, newImageInfo);
+          setImageInfo(newImageInfo);
+          
+          logger.info('Background image uploaded and optimized', { 
             module: 'settings',
             originalSize,
             optimizedSize,
@@ -129,13 +125,10 @@ export const useBackgroundActions = ({
   };
   
   const handleRemoveBackground = () => {
-    // Remove background image from state
+    // Remove background image - this will automatically apply via unified controller
     setBackgroundImage(null);
-    setThumbnailImage(null);
     setImageInfo({});
     
-    // Apply removal immediately for preview
-    applyBackgroundImage(null, backgroundOpacity);
     logger.info('Background image removed', { module: 'settings' });
     toast({
       title: "Background removed",
@@ -145,10 +138,9 @@ export const useBackgroundActions = ({
 
   const handleOpacityChange = (value: number[]) => {
     const newOpacity = value[0];
+    // Update opacity - this will automatically apply via unified controller
     setBackgroundOpacity(newOpacity);
     
-    // Apply opacity change immediately for preview
-    applyBackgroundImage(backgroundImage, newOpacity);
     logger.info('Background opacity changed', { module: 'settings', opacity: newOpacity });
   };
 
@@ -157,7 +149,6 @@ export const useBackgroundActions = ({
     handleRemoveBackground,
     handleOpacityChange,
     isLoading,
-    thumbnailImage,
     imageInfo
   };
 };

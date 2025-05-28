@@ -1,9 +1,9 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeColors } from '@/types/theme';
 import { logger } from '@/utils/logging';
-import { useTheme } from '@/hooks/use-theme';
+import { unifiedThemeController } from '@/services/unified-theme-controller';
 
 export interface ImageInfo {
   originalSize?: string;
@@ -14,150 +14,120 @@ export interface ImageInfo {
 
 export const useSettingsState = () => {
   const { profile } = useAuth();
-  const { theme } = useTheme();
-  
-  const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
-  const [backgroundOpacity, setBackgroundOpacity] = useState(0.5); // 50% as default
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
   const [imageInfo, setImageInfo] = useState<ImageInfo>({});
+  const [isInitialized, setIsInitialized] = useState(false);
   
-  // Default light theme colors with company branding
-  const defaultLightTheme: ThemeColors = {
-    backgroundColor: '#ffffff',
-    primaryColor: '#dd3333', // Company primary color
-    textColor: '#000000',
-    accentColor: '#9b87f5',
-    userBubbleColor: '#dd3333', // Company primary color
-    aiBubbleColor: '#9b87f5',
-    userBubbleOpacity: 0.3,
-    aiBubbleOpacity: 0.3,
-    userTextColor: '#000000',
-    aiTextColor: '#000000'
-  };
+  // Local state that mirrors the unified controller
+  const [localState, setLocalState] = useState(() => unifiedThemeController.getState());
   
-  // Default dark theme colors with company branding
-  const defaultDarkTheme: ThemeColors = {
-    backgroundColor: '#121212',
-    primaryColor: '#dd3333', // Company primary color
-    textColor: '#ffffff',
-    accentColor: '#9b87f5',
-    userBubbleColor: '#dd3333', // Company primary color
-    aiBubbleColor: '#9b87f5',
-    userBubbleOpacity: 0.3,
-    aiBubbleOpacity: 0.3,
-    userTextColor: '#ffffff',
-    aiTextColor: '#ffffff'
-  };
-  
-  const [lightTheme, setLightTheme] = useState<ThemeColors>(defaultLightTheme);
-  const [darkTheme, setDarkTheme] = useState<ThemeColors>(defaultDarkTheme);
+  // Track if we've loaded from profile to prevent overwrites
+  const hasLoadedFromProfile = useRef(false);
 
-  // Wrapper functions to track changes
+  // Initialize the unified controller with user settings
+  useEffect(() => {
+    const initializeController = async () => {
+      if (isInitialized) return;
+
+      try {
+        setIsLoading(true);
+        logger.info('Initializing settings state', { module: 'settings' });
+
+        let userSettings = null;
+        if (profile?.theme_settings) {
+          try {
+            userSettings = JSON.parse(profile.theme_settings);
+            logger.info('Found user theme settings', { module: 'settings' });
+            hasLoadedFromProfile.current = true;
+          } catch (e) {
+            logger.warn('Failed to parse user theme settings', e);
+          }
+        }
+
+        // Initialize the controller with user settings
+        await unifiedThemeController.initialize(userSettings);
+        
+        // Set local state to match controller
+        setLocalState(unifiedThemeController.getState());
+        setIsInitialized(true);
+        setIsLoading(false);
+
+        logger.info('Settings state initialized successfully', { module: 'settings' });
+      } catch (error) {
+        logger.error('Failed to initialize settings state:', error);
+        setIsLoading(false);
+        setIsInitialized(true);
+      }
+    };
+
+    initializeController();
+  }, [profile, isInitialized]);
+
+  // Subscribe to controller changes
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const unsubscribe = unifiedThemeController.subscribe((newState) => {
+      // Only update if this isn't coming from our own changes
+      if (!hasChanges) {
+        setLocalState(newState);
+        logger.info('Settings state updated from controller', { module: 'settings' });
+      }
+    });
+
+    return unsubscribe;
+  }, [isInitialized, hasChanges]);
+
+  // Wrapper functions to track changes and update controller
   const updateLightTheme = (newTheme: ThemeColors) => {
-    setLightTheme(newTheme);
+    setLocalState(prev => ({ ...prev, lightTheme: newTheme }));
+    unifiedThemeController.setLightTheme(newTheme);
     setHasChanges(true);
+    logger.info('Light theme updated', { module: 'settings' });
   };
   
   const updateDarkTheme = (newTheme: ThemeColors) => {
-    setDarkTheme(newTheme);
+    setLocalState(prev => ({ ...prev, darkTheme: newTheme }));
+    unifiedThemeController.setDarkTheme(newTheme);
     setHasChanges(true);
+    logger.info('Dark theme updated', { module: 'settings' });
   };
   
   const updateBackgroundImage = (image: string | null, info?: ImageInfo) => {
-    setBackgroundImage(image);
+    setLocalState(prev => ({ ...prev, backgroundImage: image }));
+    unifiedThemeController.setBackgroundImage(image);
     if (info) {
       setImageInfo(info);
     }
     setHasChanges(true);
+    logger.info('Background image updated', { module: 'settings', hasImage: !!image });
   };
   
   const updateBackgroundOpacity = (opacity: number) => {
-    setBackgroundOpacity(opacity);
+    setLocalState(prev => ({ ...prev, backgroundOpacity: opacity }));
+    unifiedThemeController.setBackgroundOpacity(opacity);
     setHasChanges(true);
+    logger.info('Background opacity updated', { module: 'settings', opacity });
   };
 
-  useEffect(() => {
-    if (profile?.theme_settings) {
-      try {
-        setIsLoading(true);
-        logger.info('Loading theme settings from profile', { module: 'settings' });
-        const themeSettings = JSON.parse(profile.theme_settings);
-        
-        // Load background image and opacity
-        if (themeSettings.backgroundImage) {
-          logger.info('Found background image in theme settings', { module: 'settings' });
-          setBackgroundImage(themeSettings.backgroundImage);
-        }
-        
-        if (themeSettings.backgroundOpacity !== undefined) {
-          // FIXED: Ensure proper number type handling
-          const opacity = typeof themeSettings.backgroundOpacity === 'string'
-            ? parseFloat(themeSettings.backgroundOpacity)
-            : themeSettings.backgroundOpacity;
-          if (!isNaN(opacity)) {
-            setBackgroundOpacity(opacity);
-            logger.info('Loaded background opacity', { module: 'settings', opacity });
-          }
-        }
-        
-        // Load light theme colors
-        if (themeSettings.lightTheme) {
-          setLightTheme({
-            ...defaultLightTheme,
-            ...themeSettings.lightTheme,
-            userBubbleOpacity: parseFloat(themeSettings.lightTheme.userBubbleOpacity) || 0.3,
-            aiBubbleOpacity: parseFloat(themeSettings.lightTheme.aiBubbleOpacity) || 0.3,
-            userTextColor: themeSettings.lightTheme.userTextColor || themeSettings.lightTheme.textColor,
-            aiTextColor: themeSettings.lightTheme.aiTextColor || themeSettings.lightTheme.textColor
-          });
-        }
-        
-        // Load dark theme colors
-        if (themeSettings.darkTheme) {
-          setDarkTheme({
-            ...defaultDarkTheme,
-            ...themeSettings.darkTheme,
-            userBubbleOpacity: parseFloat(themeSettings.darkTheme.userBubbleOpacity) || 0.3,
-            aiBubbleOpacity: parseFloat(themeSettings.darkTheme.aiBubbleOpacity) || 0.3,
-            userTextColor: themeSettings.darkTheme.userTextColor || themeSettings.darkTheme.textColor,
-            aiTextColor: themeSettings.darkTheme.aiTextColor || themeSettings.darkTheme.textColor
-          });
-        }
-        
-        // Load image info if available
-        if (themeSettings.imageInfo) {
-          setImageInfo(themeSettings.imageInfo);
-        }
-        
-        setHasChanges(false);
-        setIsLoading(false);
-      } catch (e) {
-        logger.error('Error parsing theme settings from profile:', e, { module: 'settings' });
-        setIsLoading(false);
-      }
-    } else {
-      logger.info('No theme settings found in profile', { module: 'settings' });
-      setIsLoading(false);
-    }
-  }, [profile]);
-
   return {
-    lightTheme,
-    darkTheme,
-    backgroundImage,
-    backgroundOpacity,
+    lightTheme: localState.lightTheme,
+    darkTheme: localState.darkTheme,
+    backgroundImage: localState.backgroundImage,
+    backgroundOpacity: localState.backgroundOpacity,
     isSubmitting,
     isLoading,
     hasChanges,
     imageInfo,
     setLightTheme: updateLightTheme,
-    setDarkTheme: updateDarkTheme, 
+    setDarkTheme: updateDarkTheme,
     setBackgroundImage: updateBackgroundImage,
     setBackgroundOpacity: updateBackgroundOpacity,
     setIsSubmitting,
     setHasChanges,
-    setImageInfo: (info: ImageInfo) => setImageInfo(info)
+    setImageInfo: (info: ImageInfo) => setImageInfo(info),
+    isInitialized
   };
 };
