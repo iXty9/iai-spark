@@ -29,7 +29,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const authContext = useAuth();
-  const { isThemeReady } = useThemeInitialization();
+  const { isThemeReady, isClientReady } = useThemeInitialization();
   
   // Get state from unified controller and background manager
   const [controllerState, setControllerState] = useState(() => unifiedThemeController.getState());
@@ -40,10 +40,10 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const profile = authContext?.profile || null;
   const updateProfile = authContext?.updateProfile || (() => Promise.resolve());
   
-  // Initialize controller when theme system is ready
+  // Initialize controller when both theme system and client are ready
   useEffect(() => {
     const initializeController = async () => {
-      if (!isThemeReady || isThemeLoaded) return;
+      if (!isThemeReady || !isClientReady || isThemeLoaded) return;
 
       try {
         let userSettings: ThemeSettings | null = null;
@@ -82,7 +82,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     initializeController();
-  }, [isThemeReady, profile?.theme_settings, isThemeLoaded]);
+  }, [isThemeReady, isClientReady, profile?.theme_settings, isThemeLoaded]);
 
   // Subscribe to controller and background changes
   useEffect(() => {
@@ -174,7 +174,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         mode: controllerState.mode,
         setMode: handleThemeChange,
         resetTheme,
-        isThemeLoaded: isThemeLoaded && isThemeReady,
+        isThemeLoaded: isThemeLoaded && isThemeReady && isClientReady,
         applyThemeColors,
         applyBackground,
         backgroundImage: backgroundState.image,

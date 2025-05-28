@@ -19,6 +19,7 @@ export const BackgroundDebugInfo: React.FC = () => {
       <div className="font-bold">Background Debug:</div>
       <div>Theme Loaded: {isThemeLoaded ? '✅' : '❌'}</div>
       <div>Controller Init: {unifiedThemeController.initialized ? '✅' : '❌'}</div>
+      <div>Client Ready: {backgroundState.isClientReady ? '✅' : '❌'}</div>
       <div>Background Loaded: {backgroundState.isLoaded ? '✅' : '❌'}</div>
       <div>Background Applied: {backgroundState.isApplied ? '✅' : '❌'}</div>
       <div>Has Image: {backgroundImage ? '✅' : '❌'}</div>

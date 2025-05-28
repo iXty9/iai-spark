@@ -1,6 +1,7 @@
 
 import { logger } from '@/utils/logging';
 import { ThemeSettings } from '@/types/theme';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface BackgroundState {
   image: string | null;
@@ -8,6 +9,7 @@ export interface BackgroundState {
   isLoaded: boolean;
   isApplied: boolean;
   lastError: string | null;
+  isClientReady: boolean;
 }
 
 class BackgroundStateManager {
@@ -16,12 +18,14 @@ class BackgroundStateManager {
     opacity: 0.5,
     isLoaded: false,
     isApplied: false,
-    lastError: null
+    lastError: null,
+    isClientReady: false
   };
 
   private listeners: Set<(state: BackgroundState) => void> = new Set();
   private retryCount = 0;
   private maxRetries = 3;
+  private clientReadyPromise: Promise<boolean> | null = null;
 
   getState(): BackgroundState {
     return { ...this.state };
@@ -36,11 +40,78 @@ class BackgroundStateManager {
     this.listeners.forEach(listener => listener(this.getState()));
   }
 
+  private async ensureClientReady(): Promise<boolean> {
+    if (this.state.isClientReady) {
+      return true;
+    }
+
+    if (this.clientReadyPromise) {
+      return this.clientReadyPromise;
+    }
+
+    this.clientReadyPromise = this.checkClientReadiness();
+    return this.clientReadyPromise;
+  }
+
+  private async checkClientReadiness(): Promise<boolean> {
+    try {
+      // Wait for client to be available
+      let attempts = 0;
+      const maxAttempts = 50;
+      
+      while (attempts < maxAttempts) {
+        try {
+          // Test if client is functional by making a simple auth call
+          const { data, error } = await supabase.auth.getSession();
+          
+          if (error && error.message.includes('not available')) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+            continue;
+          }
+          
+          // Client is ready
+          this.state.isClientReady = true;
+          this.clientReadyPromise = null;
+          logger.info('Supabase client ready for background manager', { module: 'background-manager' });
+          return true;
+        } catch (error) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          attempts++;
+        }
+      }
+      
+      throw new Error('Supabase client not ready after maximum attempts');
+    } catch (error) {
+      logger.error('Failed to ensure client readiness:', error, { module: 'background-manager' });
+      this.state.isClientReady = false;
+      this.clientReadyPromise = null;
+      return false;
+    }
+  }
+
   async loadFromProfile(themeSettings: string | null): Promise<void> {
     try {
+      // Ensure client is ready before proceeding
+      const clientReady = await this.ensureClientReady();
+      if (!clientReady) {
+        logger.warn('Client not ready, using defaults', { module: 'background-manager' });
+        this.state = {
+          ...this.state,
+          image: null,
+          opacity: 0.5,
+          isLoaded: true,
+          isApplied: false,
+          lastError: 'Supabase client not ready'
+        };
+        this.notifyListeners();
+        return;
+      }
+
       if (!themeSettings) {
         logger.info('No theme settings in profile, using defaults', { module: 'background-manager' });
         this.state = {
+          ...this.state,
           image: null,
           opacity: 0.5,
           isLoaded: true,
@@ -56,6 +127,7 @@ class BackgroundStateManager {
       const opacity = this.normalizeOpacity(parsed.backgroundOpacity);
       
       this.state = {
+        ...this.state,
         image: parsed.backgroundImage || null,
         opacity,
         isLoaded: true,
@@ -117,15 +189,16 @@ class BackgroundStateManager {
           img.src = this.state.image!;
         });
 
-        // Apply background image
+        // Apply background image with improved CSS approach
         root.style.setProperty('--bg-image-url', `url("${this.state.image}")`);
         root.style.setProperty('--bg-opacity', this.state.opacity.toString());
         
-        body.style.backgroundImage = `url("${this.state.image}")`;
-        body.style.backgroundSize = 'cover';
-        body.style.backgroundPosition = 'center';
-        body.style.backgroundAttachment = 'fixed';
-        body.style.backgroundRepeat = 'no-repeat';
+        // Use more reliable CSS implementation
+        body.style.setProperty('background-image', `url("${this.state.image}")`, 'important');
+        body.style.setProperty('background-size', 'cover', 'important');
+        body.style.setProperty('background-position', 'center', 'important');
+        body.style.setProperty('background-attachment', 'fixed', 'important');
+        body.style.setProperty('background-repeat', 'no-repeat', 'important');
         body.classList.add('with-bg-image');
 
         logger.info('Background image applied to DOM', { 
@@ -133,15 +206,15 @@ class BackgroundStateManager {
           opacity: this.state.opacity
         });
       } else {
-        // Remove background image
+        // Remove background image completely
         root.style.removeProperty('--bg-image-url');
         root.style.setProperty('--bg-opacity', this.state.opacity.toString());
         
-        body.style.backgroundImage = '';
-        body.style.backgroundSize = '';
-        body.style.backgroundPosition = '';
-        body.style.backgroundAttachment = '';
-        body.style.backgroundRepeat = '';
+        body.style.removeProperty('background-image');
+        body.style.removeProperty('background-size');
+        body.style.removeProperty('background-position');
+        body.style.removeProperty('background-attachment');
+        body.style.removeProperty('background-repeat');
         body.classList.remove('with-bg-image');
 
         logger.info('Background image removed from DOM', { module: 'background-manager' });

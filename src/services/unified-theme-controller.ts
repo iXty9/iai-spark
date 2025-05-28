@@ -1,3 +1,4 @@
+
 import { ThemeColors, ThemeSettings } from '@/types/theme';
 import { themeService } from '@/services/theme-service';
 import { backgroundStateManager } from '@/services/background-state-manager';
@@ -93,7 +94,7 @@ class UnifiedThemeController {
           backgroundOpacity: this.normalizeOpacity(userSettings.backgroundOpacity || 0.5)
         };
         
-        // Load background through the background manager
+        // Load background through the background manager with proper JSON string
         await backgroundStateManager.loadFromProfile(JSON.stringify(userSettings));
         
         logger.info('Initialized with user settings', { 
@@ -107,7 +108,7 @@ class UnifiedThemeController {
         logger.info('Initialized with default settings', { module: 'theme-controller' });
       }
 
-      // Apply theme and background immediately and synchronously
+      // Apply theme immediately
       this.applyCurrentTheme();
       
       this.isInitialized = true;
@@ -189,76 +190,9 @@ class UnifiedThemeController {
     });
   }
 
-  updateState(updates: Partial<ThemeState>): void {
-    let changed = false;
-
-    if (updates.mode && updates.mode !== this.state.mode) {
-      this.state.mode = updates.mode;
-      changed = true;
-    }
-
-    if (updates.lightTheme) {
-      this.state.lightTheme = updates.lightTheme;
-      changed = true;
-    }
-
-    if (updates.darkTheme) {
-      this.state.darkTheme = updates.darkTheme;
-      changed = true;
-    }
-
-    if (updates.backgroundImage !== undefined) {
-      this.state.backgroundImage = updates.backgroundImage;
-      changed = true;
-    }
-
-    if (updates.backgroundOpacity !== undefined) {
-      this.state.backgroundOpacity = this.normalizeOpacity(updates.backgroundOpacity);
-      changed = true;
-    }
-
-    if (changed) {
-      this.applyCurrentTheme();
-      this.applyBackgroundImmediate();
-      this.notifyListeners();
-    }
-  }
-
   private applyCurrentTheme(): void {
     const currentColors = this.state.mode === 'dark' ? this.state.darkTheme : this.state.lightTheme;
     themeService.applyThemeImmediate(currentColors, this.state.mode);
-  }
-
-  private applyBackgroundImmediate(): void {
-    // Apply background synchronously and immediately
-    themeService.applyBackground(this.state.backgroundImage, this.state.backgroundOpacity);
-    
-    // Force immediate DOM update
-    if (this.state.backgroundImage) {
-      // Ensure the image is loaded before applying
-      const img = new Image();
-      img.onload = () => {
-        themeService.applyBackground(this.state.backgroundImage, this.state.backgroundOpacity);
-        logger.info('Background image loaded and applied', { 
-          module: 'theme-controller',
-          hasImage: !!this.state.backgroundImage,
-          opacity: this.state.backgroundOpacity
-        });
-      };
-      img.onerror = () => {
-        logger.warn('Background image failed to load', { module: 'theme-controller' });
-      };
-      img.src = this.state.backgroundImage;
-    } else {
-      // Remove background immediately if no image
-      themeService.applyBackground(null, this.state.backgroundOpacity);
-    }
-    
-    logger.info('Background applied immediately', { 
-      module: 'theme-controller',
-      hasImage: !!this.state.backgroundImage,
-      opacity: this.state.backgroundOpacity
-    });
   }
 
   createThemeSettings(): ThemeSettings {
