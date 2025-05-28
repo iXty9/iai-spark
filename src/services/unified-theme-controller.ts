@@ -151,6 +151,30 @@ class UnifiedThemeController {
     this.listeners.forEach(listener => listener(this.getState()));
   }
 
+  updateState(partialState: Partial<ThemeState>): void {
+    this.state = { ...this.state, ...partialState };
+    
+    // Apply theme if mode or colors changed
+    if (partialState.mode || partialState.lightTheme || partialState.darkTheme) {
+      this.applyCurrentTheme();
+    }
+    
+    // Update background if background properties changed
+    if (partialState.backgroundImage !== undefined) {
+      backgroundStateManager.updateImage(partialState.backgroundImage);
+    }
+    
+    if (partialState.backgroundOpacity !== undefined) {
+      backgroundStateManager.updateOpacity(partialState.backgroundOpacity);
+    }
+    
+    this.notifyListeners();
+    logger.info('Theme state updated', { 
+      module: 'theme-controller', 
+      updatedKeys: Object.keys(partialState) 
+    });
+  }
+
   setMode(mode: 'light' | 'dark'): void {
     this.state.mode = mode;
     this.applyCurrentTheme();
