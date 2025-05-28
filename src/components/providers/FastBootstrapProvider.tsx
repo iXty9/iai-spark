@@ -2,7 +2,7 @@
 import React, { useEffect, useState, ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Settings, Database } from 'lucide-react';
+import { Loader2, Settings, Database, RefreshCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { fastBootstrap, FastBootstrapStatus } from '@/services/bootstrap/fast-bootstrap-service';
 import { logger } from '@/utils/logging';
@@ -31,8 +31,10 @@ export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ ch
   useEffect(() => {
     if (status?.needsSetup) {
       navigate('/initialize');
+    } else if (status?.needsReconnection) {
+      navigate('/reconnect');
     }
-  }, [status?.needsSetup, navigate]);
+  }, [status?.needsSetup, status?.needsReconnection, navigate]);
 
   // Show app if ready
   if (status?.isReady) {
@@ -57,6 +59,31 @@ export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ ch
             <Button onClick={() => navigate('/initialize')} className="w-full">
               <Settings className="mr-2 h-4 w-4" />
               Start Setup
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show reconnection needed
+  if (status?.needsReconnection) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-yellow-100">
+        <Card className="w-full max-w-md mx-4">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <RefreshCcw className="h-5 w-5" />
+              Reconnection Required
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              Your application appears to be disconnected. Please reconnect to continue.
+            </p>
+            <Button onClick={() => navigate('/reconnect')} className="w-full">
+              <RefreshCcw className="mr-2 h-4 w-4" />
+              Reconnect
             </Button>
           </CardContent>
         </Card>

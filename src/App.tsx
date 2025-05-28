@@ -16,6 +16,7 @@ import Index from "./pages/Index";
 import Initialize from "./pages/Initialize";
 import Auth from "./pages/Auth";
 import SupabaseAuth from "./pages/SupabaseAuth";
+import Reconnect from "./pages/Reconnect";
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
@@ -67,6 +68,7 @@ function AppContent() {
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/initialize" element={<Initialize />} />
+          <Route path="/reconnect" element={<Reconnect />} />
           <Route path="/supabase-auth/callback" element={<SupabaseAuth />} />
           <Route 
             path="/settings" 

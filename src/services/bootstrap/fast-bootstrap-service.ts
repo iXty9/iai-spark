@@ -6,8 +6,9 @@ import { clientManager } from '@/services/supabase/client-manager';
 export interface FastBootstrapStatus {
   isReady: boolean;
   needsSetup: boolean;
+  needsReconnection?: boolean;
   error?: string;
-  phase: 'loading' | 'ready' | 'setup' | 'error';
+  phase: 'loading' | 'ready' | 'setup' | 'reconnection' | 'error';
 }
 
 /**
@@ -42,10 +43,20 @@ export class FastBootstrapService {
       const configResult = await fastConfig.loadConfig();
 
       if (!configResult.success || !configResult.config) {
-        logger.info('No valid config found, needs setup', { module: 'fast-bootstrap' });
-        const setupStatus = { isReady: false, needsSetup: true, phase: 'setup' as const };
-        this.notifySubscribers(setupStatus);
-        return setupStatus;
+        // Check if we have local storage config (reconnection scenario)
+        const hasLocalConfig = this.checkForLocalConfiguration();
+        
+        if (hasLocalConfig) {
+          logger.info('No valid config found but local config detected, needs reconnection', { module: 'fast-bootstrap' });
+          const reconnectionStatus = { isReady: false, needsSetup: false, needsReconnection: true, phase: 'reconnection' as const };
+          this.notifySubscribers(reconnectionStatus);
+          return reconnectionStatus;
+        } else {
+          logger.info('No valid config found, needs setup', { module: 'fast-bootstrap' });
+          const setupStatus = { isReady: false, needsSetup: true, phase: 'setup' as const };
+          this.notifySubscribers(setupStatus);
+          return setupStatus;
+        }
       }
 
       // Step 2: Initialize Supabase client directly
@@ -85,11 +96,38 @@ export class FastBootstrapService {
     }
   }
 
+  private checkForLocalConfiguration(): boolean {
+    try {
+      const configs = [
+        localStorage.getItem('site-config'),
+        localStorage.getItem('supabase_config'),
+        localStorage.getItem('supabase-config')
+      ];
+      
+      return configs.some(config => {
+        if (!config) return false;
+        try {
+          const parsed = JSON.parse(config);
+          return !!(parsed && parsed.supabaseUrl && parsed.supabaseAnonKey);
+        } catch {
+          return false;
+        }
+      });
+    } catch {
+      return false;
+    }
+  }
+
   getStatus(): FastBootstrapStatus {
     const clientState = clientManager.getState();
     
     if (clientState.client) {
       return { isReady: true, needsSetup: false, phase: 'ready' };
+    }
+    
+    // Check for reconnection scenario
+    if (this.checkForLocalConfiguration()) {
+      return { isReady: false, needsSetup: false, needsReconnection: true, phase: 'reconnection' };
     }
     
     return { isReady: false, needsSetup: false, phase: 'loading' };
