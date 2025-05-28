@@ -1,18 +1,12 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "@/hooks/use-toast";
-import { clientManager } from '@/services/supabase/client-manager';
 import { logger } from '@/utils/logging';
 
 const API_TIMEOUT = 30000; // 30 seconds
 
 export const signIn = async (email: string, password: string) => {
   try {
-    // Ensure client is ready
-    const client = clientManager.getClient();
-    if (!client) {
-      throw new Error('Authentication service not available. Please ensure the application is properly initialized.');
-    }
-
     logger.info('Attempting login', { module: 'auth-operations', email: email.substring(0, 3) + '***' });
     
     const authPromise = supabase.auth.signInWithPassword({
@@ -60,12 +54,6 @@ export const signUp = async (
   options?: { phone_number?: string, full_name?: string }
 ) => {
   try {
-    // Ensure client is ready
-    const client = clientManager.getClient();
-    if (!client) {
-      throw new Error('Authentication service not available. Please ensure the application is properly initialized.');
-    }
-    
     const authPromise = supabase.auth.signUp({
       email,
       password,

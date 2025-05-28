@@ -5,8 +5,7 @@ import { AuthContextType } from './auth/types';
 import { useAuthState } from './auth/useAuthState';
 import { signIn, signUp, signOut, updateProfile } from './auth/authOperations';
 import { logger } from '@/utils/logging';
-import { bootstrapPhases, BootstrapPhase } from '@/services/bootstrap/bootstrap-phases';
-import { clientManager, ClientStatus } from '@/services/supabase/client-manager';
+import { fastBootstrap } from '@/services/bootstrap/fast-bootstrap-service';
 import { ProductionErrorBoundary } from '@/components/error/ProductionErrorBoundary';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,66 +34,46 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Limit logging for production
   const shouldLog = process.env.NODE_ENV === 'development';
   
-  // Monitor system readiness (both bootstrap and client)
+  // Monitor system readiness using fast bootstrap
   useEffect(() => {
-    const unsubscribeBootstrap = bootstrapPhases.subscribe((bootstrapState) => {
-      const unsubscribeClient = clientManager.subscribe((clientState) => {
-        const wasReady = systemReadyRef.current;
-        const isReady = bootstrapState.phase === BootstrapPhase.COMPLETE && 
-                       clientState.status === ClientStatus.READY && 
-                       clientState.client !== null;
-        
-        systemReadyRef.current = isReady;
-        
-        // If system just became ready, initialize auth
-        if (!wasReady && isReady) {
-          logger.info('System ready, initializing auth', { 
-            module: 'auth',
-            bootstrapPhase: bootstrapState.phase,
-            clientStatus: clientState.status
-          });
-          initializeAuth();
-        }
-        
-        // If system failed, stop loading
-        if (bootstrapState.phase === BootstrapPhase.ERROR || 
-            clientState.status === ClientStatus.ERROR) {
-          logger.warn('System error detected, stopping auth loading', {
-            module: 'auth',
-            bootstrapPhase: bootstrapState.phase,
-            clientStatus: clientState.status,
-            bootstrapError: bootstrapState.error,
-            clientError: clientState.error
-          });
-          setIsLoading(false);
-        }
-        
-        // If needs setup, stop loading
-        if (bootstrapState.phase === BootstrapPhase.NEEDS_SETUP) {
-          setIsLoading(false);
-        }
-      });
+    const unsubscribe = fastBootstrap.subscribe((status) => {
+      const wasReady = systemReadyRef.current;
+      const isReady = status.isReady;
       
-      return unsubscribeClient;
+      systemReadyRef.current = isReady;
+      
+      // If system just became ready, initialize auth
+      if (!wasReady && isReady) {
+        logger.info('System ready, initializing auth', { 
+          module: 'auth',
+          status: status.phase
+        });
+        initializeAuth();
+      }
+      
+      // If system failed or needs setup, stop loading
+      if (status.phase === 'error' || status.needsSetup) {
+        logger.warn('System error or needs setup, stopping auth loading', {
+          module: 'auth',
+          phase: status.phase,
+          error: status.error
+        });
+        setIsLoading(false);
+      }
     });
     
-    return unsubscribeBootstrap;
+    return unsubscribe;
   }, []);
 
   // Initialize auth when system is ready
   const initializeAuth = () => {
     // Double-check system readiness
-    const clientState = clientManager.getState();
-    const bootstrapState = bootstrapPhases.getState();
+    const status = fastBootstrap.getStatus();
     
-    if (clientState.status !== ClientStatus.READY || 
-        !clientState.client || 
-        bootstrapState.phase !== BootstrapPhase.COMPLETE) {
+    if (!status.isReady) {
       logger.warn('Auth initialization called but system not ready', { 
         module: 'auth',
-        clientStatus: clientState.status,
-        bootstrapPhase: bootstrapState.phase,
-        hasClient: !!clientState.client
+        phase: status.phase
       });
       setIsLoading(false);
       return;
@@ -190,8 +169,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Reset when system is reset
   useEffect(() => {
-    const unsubscribe = bootstrapPhases.subscribe((state) => {
-      if (state.phase === BootstrapPhase.NOT_STARTED) {
+    const unsubscribe = fastBootstrap.subscribe((status) => {
+      if (status.phase === 'loading') {
         // System is being reset, clean up auth
         if (authSubscriptionRef.current) {
           try {
