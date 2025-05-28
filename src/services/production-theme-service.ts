@@ -145,7 +145,7 @@ class ProductionThemeService {
   private applyTheme(): void {
     const currentColors = this.state.mode === 'dark' ? this.state.darkTheme : this.state.lightTheme;
     
-    // Apply to CSS variables
+    // FIXED: Apply all theme colors to CSS variables and body
     const root = document.documentElement;
     root.style.setProperty('--background-color', currentColors.backgroundColor);
     root.style.setProperty('--primary-color', currentColors.primaryColor);
@@ -158,11 +158,20 @@ class ProductionThemeService {
     root.style.setProperty('--user-text-color', currentColors.userTextColor);
     root.style.setProperty('--ai-text-color', currentColors.aiTextColor);
 
+    // CRITICAL FIX: Apply background color to body immediately
+    document.body.style.backgroundColor = currentColors.backgroundColor;
+    document.body.style.color = currentColors.textColor;
+
     // Apply dark/light class
     document.documentElement.classList.toggle('dark', this.state.mode === 'dark');
     
     // Save mode
     localStorage.setItem('theme-mode', this.state.mode);
+    
+    logger.info('Theme applied', { 
+      mode: this.state.mode, 
+      backgroundColor: currentColors.backgroundColor 
+    });
   }
 
   private applyBackgroundToDOM(): void {
@@ -176,8 +185,13 @@ class ProductionThemeService {
       body.style.backgroundAttachment = 'fixed';
       body.classList.add('with-bg-image');
       
-      // Apply opacity
+      // CRITICAL FIX: Apply background opacity correctly
       document.documentElement.style.setProperty('--bg-opacity', this.state.backgroundOpacity.toString());
+      
+      logger.info('Background image applied', { 
+        opacity: this.state.backgroundOpacity,
+        hasImage: !!this.state.backgroundImage 
+      });
     } else {
       body.style.backgroundImage = '';
       body.classList.remove('with-bg-image');

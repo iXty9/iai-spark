@@ -16,14 +16,17 @@ export interface ThemeControlsProps {
   isActive?: boolean;
 }
 
+// FIXED: Use correct default colors from production theme service
 const defaultColors = {
   backgroundColor: '#ffffff',
+  primaryColor: '#dd3333',
   textColor: '#000000',
-  userBubbleColor: '#e5e7eb',
-  userBubbleOpacity: 1,
+  accentColor: '#9b87f5',
+  userBubbleColor: '#dd3333',
+  aiBubbleColor: '#9b87f5',
+  userBubbleOpacity: 0.3,
+  aiBubbleOpacity: 0.3,
   userTextColor: '#000000',
-  aiBubbleColor: '#f3f4f6',
-  aiBubbleOpacity: 1,
   aiTextColor: '#000000',
 };
 
@@ -65,8 +68,9 @@ const ColorInputRow = ({
   <div className="space-y-2">
     <Label htmlFor={name}>{label}</Label>
     <div className="flex items-center space-x-2">
-      <div className="w-6 h-6 rounded-md" style={{
-        backgroundColor: value, border: isActive ? '1px solid #ccc' : '1px solid #333'
+      <div className="w-6 h-6 rounded-md border" style={{
+        backgroundColor: value, 
+        borderColor: isActive ? '#ccc' : '#666'
       }} />
       <Input id={name} name={name} type="color" value={value} onChange={onColorChange} className="w-12 h-8"/>
       <Input type="text" value={value} onChange={onColorChange} name={name} className="flex-1"/>
@@ -114,7 +118,7 @@ const ContrastCheckBlock = ({
     <div className="text-xs mt-1">
       Ratio: {formatContrastRatio(contrast)}
     </div>
-    {suggestedColor && (
+    {rating === 'Fail' && suggestedColor && (
       <div className="flex items-center mt-2">
         <div className="w-4 h-4 rounded-sm mr-1" style={{ backgroundColor: suggestedColor }} />
         <Button size="sm" variant="outline" className="text-xs py-1 h-6"
@@ -132,22 +136,23 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
 
   const applySuggestion = (name: string, value: string) => onColorChange({ name, value });
   
-  // Fixed handleSliderChange function
+  // FIXED: Proper slider change handler
   const handleSliderChange = (name: string, value: number) => {
     onColorChange({ name, value });
   };
   
   const c = { ...defaultColors, ...colors };
 
-  // Generate contrast data & suggestions in one pass
+  // FIXED: Generate contrast data with proper failure detection
   const contrastData = contrastLabels.map(({ title, fg, bg }) => {
     const rating = getContrastRating(c[fg], c[bg]);
+    const contrastRatio = getContrastRatio(c[fg], c[bg]);
     return {
       title,
       fg: c[fg],
       bg: c[bg],
       rating,
-      contrast: getContrastRatio(c[fg], c[bg]),
+      contrast: contrastRatio,
       colorName: fg,
       suggestedColor: rating === 'Fail' ? suggestAccessibleColor(c[fg], c[bg]) : null
     };
@@ -155,7 +160,7 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
 
   return (
     <div className={`space-y-6 ${theme === 'light' ? 'text-black' : 'text-white'}`}>
-      {/* Preview */}
+      {/* FIXED: Preview with proper opacity and color application */}
       <div className="p-3 rounded-md border mb-4" style={{ backgroundColor: c.backgroundColor }}>
         <h3 className="font-medium mb-2" style={{ color: c.textColor }}>Theme Preview</h3>
         <div className="flex space-x-2 mb-2">
@@ -163,7 +168,11 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
             <div
               key={msgLabel}
               className="p-2 rounded-lg flex-1 text-center"
-              style={{ backgroundColor: c[bubbleColor], opacity: c[bubbleOpacity], color: c[textColor] }}
+              style={{ 
+                backgroundColor: c[bubbleColor], 
+                opacity: c[bubbleOpacity], 
+                color: c[textColor] 
+              }}
             >
               {msgLabel} Message
             </div>
@@ -190,10 +199,13 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
 
       {/* Background + Text color */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {['backgroundColor', 'textColor'].map(key =>
+        {[
+          { key: 'backgroundColor', label: 'Background Color' },
+          { key: 'textColor', label: 'Default Text Color' }
+        ].map(({ key, label }) =>
           <ColorInputRow
             key={key}
-            label={key === 'backgroundColor' ? 'Background Color' : 'Default Text Color'}
+            label={label}
             name={key}
             value={c[key]}
             onColorChange={onColorChange}

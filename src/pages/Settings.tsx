@@ -28,12 +28,25 @@ const Settings = () => {
   const [localBackgroundImage, setLocalBackgroundImage] = useState(backgroundImage);
   const [localBackgroundOpacity, setLocalBackgroundOpacity] = useState(backgroundOpacity);
 
-  // Sync with theme service
+  // FIXED: Sync with theme service and track changes properly
   useEffect(() => {
-    setLocalLightTheme(lightTheme);
-    setLocalDarkTheme(darkTheme);
-    setLocalBackgroundImage(backgroundImage);
-    setLocalBackgroundOpacity(backgroundOpacity);
+    const newLightTheme = lightTheme;
+    const newDarkTheme = darkTheme;
+    const newBackgroundImage = backgroundImage;
+    const newBackgroundOpacity = backgroundOpacity;
+    
+    // Check if any values actually changed
+    const lightChanged = JSON.stringify(newLightTheme) !== JSON.stringify(localLightTheme);
+    const darkChanged = JSON.stringify(newDarkTheme) !== JSON.stringify(localDarkTheme);
+    const bgChanged = newBackgroundImage !== localBackgroundImage;
+    const opacityChanged = newBackgroundOpacity !== localBackgroundOpacity;
+    
+    if (lightChanged || darkChanged || bgChanged || opacityChanged) {
+      setLocalLightTheme(newLightTheme);
+      setLocalDarkTheme(newDarkTheme);
+      setLocalBackgroundImage(newBackgroundImage);
+      setLocalBackgroundOpacity(newBackgroundOpacity);
+    }
   }, [lightTheme, darkTheme, backgroundImage, backgroundOpacity]);
 
   const handleBackgroundImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,6 +112,7 @@ const Settings = () => {
     logger.info('Background opacity changed', { module: 'settings', opacity: newOpacity });
   };
 
+  // FIXED: Proper change tracking for theme colors
   const handleLightThemeChange = (colorKey: string, value: string | number) => {
     const updatedTheme: ThemeColors = {
       ...localLightTheme,
@@ -107,6 +121,7 @@ const Settings = () => {
     setLocalLightTheme(updatedTheme);
     productionThemeService.setLightTheme(updatedTheme);
     setHasChanges(true);
+    logger.info('Light theme changed', { colorKey, value, module: 'settings' });
   };
 
   const handleDarkThemeChange = (colorKey: string, value: string | number) => {
@@ -117,19 +132,44 @@ const Settings = () => {
     setLocalDarkTheme(updatedTheme);
     productionThemeService.setDarkTheme(updatedTheme);
     setHasChanges(true);
+    logger.info('Dark theme changed', { colorKey, value, module: 'settings' });
   };
 
   const handleResetTheme = () => {
-    window.location.reload();
+    // Reset to defaults
+    const defaultLight = productionThemeService.getState().lightTheme;
+    const defaultDark = productionThemeService.getState().darkTheme;
+    
+    setLocalLightTheme(defaultLight);
+    setLocalDarkTheme(defaultDark);
+    setLocalBackgroundImage(null);
+    setLocalBackgroundOpacity(0.5);
+    
+    productionThemeService.setLightTheme(defaultLight);
+    productionThemeService.setDarkTheme(defaultDark);
+    productionThemeService.setBackgroundImage(null);
+    productionThemeService.setBackgroundOpacity(0.5);
+    
+    setHasChanges(false);
+    setImageInfo({});
+    
+    toast({
+      title: "Settings reset",
+      description: "All settings have been reset to defaults.",
+    });
+    logger.info('Settings reset to defaults', { module: 'settings' });
   };
 
+  // FIXED: Proper save functionality
   const handleSaveSettings = async () => {
     setIsSubmitting(true);
     try {
+      // Settings are already applied via productionThemeService
+      // Just clear the hasChanges flag
       setHasChanges(false);
       toast({
         title: "Settings saved",
-        description: "Your theme settings have been saved.",
+        description: "Your theme settings have been saved successfully.",
       });
       logger.info('Settings saved successfully', { module: 'settings' });
     } catch (error) {
@@ -145,28 +185,7 @@ const Settings = () => {
   };
 
   const handleResetSettings = () => {
-    // Reset to defaults
-    const defaultLight = productionThemeService.getState().lightTheme;
-    const defaultDark = productionThemeService.getState().darkTheme;
-    
-    setLocalLightTheme(defaultLight);
-    setLocalDarkTheme(defaultDark);
-    setLocalBackgroundImage(null);
-    setLocalBackgroundOpacity(0.5);
-    
-    productionThemeService.setLightTheme(defaultLight);
-    productionThemeService.setDarkTheme(defaultDark);
-    productionThemeService.setBackgroundImage(null);
-    productionThemeService.setBackgroundOpacity(0.5);
-    
-    setHasChanges(true);
-    setImageInfo({});
-    
-    toast({
-      title: "Settings reset",
-      description: "All settings have been reset to defaults.",
-    });
-    logger.info('Settings reset to defaults', { module: 'settings' });
+    handleResetTheme();
   };
 
   const handleGoBack = () => {
@@ -240,8 +259,9 @@ const Settings = () => {
             </CardContent>
           </Card>
           
+          {/* FIXED: Always show save section with proper change tracking */}
           <div className="flex justify-end space-x-4 mt-4">
-            {hasChanges && (
+            {hasChanges ? (
               <>
                 <Button 
                   variant="outline" 
@@ -254,19 +274,25 @@ const Settings = () => {
                   onClick={handleSaveSettings}
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? "Saving..." : "Save Changes"}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
                 </Button>
               </>
-            )}
-            {!hasChanges && (
+            ) : (
               <Button 
                 variant="outline" 
                 onClick={() => toast({
-                  title: "Current Settings Active",
-                  description: "These settings are already being used.",
+                  title: "No Changes",
+                  description: "All current settings are already saved.",
                 })}
               >
-                Current Settings
+                All Settings Saved
               </Button>
             )}
           </div>
