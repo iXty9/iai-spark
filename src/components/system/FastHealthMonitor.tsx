@@ -4,14 +4,14 @@ import { fastBootstrap, FastBootstrapStatus } from '@/services/bootstrap/fast-bo
 import { logger } from '@/utils/logging';
 
 export function FastHealthMonitor() {
+  // Only run in development
+  if (process.env.NODE_ENV === 'production') {
+    return null;
+  }
+
   const [status, setStatus] = useState<FastBootstrapStatus | null>(null);
 
   useEffect(() => {
-    // Light health monitoring - only in development and much less frequent
-    if (process.env.NODE_ENV !== 'development') {
-      return;
-    }
-
     let healthCheckInterval: NodeJS.Timeout;
 
     const performHealthCheck = () => {
@@ -26,11 +26,8 @@ export function FastHealthMonitor() {
       }
     };
 
-    // Initial check
     performHealthCheck();
-    
-    // Very infrequent checks (every 5 minutes) to avoid performance impact
-    healthCheckInterval = setInterval(performHealthCheck, 300000);
+    healthCheckInterval = setInterval(performHealthCheck, 300000); // 5 minutes
 
     return () => {
       if (healthCheckInterval) {
@@ -38,11 +35,6 @@ export function FastHealthMonitor() {
       }
     };
   }, []);
-
-  // Only show in development
-  if (process.env.NODE_ENV === 'production') {
-    return null;
-  }
 
   return (
     <div className="fixed top-2 left-2 z-30 text-xs">

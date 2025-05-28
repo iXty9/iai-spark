@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { emitBootstrapEvent, collectEnvironmentInfo } from '@/utils/debug';
@@ -53,13 +54,18 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
   setIsTransitioning,
   setHasInteracted
 }) => {
+  // Early return for production to avoid all debug overhead
+  if (process.env.NODE_ENV === 'production') {
+    return null;
+  }
+
   const { isDevMode } = useDevMode();
   const [debugInfo, setDebugInfo] = useState(INITIAL_DEBUGINFO);
   const [lastWebhookCall, setLastWebhookCall] = useState<string | null>(null);
   const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const inputContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // One-time only: listen for webhook events and initialize debug tracking
+  // Initialize debug tracking only in development
   useEffect(() => {
     const handler = (e: any) => {
       const url = e?.detail?.webhookUrl;
@@ -67,26 +73,21 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
     };
     window.addEventListener('webhookCall', handler);
     
-    // Check if bootstrap has already been initialized to prevent duplicate events
     const bootstrapState = localStorage.getItem('supabase_bootstrap_state');
     const isBootstrapInitialized = bootstrapState && 
       JSON.parse(bootstrapState).stage !== 'not_started' && 
       JSON.parse(bootstrapState).stage !== 'failed';
     
-    // Only initialize bootstrap if not already started
     if (!isBootstrapInitialized) {
       emitBootstrapEvent('initializing');
     }
     
-    // Mark the start time for connection tracking
     if (typeof window !== 'undefined') {
       (window as any).supabaseConnectionStartTime = performance.now();
     }
     
-    // Collect environment info on mount
     collectEnvironmentInfo();
     
-    // Track authentication state
     const authState = isAuthenticated ? 'authenticated' : 'unauthenticated';
     window.dispatchEvent(new CustomEvent('chatDebug', { 
       detail: { 
@@ -97,7 +98,6 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
       }
     }));
     
-    // Mark bootstrap as completed after a delay
     const completeBootstrap = setTimeout(() => {
       emitBootstrapEvent('completed');
     }, 2000);
@@ -106,9 +106,9 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
       window.removeEventListener('webhookCall', handler);
       clearTimeout(completeBootstrap);
     };
-  }, []);
+  }, [isAuthenticated]);
 
-  // On mount: Safari and iOS detection + viewport height
+  // Viewport and Safari detection
   useEffect(() => {
     setDebugInfo(di => ({
       ...di,
@@ -118,9 +118,8 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
     }));
   }, []);
 
-  // Main effect: reacts to messages and interaction state, sets debug info
+  // Main state management effect
   useEffect(() => {
-    // Transition from welcome to chat
     if (messages.length > 0 && !hasInteracted) {
       logger.info('Transitioning from Welcome to Chat UI', {
         messageCount: messages.length, hasInteracted, isLoading,
@@ -139,7 +138,6 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
       }, 100);
     }
 
-    // Reset to Welcome screen
     if (messages.length === 0 && hasInteracted) {
       logger.info('Resetting to Welcome screen (messages cleared)', {}, { module: 'ui' });
       setHasInteracted(false);
@@ -151,7 +149,7 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
       });
     }
 
-    // Always update debug info for messageCount and input
+    // Update debug info
     setDebugInfo(di => {
       let update = { ...di, messageCount: messages.length };
       const ref = inputContainerRef.current;
@@ -175,10 +173,9 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
       }
       return update;
     });
-
   }, [messages.length, hasInteracted, isLoading, setHasInteracted, setIsTransitioning]);
 
-  // Safety: force reset transition after timeout if needed
+  // Safety timeout for transitions
   useEffect(() => {
     if (!isTransitioning) return;
     const timeout = setTimeout(() => {
@@ -199,17 +196,16 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
     return () => clearTimeout(timeout);
   }, [isTransitioning, messages.length, setHasInteracted, setIsTransitioning]);
 
-  // Cleanup transition timers on unmount
+  // Cleanup on unmount
   useEffect(() => () => {
     if (transitionTimeoutRef.current) clearTimeout(transitionTimeoutRef.current);
   }, []);
 
-  // Use useCallback to prevent unnecessary re-renders
   const setInputContainerRef = useCallback((ref: HTMLDivElement | null) => {
     inputContainerRef.current = ref;
   }, []);
 
-  // Don't render anything unless dev mode or NODE_ENV=development
+  // Only render in development or when dev mode is explicitly enabled
   if (!isDevMode && process.env.NODE_ENV !== 'development') return null;
 
   return (
