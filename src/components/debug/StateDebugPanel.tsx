@@ -97,7 +97,7 @@ export const StateDebugPanel = ({
   const [consoleLogs, setConsoleLogs] = useState<Array<{timestamp: string, type: string, message: string}>>([]);
 
   const addLog = (m: string) => setLogs(l => [{timestamp: nowISO(), message: m}, ...l].slice(0, MAX_LOG));
-  const addConsole = (type: string, args: IArguments) => {
+  const addConsole = (type: string, args: any[]) => {
     const msg = Array.from(args).map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
     setConsoleLogs(l => ([{timestamp:nowISO(),type, message:msg},...l]).slice(0,MAX_CONSOLE));
     if (window.debugState) {
@@ -160,7 +160,7 @@ export const StateDebugPanel = ({
         window.debugState = ns; 
         return ns; 
       }); 
-    }
+    }]
   ];
 
   // One compact event + console log effect  
@@ -168,13 +168,13 @@ export const StateDebugPanel = ({
     logTypes.forEach(type => {
       const fn = (console as any)[type];
       (console as any)[type] = function(...args: any[]) {
-        addConsole(type, arguments);
+        addConsole(type, args);
         fn.apply(console, args);
       };
     });
     
     events.forEach(([eventName, callback]) => {
-      window.addEventListener(eventName, callback);
+      window.addEventListener(eventName, callback as EventListener);
     });
     
     collectStorage();
@@ -196,7 +196,7 @@ export const StateDebugPanel = ({
     
     return () => { 
       events.forEach(([eventName, callback]) => {
-        window.removeEventListener(eventName, callback);
+        window.removeEventListener(eventName, callback as EventListener);
       }); 
       logTypes.forEach(type => {
         (console as any)[type] = (console as any)['_'+type];
