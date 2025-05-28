@@ -14,8 +14,7 @@ export const applyThemeChanges = (themeColors: ThemeColors, mode?: 'light' | 'da
 };
 
 /**
- * Applies background image and opacity to the document body
- * Fixed the opacity calculation bug
+ * Applies background image and opacity to the document body - FIXED
  */
 export const applyBackgroundImage = (image: string | null, opacity: number) => {
   // Ensure opacity is between 0 and 1
@@ -23,7 +22,11 @@ export const applyBackgroundImage = (image: string | null, opacity: number) => {
   
   themeService.applyBackground(image, clampedOpacity);
   
-  console.log('Applied background:', { image: !!image, opacity: clampedOpacity });
+  console.log('Applied background:', { 
+    image: !!image, 
+    opacity: clampedOpacity,
+    cssOpacity: 1 - clampedOpacity // Show what gets applied to CSS
+  });
 };
 
 /**

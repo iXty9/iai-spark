@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeColors, ThemeSettings } from '@/types/theme';
@@ -89,11 +90,12 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
             setDarkTheme(themeSettings.darkTheme);
           }
           
-          // Update background settings - fix type conversion here
+          // Update background settings - FIXED type handling
           if (themeSettings.backgroundImage) {
             setBackgroundImage(themeSettings.backgroundImage);
           }
           if (themeSettings.backgroundOpacity !== undefined) {
+            // FIXED: Proper type conversion
             const opacity = typeof themeSettings.backgroundOpacity === 'string' 
               ? parseFloat(themeSettings.backgroundOpacity)
               : themeSettings.backgroundOpacity;
@@ -109,7 +111,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
           
           themeService.applyThemeImmediate(currentColors, themeSettings.mode || theme);
           
-          // Apply background if present - fix type conversion here
+          // Apply background if present - FIXED opacity handling
           if (themeSettings.backgroundImage) {
             const bgOpacity = typeof themeSettings.backgroundOpacity === 'string'
               ? parseFloat(themeSettings.backgroundOpacity || '0.5')
@@ -168,7 +170,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       setLightTheme(adminDefaults.lightTheme || themeService.getDefaultThemeColors('light'));
       setDarkTheme(adminDefaults.darkTheme || themeService.getDefaultThemeColors('dark'));
       setBackgroundImage(adminDefaults.backgroundImage || null);
-      // Fix type conversion here
+      // FIXED: Proper type conversion for opacity
       const opacity = typeof adminDefaults.backgroundOpacity === 'string'
         ? parseFloat(adminDefaults.backgroundOpacity || '0.5')
         : (adminDefaults.backgroundOpacity || 0.5);
@@ -196,7 +198,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         const updatedSettings = {
           ...existingSettings,
           backgroundImage: image,
-          backgroundOpacity: opacity.toString() // Always convert to string for storage
+          backgroundOpacity: opacity // Keep as number
         };
         updateProfile({ theme_settings: JSON.stringify(updatedSettings) });
       } catch (error) {

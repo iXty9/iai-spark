@@ -23,13 +23,13 @@ export const useSettingsState = () => {
   const [hasChanges, setHasChanges] = useState(false);
   const [imageInfo, setImageInfo] = useState<ImageInfo>({});
   
-  // Default light theme colors
+  // Default light theme colors with company branding
   const defaultLightTheme: ThemeColors = {
     backgroundColor: '#ffffff',
-    primaryColor: '#ea384c',
+    primaryColor: '#dd3333', // Company primary color
     textColor: '#000000',
     accentColor: '#9b87f5',
-    userBubbleColor: '#ea384c',
+    userBubbleColor: '#dd3333', // Company primary color
     aiBubbleColor: '#9b87f5',
     userBubbleOpacity: 0.3,
     aiBubbleOpacity: 0.3,
@@ -37,13 +37,13 @@ export const useSettingsState = () => {
     aiTextColor: '#000000'
   };
   
-  // Default dark theme colors
+  // Default dark theme colors with company branding
   const defaultDarkTheme: ThemeColors = {
     backgroundColor: '#121212',
-    primaryColor: '#ea384c',
+    primaryColor: '#dd3333', // Company primary color
     textColor: '#ffffff',
     accentColor: '#9b87f5',
-    userBubbleColor: '#ea384c',
+    userBubbleColor: '#dd3333', // Company primary color
     aiBubbleColor: '#9b87f5',
     userBubbleOpacity: 0.3,
     aiBubbleOpacity: 0.3,
@@ -92,9 +92,13 @@ export const useSettingsState = () => {
         }
         
         if (themeSettings.backgroundOpacity !== undefined) {
-          const opacity = parseFloat(themeSettings.backgroundOpacity);
+          // FIXED: Ensure proper number type handling
+          const opacity = typeof themeSettings.backgroundOpacity === 'string'
+            ? parseFloat(themeSettings.backgroundOpacity)
+            : themeSettings.backgroundOpacity;
           if (!isNaN(opacity)) {
             setBackgroundOpacity(opacity);
+            logger.info('Loaded background opacity', { module: 'settings', opacity });
           }
         }
         

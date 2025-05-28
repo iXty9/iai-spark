@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { emitDebugEvent } from '@/utils/debug-events';
@@ -131,10 +130,18 @@ export const useSettingsPersistence = ({
       applyThemeChanges(currentTheme);
 
       if (user && updateProfile) {
-        // Make sure we stringify the theme settings
-        await updateProfile({ theme_settings: JSON.stringify(themeSettings) });
+        // Make sure we stringify the theme settings and keep opacity as number
+        const settingsToSave = {
+          ...themeSettings,
+          backgroundOpacity: backgroundOpacity // Ensure number type
+        };
+        await updateProfile({ theme_settings: JSON.stringify(settingsToSave) });
         
-        logger.info('Settings saved successfully', { module: 'settings' });
+        logger.info('Settings saved successfully', { 
+          module: 'settings',
+          backgroundOpacity: backgroundOpacity,
+          hasBackground: !!backgroundImage
+        });
 
         toast({
           title: "Settings saved",
@@ -145,7 +152,11 @@ export const useSettingsPersistence = ({
         setHasChanges(false);
       } else {
         // Fallback to localStorage if no updateProfile function is available
-        localStorage.setItem('theme_settings', JSON.stringify(themeSettings));
+        const settingsToSave = {
+          ...themeSettings,
+          backgroundOpacity: backgroundOpacity
+        };
+        localStorage.setItem('theme_settings', JSON.stringify(settingsToSave));
         
         toast({
           title: "Settings saved",
@@ -192,67 +203,26 @@ export const useSettingsPersistence = ({
         setLightTheme(defaultThemeSettings.lightTheme);
         setDarkTheme(defaultThemeSettings.darkTheme);
         setBackgroundImage(defaultThemeSettings.backgroundImage);
-        setBackgroundOpacity(parseFloat(defaultThemeSettings.backgroundOpacity || '0.5'));
+        // FIXED: Ensure opacity is number
+        const opacity = typeof defaultThemeSettings.backgroundOpacity === 'string'
+          ? parseFloat(defaultThemeSettings.backgroundOpacity || '0.5')
+          : (defaultThemeSettings.backgroundOpacity || 0.5);
+        setBackgroundOpacity(opacity);
         
         // Apply the default theme immediately
         const currentTheme = theme === 'light' ? defaultThemeSettings.lightTheme : defaultThemeSettings.darkTheme;
         applyThemeChanges(currentTheme);
         
         // Apply background from default theme
-        applyBackgroundImage(
-          defaultThemeSettings.backgroundImage, 
-          parseFloat(defaultThemeSettings.backgroundOpacity || '0.5')
-        );
+        applyBackgroundImage(defaultThemeSettings.backgroundImage, opacity);
         
         toast({
           title: "Settings reset",
           description: "Your theme settings have been reset to system defaults",
         });
       } else {
-        // If we couldn't find admin defaults, try to fetch them again
-        try {
-          logger.info('No cached admin defaults, fetching fresh defaults', { module: 'settings' });
-          const appSettings = await fetchAppSettings();
-          
-          if (appSettings && appSettings.default_theme_settings) {
-            const freshDefaultSettings = JSON.parse(appSettings.default_theme_settings);
-            
-            logger.info('Found fresh default theme settings', { 
-              module: 'settings',
-              hasBackground: !!freshDefaultSettings.backgroundImage
-            });
-            
-            // Save the fresh settings to state
-            setDefaultThemeSettings(freshDefaultSettings);
-            
-            // Apply the fresh settings
-            setLightTheme(freshDefaultSettings.lightTheme);
-            setDarkTheme(freshDefaultSettings.darkTheme);
-            setBackgroundImage(freshDefaultSettings.backgroundImage);
-            setBackgroundOpacity(parseFloat(freshDefaultSettings.backgroundOpacity || '0.5'));
-            
-            // Apply the fresh theme immediately
-            const currentTheme = theme === 'light' ? freshDefaultSettings.lightTheme : freshDefaultSettings.darkTheme;
-            applyThemeChanges(currentTheme);
-            
-            // Apply background from fresh default theme
-            applyBackgroundImage(
-              freshDefaultSettings.backgroundImage,
-              parseFloat(freshDefaultSettings.backgroundOpacity || '0.5')
-            );
-            
-            toast({
-              title: "Settings reset",
-              description: "Your theme settings have been reset to system defaults",
-            });
-          } else {
-            // Fall back to hardcoded defaults if no default theme settings exist
-            resetToHardcodedDefaults();
-          }
-        } catch (error) {
-          logger.error('Error fetching fresh default theme settings', error, { module: 'settings' });
-          resetToHardcodedDefaults();
-        }
+        // Fall back to hardcoded defaults if no admin defaults exist
+        resetToHardcodedDefaults();
       }
       
       // Mark as having changes that need to be saved
@@ -269,16 +239,16 @@ export const useSettingsPersistence = ({
     }
   };
   
-  // Helper function to reset to hardcoded defaults
+  // Helper function to reset to hardcoded defaults with company branding
   const resetToHardcodedDefaults = () => {
     logger.info('No admin defaults found, resetting to factory defaults', { module: 'settings' });
     
     const defaultLightTheme = {
       backgroundColor: '#ffffff',
-      primaryColor: '#ea384c',
+      primaryColor: '#dd3333', // Company primary color
       textColor: '#000000',
       accentColor: '#9b87f5',
-      userBubbleColor: '#ea384c',
+      userBubbleColor: '#dd3333', // Company primary color
       aiBubbleColor: '#9b87f5',
       userBubbleOpacity: 0.3,
       aiBubbleOpacity: 0.3,
@@ -288,10 +258,10 @@ export const useSettingsPersistence = ({
     
     const defaultDarkTheme = {
       backgroundColor: '#121212',
-      primaryColor: '#ea384c',
+      primaryColor: '#dd3333', // Company primary color
       textColor: '#ffffff',
       accentColor: '#9b87f5',
-      userBubbleColor: '#ea384c',
+      userBubbleColor: '#dd3333', // Company primary color
       aiBubbleColor: '#9b87f5',
       userBubbleOpacity: 0.3,
       aiBubbleOpacity: 0.3,

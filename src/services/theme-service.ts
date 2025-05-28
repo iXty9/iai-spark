@@ -13,10 +13,10 @@ class ThemeService {
   private isInitialized = false;
   private defaultLightTheme: ThemeColors = {
     backgroundColor: '#ffffff',
-    primaryColor: '#ea384c',
+    primaryColor: '#dd3333', // Company primary color
     textColor: '#000000',
     accentColor: '#9b87f5',
-    userBubbleColor: '#ea384c',
+    userBubbleColor: '#dd3333', // Company primary color
     aiBubbleColor: '#9b87f5',
     userBubbleOpacity: 0.3,
     aiBubbleOpacity: 0.3,
@@ -26,10 +26,10 @@ class ThemeService {
 
   private defaultDarkTheme: ThemeColors = {
     backgroundColor: '#121212',
-    primaryColor: '#ea384c',
+    primaryColor: '#dd3333', // Company primary color
     textColor: '#ffffff',
     accentColor: '#9b87f5',
-    userBubbleColor: '#ea384c',
+    userBubbleColor: '#dd3333', // Company primary color
     aiBubbleColor: '#9b87f5',
     userBubbleOpacity: 0.3,
     aiBubbleOpacity: 0.3,
@@ -134,20 +134,29 @@ class ThemeService {
   }
 
   /**
-   * Apply background image and opacity
+   * Apply background image and opacity - FIXED
    */
   applyBackground(imageUrl: string | null, opacity: number): void {
     const root = document.documentElement;
     
-    // Set opacity variable (fixed calculation)
-    root.style.setProperty('--bg-opacity', opacity.toString());
+    // FIXED: Ensure opacity is properly normalized (0-1 range)
+    const normalizedOpacity = Math.max(0, Math.min(1, opacity));
+    
+    // Set opacity variable - FIXED calculation
+    root.style.setProperty('--bg-opacity', (1 - normalizedOpacity).toString());
     
     if (imageUrl) {
       document.body.style.backgroundImage = `url(${imageUrl})`;
       document.body.classList.add('with-bg-image');
+      logger.info('Background image applied', { 
+        module: 'theme-service', 
+        opacity: normalizedOpacity,
+        cssOpacity: 1 - normalizedOpacity
+      });
     } else {
       document.body.style.backgroundImage = 'none';
       document.body.classList.remove('with-bg-image');
+      logger.info('Background image removed', { module: 'theme-service' });
     }
   }
 
@@ -166,7 +175,7 @@ class ThemeService {
       lightTheme,
       darkTheme,
       backgroundImage: backgroundImage || null,
-      backgroundOpacity: backgroundOpacity?.toString() || '0.5',
+      backgroundOpacity: backgroundOpacity || 0.5, // Keep as number
       exportDate: new Date().toISOString(),
       name: 'Custom Theme'
     };

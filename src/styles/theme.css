@@ -1,11 +1,11 @@
 
 :root {
-  /* Unified theme color variables */
+  /* Unified theme color variables with company branding */
   --background-color: #ffffff;
-  --primary-color: #ea384c;
+  --primary-color: #dd3333;
   --text-color: #000000;
   --accent-color: #9b87f5;
-  --user-bubble-color: #ea384c;
+  --user-bubble-color: #dd3333;
   --ai-bubble-color: #9b87f5;
   --user-bubble-opacity: 0.3;
   --ai-bubble-opacity: 0.3;
@@ -21,14 +21,14 @@
   --glass-opacity: 0.8;
   --glass-blur: 8px;
 
-  /* Shadcn/UI theme variables */
+  /* Shadcn/UI theme variables with company branding */
   --background: 0 0% 100%;
   --foreground: 224 71.4% 4.1%;
   --card: 0 0% 100%;
   --card-foreground: 224 71.4% 4.1%;
   --popover: 0 0% 100%;
   --popover-foreground: 224 71.4% 4.1%;
-  --primary: 346 89% 57%;
+  --primary: 0 71% 52%;
   --primary-foreground: 0 0% 100%;
   --secondary: 220 14.3% 95.9%;
   --secondary-foreground: 220.9 39.3% 11%;
@@ -49,12 +49,12 @@
 }
 
 .dark {
-  /* Dark mode theme colors */
+  /* Dark mode theme colors with company branding */
   --background-color: #121212;
-  --primary-color: #ea384c;
+  --primary-color: #dd3333;
   --text-color: #ffffff;
   --accent-color: #9b87f5;
-  --user-bubble-color: #ea384c;
+  --user-bubble-color: #dd3333;
   --ai-bubble-color: #9b87f5;
   --user-bubble-opacity: 0.3;
   --ai-bubble-opacity: 0.3;
@@ -69,7 +69,7 @@
   --card-foreground: 210 20% 98%;
   --popover: 224 71.4% 4.1%;
   --popover-foreground: 210 20% 98%;
-  --primary: 346 89% 57%;
+  --primary: 0 71% 52%;
   --primary-foreground: 0 0% 100%;
   --secondary: 215 27.9% 16.9%;
   --secondary-foreground: 210 20% 98%;
@@ -101,7 +101,7 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 
-/* Background image handling with proper opacity */
+/* Background image handling with proper opacity - FIXED */
 body.with-bg-image {
   position: relative;
   background-size: cover;
@@ -116,7 +116,7 @@ body.with-bg-image {
   }
 }
 
-/* Fixed background overlay calculation */
+/* FIXED: Corrected background overlay calculation */
 body.with-bg-image::before {
   content: "";
   position: fixed;
@@ -126,8 +126,8 @@ body.with-bg-image::before {
   height: 100%;
   z-index: -1;
   background-color: var(--background-color);
-  /* Fixed: Use bg-opacity directly instead of inverting */
-  opacity: calc(1 - var(--bg-opacity));
+  /* FIXED: Use bg-opacity directly for transparency */
+  opacity: var(--bg-opacity);
   pointer-events: none;
 }
 

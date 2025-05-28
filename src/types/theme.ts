@@ -21,7 +21,7 @@ export interface ThemeSettings {
   lightTheme?: ThemeColors;
   darkTheme?: ThemeColors;
   backgroundImage?: string | null;
-  backgroundOpacity?: string | number;
+  backgroundOpacity?: number; // FIXED: Always number, not string
   backgroundConfig?: {
     image?: string | null;
     opacity?: number;
