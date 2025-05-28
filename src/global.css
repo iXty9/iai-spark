@@ -3,104 +3,15 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  /* Custom color variables */
-  --background-color: #ffffff;
-  --primary-color: #ea384c;
-  --text-color: #000000;
-  --accent-color: #9b87f5;
-  --user-bubble-color: #ea384c;
-  --ai-bubble-color: #9b87f5;
-  --user-bubble-opacity: 0.3;
-  --ai-bubble-opacity: 0.3;
-  --user-text-color: #000000;
-  --ai-text-color: #000000;
-  --link-color: #0077CC;
-  
-  /* Background image opacity */
-  --bg-opacity: 0.5;
-
-  /* Default theme variables */
-  --background: 0 0% 100%;
-  --foreground: 224 71.4% 4.1%;
-  --card: 0 0% 100%;
-  --card-foreground: 224 71.4% 4.1%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 224 71.4% 4.1%;
-  --primary: 346 89% 57%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 220 14.3% 95.9%;
-  --secondary-foreground: 220.9 39.3% 11%;
-  --muted: 220 14.3% 95.9%;
-  --muted-foreground: 220 8.9% 46.1%;
-  --accent: 258 89% 74%;
-  --accent-foreground: 0 0% 100%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 220 13% 91%;
-  --input: 220 13% 91%;
-  --ring: 224 71.4% 4.1%;
-  --radius: 0.5rem;
-}
-
-.dark {
-  --background: 224 71.4% 4.1%;
-  --foreground: 210 20% 98%;
-  --card: 224 71.4% 4.1%;
-  --card-foreground: 210 20% 98%;
-  --popover: 224 71.4% 4.1%;
-  --popover-foreground: 210 20% 98%;
-  --primary: 346 89% 57%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 215 27.9% 16.9%;
-  --secondary-foreground: 210 20% 98%;
-  --muted: 215 27.9% 16.9%;
-  --muted-foreground: 217.9 10.6% 64.9%;
-  --accent: 258 89% 74%;
-  --accent-foreground: 0 0% 100%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 20% 98%;
-  --border: 215 27.9% 16.9%;
-  --input: 215 27.9% 16.9%;
-  --ring: 216 12.2% 83.9%;
-}
+/* Import the unified theme styles */
+@import './styles/theme.css';
 
 body {
   @apply bg-background text-foreground;
-  background-color: var(--background-color);
-  color: var(--text-color);
+  /* Theme colors are now applied via CSS variables from theme.css */
 }
 
-body.with-bg-image {
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-  position: relative;
-}
-
-body.with-bg-image::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--background-color);
-  opacity: calc(1 - var(--bg-opacity));
-  z-index: -1;
-}
-
-.bg-checkerboard {
-  background-image: linear-gradient(45deg, #0000000d 25%, transparent 25%),
-                    linear-gradient(-45deg, #0000000d 25%, transparent 25%),
-                    linear-gradient(45deg, transparent 75%, #0000000d 75%),
-                    linear-gradient(-45deg, transparent 75%, #0000000d 75%);
-  background-size: 20px 20px;
-  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-}
-
-/* Link color */
+/* Link color inheritance */
 a {
   color: var(--link-color);
 }

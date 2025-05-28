@@ -1,6 +1,6 @@
 
 :root {
-  /* Base theme colors */
+  /* Unified theme color variables */
   --background-color: #ffffff;
   --primary-color: #ea384c;
   --text-color: #000000;
@@ -11,23 +11,45 @@
   --ai-bubble-opacity: 0.3;
   --user-text-color: #000000;
   --ai-text-color: #000000;
-  --link-color: #0EA5E9; /* Default link color */
-  --bg-opacity: 0.5; /* 50% as default */
-  --glass-opacity: 0.8; /* For glass UI elements */
-  --glass-blur: 8px; /* For glass UI elements */
+  --link-color: #0EA5E9;
+  
+  /* Background image settings */
+  --bg-opacity: 0.5;
+  --bg-image-url: none;
+  
+  /* Glass UI settings */
+  --glass-opacity: 0.8;
+  --glass-blur: 8px;
+
+  /* Shadcn/UI theme variables */
+  --background: 0 0% 100%;
+  --foreground: 224 71.4% 4.1%;
+  --card: 0 0% 100%;
+  --card-foreground: 224 71.4% 4.1%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 224 71.4% 4.1%;
+  --primary: 346 89% 57%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 14.3% 95.9%;
+  --secondary-foreground: 220.9 39.3% 11%;
+  --muted: 220 14.3% 95.9%;
+  --muted-foreground: 220 8.9% 46.1%;
+  --accent: 258 89% 74%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 224 71.4% 4.1%;
+  --radius: 0.5rem;
 
   /* Theme transition properties */
-  --theme-transition-duration: 400ms;
+  --theme-transition-duration: 300ms;
   --theme-transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
-  --theme-transition-property: background-color, color, border-color, opacity, backdrop-filter, box-shadow;
-}
-
-/* Apply transitions to all themeable elements */
-body, body *, .theme-transition {
-  transition: var(--theme-transition-property) var(--theme-transition-duration) var(--theme-transition-timing);
 }
 
 .dark {
+  /* Dark mode theme colors */
   --background-color: #121212;
   --primary-color: #ea384c;
   --text-color: #ffffff;
@@ -38,34 +60,63 @@ body, body *, .theme-transition {
   --ai-bubble-opacity: 0.3;
   --user-text-color: #ffffff;
   --ai-text-color: #ffffff;
-  --link-color: #33C3F0; /* Dark mode link color */
+  --link-color: #33C3F0;
+
+  /* Shadcn/UI dark mode variables */
+  --background: 224 71.4% 4.1%;
+  --foreground: 210 20% 98%;
+  --card: 224 71.4% 4.1%;
+  --card-foreground: 210 20% 98%;
+  --popover: 224 71.4% 4.1%;
+  --popover-foreground: 210 20% 98%;
+  --primary: 346 89% 57%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 215 27.9% 16.9%;
+  --secondary-foreground: 210 20% 98%;
+  --muted: 215 27.9% 16.9%;
+  --muted-foreground: 217.9 10.6% 64.9%;
+  --accent: 258 89% 74%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 20% 98%;
+  --border: 215 27.9% 16.9%;
+  --input: 215 27.9% 16.9%;
+  --ring: 216 12.2% 83.9%;
 }
 
+/* Apply smooth transitions to all elements */
+*, *::before, *::after {
+  transition: background-color var(--theme-transition-duration) var(--theme-transition-timing),
+              color var(--theme-transition-duration) var(--theme-transition-timing),
+              border-color var(--theme-transition-duration) var(--theme-transition-timing),
+              opacity var(--theme-transition-duration) var(--theme-transition-timing);
+}
+
+/* Base body styling */
 body {
   background-color: var(--background-color);
   color: var(--text-color);
   min-height: 100vh;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 
-/* Background image with opacity control - improved for all devices */
+/* Background image handling with proper opacity */
 body.with-bg-image {
   position: relative;
-  background-color: var(--background-color);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  /* Important: Don't use fixed attachment by default as it causes issues on mobile */
   background-attachment: scroll;
 }
 
-/* Desktop-specific background attachment */
 @media (min-width: 768px) {
   body.with-bg-image {
     background-attachment: fixed;
   }
 }
 
-/* Background overlay for color blending */
+/* Fixed background overlay calculation */
 body.with-bg-image::before {
   content: "";
   position: fixed;
@@ -75,111 +126,103 @@ body.with-bg-image::before {
   height: 100%;
   z-index: -1;
   background-color: var(--background-color);
-  opacity: var(--bg-opacity, 0.5); /* Default to 50% if not set */
-  transition: opacity var(--theme-transition-duration) var(--theme-transition-timing),
-              background-color var(--theme-transition-duration) var(--theme-transition-timing);
+  /* Fixed: Use bg-opacity directly instead of inverting */
+  opacity: calc(1 - var(--bg-opacity));
+  pointer-events: none;
 }
 
-/* Make transparent background work better with chat */
-.chat-container {
-  background-color: transparent !important;
-}
-
-.message-list {
-  background-color: transparent !important;
-}
-
-/* User and AI message bubbles - Enhanced with better glass effect but no shadow */
+/* Message bubble styling */
 .user-message-bubble {
   background-color: var(--user-bubble-color);
-  color: var(--user-text-color) !important; /* Force text color */
+  color: var(--user-text-color) !important;
   opacity: var(--user-bubble-opacity);
-  border: none !important;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  transition: transform 0.2s ease, 
-              background-color var(--theme-transition-duration) var(--theme-transition-timing),
-              color var(--theme-transition-duration) var(--theme-transition-timing),
-              opacity var(--theme-transition-duration) var(--theme-transition-timing);
-  text-align: left; /* Ensure text is left aligned */
+  border: none !important;
 }
 
 .ai-message-bubble {
   background-color: var(--ai-bubble-color);
-  color: var(--ai-text-color) !important; /* Force text color */
+  color: var(--ai-text-color) !important;
   opacity: var(--ai-bubble-opacity);
-  border: none !important;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  transition: transform 0.2s ease,
-              background-color var(--theme-transition-duration) var(--theme-transition-timing),
-              color var(--theme-transition-duration) var(--theme-transition-timing),
-              opacity var(--theme-transition-duration) var(--theme-transition-timing);
+  border: none !important;
 }
 
-/* Apply AI text color directly to the content */
-.ai-message-bubble * {
-  color: var(--ai-text-color) !important;
-  transition: color var(--theme-transition-duration) var(--theme-transition-timing);
+.ai-message-bubble *,
+.user-message-bubble * {
+  color: inherit !important;
 }
 
-/* Except for links which should use the link color */
 .ai-message-bubble a,
 .user-message-bubble a {
   color: var(--link-color) !important;
-  transition: color var(--theme-transition-duration) var(--theme-transition-timing);
 }
 
-/* Improved hover effect for message bubbles without shadow */
-.user-message-bubble:hover, 
-.ai-message-bubble:hover {
-  transform: translateY(-1px);
-}
-
-/* Enhanced Glass UI effect for cards and panels */
-.bg-background\/80 {
-  background-color: rgba(var(--background-color), var(--glass-opacity)) !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
-}
-
-.backdrop-blur-sm {
-  backdrop-filter: blur(var(--glass-blur)) !important;
-  -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
-}
-
-/* Improved glass effect on hover */
-.bg-background\/80:hover {
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
-}
-
-/* Make settings page transparent to show background */
+/* Glass effect cards */
 .card {
-  background-color: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background-color: rgba(255, 255, 255, var(--glass-opacity));
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .dark .card {
-  background-color: rgba(18, 18, 18, 0.85);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  background-color: rgba(18, 18, 18, var(--glass-opacity));
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.15);
+/* Loading state for theme changes */
+.theme-loading {
+  opacity: 0;
+  transition: opacity 150ms ease-in-out;
 }
 
-/* Add checkerboard pattern for transparency background */
+.theme-loaded {
+  opacity: 1;
+}
+
+/* Prevent flash of unstyled content */
+.theme-transition-guard {
+  visibility: hidden;
+}
+
+.theme-transition-guard.theme-ready {
+  visibility: visible;
+}
+
+/* Mobile optimizations */
+@media (max-width: 767px) {
+  body.with-bg-image {
+    background-attachment: scroll !important;
+  }
+  
+  .card {
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+}
+
+/* iOS specific fixes */
+@supports (-webkit-touch-callout: none) {
+  body.with-bg-image {
+    background-attachment: scroll !important;
+  }
+  
+  body.with-bg-image::before {
+    position: absolute;
+    min-height: 100vh;
+  }
+}
+
+/* Checkerboard pattern for transparency preview */
 .bg-checkerboard {
   background-image: 
-    linear-gradient(45deg, #ccc 25%, transparent 25%), 
-    linear-gradient(-45deg, #ccc 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #ccc 75%),
-    linear-gradient(-45deg, transparent 75%, #ccc 75%);
+    linear-gradient(45deg, #e5e5e5 25%, transparent 25%), 
+    linear-gradient(-45deg, #e5e5e5 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e5e5e5 75%),
+    linear-gradient(-45deg, transparent 75%, #e5e5e5 75%);
   background-size: 20px 20px;
   background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
 }
@@ -190,120 +233,4 @@ body.with-bg-image::before {
     linear-gradient(-45deg, #333 25%, transparent 25%),
     linear-gradient(45deg, transparent 75%, #333 75%),
     linear-gradient(-45deg, transparent 75%, #333 75%);
-}
-
-/* Enhanced mobile experience */
-@media (max-width: 767px) {
-  .user-message-bubble,
-  .ai-message-bubble {
-    border-radius: 16px; /* Slightly larger border radius on mobile */
-  }
-  
-  .glass-effect {
-    backdrop-filter: blur(6px); /* Slightly less blur for better performance */
-    -webkit-backdrop-filter: blur(6px);
-  }
-  
-  /* Ensure bottom spacing for notched devices */
-  .chat-container {
-    padding-bottom: env(safe-area-inset-bottom, 16px);
-  }
-  
-  /* Improved touch targets */
-  button, a {
-    padding: 10px; /* Slightly larger padding for better tapping */
-  }
-  
-  /* No hover effects on mobile to save performance */
-  .card:hover,
-  .user-message-bubble:hover,
-  .ai-message-bubble:hover,
-  .bg-background\/80:hover {
-    transform: none;
-    box-shadow: inherit;
-  }
-}
-
-/* iOS specific fixes for background */
-@supports (-webkit-touch-callout: none) {
-  body.with-bg-image {
-    /* Prevent background from scrolling on iOS */
-    background-attachment: scroll !important;
-  }
-  
-  /* Additional iOS specific background containment */
-  html, body {
-    height: 100%;
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  
-  /* Fix for iOS fixed position overlays */
-  body.with-bg-image::before {
-    position: absolute; /* Use absolute instead of fixed on iOS */
-    min-height: 100vh; /* Ensure full coverage */
-    height: 100%; /* Stretch to fill */
-  }
-}
-
-/* Fix for landscape orientation on iOS */
-@media screen and (orientation: landscape) and (-webkit-min-device-pixel-ratio: 2) {
-  body.with-bg-image {
-    background-size: cover;
-    min-height: 100vh;
-  }
-}
-
-/* Theme Animation Classes */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes fadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
-.theme-fade-in {
-  animation: fadeIn var(--theme-transition-duration) var(--theme-transition-timing);
-}
-
-.theme-fade-out {
-  animation: fadeOut var(--theme-transition-duration) var(--theme-transition-timing);
-}
-
-/* Contrast checks */
-.contrast-warning {
-  position: relative;
-}
-
-.contrast-warning::after {
-  content: "⚠️";
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  font-size: 14px;
-}
-
-/* Image loading state */
-.bg-loading {
-  position: relative;
-}
-
-.bg-loading::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
 }
