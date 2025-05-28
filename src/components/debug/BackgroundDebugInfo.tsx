@@ -2,10 +2,12 @@
 import React from 'react';
 import { useTheme } from '@/hooks/use-theme';
 import { unifiedThemeController } from '@/services/unified-theme-controller';
+import { backgroundStateManager } from '@/services/background-state-manager';
 
 export const BackgroundDebugInfo: React.FC = () => {
   const { backgroundImage, backgroundOpacity, isThemeLoaded } = useTheme();
   const controllerState = unifiedThemeController.getState();
+  const backgroundState = backgroundStateManager.getState();
   
   // Only show in development
   if (process.env.NODE_ENV !== 'development') {
@@ -17,11 +19,15 @@ export const BackgroundDebugInfo: React.FC = () => {
       <div className="font-bold">Background Debug:</div>
       <div>Theme Loaded: {isThemeLoaded ? '✅' : '❌'}</div>
       <div>Controller Init: {unifiedThemeController.initialized ? '✅' : '❌'}</div>
+      <div>Background Loaded: {backgroundState.isLoaded ? '✅' : '❌'}</div>
+      <div>Background Applied: {backgroundState.isApplied ? '✅' : '❌'}</div>
       <div>Has Image: {backgroundImage ? '✅' : '❌'}</div>
-      <div>Image URL: {backgroundImage ? backgroundImage.substring(0, 30) + '...' : 'None'}</div>
+      <div>Manager Image: {backgroundState.image ? '✅' : '❌'}</div>
       <div>Opacity: {backgroundOpacity}</div>
-      <div>Controller Image: {controllerState.backgroundImage ? '✅' : '❌'}</div>
-      <div>Controller Opacity: {controllerState.backgroundOpacity}</div>
+      <div>Manager Opacity: {backgroundState.opacity}</div>
+      {backgroundState.lastError && (
+        <div className="text-red-300">Error: {backgroundState.lastError}</div>
+      )}
     </div>
   );
 };

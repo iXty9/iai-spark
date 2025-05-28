@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeColors, ThemeSettings } from '@/types/theme';
 import { unifiedThemeController } from '@/services/unified-theme-controller';
+import { backgroundStateManager } from '@/services/background-state-manager';
 import { useThemeInitialization } from '@/hooks/use-theme-initialization';
 import { logger } from '@/utils/logging';
 
@@ -30,8 +31,9 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const authContext = useAuth();
   const { isThemeReady } = useThemeInitialization();
   
-  // Get state from unified controller
+  // Get state from unified controller and background manager
   const [controllerState, setControllerState] = useState(() => unifiedThemeController.getState());
+  const [backgroundState, setBackgroundState] = useState(() => backgroundStateManager.getState());
   const [isThemeLoaded, setIsThemeLoaded] = useState(false);
   
   // Safely access profile and updateProfile with fallbacks
@@ -41,7 +43,6 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   // Initialize controller when theme system is ready
   useEffect(() => {
     const initializeController = async () => {
-      // Wait for theme system to be ready
       if (!isThemeReady || isThemeLoaded) return;
 
       try {
@@ -76,18 +77,18 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         });
       } catch (error) {
         logger.error('Error initializing theme context:', error, { module: 'use-theme' });
-        setIsThemeLoaded(true); // Still mark as loaded to prevent infinite loading
+        setIsThemeLoaded(true);
       }
     };
 
     initializeController();
   }, [isThemeReady, profile?.theme_settings, isThemeLoaded]);
 
-  // Subscribe to controller changes
+  // Subscribe to controller and background changes
   useEffect(() => {
     if (!isThemeLoaded) return;
 
-    const unsubscribe = unifiedThemeController.subscribe((newState) => {
+    const unsubscribeController = unifiedThemeController.subscribe((newState) => {
       setControllerState(newState);
       logger.info('Theme context updated from controller', { 
         module: 'use-theme',
@@ -96,7 +97,19 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       });
     });
 
-    return unsubscribe;
+    const unsubscribeBackground = backgroundStateManager.subscribe((newBackgroundState) => {
+      setBackgroundState(newBackgroundState);
+      logger.info('Background state updated in theme context', { 
+        module: 'use-theme',
+        isApplied: newBackgroundState.isApplied,
+        hasImage: !!newBackgroundState.image
+      });
+    });
+
+    return () => {
+      unsubscribeController();
+      unsubscribeBackground();
+    };
   }, [isThemeLoaded]);
   
   // Theme management functions
@@ -164,8 +177,8 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         isThemeLoaded: isThemeLoaded && isThemeReady,
         applyThemeColors,
         applyBackground,
-        backgroundImage: controllerState.backgroundImage,
-        backgroundOpacity: controllerState.backgroundOpacity,
+        backgroundImage: backgroundState.image,
+        backgroundOpacity: backgroundState.opacity,
         currentThemeColors,
         lightTheme: controllerState.lightTheme,
         darkTheme: controllerState.darkTheme,
@@ -182,6 +195,7 @@ export const useTheme = () => {
   if (context === undefined) {
     // Provide a fallback to prevent crashes during initialization
     const fallbackState = unifiedThemeController.getState();
+    const fallbackBackgroundState = backgroundStateManager.getState();
     return {
       theme: fallbackState.mode,
       setTheme: () => {},
@@ -191,8 +205,8 @@ export const useTheme = () => {
       isThemeLoaded: false,
       applyThemeColors: () => {},
       applyBackground: () => {},
-      backgroundImage: fallbackState.backgroundImage,
-      backgroundOpacity: fallbackState.backgroundOpacity,
+      backgroundImage: fallbackBackgroundState.image,
+      backgroundOpacity: fallbackBackgroundState.opacity,
       currentThemeColors: fallbackState.lightTheme,
       lightTheme: fallbackState.lightTheme,
       darkTheme: fallbackState.darkTheme,

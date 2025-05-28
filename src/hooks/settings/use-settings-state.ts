@@ -1,9 +1,10 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeColors } from '@/types/theme';
 import { logger } from '@/utils/logging';
 import { unifiedThemeController } from '@/services/unified-theme-controller';
+import { backgroundStateManager } from '@/services/background-state-manager';
 
 export interface ImageInfo {
   originalSize?: string;
@@ -22,20 +23,17 @@ export const useSettingsState = () => {
   
   // Local state that mirrors the unified controller
   const [localState, setLocalState] = useState(() => unifiedThemeController.getState());
-  
-  // Track initialization more reliably
-  const initializationAttempted = useRef(false);
-  const profileDataLoaded = useRef(false);
+  const [backgroundState, setBackgroundState] = useState(() => backgroundStateManager.getState());
 
-  // Wait for controller initialization AND load user settings
+  // Initialize settings when profile data is available
   useEffect(() => {
     const initializeSettings = async () => {
-      // Prevent multiple initialization attempts
-      if (initializationAttempted.current) return;
-      initializationAttempted.current = true;
+      if (isInitialized) return;
 
       try {
-        // Wait for controller to be ready first
+        setIsLoading(true);
+
+        // Wait for controller to be ready
         let attempts = 0;
         const maxAttempts = 50;
         while (!unifiedThemeController.initialized && attempts < maxAttempts) {
@@ -44,32 +42,26 @@ export const useSettingsState = () => {
         }
 
         if (!unifiedThemeController.initialized) {
-          logger.warn('Controller initialization timeout', { module: 'settings' });
-        }
-
-        // Load profile data if available and not already loaded
-        if (profile?.theme_settings && !profileDataLoaded.current) {
-          try {
-            const userSettings = JSON.parse(profile.theme_settings);
-            
-            // Initialize controller with user settings
-            await unifiedThemeController.initialize(userSettings);
-            profileDataLoaded.current = true;
-            
-            logger.info('Settings loaded from user profile', { 
-              module: 'settings',
-              backgroundImage: !!userSettings.backgroundImage,
-              backgroundOpacity: userSettings.backgroundOpacity
-            });
-          } catch (parseError) {
-            logger.error('Failed to parse theme settings from profile:', parseError, { module: 'settings' });
+          // Initialize controller with profile data if available
+          if (profile?.theme_settings) {
+            try {
+              const userSettings = JSON.parse(profile.theme_settings);
+              await unifiedThemeController.initialize(userSettings);
+              logger.info('Settings initialized from profile', { 
+                module: 'settings',
+                backgroundImage: !!userSettings.backgroundImage,
+                backgroundOpacity: userSettings.backgroundOpacity
+              });
+            } catch (parseError) {
+              logger.error('Failed to parse theme settings:', parseError, { module: 'settings' });
+              await unifiedThemeController.initialize();
+            }
+          } else {
+            await unifiedThemeController.initialize();
           }
-        } else {
-          // Initialize with defaults if no profile data
-          await unifiedThemeController.initialize();
         }
 
-        // Sync our local state with controller
+        // Sync local state
         const controllerState = unifiedThemeController.getState();
         setLocalState(controllerState);
         setIsInitialized(true);
@@ -88,13 +80,13 @@ export const useSettingsState = () => {
     };
 
     initializeSettings();
-  }, [profile?.theme_settings]);
+  }, [profile?.theme_settings, isInitialized]);
 
-  // Subscribe to controller changes only after initialization
+  // Subscribe to controller changes
   useEffect(() => {
     if (!isInitialized) return;
 
-    const unsubscribe = unifiedThemeController.subscribe((newState) => {
+    const unsubscribeController = unifiedThemeController.subscribe((newState) => {
       setLocalState(newState);
       logger.info('Settings state updated from controller', { 
         module: 'settings',
@@ -103,7 +95,20 @@ export const useSettingsState = () => {
       });
     });
 
-    return unsubscribe;
+    const unsubscribeBackground = backgroundStateManager.subscribe((newBackgroundState) => {
+      setBackgroundState(newBackgroundState);
+      logger.info('Background state updated', { 
+        module: 'settings',
+        isApplied: newBackgroundState.isApplied,
+        hasImage: !!newBackgroundState.image,
+        error: newBackgroundState.lastError
+      });
+    });
+
+    return () => {
+      unsubscribeController();
+      unsubscribeBackground();
+    };
   }, [isInitialized]);
 
   // Wrapper functions to track changes and update controller immediately
@@ -122,7 +127,6 @@ export const useSettingsState = () => {
   };
   
   const updateBackgroundImage = (image: string | null, info?: ImageInfo) => {
-    setLocalState(prev => ({ ...prev, backgroundImage: image }));
     unifiedThemeController.setBackgroundImage(image);
     if (info) {
       setImageInfo(info);
@@ -132,7 +136,6 @@ export const useSettingsState = () => {
   };
   
   const updateBackgroundOpacity = (opacity: number) => {
-    setLocalState(prev => ({ ...prev, backgroundOpacity: opacity }));
     unifiedThemeController.setBackgroundOpacity(opacity);
     setHasChanges(true);
     logger.info('Background opacity updated in settings', { module: 'settings', opacity });
@@ -141,8 +144,8 @@ export const useSettingsState = () => {
   return {
     lightTheme: localState.lightTheme,
     darkTheme: localState.darkTheme,
-    backgroundImage: localState.backgroundImage,
-    backgroundOpacity: localState.backgroundOpacity,
+    backgroundImage: backgroundState.image,
+    backgroundOpacity: backgroundState.opacity,
     isSubmitting,
     isLoading,
     hasChanges,
@@ -154,6 +157,8 @@ export const useSettingsState = () => {
     setIsSubmitting,
     setHasChanges,
     setImageInfo: (info: ImageInfo) => setImageInfo(info),
-    isInitialized
+    isInitialized,
+    backgroundError: backgroundState.lastError,
+    isBackgroundApplied: backgroundState.isApplied
   };
 };

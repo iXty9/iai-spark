@@ -1,6 +1,6 @@
-
 import { ThemeColors, ThemeSettings } from '@/types/theme';
 import { themeService } from '@/services/theme-service';
+import { backgroundStateManager } from '@/services/background-state-manager';
 import { logger } from '@/utils/logging';
 
 export interface ThemeState {
@@ -25,6 +25,13 @@ class UnifiedThemeController {
       backgroundImage: null,
       backgroundOpacity: 0.5
     };
+
+    // Subscribe to background state changes
+    backgroundStateManager.subscribe((backgroundState) => {
+      this.state.backgroundImage = backgroundState.image;
+      this.state.backgroundOpacity = backgroundState.opacity;
+      this.notifyListeners();
+    });
   }
 
   private getDefaultLightTheme(): ThemeColors {
@@ -86,23 +93,27 @@ class UnifiedThemeController {
           backgroundOpacity: this.normalizeOpacity(userSettings.backgroundOpacity || 0.5)
         };
         
+        // Load background through the background manager
+        await backgroundStateManager.loadFromProfile(JSON.stringify(userSettings));
+        
         logger.info('Initialized with user settings', { 
           module: 'theme-controller',
           backgroundImage: !!this.state.backgroundImage,
           backgroundOpacity: this.state.backgroundOpacity
         });
       } else {
+        // Load default background state
+        await backgroundStateManager.loadFromProfile(null);
         logger.info('Initialized with default settings', { module: 'theme-controller' });
       }
 
       // Apply theme and background immediately and synchronously
       this.applyCurrentTheme();
-      this.applyBackgroundImmediate();
       
       this.isInitialized = true;
       this.initializationPromise = null;
       
-      logger.info('Unified theme controller initialized and applied', { 
+      logger.info('Unified theme controller initialized', { 
         module: 'theme-controller',
         backgroundImage: !!this.state.backgroundImage,
         backgroundOpacity: this.state.backgroundOpacity
@@ -163,22 +174,18 @@ class UnifiedThemeController {
   }
 
   setBackgroundImage(image: string | null): void {
-    this.state.backgroundImage = image;
-    this.applyBackgroundImmediate();
-    this.notifyListeners();
-    logger.info('Background image changed and applied immediately', { 
+    backgroundStateManager.updateImage(image);
+    logger.info('Background image updated via controller', { 
       module: 'theme-controller', 
       hasImage: !!image 
     });
   }
 
   setBackgroundOpacity(opacity: number): void {
-    this.state.backgroundOpacity = this.normalizeOpacity(opacity);
-    this.applyBackgroundImmediate();
-    this.notifyListeners();
-    logger.info('Background opacity changed and applied immediately', { 
+    backgroundStateManager.updateOpacity(opacity);
+    logger.info('Background opacity updated via controller', { 
       module: 'theme-controller', 
-      opacity: this.state.backgroundOpacity 
+      opacity 
     });
   }
 
@@ -255,12 +262,13 @@ class UnifiedThemeController {
   }
 
   createThemeSettings(): ThemeSettings {
+    const backgroundSettings = backgroundStateManager.createThemeSettings();
     return {
       mode: this.state.mode,
       lightTheme: this.state.lightTheme,
       darkTheme: this.state.darkTheme,
-      backgroundImage: this.state.backgroundImage,
-      backgroundOpacity: this.state.backgroundOpacity,
+      backgroundImage: backgroundSettings.backgroundImage,
+      backgroundOpacity: backgroundSettings.backgroundOpacity,
       exportDate: new Date().toISOString(),
       name: 'Custom Theme'
     };
