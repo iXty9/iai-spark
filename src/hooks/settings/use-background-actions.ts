@@ -72,7 +72,7 @@ export const useBackgroundActions = ({
             height
           };
           
-          // Update state - this will automatically apply via unified controller
+          // CRITICAL: Update state - this will automatically apply via unified controller
           setBackgroundImage(optimizedImageUrl, newImageInfo);
           setImageInfo(newImageInfo);
           
@@ -125,11 +125,11 @@ export const useBackgroundActions = ({
   };
   
   const handleRemoveBackground = () => {
-    // Remove background image - this will automatically apply via unified controller
+    // CRITICAL: Remove background image - this will automatically apply via unified controller
     setBackgroundImage(null);
     setImageInfo({});
     
-    logger.info('Background image removed', { module: 'settings' });
+    logger.info('Background image removed from settings', { module: 'settings' });
     toast({
       title: "Background removed",
       description: "Background image removed. Remember to save your changes.",
@@ -138,10 +138,10 @@ export const useBackgroundActions = ({
 
   const handleOpacityChange = (value: number[]) => {
     const newOpacity = value[0];
-    // Update opacity - this will automatically apply via unified controller
+    // CRITICAL: Update opacity - this will automatically apply via unified controller
     setBackgroundOpacity(newOpacity);
     
-    logger.info('Background opacity changed', { module: 'settings', opacity: newOpacity });
+    logger.info('Background opacity changed in settings', { module: 'settings', opacity: newOpacity });
   };
 
   return {

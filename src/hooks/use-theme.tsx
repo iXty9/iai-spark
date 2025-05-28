@@ -121,19 +121,10 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
   
+  // REMOVED: Background management - settings page will handle this directly
   const applyBackground = (image: string | null, opacity: number) => {
-    unifiedThemeController.setBackgroundImage(image);
-    unifiedThemeController.setBackgroundOpacity(opacity);
-    
-    // Save to profile if available
-    if (profile && updateProfile) {
-      try {
-        const themeSettings = unifiedThemeController.createThemeSettings();
-        updateProfile({ theme_settings: JSON.stringify(themeSettings) });
-      } catch (error) {
-        logger.error('Failed to save background settings:', error);
-      }
-    }
+    // This is now handled by the settings page directly through the controller
+    logger.info('Background apply requested, but handled by settings page', { module: 'use-theme' });
   };
   
   // Get current theme colors with fallbacks

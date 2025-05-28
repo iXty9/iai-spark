@@ -133,7 +133,7 @@ class ThemeService {
   }
 
   /**
-   * Apply background image and opacity - COMPLETELY FIXED
+   * Apply background image and opacity - COMPLETELY FIXED v3.0
    */
   applyBackground(backgroundImage: string | null, opacity: number): void {
     const root = document.documentElement;
@@ -143,23 +143,39 @@ class ThemeService {
     const normalizedOpacity = Math.max(0, Math.min(1, Number(opacity) || 0.5));
     
     if (backgroundImage) {
-      // Set background image
+      // CRITICAL FIX: Apply background image DIRECTLY to body
       body.style.backgroundImage = `url("${backgroundImage}")`;
+      body.style.backgroundSize = 'cover';
+      body.style.backgroundPosition = 'center';
+      body.style.backgroundRepeat = 'no-repeat';
+      body.style.backgroundAttachment = 'scroll';
+      
+      // Add the CSS class for background styling
       body.classList.add('with-bg-image');
       
-      // Set CSS variable for opacity (CSS now uses calc(1 - var(--bg-opacity)))
+      // Set CSS variable for opacity overlay
       root.style.setProperty('--bg-opacity', normalizedOpacity.toString());
       root.style.setProperty('--bg-image-url', `url("${backgroundImage}")`);
       
-      console.log('Applied background image with opacity:', normalizedOpacity);
+      // CRITICAL: Apply desktop background attachment
+      if (window.innerWidth >= 768) {
+        body.style.backgroundAttachment = 'fixed';
+      }
+      
+      logger.info('Applied background image with opacity:', { opacity: normalizedOpacity, hasImage: true });
     } else {
-      // Remove background image
+      // Remove background image completely
       body.style.backgroundImage = '';
+      body.style.backgroundSize = '';
+      body.style.backgroundPosition = '';
+      body.style.backgroundRepeat = '';
+      body.style.backgroundAttachment = '';
       body.classList.remove('with-bg-image');
+      
       root.style.setProperty('--bg-opacity', '0.5');
       root.style.setProperty('--bg-image-url', 'none');
       
-      console.log('Removed background image');
+      logger.info('Removed background image');
     }
   }
 
