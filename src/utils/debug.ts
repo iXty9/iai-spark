@@ -1,4 +1,3 @@
-
 import { emitDebugEvent } from './debug-events';
 import { logger } from './logging';
 import { sendDebugWebhookMessage } from '@/services/webhook';
@@ -7,120 +6,59 @@ import { sendDebugWebhookMessage } from '@/services/webhook';
  * Utility functions for debug information collection and reporting
  */
 
+function parseEnv(env: string | null) {
+  if (!env) return null;
+  if (env.startsWith('{') && env.endsWith('}')) {
+    try { return JSON.parse(env).id || JSON.parse(env).type || 'unknown'; }
+    catch { return env; }
+  }
+  return env;
+}
+
+function updateDebugState(key: string, data: any) {
+  if (typeof (window as any).debugState !== 'undefined') {
+    (window as any).debugState[key] = { ...(window as any).debugState[key], ...data };
+  }
+}
+
 // Function to emit Supabase connection status events
 export function emitSupabaseConnectionEvent(status: string, error: string | null = null) {
-  if (typeof window !== 'undefined') {
-    const timestamp = new Date().toISOString();
-    
-    // Track connection latency if this is a successful connection
-    const connectionLatency = status === 'connected' ? 
-      performance.now() - (window as any).supabaseConnectionStartTime || 0 : 
-      null;
-    
-    // Get current environment from localStorage or default to hostname-based detection
-    let environment = localStorage.getItem('supabase_environment_local') || 
-      (window.location.hostname === 'localhost' ? 'development' : 'production');
-    
-    // Make sure we're not storing a JSON object as a string
-    if (environment.startsWith('{') && environment.endsWith('}')) {
-      try {
-        const envObj = JSON.parse(environment);
-        environment = envObj.id || envObj.type || 'unknown';
-      } catch (e) {
-        // If parsing fails, use the raw value
-        console.warn('Failed to parse environment string', e);
-      }
-    }
-    
-    // Dispatch the event with enhanced information
-    window.dispatchEvent(new CustomEvent('supabaseConnection', {
-      detail: { 
-        status, 
-        error, 
-        timestamp,
-        connectionLatency,
-        environment
-      }
-    }));
-    
-    // Also update the global debug state directly
-    if (typeof (window as any).debugState !== 'undefined') {
-      const currentInfo = (window as any).debugState.supabaseInfo || {};
-      
-      (window as any).debugState.supabaseInfo = {
-        ...currentInfo,
-        connectionStatus: status,
-        lastConnectionAttempt: timestamp,
-        connectionLatency: connectionLatency,
-        lastError: error,
-        environment: environment,
-        retryCount: (currentInfo.retryCount || 0) + (status === 'connecting' ? 1 : 0),
-        isInitialized: status === 'connected'
-      };
-    }
-    
-    // Log the connection event
-    console.info(`Supabase connection: ${status}${error ? ` (Error: ${error})` : ''}`);
-  }
+  if (typeof window === 'undefined') return;
+  const timestamp = new Date().toISOString();
+  const connectionLatency = status === 'connected' ? performance.now() - ((window as any).supabaseConnectionStartTime || 0) : null;
+  let environment = parseEnv(localStorage.getItem('supabase_environment_local')) ||
+    (window.location.hostname === 'localhost' ? 'development' : 'production');
+  window.dispatchEvent(new CustomEvent('supabaseConnection', { detail: { status, error, timestamp, connectionLatency, environment } }));
+  updateDebugState('supabaseInfo', {
+    connectionStatus: status,
+    lastConnectionAttempt: timestamp,
+    connectionLatency,
+    lastError: error,
+    environment,
+    retryCount: ((window as any).debugState?.supabaseInfo?.retryCount || 0) + (status === 'connecting' ? 1 : 0),
+    isInitialized: status === 'connected'
+  });
+  console.info(`Supabase connection: ${status}${error ? ` (Error: ${error})` : ''}`);
 }
 
 // Function to emit bootstrap process events
 export function emitBootstrapEvent(stage: string, error: string | null = null) {
-  if (typeof window !== 'undefined') {
-    const timestamp = new Date().toISOString();
-    
-    // Initialize bootstrap start time if this is the first event
-    if (!(window as any).bootstrapStartTime) {
-      (window as any).bootstrapStartTime = timestamp;
-    }
-    
-    // Create the step object
-    const step = {
-      step: stage,
-      status: error ? 'error' : 'success',
-      timestamp,
-      error
-    };
-    
-    // Dispatch the event
-    window.dispatchEvent(new CustomEvent('bootstrapProcess', {
-      detail: { 
-        stage, 
-        error,
-        timestamp,
-        step
-      }
-    }));
-    
-    // Also update the global debug state directly
-    if (typeof (window as any).debugState !== 'undefined') {
-      const currentInfo = (window as any).debugState.bootstrapInfo || {};
-      const steps = [...(currentInfo.steps || []), step];
-      
-      (window as any).debugState.bootstrapInfo = {
-        ...currentInfo,
-        stage,
-        startTime: (window as any).bootstrapStartTime,
-        completionTime: stage === 'completed' ? timestamp : currentInfo.completionTime,
-        steps,
-        lastError: error || currentInfo.lastError
-      };
-    }
-    
-    // Log the bootstrap event
-    console.info(`Bootstrap process: ${stage}${error ? ` (Error: ${error})` : ''}`);
-    
-    // Store bootstrap state in localStorage for persistence across page reloads
-    try {
-      localStorage.setItem('supabase_bootstrap_state', JSON.stringify({
-        stage,
-        timestamp,
-        error: error || null
-      }));
-    } catch (e) {
-      // Ignore storage errors
-    }
-  }
+  if (typeof window === 'undefined') return;
+  const timestamp = new Date().toISOString();
+  (window as any).bootstrapStartTime ??= timestamp;
+  const step = { step: stage, status: error ? 'error' : 'success', timestamp, error };
+  window.dispatchEvent(new CustomEvent('bootstrapProcess', { detail: { stage, error, timestamp, step } }));
+  const currentInfo = (window as any).debugState?.bootstrapInfo || {};
+  const steps = [...(currentInfo.steps || []), step];
+  updateDebugState('bootstrapInfo', {
+    stage,
+    startTime: (window as any).bootstrapStartTime,
+    completionTime: stage === 'completed' ? timestamp : currentInfo.completionTime,
+    steps,
+    lastError: error || currentInfo.lastError
+  });
+  console.info(`Bootstrap process: ${stage}${error ? ` (Error: ${error})` : ''}`);
+  try { localStorage.setItem('supabase_bootstrap_state', JSON.stringify({ stage, timestamp, error: error || null })); } catch {}
 }
 
 // Function to collect and emit environment information
