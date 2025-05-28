@@ -11,11 +11,11 @@ import Settings from '@/pages/Settings';
 import Profile from '@/pages/Profile';
 import Admin from '@/pages/Admin';
 import Initialize from '@/pages/Initialize';
-import ChatPage from '@/pages/ChatPage';
-import ErrorPage from '@/pages/ErrorPage';
+import { ChatPage } from '@/pages/ChatPage';
+import { ErrorPage } from '@/pages/ErrorPage';
 import NotFound from '@/pages/NotFound';
 import Reconnect from '@/pages/Reconnect';
-import InitializePage from '@/pages/InitializePage';
+import { InitializePage } from '@/pages/InitializePage';
 import SupabaseAuth from '@/pages/SupabaseAuth';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { GlobalErrorBoundary } from '@/components/error/GlobalErrorBoundary';
@@ -82,7 +82,7 @@ function App() {
                     <Route
                       path="/admin"
                       element={
-                        <ProtectedRoute requiredRole="admin">
+                        <ProtectedRoute>
                           <Admin />
                         </ProtectedRoute>
                       }
