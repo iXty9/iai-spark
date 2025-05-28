@@ -1,9 +1,7 @@
+
 import { createContext, useContext, useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { ThemeColors, ThemeSettings } from '@/types/theme';
-import { unifiedThemeController } from '@/services/unified-theme-controller';
-import { backgroundStateManager } from '@/services/background-state-manager';
-import { useThemeInitialization } from '@/hooks/use-theme-initialization';
+import { ThemeColors } from '@/types/theme';
+import { productionThemeService, ThemeState } from '@/services/production-theme-service';
 import { logger } from '@/utils/logging';
 
 type Theme = 'light' | 'dark';
@@ -27,139 +25,54 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const authContext = useAuth();
-  const { isThemeReady, isClientReady, initializationPhase } = useThemeInitialization();
+  const [state, setState] = useState<ThemeState>(() => productionThemeService.getState());
   
-  // Get state from unified controller and background manager
-  const [controllerState, setControllerState] = useState(() => unifiedThemeController.getState());
-  const [backgroundState, setBackgroundState] = useState(() => backgroundStateManager.getState());
-  const [isThemeLoaded, setIsThemeLoaded] = useState(false);
-  
-  // Safely access profile and updateProfile with fallbacks
-  const profile = authContext?.profile || null;
-  const updateProfile = authContext?.updateProfile || (() => Promise.resolve());
-  
-  // Initialize when theme system is ready
+  // Initialize theme service
   useEffect(() => {
-    if (!isThemeReady || isThemeLoaded) return;
-
-    try {
-      // Theme system is already initialized by coordinated init service
-      // Just sync local state
-      const newState = unifiedThemeController.getState();
-      setControllerState(newState);
-      setIsThemeLoaded(true);
-      
-      logger.info('Theme context synced with initialized system', { 
-        module: 'use-theme',
-        backgroundImage: !!newState.backgroundImage,
-        backgroundOpacity: newState.backgroundOpacity,
-        initializationPhase
-      });
-    } catch (error) {
-      logger.error('Error syncing theme context:', error, { module: 'use-theme' });
-      setIsThemeLoaded(true);
-    }
-  }, [isThemeReady, isThemeLoaded, initializationPhase]);
-
-  // Subscribe to controller and background changes
-  useEffect(() => {
-    if (!isThemeLoaded) return;
-
-    const unsubscribeController = unifiedThemeController.subscribe((newState) => {
-      setControllerState(newState);
-      logger.info('Theme context updated from controller', { 
-        module: 'use-theme',
-        backgroundImage: !!newState.backgroundImage,
-        backgroundOpacity: newState.backgroundOpacity
-      });
+    productionThemeService.initialize().catch(error => {
+      logger.error('Failed to initialize theme service', error, { module: 'theme-provider' });
     });
 
-    const unsubscribeBackground = backgroundStateManager.subscribe((newBackgroundState) => {
-      setBackgroundState(newBackgroundState);
-      logger.info('Background state updated in theme context', { 
-        module: 'use-theme',
-        isApplied: newBackgroundState.isApplied,
-        hasImage: !!newBackgroundState.image
-      });
-    });
-
-    return () => {
-      unsubscribeController();
-      unsubscribeBackground();
-    };
-  }, [isThemeLoaded]);
-  
-  // Theme management functions
-  const handleThemeChange = (newTheme: Theme) => {
-    unifiedThemeController.setMode(newTheme);
-    
-    // Save to profile if available
-    if (profile && updateProfile) {
-      try {
-        const themeSettings = unifiedThemeController.createThemeSettings();
-        updateProfile({ theme_settings: JSON.stringify(themeSettings) });
-      } catch (error) {
-        logger.error('Failed to save theme mode:', error);
-      }
-    }
-  };
+    const unsubscribe = productionThemeService.subscribe(setState);
+    return unsubscribe;
+  }, []);
   
   const resetTheme = () => {
-    logger.info('Resetting theme to defaults', { module: 'use-theme' });
+    logger.info('Resetting theme to defaults', { module: 'theme-provider' });
     window.location.reload();
   };
   
   const applyThemeColors = (colors: ThemeColors) => {
-    if (controllerState.mode === 'light') {
-      unifiedThemeController.setLightTheme(colors);
+    if (state.mode === 'light') {
+      productionThemeService.setLightTheme(colors);
     } else {
-      unifiedThemeController.setDarkTheme(colors);
+      productionThemeService.setDarkTheme(colors);
     }
   };
   
   const applyBackground = (image: string | null, opacity: number) => {
-    logger.info('Applying background through theme context', { 
-      module: 'use-theme',
-      hasImage: !!image,
-      opacity
-    });
-    
-    // Apply through unified controller immediately
-    unifiedThemeController.setBackgroundImage(image);
-    unifiedThemeController.setBackgroundOpacity(opacity);
-    
-    // Save to profile if available
-    if (profile && updateProfile) {
-      try {
-        const themeSettings = unifiedThemeController.createThemeSettings();
-        updateProfile({ theme_settings: JSON.stringify(themeSettings) });
-        logger.info('Background settings saved to profile', { module: 'use-theme' });
-      } catch (error) {
-        logger.error('Failed to save background settings:', error);
-      }
-    }
+    productionThemeService.setBackgroundImage(image);
+    productionThemeService.setBackgroundOpacity(opacity);
   };
   
-  // Get current theme colors with fallbacks
-  const currentThemeColors = controllerState.mode === 'dark' ? controllerState.darkTheme : controllerState.lightTheme;
+  const currentThemeColors = state.mode === 'dark' ? state.darkTheme : state.lightTheme;
   
   return (
     <ThemeContext.Provider
       value={{
-        theme: controllerState.mode,
-        setTheme: handleThemeChange,
-        mode: controllerState.mode,
-        setMode: handleThemeChange,
+        theme: state.mode,
+        setTheme: productionThemeService.setMode.bind(productionThemeService),
+        mode: state.mode,
+        setMode: productionThemeService.setMode.bind(productionThemeService),
         resetTheme,
-        isThemeLoaded: isThemeLoaded && isThemeReady && isClientReady,
+        isThemeLoaded: state.isReady,
         applyThemeColors,
         applyBackground,
-        backgroundImage: backgroundState.image,
-        backgroundOpacity: backgroundState.opacity,
+        backgroundImage: state.backgroundImage,
+        backgroundOpacity: state.backgroundOpacity,
         currentThemeColors,
-        lightTheme: controllerState.lightTheme,
-        darkTheme: controllerState.darkTheme,
+        lightTheme: state.lightTheme,
+        darkTheme: state.darkTheme,
       }}
     >
       {children}
@@ -171,9 +84,7 @@ export const useTheme = () => {
   const context = useContext(ThemeContext);
   
   if (context === undefined) {
-    // Provide a fallback to prevent crashes during initialization
-    const fallbackState = unifiedThemeController.getState();
-    const fallbackBackgroundState = backgroundStateManager.getState();
+    const fallbackState = productionThemeService.getState();
     return {
       theme: fallbackState.mode,
       setTheme: () => {},
@@ -183,8 +94,8 @@ export const useTheme = () => {
       isThemeLoaded: false,
       applyThemeColors: () => {},
       applyBackground: () => {},
-      backgroundImage: fallbackBackgroundState.image,
-      backgroundOpacity: fallbackBackgroundState.opacity,
+      backgroundImage: fallbackState.backgroundImage,
+      backgroundOpacity: fallbackState.backgroundOpacity,
       currentThemeColors: fallbackState.lightTheme,
       lightTheme: fallbackState.lightTheme,
       darkTheme: fallbackState.darkTheme,

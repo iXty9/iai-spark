@@ -4,12 +4,18 @@ import App from './App.tsx'
 import './index.css'
 import './styles/theme.css'
 import { applySiteTitle } from './utils/site-utils.ts'
+import { productionThemeService } from './services/production-theme-service.ts'
 
 // Create the root element
 const rootElement = document.getElementById("root");
 if (!rootElement) {
   console.error("Root element not found");
 } else {
+  // Initialize theme service as early as possible
+  productionThemeService.initialize().catch(err => {
+    console.error("Failed to initialize theme service:", err);
+  });
+  
   createRoot(rootElement).render(<App />);
   
   // Apply site title from settings
@@ -17,6 +23,3 @@ if (!rootElement) {
     console.error("Failed to apply site title:", err);
   });
 }
-
-// Remove problematic CSP meta tags that were causing issues
-// DO NOT add meta tags with CSP policies here as they're conflicting with headers

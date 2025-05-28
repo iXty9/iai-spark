@@ -12,76 +12,24 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { logger } from '@/utils/logging';
 
 const Settings = () => {
   const navigate = useNavigate();
-  const { theme, setTheme, lightTheme, darkTheme } = useTheme();
+  const { theme, setTheme, lightTheme, darkTheme, backgroundImage, backgroundOpacity, 
+          applyThemeColors, applyBackground, isThemeLoaded } = useTheme();
   const { toast } = useToast();
-  const { user, profile, updateProfile } = useAuth();
+  const { profile } = useAuth();
   
-  // Simplified local state for backgrounds
-  const [localBackgroundImage, setLocalBackgroundImage] = useState<string | null>(null);
-  const [localBackgroundOpacity, setLocalBackgroundOpacity] = useState(0.5);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [imageInfo, setImageInfo] = useState({});
-
-  // Load initial background from profile or localStorage
-  useEffect(() => {
-    const loadBackground = () => {
-      try {
-        // Try profile first
-        if (profile?.theme_settings) {
-          const settings = JSON.parse(profile.theme_settings);
-          if (settings.backgroundImage) {
-            setLocalBackgroundImage(settings.backgroundImage);
-            setLocalBackgroundOpacity(settings.backgroundOpacity || 0.5);
-            // Apply to DOM immediately
-            applyBackgroundToDOM(settings.backgroundImage, settings.backgroundOpacity || 0.5);
-          }
-        } else {
-          // Try localStorage as fallback
-          const savedBg = localStorage.getItem('background-image');
-          const savedOpacity = localStorage.getItem('background-opacity');
-          if (savedBg) {
-            setLocalBackgroundImage(savedBg);
-            const opacity = savedOpacity ? parseFloat(savedOpacity) : 0.5;
-            setLocalBackgroundOpacity(opacity);
-            applyBackgroundToDOM(savedBg, opacity);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading background:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadBackground();
-  }, [profile]);
-
-  // Apply background directly to DOM
-  const applyBackgroundToDOM = (image: string | null, opacity: number) => {
-    const body = document.body;
-    if (image) {
-      body.style.backgroundImage = `url(${image})`;
-      body.style.backgroundSize = 'cover';
-      body.style.backgroundPosition = 'center';
-      body.style.backgroundRepeat = 'no-repeat';
-      body.style.backgroundAttachment = 'fixed';
-      body.style.opacity = opacity.toString();
-    } else {
-      body.style.backgroundImage = '';
-      body.style.opacity = '1';
-    }
-  };
 
   const handleBackgroundImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+    if (file.size > 5 * 1024 * 1024) {
       toast({
         variant: "destructive",
         title: "File too large",
@@ -93,14 +41,8 @@ const Settings = () => {
     const reader = new FileReader();
     reader.onload = (event) => {
       const imageUrl = event.target?.result as string;
-      setLocalBackgroundImage(imageUrl);
+      applyBackground(imageUrl, backgroundOpacity);
       setHasChanges(true);
-      
-      // Apply immediately to DOM
-      applyBackgroundToDOM(imageUrl, localBackgroundOpacity);
-      
-      // Save to localStorage for persistence
-      localStorage.setItem('background-image', imageUrl);
       
       // Set image info
       const img = new Image();
@@ -117,71 +59,58 @@ const Settings = () => {
         title: "Background uploaded",
         description: "Your background image has been applied.",
       });
+
+      logger.info('Background image uploaded', { module: 'settings' });
     };
     reader.readAsDataURL(file);
   };
 
   const handleRemoveBackground = () => {
-    setLocalBackgroundImage(null);
+    applyBackground(null, backgroundOpacity);
     setHasChanges(true);
-    applyBackgroundToDOM(null, localBackgroundOpacity);
-    localStorage.removeItem('background-image');
     setImageInfo({});
     
     toast({
       title: "Background removed",
       description: "Your background image has been removed.",
     });
+
+    logger.info('Background image removed', { module: 'settings' });
   };
 
   const handleOpacityChange = (value: number[]) => {
     const newOpacity = value[0];
-    setLocalBackgroundOpacity(newOpacity);
+    applyBackground(backgroundImage, newOpacity);
     setHasChanges(true);
-    
-    // Apply immediately to DOM
-    if (localBackgroundImage) {
-      applyBackgroundToDOM(localBackgroundImage, newOpacity);
-    }
-    
-    // Save to localStorage
-    localStorage.setItem('background-opacity', newOpacity.toString());
+    logger.info('Background opacity changed', { module: 'settings', opacity: newOpacity });
+  };
+
+  const handleLightThemeChange = (newTheme: ThemeColors) => {
+    applyThemeColors(newTheme);
+    setHasChanges(true);
+  };
+
+  const handleDarkThemeChange = (newTheme: ThemeColors) => {
+    applyThemeColors(newTheme);
+    setHasChanges(true);
+  };
+
+  const handleResetTheme = () => {
+    window.location.reload();
   };
 
   const handleSaveSettings = async () => {
-    if (!updateProfile) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Unable to save settings. Please try again.",
-      });
-      return;
-    }
-
     setIsSubmitting(true);
     try {
-      // Create theme settings object
-      const themeSettings = {
-        mode: theme,
-        lightTheme,
-        darkTheme,
-        backgroundImage: localBackgroundImage,
-        backgroundOpacity: localBackgroundOpacity,
-        exportDate: new Date().toISOString(),
-        name: 'Custom Theme'
-      };
-
-      await updateProfile({ 
-        theme_settings: JSON.stringify(themeSettings) 
-      });
-
+      // Settings are automatically saved by the theme service
       setHasChanges(false);
       toast({
         title: "Settings saved",
-        description: "Your theme settings have been saved to your profile.",
+        description: "Your theme settings have been saved.",
       });
+      logger.info('Settings saved successfully', { module: 'settings' });
     } catch (error) {
-      console.error('Error saving settings:', error);
+      logger.error('Error saving settings', error, { module: 'settings' });
       toast({
         variant: "destructive",
         title: "Error saving settings",
@@ -193,25 +122,22 @@ const Settings = () => {
   };
 
   const handleResetSettings = () => {
-    setLocalBackgroundImage(null);
-    setLocalBackgroundOpacity(0.5);
+    applyBackground(null, 0.5);
     setHasChanges(false);
-    applyBackgroundToDOM(null, 0.5);
-    localStorage.removeItem('background-image');
-    localStorage.removeItem('background-opacity');
     setImageInfo({});
     
     toast({
       title: "Settings reset",
       description: "All settings have been reset to defaults.",
     });
+    logger.info('Settings reset to defaults', { module: 'settings' });
   };
 
   const handleGoBack = () => {
     navigate('/');
   };
 
-  if (isLoading) {
+  if (!isThemeLoaded) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4 max-w-6xl mx-auto">
         <Card className="w-full max-w-4xl p-4 bg-card/90 backdrop-blur-md border shadow-lg">
@@ -257,16 +183,16 @@ const Settings = () => {
                     theme={theme as 'light' | 'dark'}
                     lightTheme={lightTheme as ThemeColors}
                     darkTheme={darkTheme as ThemeColors}
-                    onLightThemeChange={() => {}}
-                    onDarkThemeChange={() => {}}
-                    onResetTheme={() => {}}
+                    onLightThemeChange={handleLightThemeChange}
+                    onDarkThemeChange={handleDarkThemeChange}
+                    onResetTheme={handleResetTheme}
                   />
                 </TabsContent>
                 
                 <TabsContent value="background" className="space-y-6 mt-4">
                   <BackgroundSettings
-                    backgroundImage={localBackgroundImage}
-                    backgroundOpacity={localBackgroundOpacity}
+                    backgroundImage={backgroundImage}
+                    backgroundOpacity={backgroundOpacity}
                     onBackgroundImageUpload={handleBackgroundImageUpload}
                     onOpacityChange={handleOpacityChange}
                     onRemoveBackground={handleRemoveBackground}

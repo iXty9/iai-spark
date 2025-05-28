@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -18,15 +18,16 @@ import Reconnect from '@/pages/Reconnect';
 import { InitializePage } from '@/pages/InitializePage';
 import SupabaseAuth from '@/pages/SupabaseAuth';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
-import { GlobalErrorBoundary } from '@/components/error/GlobalErrorBoundary';
-import { FastBootstrapProvider } from '@/components/providers/FastBootstrapProvider';
-import { FastHealthMonitor } from '@/components/system/FastHealthMonitor';
+import { ProductionErrorBoundary } from '@/components/error/ProductionErrorBoundary';
+import { fastConfig } from '@/services/config/fast-config-service';
+import { clientManager } from '@/services/supabase/client-manager';
+import { logger } from '@/utils/logging';
 import './App.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 3,
+      retry: 1,
       refetchOnWindowFocus: false,
       staleTime: 5 * 60 * 1000,
     },
@@ -34,83 +35,105 @@ const queryClient = new QueryClient({
 });
 
 function App() {
-  const [isThemeReady, setIsThemeReady] = useState(false);
+  const [isAppReady, setIsAppReady] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
 
-  // Wait for theme system to be ready before rendering theme-dependent components
   useEffect(() => {
-    // Add a small delay to ensure all providers are properly initialized
-    const timer = setTimeout(() => {
-      setIsThemeReady(true);
-    }, 100);
+    const initializeApp = async () => {
+      try {
+        logger.info('Starting app initialization', { module: 'app' });
+        
+        // Load configuration
+        const configResult = await fastConfig.loadConfig();
+        if (configResult.success && configResult.config) {
+          // Initialize client
+          await clientManager.initialize(configResult.config);
+          logger.info('App initialization complete', { module: 'app' });
+        } else {
+          logger.warn('No configuration found, app will show setup', { module: 'app' });
+        }
+        
+        setIsAppReady(true);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error('App initialization failed', error, { module: 'app' });
+        setInitError(errorMessage);
+        setIsAppReady(true); // Still show the app so user can access setup
+      }
+    };
 
-    return () => clearTimeout(timer);
+    initializeApp();
   }, []);
 
+  if (!isAppReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <GlobalErrorBoundary>
+    <ProductionErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <Router>
-          <FastBootstrapProvider>
-            <AuthProvider>
-              <ThemeProvider>
-                <div className="min-h-screen bg-background text-foreground">
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/auth" element={<Auth />} />
-                    <Route path="/supabase-auth" element={<SupabaseAuth />} />
-                    <Route path="/initialize" element={<Initialize />} />
-                    <Route path="/init" element={<InitializePage />} />
-                    <Route path="/reconnect" element={<Reconnect />} />
-                    <Route path="/chat" element={<ChatPage />} />
-                    <Route path="/error" element={<ErrorPage />} />
-                    <Route
-                      path="/settings"
-                      element={
-                        <ProtectedRoute>
-                          <Settings />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/profile"
-                      element={
-                        <ProtectedRoute>
-                          <Profile />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/admin"
-                      element={
-                        <ProtectedRoute>
-                          <Admin />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                  
-                  {/* Only render theme-dependent components after theme is ready */}
-                  {isThemeReady && (
-                    <>
-                      <Toaster />
-                      <FastHealthMonitor />
-                      {/* Temporary debug info for background issues */}
-                      {process.env.NODE_ENV === 'development' && (
-                        <div className="fixed bottom-4 right-4 bg-black/80 text-white p-2 text-xs rounded z-50 max-w-xs">
-                          <div className="font-bold">Background Debug:</div>
-                          <div>Theme Ready: {isThemeReady ? '✅' : '❌'}</div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </ThemeProvider>
-            </AuthProvider>
-          </FastBootstrapProvider>
+          <AuthProvider>
+            <ThemeProvider>
+              <div className="min-h-screen bg-background text-foreground">
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/supabase-auth" element={<SupabaseAuth />} />
+                  <Route path="/initialize" element={<Initialize />} />
+                  <Route path="/init" element={<InitializePage />} />
+                  <Route path="/reconnect" element={<Reconnect />} />
+                  <Route path="/chat" element={<ChatPage />} />
+                  <Route path="/error" element={<ErrorPage />} />
+                  <Route
+                    path="/settings"
+                    element={
+                      <ProtectedRoute>
+                        <Settings />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/profile"
+                    element={
+                      <ProtectedRoute>
+                        <Profile />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin"
+                    element={
+                      <ProtectedRoute>
+                        <Admin />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+                
+                <Toaster />
+                
+                {/* Only show debug in development */}
+                {process.env.NODE_ENV === 'development' && initError && (
+                  <div className="fixed bottom-4 right-4 bg-red-500 text-white p-2 text-xs rounded z-50 max-w-xs">
+                    <div className="font-bold">Init Error:</div>
+                    <div>{initError}</div>
+                  </div>
+                )}
+              </div>
+            </ThemeProvider>
+          </AuthProvider>
         </Router>
       </QueryClientProvider>
-    </GlobalErrorBoundary>
+    </ProductionErrorBoundary>
   );
 }
 
