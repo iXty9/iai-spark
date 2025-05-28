@@ -93,12 +93,14 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
             setDarkTheme(themeSettings.darkTheme);
           }
           
-          // Update background settings
+          // Update background settings - fix type conversion here
           if (themeSettings.backgroundImage) {
             setBackgroundImage(themeSettings.backgroundImage);
           }
-          if (themeSettings.backgroundOpacity) {
-            const opacity = parseFloat(themeSettings.backgroundOpacity);
+          if (themeSettings.backgroundOpacity !== undefined) {
+            const opacity = typeof themeSettings.backgroundOpacity === 'string' 
+              ? parseFloat(themeSettings.backgroundOpacity)
+              : themeSettings.backgroundOpacity;
             if (!isNaN(opacity)) {
               setBackgroundOpacity(opacity);
             }
@@ -111,9 +113,11 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
           
           themeService.applyThemeImmediate(currentColors, themeSettings.mode || theme);
           
-          // Apply background if present
+          // Apply background if present - fix type conversion here
           if (themeSettings.backgroundImage) {
-            const bgOpacity = parseFloat(themeSettings.backgroundOpacity || '0.5');
+            const bgOpacity = typeof themeSettings.backgroundOpacity === 'string'
+              ? parseFloat(themeSettings.backgroundOpacity || '0.5')
+              : (themeSettings.backgroundOpacity || 0.5);
             themeService.applyBackground(themeSettings.backgroundImage, bgOpacity);
           }
         }
@@ -168,7 +172,11 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       setLightTheme(adminDefaults.lightTheme || themeService.getDefaultThemeColors('light'));
       setDarkTheme(adminDefaults.darkTheme || themeService.getDefaultThemeColors('dark'));
       setBackgroundImage(adminDefaults.backgroundImage || null);
-      setBackgroundOpacity(parseFloat(adminDefaults.backgroundOpacity || '0.5'));
+      // Fix type conversion here
+      const opacity = typeof adminDefaults.backgroundOpacity === 'string'
+        ? parseFloat(adminDefaults.backgroundOpacity || '0.5')
+        : (adminDefaults.backgroundOpacity || 0.5);
+      setBackgroundOpacity(opacity);
     } else {
       // Use built-in defaults
       setLightTheme(themeService.getDefaultThemeColors('light'));
@@ -201,7 +209,10 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       if (parsedTheme.darkTheme) setDarkTheme(parsedTheme.darkTheme);
       if (parsedTheme.backgroundImage !== undefined) setBackgroundImage(parsedTheme.backgroundImage);
       if (parsedTheme.backgroundOpacity) {
-        const opacity = parseFloat(parsedTheme.backgroundOpacity);
+        // Fix type conversion here
+        const opacity = typeof parsedTheme.backgroundOpacity === 'string'
+          ? parseFloat(parsedTheme.backgroundOpacity)
+          : parsedTheme.backgroundOpacity;
         if (!isNaN(opacity)) setBackgroundOpacity(opacity);
       }
       
@@ -247,7 +258,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         const updatedSettings = {
           ...existingSettings,
           backgroundImage: image,
-          backgroundOpacity: opacity.toString()
+          backgroundOpacity: opacity.toString() // Always convert to string for storage
         };
         updateProfile({ theme_settings: JSON.stringify(updatedSettings) });
       } catch (error) {
