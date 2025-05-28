@@ -33,15 +33,19 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   // Get state from unified controller
   const [controllerState, setControllerState] = useState(() => unifiedThemeController.getState());
   const [isThemeLoaded, setIsThemeLoaded] = useState(false);
+  const [initializationStarted, setInitializationStarted] = useState(false);
   
-  // Safely access profile and updateProfile
+  // Safely access profile and updateProfile with fallbacks
   const profile = authContext?.profile || null;
   const updateProfile = authContext?.updateProfile || (() => Promise.resolve());
   
   // Initialize controller when theme system is ready
   useEffect(() => {
     const initializeController = async () => {
-      if (!isThemeReady || isThemeLoaded) return;
+      // Prevent multiple initializations
+      if (!isThemeReady || isThemeLoaded || initializationStarted) return;
+
+      setInitializationStarted(true);
 
       try {
         let userSettings: ThemeSettings | null = null;
@@ -71,7 +75,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     initializeController();
-  }, [isThemeReady, profile, isThemeLoaded]);
+  }, [isThemeReady, profile, isThemeLoaded, initializationStarted]);
 
   // Subscribe to controller changes
   useEffect(() => {
@@ -102,9 +106,6 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   
   const resetTheme = () => {
     // Reset through controller - it will handle admin defaults vs built-in defaults
-    const adminDefaults = unifiedThemeController.getState();
-    
-    // Just reset to initial defaults - this could be enhanced to reset to admin defaults
     logger.info('Resetting theme to defaults', { module: 'use-theme' });
     
     // For now, trigger a reload to get fresh defaults
@@ -135,7 +136,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
   
-  // Get current theme colors
+  // Get current theme colors with fallbacks
   const currentThemeColors = controllerState.mode === 'dark' ? controllerState.darkTheme : controllerState.lightTheme;
   
   return (
@@ -165,7 +166,23 @@ export const useTheme = () => {
   const context = useContext(ThemeContext);
   
   if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
+    // Provide a fallback to prevent crashes during initialization
+    const fallbackState = unifiedThemeController.getState();
+    return {
+      theme: fallbackState.mode,
+      setTheme: () => {},
+      mode: fallbackState.mode,
+      setMode: () => {},
+      resetTheme: () => {},
+      isThemeLoaded: false,
+      applyThemeColors: () => {},
+      applyBackground: () => {},
+      backgroundImage: fallbackState.backgroundImage,
+      backgroundOpacity: fallbackState.backgroundOpacity,
+      currentThemeColors: fallbackState.lightTheme,
+      lightTheme: fallbackState.lightTheme,
+      darkTheme: fallbackState.darkTheme,
+    } as ThemeContextType;
   }
   
   return context;

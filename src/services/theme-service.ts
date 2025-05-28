@@ -135,28 +135,31 @@ class ThemeService {
   /**
    * Apply background image and opacity - COMPLETELY FIXED
    */
-  applyBackground(imageUrl: string | null, opacity: number): void {
+  applyBackground(backgroundImage: string | null, opacity: number): void {
     const root = document.documentElement;
+    const body = document.body;
     
-    // Ensure opacity is properly normalized (0-1 range)
-    const normalizedOpacity = Math.max(0, Math.min(1, opacity));
+    // Normalize opacity to ensure it's a number between 0 and 1
+    const normalizedOpacity = Math.max(0, Math.min(1, Number(opacity) || 0.5));
     
-    // FIXED: Set opacity variable correctly for CSS calculation
-    // The CSS uses this directly as overlay opacity - higher values = more background color showing through
-    root.style.setProperty('--bg-opacity', normalizedOpacity.toString());
-    
-    if (imageUrl) {
-      document.body.style.backgroundImage = `url(${imageUrl})`;
-      document.body.classList.add('with-bg-image');
-      logger.info('Background image applied', { 
-        module: 'theme-service', 
-        opacity: normalizedOpacity,
-        imageLength: imageUrl.length
-      });
+    if (backgroundImage) {
+      // Set background image
+      body.style.backgroundImage = `url("${backgroundImage}")`;
+      body.classList.add('with-bg-image');
+      
+      // Set CSS variable for opacity (CSS now uses calc(1 - var(--bg-opacity)))
+      root.style.setProperty('--bg-opacity', normalizedOpacity.toString());
+      root.style.setProperty('--bg-image-url', `url("${backgroundImage}")`);
+      
+      console.log('Applied background image with opacity:', normalizedOpacity);
     } else {
-      document.body.style.backgroundImage = 'none';
-      document.body.classList.remove('with-bg-image');
-      logger.info('Background image removed', { module: 'theme-service' });
+      // Remove background image
+      body.style.backgroundImage = '';
+      body.classList.remove('with-bg-image');
+      root.style.setProperty('--bg-opacity', '0.5');
+      root.style.setProperty('--bg-image-url', 'none');
+      
+      console.log('Removed background image');
     }
   }
 

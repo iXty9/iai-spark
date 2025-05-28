@@ -26,46 +26,25 @@ export const useSettingsState = () => {
   // Track if we've loaded from profile to prevent overwrites
   const hasLoadedFromProfile = useRef(false);
 
-  // Initialize the unified controller with user settings
+  // Wait for controller initialization before proceeding
   useEffect(() => {
-    const initializeController = async () => {
-      if (isInitialized) return;
-
-      try {
-        setIsLoading(true);
-        logger.info('Initializing settings state', { module: 'settings' });
-
-        let userSettings = null;
-        if (profile?.theme_settings) {
-          try {
-            userSettings = JSON.parse(profile.theme_settings);
-            logger.info('Found user theme settings', { module: 'settings' });
-            hasLoadedFromProfile.current = true;
-          } catch (e) {
-            logger.warn('Failed to parse user theme settings', e);
-          }
-        }
-
-        // Initialize the controller with user settings
-        await unifiedThemeController.initialize(userSettings);
-        
-        // Set local state to match controller
+    const checkControllerReady = () => {
+      if (unifiedThemeController.initialized) {
+        // Controller is ready, sync our state
         setLocalState(unifiedThemeController.getState());
         setIsInitialized(true);
         setIsLoading(false);
-
-        logger.info('Settings state initialized successfully', { module: 'settings' });
-      } catch (error) {
-        logger.error('Failed to initialize settings state:', error);
-        setIsLoading(false);
-        setIsInitialized(true);
+        logger.info('Settings state synced with initialized controller', { module: 'settings' });
+      } else {
+        // Controller not ready yet, wait
+        setTimeout(checkControllerReady, 100);
       }
     };
 
-    initializeController();
-  }, [profile, isInitialized]);
+    checkControllerReady();
+  }, []);
 
-  // Subscribe to controller changes
+  // Subscribe to controller changes only after initialization
   useEffect(() => {
     if (!isInitialized) return;
 

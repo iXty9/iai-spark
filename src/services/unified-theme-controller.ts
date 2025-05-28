@@ -19,10 +19,40 @@ class UnifiedThemeController {
   constructor() {
     this.state = {
       mode: 'light',
-      lightTheme: themeService.getDefaultThemeColors('light'),
-      darkTheme: themeService.getDefaultThemeColors('dark'),
+      lightTheme: this.getDefaultLightTheme(),
+      darkTheme: this.getDefaultDarkTheme(),
       backgroundImage: null,
       backgroundOpacity: 0.5
+    };
+  }
+
+  private getDefaultLightTheme(): ThemeColors {
+    return {
+      backgroundColor: '#ffffff',
+      primaryColor: '#dd3333',
+      textColor: '#000000',
+      accentColor: '#9b87f5',
+      userBubbleColor: '#dd3333',
+      aiBubbleColor: '#9b87f5',
+      userBubbleOpacity: 0.3,
+      aiBubbleOpacity: 0.3,
+      userTextColor: '#000000',
+      aiTextColor: '#000000'
+    };
+  }
+
+  private getDefaultDarkTheme(): ThemeColors {
+    return {
+      backgroundColor: '#121212',
+      primaryColor: '#dd3333',
+      textColor: '#ffffff',
+      accentColor: '#9b87f5',
+      userBubbleColor: '#dd3333',
+      aiBubbleColor: '#9b87f5',
+      userBubbleOpacity: 0.3,
+      aiBubbleOpacity: 0.3,
+      userTextColor: '#ffffff',
+      aiTextColor: '#ffffff'
     };
   }
 
@@ -30,13 +60,14 @@ class UnifiedThemeController {
     if (this.isInitialized) return;
 
     try {
+      // Initialize theme service first
       await themeService.initialize();
 
-      if (userSettings && themeService.validateThemeSettings(userSettings)) {
+      if (userSettings && this.validateThemeSettings(userSettings)) {
         this.state = {
           mode: userSettings.mode || 'light',
-          lightTheme: userSettings.lightTheme || themeService.getDefaultThemeColors('light'),
-          darkTheme: userSettings.darkTheme || themeService.getDefaultThemeColors('dark'),
+          lightTheme: userSettings.lightTheme || this.getDefaultLightTheme(),
+          darkTheme: userSettings.darkTheme || this.getDefaultDarkTheme(),
           backgroundImage: userSettings.backgroundImage || null,
           backgroundOpacity: this.normalizeOpacity(userSettings.backgroundOpacity || 0.5)
         };
@@ -49,6 +80,11 @@ class UnifiedThemeController {
       logger.error('Failed to initialize theme controller:', error);
       this.isInitialized = true; // Prevent infinite retries
     }
+  }
+
+  private validateThemeSettings(settings: ThemeSettings): boolean {
+    // Basic validation - could be expanded
+    return settings && typeof settings === 'object';
   }
 
   private normalizeOpacity(opacity: any): number {
