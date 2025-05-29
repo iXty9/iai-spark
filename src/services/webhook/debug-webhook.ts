@@ -1,3 +1,4 @@
+
 import { logger } from '@/utils/logging';
 import { getDebugWebhookUrl } from './url-provider';
 import { isValidWebhookUrl } from './cache/url-cache';
@@ -8,8 +9,8 @@ const debugWebhookTracker = {
   callCount: 0,
   // Reset period for call count (1 hour)
   resetPeriod: 60 * 60 * 1000,
-  // Minimum time between calls (1 minute)
-  minInterval: 60 * 1000,
+  // Minimum time between calls (30 seconds) - reduced from 1 minute
+  minInterval: 30 * 1000,
   // Maximum calls per reset period
   maxCalls: 30,
   
@@ -21,7 +22,7 @@ const debugWebhookTracker = {
       this.callCount = 0;
     }
     
-    // Check if within rate limits
+    // Check if limit is reached
     if (this.callCount >= this.maxCalls) {
       return false;
     }
@@ -123,9 +124,9 @@ export const sendDebugWebhookMessage = async (debugInfo: any): Promise<any> => {
     // Compress debug info
     const compressedInfo = compressDebugInfo(debugInfo);
     
-    // Add request timeout
+    // Add request timeout - increased from 10 to 30 seconds
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout (reduced from 15)
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
     
     // Convert to JSON and check size
     const jsonPayload = JSON.stringify({
@@ -162,8 +163,8 @@ export const sendDebugWebhookMessage = async (debugInfo: any): Promise<any> => {
     return await response.json();
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      logger.error('Debug webhook request timed out', { url: webhookUrl }, { module: 'debug' });
-      return { error: true, message: 'Request timed out' };
+      logger.error('Debug webhook request timed out after 30 seconds', { url: webhookUrl }, { module: 'debug' });
+      return { error: true, message: 'Request timed out after 30 seconds' };
     }
     
     logger.error('Debug webhook request failed', error, { module: 'debug' });

@@ -99,6 +99,7 @@ export const StateDebugPanel = ({
   const [fps, setFps] = useState(0);
   const [lastWebhookResponse, setWebhookResp] = useState(null);
   const [isSending, setSending] = useState(false);
+  const [sendingStatus, setSendingStatus] = useState<string>('');
   const [logs, setLogs] = useState<Array<{timestamp: string, message: string}>>([]);
   const [consoleLogs, setConsoleLogs] = useState<Array<{timestamp: string, type: string, message: string}>>([]);
 
@@ -288,10 +289,24 @@ export const StateDebugPanel = ({
                            isAuthLoading ? 'connecting' : 
                            'disconnected';
     
-    // Get environment from localStorage or determine from hostname
-    const storedEnv = localStorage.getItem('supabase_environment_local');
-    const environment = storedEnv || 
-                       (window.location.hostname === 'localhost' ? 'development' : 'production');
+    // Improved environment detection with better localStorage parsing
+    const getEnvironment = () => {
+      try {
+        let storedEnv = localStorage.getItem('supabase_environment_local');
+        
+        // Parse JSON environment if it exists
+        if (storedEnv && storedEnv.startsWith('{')) {
+          const envObj = JSON.parse(storedEnv);
+          storedEnv = envObj.id || envObj.type || null;
+        }
+        
+        return storedEnv || 
+               (window.location.hostname === 'localhost' ? 'development' : 'production');
+      } catch (e) {
+        // Fallback if localStorage parsing fails
+        return window.location.hostname === 'localhost' ? 'development' : 'production';
+      }
+    };
 
     setState(s => ({
       ...s,
@@ -313,7 +328,7 @@ export const StateDebugPanel = ({
         ...s.supabaseInfo,
         connectionStatus,
         authStatus: isAuthenticated ? 'authenticated' : 'unauthenticated',
-        environment,
+        environment: getEnvironment(),
         isInitialized: isAuthenticated
       },
       browserInfo: {
@@ -363,6 +378,8 @@ export const StateDebugPanel = ({
   
   const send = async() => {
     setSending(true);
+    setSendingStatus('Preparing bug report...');
+    
     try {
       const dbg = window.debugState || state;
       const kf = (k: string) => k.startsWith('app:') || k.startsWith('supabase') || k.startsWith('sb-');
@@ -382,18 +399,36 @@ export const StateDebugPanel = ({
           totalItems: sessionStorage.length 
         }
       };
+      
+      setSendingStatus('Sending to development team...');
       const result = await sendDebugInfo(info);
+      
       if(result.success) {
+        setSendingStatus('');
         toast({title: "Bug Report Sent", description: "Successfully sent bug report to development team"}); 
         addLog("Bug report sent to development team");
       } else {
         throw new Error(result.error);
       }
     } catch(e: any) {
-      toast({variant: "destructive", title: "Failed to Send Bug Report", description: e?.message}); 
+      setSendingStatus('');
+      
+      // Better error handling for timeouts vs actual failures
+      const isTimeout = e?.message?.includes('timeout') || e?.message?.includes('30 seconds');
+      const errorTitle = isTimeout ? "Bug Report May Still Be Processing" : "Failed to Send Bug Report";
+      const errorDesc = isTimeout ? 
+        "The request timed out but may still complete in the background." : 
+        e?.message;
+      
+      toast({
+        variant: isTimeout ? "default" : "destructive", 
+        title: errorTitle, 
+        description: errorDesc
+      }); 
       addLog(`Error sending bug report: ${e?.message}`);
     } finally {
-      setSending(false)
+      setSending(false);
+      setSendingStatus('');
     }
   };
   
@@ -424,11 +459,23 @@ export const StateDebugPanel = ({
     <div className="flex justify-between items-center mb-1">
       <h3 className="font-bold text-red-400">DEBUG PANEL</h3>
       <div className="flex gap-2">
-        <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white" onClick={send} disabled={isSending} title="Send Bug Report"><Send size={16} className={isSending ? "animate-pulse" : ""}/></Button>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-6 w-6 text-gray-400 hover:text-white" 
+          onClick={send} 
+          disabled={isSending} 
+          title={isSending ? sendingStatus || "Sending..." : "Send Bug Report"}
+        >
+          <Send size={16} className={isSending ? "animate-pulse" : ""}/>
+        </Button>
         <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white" onClick={copy} title="Copy debug info to clipboard">{copied?<ClipboardCheck size={16}/>:<Clipboard size={16}/>}</Button>
         <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white" onClick={()=>setExp(e=>!e)} title={isExpanded ? "Collapse panel" : "Expand panel"}>{isExpanded?<ChevronDown size={16}/>:<ChevronUp size={16}/>}</Button>
       </div>
     </div>
+    {isSending && sendingStatus && (
+      <div className="text-blue-400 text-[10px] mb-1">{sendingStatus}</div>
+    )}
     {isExpanded && (
       <div className="grid grid-cols-2 gap-1">
         {row('Current Screen', state.screen)}
