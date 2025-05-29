@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -16,8 +17,7 @@ import Reconnect from '@/pages/Reconnect';
 import SupabaseAuth from '@/pages/SupabaseAuth';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { ProductionErrorBoundary } from '@/components/error/ProductionErrorBoundary';
-import { fastConfig } from '@/services/config/fast-config-service';
-import { clientManager } from '@/services/supabase/client-manager';
+import { coordinatedInitService } from '@/services/initialization/coordinated-init-service';
 import { logger } from '@/utils/logging';
 import { applySiteTitle } from '@/utils/site-utils';
 import './App.css';
@@ -40,28 +40,22 @@ function App() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        logger.info('Starting simplified app initialization', { module: 'app' });
+        logger.info('Starting app initialization', { module: 'app' });
         
-        // Load configuration
-        const configResult = await fastConfig.loadConfig();
-        if (configResult.success && configResult.config) {
-          // Initialize client directly
-          const clientInitialized = await clientManager.initialize(configResult.config);
-          if (clientInitialized) {
-            setClientReady(true);
-            logger.info('Client initialized successfully', { module: 'app' });
-            
-            // Apply site title after successful initialization
-            try {
-              await applySiteTitle();
-            } catch (error) {
-              logger.warn('Failed to apply site title', { module: 'app' });
-            }
-          } else {
-            throw new Error('Failed to initialize Supabase client');
+        const initResult = await coordinatedInitService.initialize();
+        
+        if (initResult.isComplete) {
+          setClientReady(true);
+          logger.info('App initialized successfully', { module: 'app' });
+          
+          // Apply site title after successful initialization
+          try {
+            await applySiteTitle();
+          } catch (error) {
+            logger.warn('Failed to apply site title', { module: 'app' });
           }
-        } else {
-          logger.warn('No configuration found, app will show setup', { module: 'app' });
+        } else if (initResult.error) {
+          throw new Error(initResult.error);
         }
         
         setIsAppReady(true);

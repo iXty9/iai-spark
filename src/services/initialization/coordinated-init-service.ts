@@ -1,9 +1,7 @@
 
 import { logger } from '@/utils/logging';
 import { clientManager } from '@/services/supabase/client-manager';
-import { themeService } from '@/services/theme-service';
-import { unifiedThemeController } from '@/services/unified-theme-controller';
-import { backgroundStateManager } from '@/services/background-state-manager';
+import { productionThemeService } from '@/services/production-theme-service';
 import { fastConfig } from '@/services/config/fast-config-service';
 
 export interface InitializationStatus {
@@ -14,7 +12,7 @@ export interface InitializationStatus {
 }
 
 /**
- * Coordinated initialization service that ensures proper order
+ * Simplified coordinated initialization service
  */
 class CoordinatedInitService {
   private static instance: CoordinatedInitService | null = null;
@@ -58,7 +56,7 @@ class CoordinatedInitService {
         return errorStatus;
       }
 
-      // Phase 2: Initialize and wait for client readiness
+      // Phase 2: Initialize client
       this.notifySubscribers({ phase: 'client', isComplete: false, details: 'Initializing Supabase client' });
       const clientSuccess = await clientManager.initialize(configResult.config);
 
@@ -72,7 +70,7 @@ class CoordinatedInitService {
         return errorStatus;
       }
 
-      // Wait for full client readiness
+      // Wait for client readiness
       const isReady = await clientManager.waitForReadiness();
       if (!isReady) {
         const errorStatus = { 
@@ -86,16 +84,7 @@ class CoordinatedInitService {
 
       // Phase 3: Initialize theme system
       this.notifySubscribers({ phase: 'theme', isComplete: false, details: 'Initializing theme system' });
-      
-      // Initialize base theme service first
-      await themeService.initialize({
-        enableTransitions: true,
-        fallbackToDefaults: true,
-        persistToLocalStorage: true
-      });
-
-      // Initialize unified controller (will load user settings if available)
-      await unifiedThemeController.initialize();
+      await productionThemeService.initialize();
 
       // Phase 4: Complete
       this.isComplete = true;
@@ -134,10 +123,7 @@ class CoordinatedInitService {
 
   subscribe(callback: (status: InitializationStatus) => void): () => void {
     this.subscribers.push(callback);
-    
-    // Send current status immediately
     callback(this.getStatus());
-    
     return () => {
       this.subscribers = this.subscribers.filter(sub => sub !== callback);
     };

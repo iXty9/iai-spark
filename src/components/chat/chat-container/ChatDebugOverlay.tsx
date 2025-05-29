@@ -1,12 +1,8 @@
 
 import React from 'react';
-import { DebugInfo } from '@/types/chat';
 
-interface ChatDebugOverlayProps {
-  debugInfo: DebugInfo;
-}
-
-export const ChatDebugOverlay: React.FC<ChatDebugOverlayProps> = () => {
-  // Debug overlay removed for cleaner UX
+// This component was simplified as it only returned null
+// Removing the unused DebugInfo import and props since debug overlay is disabled
+export const ChatDebugOverlay: React.FC = () => {
   return null;
 };
