@@ -20,10 +20,21 @@ export function processResponseMetadata(message: Message, data: any): void {
   }
   
   // Handle token info - core business logic
+  // Updated to handle the actual webhook response structure
   if (Array.isArray(data) && data[0]?.usage) {
-    message.tokenInfo = data[0].usage;
+    const usage = data[0].usage;
+    message.tokenInfo = {
+      promptTokens: usage.prompt_tokens,
+      completionTokens: usage.completion_tokens,
+      totalTokens: usage.total_tokens
+    };
   } else if (data?.usage) {
-    message.tokenInfo = data.usage;
+    const usage = data.usage;
+    message.tokenInfo = {
+      promptTokens: usage.prompt_tokens,
+      completionTokens: usage.completion_tokens,
+      totalTokens: usage.total_tokens
+    };
   }
   
   // Handle thread info - core business logic
