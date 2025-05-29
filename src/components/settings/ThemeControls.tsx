@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo } from 'react';
 import { useTheme } from '@/hooks/use-theme';
 import { Input } from '@/components/ui/input';
@@ -7,7 +6,7 @@ import { Slider } from '@/components/ui/slider';
 import { ThemeColors } from '@/types/theme';
 import { Badge } from '@/components/ui/badge';
 import { getContrastRatio, getContrastRating, formatContrastRatio, suggestAccessibleColor } from '@/utils/color-contrast';
-import { AlertCircle, Check, Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, Check, Eye, EyeOff, Palette, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export interface ThemeControlsProps {
@@ -63,21 +62,31 @@ const ContrastBadge = React.memo(({ rating }: { rating: 'AAA' | 'AA' | 'Fail' })
 ));
 
 const ColorInputRow = React.memo(({
-  label, name, value, onColorChange, isActive
-}: { label: string; name: string; value: string; onColorChange: ThemeControlsProps['onColorChange']; isActive: boolean; }) => {
+  label, name, value, onColorChange, isActive, icon
+}: { 
+  label: string; 
+  name: string; 
+  value: string; 
+  onColorChange: ThemeControlsProps['onColorChange']; 
+  isActive: boolean;
+  icon?: React.ReactNode;
+}) => {
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onColorChange(e);
   }, [onColorChange]);
 
   return (
-    <div className="space-y-2">
-      <Label htmlFor={name} className="text-sm font-medium">{label}</Label>
-      <div className="flex items-center space-x-3">
+    <div className="space-y-3 group">
+      <Label htmlFor={name} className="text-sm font-medium flex items-center gap-2">
+        {icon}
+        {label}
+      </Label>
+      <div className="flex items-center space-x-4 p-3 rounded-lg border border-border/20 bg-gradient-to-r from-background/60 to-background/40 hover:from-background/80 hover:to-background/60 transition-all duration-200">
         <div 
-          className="w-8 h-8 rounded-md border-2 cursor-pointer transition-all hover:scale-105" 
+          className="w-10 h-10 rounded-lg border-2 cursor-pointer transition-all hover:scale-105 shadow-sm" 
           style={{
             backgroundColor: value, 
-            borderColor: isActive ? '#ccc' : '#666'
+            borderColor: isActive ? 'hsl(var(--primary))' : 'hsl(var(--border))'
           }} 
           title={`Preview: ${value}`}
         />
@@ -87,7 +96,7 @@ const ColorInputRow = React.memo(({
           type="color" 
           value={value} 
           onChange={handleInputChange} 
-          className="w-16 h-8 p-1 cursor-pointer"
+          className="w-12 h-10 p-1 cursor-pointer border-border/20"
           aria-label={`Color picker for ${label}`}
         />
         <Input 
@@ -95,7 +104,7 @@ const ColorInputRow = React.memo(({
           value={value} 
           onChange={handleInputChange} 
           name={name} 
-          className="flex-1 font-mono text-sm"
+          className="flex-1 font-mono text-sm bg-background/50 border-border/20"
           placeholder="#000000"
           pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
           aria-label={`Hex value for ${label}`}
@@ -106,17 +115,28 @@ const ColorInputRow = React.memo(({
 });
 
 const OpacitySliderRow = React.memo(({
-  label, name, value, onChange
-}: { label: string; name: string; value: number; onChange: (name: string, value: number) => void; }) => {
+  label, name, value, onChange, icon
+}: { 
+  label: string; 
+  name: string; 
+  value: number; 
+  onChange: (name: string, value: number) => void;
+  icon?: React.ReactNode;
+}) => {
   const handleSliderChange = useCallback((val: number[]) => {
     onChange(name, val[0]);
   }, [name, onChange]);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4 p-4 rounded-lg border border-border/20 bg-gradient-to-r from-background/60 to-background/40">
       <div className="flex justify-between items-center">
-        <Label htmlFor={name} className="text-sm font-medium">{label}</Label>
-        <span className="text-sm font-mono bg-muted px-2 py-1 rounded">{Math.round(value * 100)}%</span>
+        <Label htmlFor={name} className="text-sm font-medium flex items-center gap-2">
+          {icon}
+          {label}
+        </Label>
+        <div className="bg-gradient-to-r from-primary/20 to-accent/20 px-3 py-1 rounded-md border border-border/20">
+          <span className="text-sm font-mono font-semibold">{Math.round(value * 100)}%</span>
+        </div>
       </div>
       <Slider 
         id={name} 
@@ -211,43 +231,55 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
   }, []);
 
   return (
-    <div className={`space-y-6 ${theme === 'light' ? 'text-black' : 'text-white'}`}>
-      {/* FIXED: Improved preview with better styling */}
-      <div className="p-4 rounded-lg border-2 mb-6 transition-all duration-200" style={{ backgroundColor: c.backgroundColor }}>
-        <h3 className="font-medium mb-3 text-lg" style={{ color: c.textColor }}>Theme Preview</h3>
-        <div className="flex space-x-3 mb-3">
-          {msgConfigs.map(({ bubbleColor, bubbleOpacity, textColor, msgLabel }) => (
-            <div
-              key={msgLabel}
-              className="p-3 rounded-lg flex-1 text-center transition-all duration-200 shadow-sm"
-              style={{ 
-                backgroundColor: c[bubbleColor], 
-                opacity: c[bubbleOpacity], 
-                color: c[textColor] 
-              }}
-            >
-              <span className="font-medium">{msgLabel} Message</span>
-            </div>
-          ))}
+    <div className={`space-y-8 ${theme === 'light' ? 'text-black' : 'text-white'}`}>
+      {/* Enhanced Theme Preview */}
+      <div className="relative overflow-hidden rounded-xl border-2 border-border/30 bg-gradient-to-br from-background/80 to-background/60 p-6 shadow-lg" style={{ backgroundColor: c.backgroundColor }}>
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none"></div>
+        <div className="relative">
+          <h3 className="font-semibold mb-4 text-lg flex items-center gap-2" style={{ color: c.textColor }}>
+            <Palette className="h-5 w-5" />
+            Live Theme Preview
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {msgConfigs.map(({ bubbleColor, bubbleOpacity, textColor, msgLabel }) => (
+              <div
+                key={msgLabel}
+                className="p-4 rounded-xl flex items-center justify-center text-center transition-all duration-300 hover:scale-105 shadow-md border border-border/20"
+                style={{ 
+                  backgroundColor: c[bubbleColor], 
+                  opacity: c[bubbleOpacity], 
+                  color: c[textColor] 
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="font-medium">{msgLabel} Message</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Improved contrast checks */}
-      <div className="p-4 rounded-lg border bg-card/30 space-y-3">
+      {/* Enhanced Accessibility Checks */}
+      <div className="bg-gradient-to-br from-muted/20 via-muted/10 to-muted/20 rounded-xl p-6 border border-border/20 space-y-4">
         <div className="flex justify-between items-center">
-          <h3 className="font-medium">Accessibility Checks</h3>
+          <h3 className="font-semibold text-lg flex items-center gap-2">
+            <Check className="h-5 w-5 text-green-500" />
+            Accessibility Checks
+          </h3>
           <Button 
             variant="ghost" 
             size="sm" 
             onClick={toggleContrastChecks}
-            className="flex items-center space-x-2"
+            className="flex items-center space-x-2 hover:bg-muted/30 transition-all duration-200"
           >
             {showContrastChecks ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             <span>{showContrastChecks ? 'Hide' : 'Show'}</span>
           </Button>
         </div>
         {showContrastChecks && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {contrastData.map(item =>
               <ContrastCheckBlock key={item.title} {...item} onApplySuggestion={applySuggestion} />
             )}
@@ -255,54 +287,68 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
         )}
       </div>
 
-      {/* Background + Text color */}
-      <div className="space-y-4">
-        <h4 className="font-medium text-base border-b pb-2">Base Colors</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[
-            { key: 'backgroundColor', label: 'Background Color' },
-            { key: 'textColor', label: 'Default Text Color' }
-          ].map(({ key, label }) =>
+      {/* Enhanced Color Sections */}
+      <div className="space-y-6">
+        <div className="bg-gradient-to-br from-background/60 to-background/40 rounded-xl p-6 border border-border/20 space-y-6">
+          <h4 className="font-semibold text-lg border-b border-border/30 pb-3 flex items-center gap-2">
+            <Palette className="h-5 w-5 text-primary" />
+            Base Colors
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <ColorInputRow
-              key={key}
-              label={label}
-              name={key}
-              value={c[key]}
+              label="Background Color"
+              name="backgroundColor"
+              value={c.backgroundColor}
               onColorChange={onColorChange}
               isActive={isActive}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Message settings */}
-      {msgConfigs.map(({ heading, bubbleColor, bubbleOpacity, textColor, msgLabel }) => (
-        <div className="space-y-4" key={heading}>
-          <h4 className="font-medium text-base border-b pb-2">{heading}</h4>
-          <div className="space-y-4">
-            <ColorInputRow
-              label={`${msgLabel} Message Color`}
-              name={bubbleColor}
-              value={c[bubbleColor]}
-              onColorChange={onColorChange}
-              isActive={isActive}
-            />
-            <OpacitySliderRow
-              label={`${msgLabel} Message Opacity`}
-              name={bubbleOpacity}
-              value={c[bubbleOpacity]}
-              onChange={handleSliderChange}
+              icon={<div className="w-3 h-3 rounded-full bg-background border border-border"></div>}
             />
             <ColorInputRow
-              label={`${msgLabel} Text Color`}
-              name={textColor}
-              value={c[textColor]}
+              label="Text Color"
+              name="textColor"
+              value={c.textColor}
               onColorChange={onColorChange}
               isActive={isActive}
+              icon={<div className="w-3 h-3 rounded-full bg-foreground"></div>}
             />
           </div>
         </div>
-      ))}
+
+        {/* Enhanced Message Settings */}
+        {msgConfigs.map(({ heading, bubbleColor, bubbleOpacity, textColor, msgLabel }) => (
+          <div className="bg-gradient-to-br from-background/60 to-background/40 rounded-xl p-6 border border-border/20 space-y-6" key={heading}>
+            <h4 className="font-semibold text-lg border-b border-border/30 pb-3 flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              {heading}
+            </h4>
+            <div className="space-y-6">
+              <ColorInputRow
+                label={`${msgLabel} Message Color`}
+                name={bubbleColor}
+                value={c[bubbleColor]}
+                onColorChange={onColorChange}
+                isActive={isActive}
+                icon={<div className="w-3 h-3 rounded-full border border-border" style={{ backgroundColor: c[bubbleColor] }}></div>}
+              />
+              <OpacitySliderRow
+                label={`${msgLabel} Message Opacity`}
+                name={bubbleOpacity}
+                value={c[bubbleOpacity]}
+                onChange={handleSliderChange}
+                icon={<div className="w-3 h-3 rounded-full bg-muted border border-border"></div>}
+              />
+              <ColorInputRow
+                label={`${msgLabel} Text Color`}
+                name={textColor}
+                value={c[textColor]}
+                onColorChange={onColorChange}
+                isActive={isActive}
+                icon={<div className="w-3 h-3 rounded-full border border-border" style={{ backgroundColor: c[textColor] }}></div>}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
