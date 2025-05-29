@@ -11,7 +11,6 @@ import { useNavigate } from 'react-router-dom';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
 import { BackgroundSettings } from '@/components/settings/BackgroundSettings';
 import { SettingsFooter } from '@/components/settings/SettingsFooter';
-import { AdminThemeActions } from '@/components/settings/AdminThemeActions';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -138,11 +137,6 @@ export default function Settings() {
                     isLoading={isBackgroundLoading}
                   />
                 </TabsContent>
-              </div>
-
-              {/* Admin Actions Section */}
-              <div className="px-6 pb-6">
-                <AdminThemeActions />
               </div>
             </Tabs>
             
