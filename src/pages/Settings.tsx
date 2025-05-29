@@ -98,8 +98,8 @@ export default function Settings() {
             </div>
           </div>
           
-          {/* Main Settings Card */}
-          <Card className="bg-card/60 backdrop-blur-sm border shadow-lg">
+          {/* Main Settings Card with Glass Effect */}
+          <Card className="card">
             <Tabs defaultValue="appearance" className="w-full">
               <div className="border-b px-6 pt-6">
                 <TabsList className="grid w-full grid-cols-2 mb-4">
