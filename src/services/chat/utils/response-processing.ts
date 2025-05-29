@@ -18,7 +18,7 @@ export function processResponseMetadata(message: Message, data: any): void {
   };
   
   // Handle token info - core business logic
-  // Updated to handle the actual webhook response structure
+  // Updated to handle the actual webhook response structure with correct field names
   if (Array.isArray(data) && data[0]?.usage) {
     const usage = data[0].usage;
     message.tokenInfo = {
