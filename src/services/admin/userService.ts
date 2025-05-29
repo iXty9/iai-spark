@@ -63,6 +63,49 @@ export async function checkAdminConnectionStatus(): Promise<any> {
 }
 
 /**
+ * Enhanced function to fetch auth user emails with better error handling
+ */
+const fetchAuthUserEmails = async (): Promise<Record<string, string>> => {
+  const emailMap: Record<string, string> = {};
+  
+  try {
+    logger.info('Attempting to fetch auth user data...');
+    
+    // Check if we have admin permissions by testing the admin API
+    const { data: authUsersData, error: authError } = await supabase.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000 // Adjust based on your needs
+    });
+    
+    if (authError) {
+      logger.error('Failed to fetch auth users - Admin API error:', authError);
+      console.error('Auth admin API error:', authError);
+      return emailMap;
+    }
+    
+    if (!authUsersData?.users) {
+      logger.warn('Auth admin API returned no users data');
+      return emailMap;
+    }
+    
+    logger.info(`Successfully fetched ${authUsersData.users.length} auth users`);
+    
+    // Build email mapping
+    authUsersData.users.forEach(authUser => {
+      if (authUser.id && authUser.email) {
+        emailMap[authUser.id] = authUser.email;
+      }
+    });
+    
+    return emailMap;
+  } catch (error) {
+    logger.error('Exception in fetchAuthUserEmails:', error);
+    console.error('Failed to fetch auth user emails:', error);
+    return emailMap;
+  }
+};
+
+/**
  * Fetch users with enhanced validation and error handling
  */
 export async function fetchUsers(options: UsersFetchOptions = {}): Promise<UsersFetchResult> {
@@ -110,22 +153,13 @@ export async function fetchUsers(options: UsersFetchOptions = {}): Promise<Users
       // Don't throw here, continue with default roles
     }
 
-    // Get auth users data for emails (with error handling)
-    let authUsers: any = null;
-    try {
-      const { data: authUsersData, error: authError } = await supabase.auth.admin.listUsers();
-      if (!authError) {
-        authUsers = authUsersData;
-      }
-    } catch (error) {
-      logger.error('Error fetching auth users:', error);
-      // Continue without auth data
-    }
-
+    // Get auth users data for emails with enhanced error handling
+    const authEmailMap = await fetchAuthUserEmails();
+    
     // Combine the data with validation
     const users: UserWithRole[] = profiles.map(profile => {
       const userRole = userRoles?.find(ur => ur.user_id === profile.id);
-      const authUser = authUsers?.users?.find((au: any) => au.id === profile.id);
+      const userEmail = authEmailMap[profile.id];
       
       const role = normalizeRole(userRole?.role || 'user');
       
@@ -134,13 +168,16 @@ export async function fetchUsers(options: UsersFetchOptions = {}): Promise<Users
         return null;
       }
 
+      // Use real email if available, otherwise show a clear indication that email couldn't be fetched
+      const displayEmail = userEmail || `[Email not accessible for ${profile.id}]`;
+
       return {
         id: profile.id,
-        email: sanitizeInput(authUser?.email || `user-${profile.id.slice(0, 8)}@example.com`),
-        created_at: authUser?.created_at || profile.updated_at || new Date().toISOString(),
+        email: sanitizeInput(displayEmail),
+        created_at: profile.updated_at || new Date().toISOString(),
         role: role as UserRole,
         username: sanitizeInput(profile.username || ''),
-        last_sign_in_at: authUser?.last_sign_in_at
+        last_sign_in_at: undefined // We'll need additional logic to get this from auth
       };
     }).filter(Boolean) as UserWithRole[];
     
@@ -206,21 +243,13 @@ export async function searchUsers(options: UsersSearchOptions): Promise<UsersFet
       logger.error('Error fetching user roles:', rolesError);
     }
 
-    // Get auth users data for emails
-    let authUsers: any = null;
-    try {
-      const { data: authUsersData, error: authError } = await supabase.auth.admin.listUsers();
-      if (!authError) {
-        authUsers = authUsersData;
-      }
-    } catch (error) {
-      logger.error('Error fetching auth users:', error);
-    }
+    // Get auth users data for emails with enhanced error handling
+    const authEmailMap = await fetchAuthUserEmails();
 
     // Combine the data with proper validation
     const users: UserWithRole[] = profiles.map(profile => {
       const userRole = userRoles?.find(ur => ur.user_id === profile.id);
-      const authUser = authUsers?.users?.find((au: any) => au.id === profile.id);
+      const userEmail = authEmailMap[profile.id];
       
       const role = normalizeRole(userRole?.role || 'user');
       
@@ -229,13 +258,16 @@ export async function searchUsers(options: UsersSearchOptions): Promise<UsersFet
         return null;
       }
 
+      // Use real email if available, otherwise show a clear indication that email couldn't be fetched
+      const displayEmail = userEmail || `[Email not accessible for ${profile.id}]`;
+
       return {
         id: profile.id,
-        email: sanitizeInput(authUser?.email || `user-${profile.id.slice(0, 8)}@example.com`),
-        created_at: authUser?.created_at || profile.updated_at || new Date().toISOString(),
+        email: sanitizeInput(displayEmail),
+        created_at: profile.updated_at || new Date().toISOString(),
         role: role as UserRole,
         username: sanitizeInput(profile.username || ''),
-        last_sign_in_at: authUser?.last_sign_in_at
+        last_sign_in_at: undefined
       };
     }).filter(Boolean) as UserWithRole[];
     

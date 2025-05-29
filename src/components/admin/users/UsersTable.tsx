@@ -10,10 +10,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { format } from 'date-fns';
-import { User, Crown, Shield } from 'lucide-react';
+import { User, Crown, Shield, Copy } from 'lucide-react';
 import { LoadingSkeletonTable } from './LoadingSkeletonTable';
 import { EmptyStateTable } from './EmptyStateTable';
 import { UserRowActions } from './UserRowActions';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface UsersTableProps {
   users: UserWithRole[];
@@ -36,6 +39,8 @@ export function UsersTable({
   onClearFilters = () => {},
   updatingUserId
 }: UsersTableProps) {
+  const { toast } = useToast();
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
     
@@ -67,6 +72,26 @@ export function UsersTable({
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800/50 dark:text-gray-300 dark:border-gray-600';
     }
+  };
+
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Copied!",
+        description: `${label} copied to clipboard`,
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Copy failed",
+        description: "Failed to copy to clipboard",
+      });
+    }
+  };
+
+  const isEmailAccessible = (email: string) => {
+    return !email.startsWith('[Email not accessible');
   };
 
   return (
@@ -110,10 +135,52 @@ export function UsersTable({
                       <User className="h-4 w-4 text-primary" />
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-sm font-medium">{user.email}</span>
-                      <span className="text-xs text-muted-foreground">
-                        ID: {user.id.slice(0, 8)}...
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-medium ${!isEmailAccessible(user.email) ? 'text-orange-600 dark:text-orange-400' : ''}`}>
+                          {user.email}
+                        </span>
+                        {isEmailAccessible(user.email) && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-4 w-4 p-0 hover:bg-muted"
+                                  onClick={() => copyToClipboard(user.email, 'Email')}
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Copy email</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {user.id}
+                        </span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-4 w-4 p-0 hover:bg-muted"
+                                onClick={() => copyToClipboard(user.id, 'User ID')}
+                              >
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Copy user ID</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                     </div>
                   </div>
                 </TableCell>
