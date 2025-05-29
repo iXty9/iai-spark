@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -36,7 +35,7 @@ const queryClient = new QueryClient({
   },
 });
 
-function AppContent({ initError }: { initError: string | null }) {
+function AppContent() {
   useDebugShortcuts();
   
   return (
@@ -156,7 +155,7 @@ function App() {
         <Router>
           <AuthProvider clientReady={clientReady}>
             <ThemeProvider>
-              <AppContent initError={initError} />
+              <AppContent />
             </ThemeProvider>
           </AuthProvider>
         </Router>
