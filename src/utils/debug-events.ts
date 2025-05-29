@@ -131,22 +131,26 @@ const createDevEmitter = () => {
       return;
     }
     
+    const dispatchEvent = (event: CustomEvent) => {
+      if (typeof window !== 'undefined' && window.dispatchEvent) {
+        window.dispatchEvent(event);
+      }
+    };
+    
     // Use requestIdleCallback for non-critical debug events
     if ('requestIdleCallback' in window) {
       requestIdleCallback(() => {
-        if (typeof window !== 'undefined') {
-          const event = new CustomEvent('chatDebug', { 
-            detail: eventWithTimestamp 
-          });
-          window.dispatchEvent(event);
-        }
+        const event = new CustomEvent('chatDebug', { 
+          detail: eventWithTimestamp 
+        });
+        dispatchEvent(event);
       });
     } else {
       // Fallback for browsers without requestIdleCallback
       const event = new CustomEvent('chatDebug', { 
         detail: eventWithTimestamp 
       });
-      window.dispatchEvent(event);
+      dispatchEvent(event);
     }
   };
 };
