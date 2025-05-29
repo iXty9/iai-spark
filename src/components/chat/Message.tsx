@@ -38,11 +38,11 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
 
   // Use CSS variables for colors to respect user theme settings
   const bubbleUser =
-    'bg-[var(--user-bubble-color)] text-left text-[var(--user-text-color)] ml-auto ' +
+    'bg-[var(--user-bubble-color)] text-left ml-auto ' +
     'backdrop-blur-md';
 
   const bubbleAI =
-    'bg-[var(--ai-bubble-color)] text-left text-[var(--ai-text-color)] mr-auto ' +
+    'bg-[var(--ai-bubble-color)] text-left mr-auto ' +
     'backdrop-blur-md';
 
   return (
@@ -79,7 +79,7 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
           {displayName}
         </div>
         
-        {/* Message bubble */}
+        {/* Message bubble with custom text colors */}
         <div
           className={cn(
             bubbleBase,
@@ -88,7 +88,8 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
             'mb-1'
           )}
           style={{
-            opacity: isUser ? 'var(--user-bubble-opacity)' : 'var(--ai-bubble-opacity)'
+            opacity: isUser ? 'var(--user-bubble-opacity)' : 'var(--ai-bubble-opacity)',
+            color: isUser ? 'var(--user-text-color)' : 'var(--ai-text-color)'
           }}
         >
           <MessageContent message={message} isUser={isUser} />

@@ -1,261 +1,350 @@
 import { ThemeColors, ThemeSettings } from '@/types/theme';
-import { fetchAppSettings } from '@/services/admin/settingsService';
+import { applyThemeChanges, applyBackgroundImage } from '@/utils/theme-utils';
 import { logger } from '@/utils/logging';
+import { fetchAppSettings } from '@/services/admin/settingsService';
 
-export interface ThemeServiceConfig {
-  enableTransitions?: boolean;
-  fallbackToDefaults?: boolean;
-  persistToLocalStorage?: boolean;
+export interface ThemeState {
+  mode: 'light' | 'dark';
+  lightTheme: ThemeColors;
+  darkTheme: ThemeColors;
+  backgroundImage: string | null;
+  backgroundOpacity: number;
+  isReady: boolean;
 }
 
-class ThemeService {
+class ProductionThemeService {
+  private state: ThemeState;
+  private listeners: Set<(state: ThemeState) => void> = new Set();
   private isInitialized = false;
-  private defaultLightTheme: ThemeColors = {
-    backgroundColor: '#ffffff',
-    primaryColor: '#dd3333', // Company primary color
-    textColor: '#000000',
-    accentColor: '#9b87f5',
-    userBubbleColor: '#dd3333', // Company primary color
-    aiBubbleColor: '#9b87f5',
-    userBubbleOpacity: 0.3,
-    aiBubbleOpacity: 0.3,
-    userTextColor: '#000000',
-    aiTextColor: '#000000'
-  };
+  private initializationPromise: Promise<void> | null = null;
 
-  private defaultDarkTheme: ThemeColors = {
-    backgroundColor: '#121212',
-    primaryColor: '#dd3333', // Company primary color
-    textColor: '#ffffff',
-    accentColor: '#9b87f5',
-    userBubbleColor: '#dd3333', // Company primary color
-    aiBubbleColor: '#9b87f5',
-    userBubbleOpacity: 0.3,
-    aiBubbleOpacity: 0.3,
-    userTextColor: '#ffffff',
-    aiTextColor: '#ffffff'
-  };
-
-  private adminDefaults: ThemeSettings | null = null;
-
-  /**
-   * Initialize the theme service - this should be called early in app lifecycle
-   */
-  async initialize(config: ThemeServiceConfig = {}): Promise<void> {
-    if (this.isInitialized) return;
-
-    try {
-      // Load admin defaults first (for signed-out users)
-      await this.loadAdminDefaults();
-
-      // Apply initial theme to prevent FOUC
-      const mode = this.getStoredThemeMode() || 'light';
-      const themeColors = this.getDefaultThemeColors(mode);
-      this.applyThemeImmediate(themeColors, mode);
-
-      this.isInitialized = true;
-      logger.info('Theme service initialized successfully', { module: 'theme-service' });
-    } catch (error) {
-      logger.error('Failed to initialize theme service:', error, { module: 'theme-service' });
-      // Apply fallback theme even if initialization fails
-      this.applyThemeImmediate(this.defaultLightTheme, 'light');
-      this.isInitialized = true;
-    }
+  constructor() {
+    this.state = {
+      mode: 'light',
+      lightTheme: this.getDefaultLightTheme(),
+      darkTheme: this.getDefaultDarkTheme(),
+      backgroundImage: null,
+      backgroundOpacity: 0.5,
+      isReady: false
+    };
   }
 
-  /**
-   * Load admin-set default themes for signed-out users
-   */
-  private async loadAdminDefaults(): Promise<void> {
-    try {
-      const appSettings = await fetchAppSettings();
-      if (appSettings?.default_theme_settings) {
-        this.adminDefaults = JSON.parse(appSettings.default_theme_settings);
-        logger.info('Admin default theme loaded', { module: 'theme-service' });
-      }
-    } catch (error) {
-      logger.warn('Could not load admin defaults, using built-in defaults', error, { module: 'theme-service' });
-    }
-  }
-
-  /**
-   * Get default theme colors based on mode
-   */
-  getDefaultThemeColors(mode: 'light' | 'dark'): ThemeColors {
-    if (this.adminDefaults) {
-      const adminTheme = mode === 'light' ? this.adminDefaults.lightTheme : this.adminDefaults.darkTheme;
-      if (adminTheme) return adminTheme;
-    }
-    
-    return mode === 'light' ? this.defaultLightTheme : this.defaultDarkTheme;
-  }
-
-  /**
-   * Get stored theme mode from localStorage
-   */
-  getStoredThemeMode(): 'light' | 'dark' | null {
-    try {
-      return localStorage.getItem('theme') as 'light' | 'dark' | null;
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Apply theme colors immediately to DOM (synchronous)
-   */
-  applyThemeImmediate(colors: ThemeColors, mode: 'light' | 'dark'): void {
-    const root = document.documentElement;
-    
-    // Remove existing theme classes and add new one
-    root.classList.remove('light', 'dark');
-    root.classList.add(mode);
-
-    // Apply color variables
-    Object.entries(colors).forEach(([key, value]) => {
-      if (key.includes('Opacity')) {
-        root.style.setProperty(`--${this.kebabCase(key)}`, value.toString());
-      } else {
-        root.style.setProperty(`--${this.kebabCase(key)}`, value);
-      }
-    });
-
-    // Update body styles immediately
-    document.body.style.backgroundColor = colors.backgroundColor;
-    document.body.style.color = colors.textColor;
-
-    // Store theme mode
-    try {
-      localStorage.setItem('theme', mode);
-    } catch (error) {
-      logger.warn('Could not store theme mode to localStorage', error);
-    }
-  }
-
-  /**
-   * Apply background image and opacity - COMPLETELY FIXED v3.0
-   */
-  applyBackground(backgroundImage: string | null, opacity: number): void {
-    const root = document.documentElement;
-    const body = document.body;
-    
-    // Normalize opacity to ensure it's a number between 0 and 1
-    const normalizedOpacity = Math.max(0, Math.min(1, Number(opacity) || 0.5));
-    
-    if (backgroundImage) {
-      // CRITICAL FIX: Apply background image DIRECTLY to body
-      body.style.backgroundImage = `url("${backgroundImage}")`;
-      body.style.backgroundSize = 'cover';
-      body.style.backgroundPosition = 'center';
-      body.style.backgroundRepeat = 'no-repeat';
-      body.style.backgroundAttachment = 'scroll';
-      
-      // Add the CSS class for background styling
-      body.classList.add('with-bg-image');
-      
-      // Set CSS variable for opacity overlay
-      root.style.setProperty('--bg-opacity', normalizedOpacity.toString());
-      root.style.setProperty('--bg-image-url', `url("${backgroundImage}")`);
-      
-      // CRITICAL: Apply desktop background attachment
-      if (window.innerWidth >= 768) {
-        body.style.backgroundAttachment = 'fixed';
-      }
-      
-      logger.info('Applied background image with opacity:', { opacity: normalizedOpacity, hasImage: true });
-    } else {
-      // Remove background image completely
-      body.style.backgroundImage = '';
-      body.style.backgroundSize = '';
-      body.style.backgroundPosition = '';
-      body.style.backgroundRepeat = '';
-      body.style.backgroundAttachment = '';
-      body.classList.remove('with-bg-image');
-      
-      root.style.setProperty('--bg-opacity', '0.5');
-      root.style.setProperty('--bg-image-url', 'none');
-      
-      logger.info('Removed background image');
-    }
-  }
-
-  /**
-   * Create a theme settings object
-   */
-  createThemeSettings(
-    mode: 'light' | 'dark',
-    lightTheme: ThemeColors,
-    darkTheme: ThemeColors,
-    backgroundImage?: string | null,
-    backgroundOpacity?: number
-  ): ThemeSettings {
+  private getDefaultLightTheme(): ThemeColors {
     return {
+      backgroundColor: '#ffffff',
+      primaryColor: '#dd3333',
+      textColor: '#000000',
+      accentColor: '#9b87f5',
+      userBubbleColor: '#dd3333',
+      aiBubbleColor: '#9b87f5',
+      userBubbleOpacity: 0.3,
+      aiBubbleOpacity: 0.3,
+      userTextColor: '#000000',
+      aiTextColor: '#000000',
+      userNameColor: '#666666',
+      aiNameColor: '#666666'
+    };
+  }
+
+  private getDefaultDarkTheme(): ThemeColors {
+    return {
+      backgroundColor: '#121212',
+      primaryColor: '#dd3333',
+      textColor: '#ffffff',
+      accentColor: '#9b87f5',
+      userBubbleColor: '#dd3333',
+      aiBubbleColor: '#9b87f5',
+      userBubbleOpacity: 0.3,
+      aiBubbleOpacity: 0.3,
+      userTextColor: '#ffffff',
+      aiTextColor: '#ffffff',
+      userNameColor: '#cccccc',
+      aiNameColor: '#cccccc'
+    };
+  }
+
+  async initialize(userSettings?: ThemeSettings, forceReinit = false): Promise<void> {
+    // Allow forced reinitialization for fresh data loading
+    if (forceReinit) {
+      this.isInitialized = false;
+      this.initializationPromise = null;
+    }
+
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    if (this.isInitialized && !forceReinit) {
+      return Promise.resolve();
+    }
+
+    this.initializationPromise = this.performInitialization(userSettings);
+    return this.initializationPromise;
+  }
+
+  private async performInitialization(userSettings?: ThemeSettings): Promise<void> {
+    try {
+      logger.info('Initializing production theme service with comprehensive text color support', { 
+        module: 'production-theme',
+        hasUserSettings: !!userSettings
+      });
+
+      if (userSettings && this.validateThemeSettings(userSettings)) {
+        this.state = {
+          mode: userSettings.mode || 'light',
+          lightTheme: userSettings.lightTheme || this.getDefaultLightTheme(),
+          darkTheme: userSettings.darkTheme || this.getDefaultDarkTheme(),
+          backgroundImage: userSettings.backgroundImage || null,
+          backgroundOpacity: this.normalizeOpacity(userSettings.backgroundOpacity || 0.5),
+          isReady: true
+        };
+        
+        logger.info('Initialized with user settings and text color support', { 
+          module: 'production-theme',
+          backgroundImage: !!this.state.backgroundImage,
+          textColor: this.state.mode === 'light' ? this.state.lightTheme.textColor : this.state.darkTheme.textColor
+        });
+      } else {
+        // Try to load default theme from database
+        try {
+          const appSettings = await fetchAppSettings();
+          if (appSettings.default_theme_settings) {
+            const defaultSettings = JSON.parse(appSettings.default_theme_settings);
+            
+            if (this.validateThemeSettings(defaultSettings)) {
+              this.state.lightTheme = defaultSettings.lightTheme || this.getDefaultLightTheme();
+              this.state.darkTheme = defaultSettings.darkTheme || this.getDefaultDarkTheme();
+              this.state.backgroundImage = defaultSettings.backgroundImage || null;
+              this.state.backgroundOpacity = this.normalizeOpacity(defaultSettings.backgroundOpacity || 0.5);
+              
+              logger.info('Loaded default theme from database with text color support', { module: 'production-theme' });
+            }
+          }
+        } catch (error) {
+          logger.warn('Could not load default theme from database, using hardcoded defaults', error);
+        }
+        
+        this.state.isReady = true;
+        logger.info('Initialized with default settings and text color support', { module: 'production-theme' });
+      }
+
+      // Apply theme and background immediately with COMPREHENSIVE text color mapping
+      this.applyCurrentTheme();
+      this.applyCurrentBackground();
+      
+      this.isInitialized = true;
+      this.initializationPromise = null;
+      
+      this.notifyListeners();
+      
+      logger.info('Production theme service initialized with comprehensive text color support', { 
+        module: 'production-theme',
+        mode: this.state.mode,
+        textColorApplied: true
+      });
+    } catch (error) {
+      logger.error('Failed to initialize production theme service:', error);
+      this.state.isReady = true;
+      this.isInitialized = true;
+      this.initializationPromise = null;
+      this.notifyListeners();
+    }
+  }
+
+  private validateThemeSettings(settings: ThemeSettings): boolean {
+    return settings && typeof settings === 'object';
+  }
+
+  private normalizeOpacity(opacity: any): number {
+    if (typeof opacity === 'string') {
+      const parsed = parseFloat(opacity);
+      return isNaN(parsed) ? 0.5 : Math.max(0, Math.min(1, parsed));
+    }
+    return Math.max(0, Math.min(1, opacity || 0.5));
+  }
+
+  getState(): ThemeState {
+    return { ...this.state };
+  }
+
+  subscribe(listener: (state: ThemeState) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private notifyListeners(): void {
+    this.listeners.forEach(listener => listener(this.getState()));
+  }
+
+  // Core setters that immediately apply changes with COMPREHENSIVE text color mapping
+  setMode(mode: 'light' | 'dark'): void {
+    this.state.mode = mode;
+    this.applyCurrentTheme();
+    this.notifyListeners();
+    logger.info('Theme mode changed with comprehensive text color application', { module: 'production-theme', mode });
+  }
+
+  setLightTheme(theme: ThemeColors): void {
+    this.state.lightTheme = theme;
+    if (this.state.mode === 'light') {
+      this.applyCurrentTheme();
+    }
+    this.notifyListeners();
+    logger.info('Light theme updated with comprehensive text color changes', { 
+      module: 'production-theme', 
+      textColor: theme.textColor 
+    });
+  }
+
+  setDarkTheme(theme: ThemeColors): void {
+    this.state.darkTheme = theme;
+    if (this.state.mode === 'dark') {
+      this.applyCurrentTheme();
+    }
+    this.notifyListeners();
+    logger.info('Dark theme updated with comprehensive text color changes', { 
+      module: 'production-theme', 
+      textColor: theme.textColor 
+    });
+  }
+
+  setBackgroundImage(image: string | null): void {
+    this.state.backgroundImage = image;
+    this.applyCurrentBackground();
+    this.notifyListeners();
+    logger.info('Background image updated', { 
+      module: 'production-theme', 
+      hasImage: !!image 
+    });
+  }
+
+  setBackgroundOpacity(opacity: number): void {
+    this.state.backgroundOpacity = this.normalizeOpacity(opacity);
+    this.applyCurrentBackground();
+    this.notifyListeners();
+    logger.info('Background opacity updated', { 
+      module: 'production-theme', 
+      opacity: this.state.backgroundOpacity 
+    });
+  }
+
+  // Preview methods that don't update state but apply visual changes with COMPREHENSIVE text color support
+  previewTheme(colors: ThemeColors, mode: 'light' | 'dark'): void {
+    // Use the COMPREHENSIVE applyThemeChanges function with full text color mapping
+    applyThemeChanges(colors);
+    this.updateDocumentThemeMode(mode);
+    logger.info('Theme preview applied with COMPREHENSIVE text color mapping', { 
+      module: 'production-theme', 
       mode,
-      lightTheme,
-      darkTheme,
-      backgroundImage: backgroundImage || null,
-      backgroundOpacity: backgroundOpacity || 0.5, // Keep as number
+      textColor: colors.textColor
+    });
+  }
+
+  previewBackground(image: string | null, opacity: number): void {
+    applyBackgroundImage(image, opacity);
+    // Ensure glass effect is enabled
+    if (image) {
+      document.body.classList.add('with-bg-image');
+    } else {
+      document.body.classList.remove('with-bg-image');
+    }
+    logger.info('Background preview applied', { 
+      module: 'production-theme', 
+      hasImage: !!image,
+      opacity 
+    });
+  }
+
+  private applyCurrentTheme(): void {
+    const currentColors = this.state.mode === 'dark' ? this.state.darkTheme : this.state.lightTheme;
+    
+    // Use the COMPREHENSIVE applyThemeChanges function with full text color mapping
+    applyThemeChanges(currentColors);
+    this.updateDocumentThemeMode(this.state.mode);
+    
+    logger.info('Applied current theme with COMPREHENSIVE text color mapping', { 
+      module: 'production-theme', 
+      mode: this.state.mode,
+      textColor: currentColors.textColor,
+      backgroundColor: currentColors.backgroundColor
+    });
+  }
+
+  private updateDocumentThemeMode(mode: 'light' | 'dark'): void {
+    // Update body classes for theme mode
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(mode);
+  }
+
+  private applyCurrentBackground(): void {
+    applyBackgroundImage(this.state.backgroundImage, this.state.backgroundOpacity);
+    
+    // Ensure glass effect classes are properly applied
+    if (this.state.backgroundImage) {
+      document.body.classList.add('with-bg-image');
+    } else {
+      document.body.classList.remove('with-bg-image');
+    }
+  }
+
+  async loadDefaultTheme(): Promise<boolean> {
+    try {
+      logger.info('Loading default theme from database', { module: 'production-theme' });
+      
+      const appSettings = await fetchAppSettings();
+      
+      if (appSettings.default_theme_settings) {
+        const defaultSettings = JSON.parse(appSettings.default_theme_settings);
+        
+        if (this.validateThemeSettings(defaultSettings)) {
+          this.state.lightTheme = defaultSettings.lightTheme || this.getDefaultLightTheme();
+          this.state.darkTheme = defaultSettings.darkTheme || this.getDefaultDarkTheme();
+          this.state.backgroundImage = defaultSettings.backgroundImage || null;
+          this.state.backgroundOpacity = this.normalizeOpacity(defaultSettings.backgroundOpacity || 0.5);
+          
+          this.applyCurrentTheme();
+          this.applyCurrentBackground();
+          this.notifyListeners();
+          
+          logger.info('Default theme loaded from database with text color support', { module: 'production-theme' });
+          return true;
+        }
+      }
+      
+      // Fallback to hardcoded defaults
+      this.state.lightTheme = this.getDefaultLightTheme();
+      this.state.darkTheme = this.getDefaultDarkTheme();
+      this.state.backgroundImage = null;
+      this.state.backgroundOpacity = 0.5;
+      
+      this.applyCurrentTheme();
+      this.applyCurrentBackground();
+      this.notifyListeners();
+      
+      logger.info('Loaded hardcoded default theme with text color support', { module: 'production-theme' });
+      return false;
+    } catch (error) {
+      logger.error('Error loading default theme:', error);
+      return false;
+    }
+  }
+
+  createThemeSettings(): ThemeSettings {
+    return {
+      mode: this.state.mode,
+      lightTheme: this.state.lightTheme,
+      darkTheme: this.state.darkTheme,
+      backgroundImage: this.state.backgroundImage,
+      backgroundOpacity: this.state.backgroundOpacity,
       exportDate: new Date().toISOString(),
       name: 'Custom Theme'
     };
   }
 
-  /**
-   * Validate theme settings structure
-   */
-  validateThemeSettings(themeData: any): themeData is ThemeSettings {
-    if (!themeData || typeof themeData !== 'object') return false;
-    
-    // Check required structure
-    const hasValidMode = themeData.mode === 'light' || themeData.mode === 'dark';
-    const hasLightTheme = themeData.lightTheme && typeof themeData.lightTheme === 'object';
-    const hasDarkTheme = themeData.darkTheme && typeof themeData.darkTheme === 'object';
-    
-    if (!hasValidMode || !hasLightTheme || !hasDarkTheme) return false;
-
-    // Validate color properties
-    const requiredColorProps = [
-      'backgroundColor', 'primaryColor', 'textColor', 'accentColor',
-      'userBubbleColor', 'aiBubbleColor', 'userTextColor', 'aiTextColor'
-    ];
-
-    const validateThemeColors = (theme: any): boolean => {
-      return requiredColorProps.every(prop => {
-        const value = theme[prop];
-        return typeof value === 'string' && this.isValidHexColor(value);
-      });
-    };
-
-    return validateThemeColors(themeData.lightTheme) && validateThemeColors(themeData.darkTheme);
-  }
-
-  /**
-   * Validate hex color format
-   */
-  private isValidHexColor(color: string): boolean {
-    return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color);
-  }
-
-  /**
-   * Convert camelCase to kebab-case
-   */
-  private kebabCase(str: string): string {
-    return str.replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '$1-$2').toLowerCase();
-  }
-
-  /**
-   * Get admin defaults for fallback
-   */
-  getAdminDefaults(): ThemeSettings | null {
-    return this.adminDefaults;
-  }
-
-  /**
-   * Check if service is initialized
-   */
-  get initialized(): boolean {
-    return this.isInitialized;
+  // Method to force refresh from fresh user data
+  async refreshFromUserData(userSettings?: ThemeSettings): Promise<void> {
+    await this.initialize(userSettings, true);
   }
 }
 
-export const themeService = new ThemeService();
+export const productionThemeService = new ProductionThemeService();

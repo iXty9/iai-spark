@@ -1,22 +1,57 @@
 
 /* Chat message bubble styles - Updated to use CSS variables */
-.user-message {
-  background-color: var(--user-bubble-color, var(--primary-color));
-  color: var(--user-text-color, white);
+.user-message-bubble {
+  background-color: var(--user-bubble-color, var(--primary-color)) !important;
+  color: var(--user-text-color, white) !important;
   opacity: var(--user-bubble-opacity, 1);
 }
 
-.ai-message {
-  background-color: var(--ai-bubble-color, var(--accent-color));
-  color: var(--ai-text-color, var(--text-color));
+.ai-message-bubble {
+  background-color: var(--ai-bubble-color, var(--accent-color)) !important;
+  color: var(--ai-text-color, var(--text-color)) !important;
   opacity: var(--ai-bubble-opacity, 1);
 }
 
-/* Ensure message text colors are applied correctly */
-.user-message * {
+/* Ensure ALL text within message bubbles inherits the correct colors */
+.user-message-bubble *,
+.user-message-bubble p,
+.user-message-bubble span,
+.user-message-bubble strong,
+.user-message-bubble em,
+.user-message-bubble code,
+.user-message-bubble li,
+.user-message-bubble h1,
+.user-message-bubble h2,
+.user-message-bubble h3,
+.user-message-bubble h4,
+.user-message-bubble h5,
+.user-message-bubble h6 {
   color: var(--user-text-color, white) !important;
 }
 
-.ai-message * {
+.ai-message-bubble *,
+.ai-message-bubble p,
+.ai-message-bubble span,
+.ai-message-bubble strong,
+.ai-message-bubble em,
+.ai-message-bubble code,
+.ai-message-bubble li,
+.ai-message-bubble h1,
+.ai-message-bubble h2,
+.ai-message-bubble h3,
+.ai-message-bubble h4,
+.ai-message-bubble h5,
+.ai-message-bubble h6 {
+  color: var(--ai-text-color, var(--text-color)) !important;
+}
+
+/* Ensure markdown prose elements respect bubble text colors */
+.user-message-bubble .prose,
+.user-message-bubble .prose * {
+  color: var(--user-text-color, white) !important;
+}
+
+.ai-message-bubble .prose,
+.ai-message-bubble .prose * {
   color: var(--ai-text-color, var(--text-color)) !important;
 }

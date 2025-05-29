@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { emitDebugEvent } from '@/utils/debug-events';
@@ -212,7 +211,9 @@ export const useSettingsPersistence = ({
       userBubbleOpacity: 0.3,
       aiBubbleOpacity: 0.3,
       userTextColor: '#000000',
-      aiTextColor: '#000000'
+      aiTextColor: '#000000',
+      userNameColor: '#666666',
+      aiNameColor: '#666666'
     };
     
     const defaultDarkTheme = {
@@ -225,7 +226,9 @@ export const useSettingsPersistence = ({
       userBubbleOpacity: 0.3,
       aiBubbleOpacity: 0.3,
       userTextColor: '#ffffff',
-      aiTextColor: '#ffffff'
+      aiTextColor: '#ffffff',
+      userNameColor: '#cccccc',
+      aiNameColor: '#cccccc'
     };
     
     // Update production theme service
