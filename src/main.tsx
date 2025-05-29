@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 import './styles/theme.css'
-import { applySiteTitle } from './utils/site-utils.ts'
 import { productionThemeService } from './services/production-theme-service.ts'
 
 // Create the root element
@@ -17,9 +16,4 @@ if (!rootElement) {
   });
   
   createRoot(rootElement).render(<App />);
-  
-  // Apply site title from settings
-  applySiteTitle().catch(err => {
-    console.error("Failed to apply site title:", err);
-  });
 }

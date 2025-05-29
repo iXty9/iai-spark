@@ -11,7 +11,6 @@ import Settings from '@/pages/Settings';
 import Profile from '@/pages/Profile';
 import Admin from '@/pages/Admin';
 import Initialize from '@/pages/Initialize';
-import { ChatPage } from '@/pages/ChatPage';
 import { ErrorPage } from '@/pages/ErrorPage';
 import NotFound from '@/pages/NotFound';
 import Reconnect from '@/pages/Reconnect';
@@ -22,6 +21,7 @@ import { ProductionErrorBoundary } from '@/components/error/ProductionErrorBound
 import { fastConfig } from '@/services/config/fast-config-service';
 import { clientManager } from '@/services/supabase/client-manager';
 import { logger } from '@/utils/logging';
+import { applySiteTitle } from '@/utils/site-utils';
 import './App.css';
 
 const queryClient = new QueryClient({
@@ -52,6 +52,13 @@ function App() {
           if (clientInitialized) {
             setClientReady(true);
             logger.info('Client initialized successfully', { module: 'app' });
+            
+            // Apply site title after successful initialization
+            try {
+              await applySiteTitle();
+            } catch (error) {
+              logger.warn('Failed to apply site title', { module: 'app' });
+            }
           } else {
             throw new Error('Failed to initialize Supabase client');
           }
@@ -96,7 +103,7 @@ function App() {
                   <Route path="/initialize" element={<Initialize />} />
                   <Route path="/init" element={<InitializePage />} />
                   <Route path="/reconnect" element={<Reconnect />} />
-                  <Route path="/chat" element={<ChatPage />} />
+                  <Route path="/chat" element={<Index />} />
                   <Route path="/error" element={<ErrorPage />} />
                   <Route
                     path="/settings"
