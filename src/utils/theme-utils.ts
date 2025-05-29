@@ -1,4 +1,3 @@
-
 /**
  * Theme utility functions
  * Enhanced utilities for theme operations with complete CSS variable mapping
@@ -88,11 +87,12 @@ export const applyThemeChanges = (themeColors: any) => {
     if (themeColors.textColor) {
       document.body.style.color = themeColors.textColor;
       
-      // Update all text elements immediately
+      // Update all text elements immediately - FIX: Cast to HTMLElement
       const textElements = document.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, div, label, a, button, input, textarea, select');
       textElements.forEach(element => {
-        if (!element.style.color || element.style.color === '') {
-          (element as HTMLElement).style.color = themeColors.textColor;
+        const htmlElement = element as HTMLElement;
+        if (!htmlElement.style.color || htmlElement.style.color === '') {
+          htmlElement.style.color = themeColors.textColor;
         }
       });
     }
