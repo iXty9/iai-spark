@@ -12,7 +12,7 @@ body {
   /* Theme colors are now applied via CSS variables from theme.css */
 }
 
-/* Link color inheritance */
+/* CRITICAL: Enhanced link color inheritance with fallback */
 a {
   color: hsl(var(--primary));
 }
@@ -26,6 +26,30 @@ a {
   .container {
     @apply mx-auto px-4;
     max-width: 1280px;
+  }
+  
+  /* COMPREHENSIVE TEXT COLOR ENFORCEMENT */
+  body, html {
+    color: var(--text-color-hex, hsl(var(--foreground)));
+  }
+  
+  /* Force all text elements to respect theme text color */
+  h1, h2, h3, h4, h5, h6, p, span, div:not(.bg-primary):not(.bg-secondary), label, li, td, th {
+    color: inherit;
+  }
+  
+  /* Override any hardcoded text colors */
+  .text-black {
+    color: var(--text-color-hex, hsl(var(--foreground))) !important;
+  }
+  
+  .text-white {
+    color: var(--text-color-hex, hsl(var(--foreground))) !important;
+  }
+  
+  /* Ensure components inherit text color properly */
+  .card, .card-header, .card-content, .card-footer {
+    color: inherit;
   }
 }
 
@@ -56,4 +80,17 @@ a {
 /* Ensure Lucide icons respect the color */
 .lucide {
   color: inherit;
+}
+
+/* FORCE text color inheritance in all scenarios */
+* {
+  color: inherit;
+}
+
+/* Override specific cases where color might be hardcoded */
+button:not(.bg-primary):not(.bg-secondary):not(.bg-destructive), 
+input:not([type="color"]), 
+textarea,
+select {
+  color: inherit !important;
 }

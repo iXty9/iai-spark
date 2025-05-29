@@ -1,5 +1,5 @@
 
-/* Enhanced theme styles with proper glass effect support and complete text color mapping */
+/* Enhanced theme styles with comprehensive text color mapping and glass effect support */
 
 :root {
   /* Base theme variables */
@@ -40,6 +40,7 @@
   --accent-color: #9b87f5;
   --background-color: #ffffff;
   --text-color: #000000;
+  --text-color-hex: #000000;
   
   /* Message bubble color variables */
   --user-bubble-color: #dd3333;
@@ -81,6 +82,7 @@
   --accent-color: #9b87f5;
   --background-color: #121212;
   --text-color: #ffffff;
+  --text-color-hex: #ffffff;
   
   /* Message bubble color variables for dark mode */
   --user-bubble-color: #dd3333;
@@ -89,6 +91,51 @@
   --ai-text-color: #ffffff;
   --user-bubble-opacity: 0.3;
   --ai-bubble-opacity: 0.3;
+}
+
+/* COMPREHENSIVE TEXT COLOR INHERITANCE - CRITICAL FOR TEXT COLOR SETTING */
+body {
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--background));
+}
+
+/* Force ALL text elements to inherit from CSS variables */
+h1, h2, h3, h4, h5, h6 {
+  color: hsl(var(--foreground));
+}
+
+p, span, div, label, li, td, th {
+  color: inherit;
+}
+
+/* Navigation and menu items use proper text colors */
+nav, .nav, .menu, .navigation {
+  color: hsl(var(--foreground));
+}
+
+/* Card content uses proper text colors */
+.card, .card-content, .card-header, .card-footer {
+  color: hsl(var(--card-foreground));
+}
+
+/* Form elements inherit text color */
+input, textarea, select {
+  color: hsl(var(--foreground));
+}
+
+/* Button text colors */
+button {
+  color: inherit;
+}
+
+/* Links use primary color but inherit if not overridden */
+a {
+  color: hsl(var(--primary));
+}
+
+/* Ensure muted text uses muted foreground */
+.text-muted-foreground {
+  color: hsl(var(--muted-foreground)) !important;
 }
 
 /* Enhanced glass effect styles */
@@ -179,34 +226,6 @@ input[type="color"]:focus {
   ring-color: hsl(var(--ring));
 }
 
-/* CRITICAL: Ensure all text elements properly inherit the text color */
-body {
-  color: hsl(var(--foreground));
-}
-
-h1, h2, h3, h4, h5, h6 {
-  color: hsl(var(--foreground));
-}
-
-p, span, div, label {
-  color: inherit;
-}
-
-/* Ensure buttons use proper text colors */
-.btn, button {
-  color: inherit;
-}
-
-/* Make sure navigation and menu items use proper text colors */
-nav, .nav, .menu {
-  color: hsl(var(--foreground));
-}
-
-/* Ensure card content uses proper text colors */
-.card-content, .card-header, .card-footer {
-  color: hsl(var(--card-foreground));
-}
-
 /* Loading spinner animation with company color */
 .loading-spinner {
   border: 3px solid #f3f3f3;
@@ -218,17 +237,6 @@ nav, .nav, .menu {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
-}
-
-/* Links and interactive elements with company color */
-a {
-  color: hsl(var(--primary));
-  text-decoration: none;
-}
-
-a:hover {
-  color: hsl(var(--primary));
-  opacity: 0.8;
 }
 
 /* Focus states with company color */

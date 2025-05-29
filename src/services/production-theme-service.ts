@@ -80,7 +80,7 @@ class ProductionThemeService {
 
   private async performInitialization(userSettings?: ThemeSettings): Promise<void> {
     try {
-      logger.info('Initializing production theme service', { 
+      logger.info('Initializing production theme service with comprehensive text color support', { 
         module: 'production-theme',
         hasUserSettings: !!userSettings
       });
@@ -95,9 +95,10 @@ class ProductionThemeService {
           isReady: true
         };
         
-        logger.info('Initialized with user settings', { 
+        logger.info('Initialized with user settings and text color support', { 
           module: 'production-theme',
-          backgroundImage: !!this.state.backgroundImage
+          backgroundImage: !!this.state.backgroundImage,
+          textColor: this.state.mode === 'light' ? this.state.lightTheme.textColor : this.state.darkTheme.textColor
         });
       } else {
         // Try to load default theme from database
@@ -112,7 +113,7 @@ class ProductionThemeService {
               this.state.backgroundImage = defaultSettings.backgroundImage || null;
               this.state.backgroundOpacity = this.normalizeOpacity(defaultSettings.backgroundOpacity || 0.5);
               
-              logger.info('Loaded default theme from database', { module: 'production-theme' });
+              logger.info('Loaded default theme from database with text color support', { module: 'production-theme' });
             }
           }
         } catch (error) {
@@ -120,10 +121,10 @@ class ProductionThemeService {
         }
         
         this.state.isReady = true;
-        logger.info('Initialized with default settings', { module: 'production-theme' });
+        logger.info('Initialized with default settings and text color support', { module: 'production-theme' });
       }
 
-      // Apply theme and background immediately with complete mapping
+      // Apply theme and background immediately with COMPREHENSIVE text color mapping
       this.applyCurrentTheme();
       this.applyCurrentBackground();
       
@@ -132,9 +133,10 @@ class ProductionThemeService {
       
       this.notifyListeners();
       
-      logger.info('Production theme service initialized', { 
+      logger.info('Production theme service initialized with comprehensive text color support', { 
         module: 'production-theme',
-        mode: this.state.mode
+        mode: this.state.mode,
+        textColorApplied: true
       });
     } catch (error) {
       logger.error('Failed to initialize production theme service:', error);
@@ -170,12 +172,12 @@ class ProductionThemeService {
     this.listeners.forEach(listener => listener(this.getState()));
   }
 
-  // Core setters that immediately apply changes with enhanced text color mapping
+  // Core setters that immediately apply changes with COMPREHENSIVE text color mapping
   setMode(mode: 'light' | 'dark'): void {
     this.state.mode = mode;
     this.applyCurrentTheme();
     this.notifyListeners();
-    logger.info('Theme mode changed', { module: 'production-theme', mode });
+    logger.info('Theme mode changed with comprehensive text color application', { module: 'production-theme', mode });
   }
 
   setLightTheme(theme: ThemeColors): void {
@@ -184,7 +186,10 @@ class ProductionThemeService {
       this.applyCurrentTheme();
     }
     this.notifyListeners();
-    logger.info('Light theme updated, applying text color changes', { module: 'production-theme' });
+    logger.info('Light theme updated with comprehensive text color changes', { 
+      module: 'production-theme', 
+      textColor: theme.textColor 
+    });
   }
 
   setDarkTheme(theme: ThemeColors): void {
@@ -193,7 +198,10 @@ class ProductionThemeService {
       this.applyCurrentTheme();
     }
     this.notifyListeners();
-    logger.info('Dark theme updated, applying text color changes', { module: 'production-theme' });
+    logger.info('Dark theme updated with comprehensive text color changes', { 
+      module: 'production-theme', 
+      textColor: theme.textColor 
+    });
   }
 
   setBackgroundImage(image: string | null): void {
@@ -216,11 +224,16 @@ class ProductionThemeService {
     });
   }
 
-  // Preview methods that don't update state but apply visual changes
+  // Preview methods that don't update state but apply visual changes with COMPREHENSIVE text color support
   previewTheme(colors: ThemeColors, mode: 'light' | 'dark'): void {
-    // Use the enhanced applyThemeChanges function with complete mapping including text colors
+    // Use the COMPREHENSIVE applyThemeChanges function with full text color mapping
     applyThemeChanges(colors);
-    logger.info('Theme preview applied with complete color mapping including text colors', { module: 'production-theme', mode });
+    this.updateDocumentThemeMode(mode);
+    logger.info('Theme preview applied with COMPREHENSIVE text color mapping', { 
+      module: 'production-theme', 
+      mode,
+      textColor: colors.textColor
+    });
   }
 
   previewBackground(image: string | null, opacity: number): void {
@@ -240,18 +253,23 @@ class ProductionThemeService {
 
   private applyCurrentTheme(): void {
     const currentColors = this.state.mode === 'dark' ? this.state.darkTheme : this.state.lightTheme;
-    // Use the enhanced applyThemeChanges function with complete mapping including text colors
+    
+    // Use the COMPREHENSIVE applyThemeChanges function with full text color mapping
     applyThemeChanges(currentColors);
+    this.updateDocumentThemeMode(this.state.mode);
     
-    // Also update body classes for theme mode
-    document.documentElement.classList.remove('light', 'dark');
-    document.documentElement.classList.add(this.state.mode);
-    
-    logger.info('Applied current theme with enhanced text color mapping', { 
+    logger.info('Applied current theme with COMPREHENSIVE text color mapping', { 
       module: 'production-theme', 
       mode: this.state.mode,
-      textColor: currentColors.textColor
+      textColor: currentColors.textColor,
+      backgroundColor: currentColors.backgroundColor
     });
+  }
+
+  private updateDocumentThemeMode(mode: 'light' | 'dark'): void {
+    // Update body classes for theme mode
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(mode);
   }
 
   private applyCurrentBackground(): void {
@@ -284,7 +302,7 @@ class ProductionThemeService {
           this.applyCurrentBackground();
           this.notifyListeners();
           
-          logger.info('Default theme loaded from database', { module: 'production-theme' });
+          logger.info('Default theme loaded from database with text color support', { module: 'production-theme' });
           return true;
         }
       }
@@ -299,7 +317,7 @@ class ProductionThemeService {
       this.applyCurrentBackground();
       this.notifyListeners();
       
-      logger.info('Loaded hardcoded default theme', { module: 'production-theme' });
+      logger.info('Loaded hardcoded default theme with text color support', { module: 'production-theme' });
       return false;
     } catch (error) {
       logger.error('Error loading default theme:', error);

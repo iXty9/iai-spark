@@ -14,27 +14,29 @@ export const reloadTheme = () => {
 
 export const handleReloadTheme = reloadTheme;
 
-// Apply theme changes to CSS variables - COMPLETE MAPPING WITH TEXT COLOR FIX
+// Apply theme changes to CSS variables - COMPLETE MAPPING WITH COMPREHENSIVE TEXT COLOR FIX
 export const applyThemeChanges = (themeColors: any) => {
   if (typeof window === 'undefined') return;
   
   const root = document.documentElement;
   
   if (themeColors) {
-    // Complete mapping of ALL theme colors to CSS variables
+    // Complete mapping of ALL theme colors to CSS variables with comprehensive text color support
     const colorMappings = {
       // Core theme colors
       primaryColor: '--primary',
       accentColor: '--accent', 
       backgroundColor: '--background',
       
-      // TEXT COLOR - Map to ALL text-related CSS variables
+      // COMPREHENSIVE TEXT COLOR MAPPING - Map to ALL text-related CSS variables
       textColor: [
         '--foreground',
         '--card-foreground', 
         '--popover-foreground',
         '--secondary-foreground',
-        '--accent-foreground'
+        '--accent-foreground',
+        '--muted-foreground',
+        '--text-color' // Custom variable for direct reference
       ],
       
       // Message bubble colors - map to custom variables
@@ -53,7 +55,7 @@ export const applyThemeChanges = (themeColors: any) => {
       if (key.includes('Opacity')) {
         root.style.setProperty(`--${kebabCase(key)}`, String(value));
       } 
-      // Handle color mappings to both standard CSS variables AND custom variables
+      // Handle comprehensive color mappings
       else if (colorMappings[key]) {
         const mappings = Array.isArray(colorMappings[key]) ? colorMappings[key] : [colorMappings[key]];
         
@@ -62,6 +64,11 @@ export const applyThemeChanges = (themeColors: any) => {
             // Convert hex color to HSL for standard CSS variable compatibility
             const hslValue = hexToHsl(String(value));
             root.style.setProperty(cssVar, hslValue);
+            
+            // For textColor, also set the raw hex value for direct usage
+            if (key === 'textColor') {
+              root.style.setProperty('--text-color-hex', String(value));
+            }
           } else {
             // Set the raw value for non-color properties
             root.style.setProperty(cssVar, String(value));
@@ -77,9 +84,23 @@ export const applyThemeChanges = (themeColors: any) => {
       }
     });
 
-    console.log('Applied complete theme changes with full CSS variable mapping including text colors', { 
+    // CRITICAL: Force immediate text color update on body and document
+    if (themeColors.textColor) {
+      document.body.style.color = themeColors.textColor;
+      
+      // Update all text elements immediately
+      const textElements = document.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, div, label, a, button, input, textarea, select');
+      textElements.forEach(element => {
+        if (!element.style.color || element.style.color === '') {
+          (element as HTMLElement).style.color = themeColors.textColor;
+        }
+      });
+    }
+
+    console.log('Applied comprehensive theme changes with FULL text color mapping', { 
       themeColors,
-      mappedVariables: Object.keys(colorMappings)
+      mappedVariables: Object.keys(colorMappings),
+      textColorApplied: !!themeColors.textColor
     });
   }
 };
