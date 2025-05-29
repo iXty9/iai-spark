@@ -1,5 +1,5 @@
 
-/* Enhanced theme styles with proper glass effect support and color mapping */
+/* Enhanced theme styles with proper glass effect support and complete text color mapping */
 
 :root {
   /* Base theme variables */
@@ -41,7 +41,7 @@
   --background-color: #ffffff;
   --text-color: #000000;
   
-  /* Message bubble color variables - ADDED */
+  /* Message bubble color variables */
   --user-bubble-color: #dd3333;
   --ai-bubble-color: #9b87f5;
   --user-text-color: #000000;
@@ -82,7 +82,7 @@
   --background-color: #121212;
   --text-color: #ffffff;
   
-  /* Message bubble color variables for dark mode - ADDED */
+  /* Message bubble color variables for dark mode */
   --user-bubble-color: #dd3333;
   --ai-bubble-color: #9b87f5;
   --user-text-color: #ffffff;
@@ -177,4 +177,32 @@ input[type="color"] {
 
 input[type="color"]:focus {
   ring-color: hsl(var(--ring));
+}
+
+/* CRITICAL: Ensure all text elements properly inherit the text color */
+body {
+  color: hsl(var(--foreground));
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: hsl(var(--foreground));
+}
+
+p, span, div, label {
+  color: inherit;
+}
+
+/* Ensure buttons use proper text colors */
+.btn, button {
+  color: inherit;
+}
+
+/* Make sure navigation and menu items use proper text colors */
+nav, .nav, .menu {
+  color: hsl(var(--foreground));
+}
+
+/* Ensure card content uses proper text colors */
+.card-content, .card-header, .card-footer {
+  color: hsl(var(--card-foreground));
 }

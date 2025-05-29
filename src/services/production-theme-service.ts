@@ -170,7 +170,7 @@ class ProductionThemeService {
     this.listeners.forEach(listener => listener(this.getState()));
   }
 
-  // Core setters that immediately apply changes
+  // Core setters that immediately apply changes with enhanced text color mapping
   setMode(mode: 'light' | 'dark'): void {
     this.state.mode = mode;
     this.applyCurrentTheme();
@@ -184,6 +184,7 @@ class ProductionThemeService {
       this.applyCurrentTheme();
     }
     this.notifyListeners();
+    logger.info('Light theme updated, applying text color changes', { module: 'production-theme' });
   }
 
   setDarkTheme(theme: ThemeColors): void {
@@ -192,6 +193,7 @@ class ProductionThemeService {
       this.applyCurrentTheme();
     }
     this.notifyListeners();
+    logger.info('Dark theme updated, applying text color changes', { module: 'production-theme' });
   }
 
   setBackgroundImage(image: string | null): void {
@@ -216,9 +218,9 @@ class ProductionThemeService {
 
   // Preview methods that don't update state but apply visual changes
   previewTheme(colors: ThemeColors, mode: 'light' | 'dark'): void {
-    // Use the enhanced applyThemeChanges function with complete mapping
+    // Use the enhanced applyThemeChanges function with complete mapping including text colors
     applyThemeChanges(colors);
-    logger.info('Theme preview applied with complete color mapping', { module: 'production-theme', mode });
+    logger.info('Theme preview applied with complete color mapping including text colors', { module: 'production-theme', mode });
   }
 
   previewBackground(image: string | null, opacity: number): void {
@@ -238,12 +240,18 @@ class ProductionThemeService {
 
   private applyCurrentTheme(): void {
     const currentColors = this.state.mode === 'dark' ? this.state.darkTheme : this.state.lightTheme;
-    // Use the enhanced applyThemeChanges function with complete mapping
+    // Use the enhanced applyThemeChanges function with complete mapping including text colors
     applyThemeChanges(currentColors);
     
     // Also update body classes for theme mode
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(this.state.mode);
+    
+    logger.info('Applied current theme with enhanced text color mapping', { 
+      module: 'production-theme', 
+      mode: this.state.mode,
+      textColor: currentColors.textColor
+    });
   }
 
   private applyCurrentBackground(): void {

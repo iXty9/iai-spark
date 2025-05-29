@@ -1,3 +1,4 @@
+
 /**
  * Theme utility functions
  * Enhanced utilities for theme operations with complete CSS variable mapping
@@ -13,7 +14,7 @@ export const reloadTheme = () => {
 
 export const handleReloadTheme = reloadTheme;
 
-// Apply theme changes to CSS variables - COMPLETE MAPPING
+// Apply theme changes to CSS variables - COMPLETE MAPPING WITH TEXT COLOR FIX
 export const applyThemeChanges = (themeColors: any) => {
   if (typeof window === 'undefined') return;
   
@@ -26,7 +27,15 @@ export const applyThemeChanges = (themeColors: any) => {
       primaryColor: '--primary',
       accentColor: '--accent', 
       backgroundColor: '--background',
-      textColor: '--foreground',
+      
+      // TEXT COLOR - Map to ALL text-related CSS variables
+      textColor: [
+        '--foreground',
+        '--card-foreground', 
+        '--popover-foreground',
+        '--secondary-foreground',
+        '--accent-foreground'
+      ],
       
       // Message bubble colors - map to custom variables
       userBubbleColor: '--user-bubble-color',
@@ -46,13 +55,19 @@ export const applyThemeChanges = (themeColors: any) => {
       } 
       // Handle color mappings to both standard CSS variables AND custom variables
       else if (colorMappings[key]) {
-        if (key.includes('Color')) {
-          // Convert hex color to HSL for standard CSS variable compatibility
-          const hslValue = hexToHsl(String(value));
-          root.style.setProperty(colorMappings[key], hslValue);
-        }
-        // Always set the custom variable with the raw value
-        root.style.setProperty(colorMappings[key], String(value));
+        const mappings = Array.isArray(colorMappings[key]) ? colorMappings[key] : [colorMappings[key]];
+        
+        mappings.forEach(cssVar => {
+          if (key.includes('Color')) {
+            // Convert hex color to HSL for standard CSS variable compatibility
+            const hslValue = hexToHsl(String(value));
+            root.style.setProperty(cssVar, hslValue);
+          } else {
+            // Set the raw value for non-color properties
+            root.style.setProperty(cssVar, String(value));
+          }
+        });
+        
         // Also set kebab-case version for backwards compatibility
         root.style.setProperty(`--${kebabCase(key)}`, String(value));
       } 
@@ -62,7 +77,7 @@ export const applyThemeChanges = (themeColors: any) => {
       }
     });
 
-    console.log('Applied complete theme changes with full CSS variable mapping', { 
+    console.log('Applied complete theme changes with full CSS variable mapping including text colors', { 
       themeColors,
       mappedVariables: Object.keys(colorMappings)
     });
