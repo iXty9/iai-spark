@@ -33,8 +33,10 @@ export function MessageContent({ message, isUser }: MessageContentProps) {
               span: ({ children, ...props }) => <span {...props} style={{ color: 'inherit' }}>{children}</span>,
               strong: ({ children, ...props }) => <strong {...props} className="font-bold" style={{ color: 'inherit' }}>{children}</strong>,
               em: ({ children, ...props }) => <em {...props} className="italic" style={{ color: 'inherit' }}>{children}</em>,
-              code: ({ inline, children, ...props }) => 
-                inline ? (
+              code: ({ children, ...props }) => {
+                // Check if this is inline code by checking if it's wrapped in a pre element
+                const isInline = !props.className?.includes('language-');
+                return isInline ? (
                   <code {...props} className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-sm font-mono border" style={{ color: 'inherit' }}>
                     {children}
                   </code>
@@ -42,7 +44,8 @@ export function MessageContent({ message, isUser }: MessageContentProps) {
                   <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg overflow-x-auto mb-4 border">
                     <code className="text-sm font-mono" style={{ color: 'inherit' }}>{children}</code>
                   </pre>
-                ),
+                );
+              },
               li: ({ children, ...props }) => <li {...props} className="ml-2 leading-relaxed" style={{ color: 'inherit' }}>{children}</li>,
               h1: ({ children, ...props }) => <h1 {...props} className="text-2xl font-bold mb-4 mt-6 first:mt-0 leading-tight" style={{ color: 'inherit' }}>{children}</h1>,
               h2: ({ children, ...props }) => <h2 {...props} className="text-xl font-bold mb-3 mt-5 first:mt-0 leading-tight" style={{ color: 'inherit' }}>{children}</h2>,
