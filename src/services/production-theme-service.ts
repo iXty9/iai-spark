@@ -62,49 +62,55 @@ class ProductionThemeService {
   }
 
   async initialize(): Promise<void> {
-    if (this.isInitialized) return;
+    // Allow re-initialization if client becomes available
+    if (this.isInitialized) {
+      const client = clientManager.getClient();
+      if (!client) {
+        logger.info('Theme service already initialized but no client available', { module: 'theme' });
+        return;
+      }
+      // If we have a client now and we're re-initializing, continue
+      this.isInitialized = false;
+    }
 
     try {
       logger.info('Initializing production theme service', { module: 'theme' });
 
-      // Always load admin defaults first
-      await this.loadAdminDefaults();
-
-      // Set up real-time listener for admin default changes
-      this.setupRealtimeListener();
-
-      // Determine what theme to use
-      const client = clientManager.getClient();
+      // Determine user authentication status first
       const isSignedOut = await this.isUserSignedOut();
       
       if (isSignedOut) {
-        // For signed-out users, ALWAYS use admin defaults if available
+        // For signed-out users, ALWAYS load admin defaults from database
+        await this.loadAdminDefaults();
+        
         if (this.adminDefaults) {
           this.applyThemeSettings(this.adminDefaults);
           logger.info('Applied admin default theme for signed-out user', { module: 'theme' });
         } else {
-          // Fallback to built-in defaults
-          this.loadFromLocalStorage();
+          // Fallback to built-in defaults only if no admin defaults exist
+          this.loadModeFromLocalStorage();
+          logger.info('No admin defaults found, using built-in defaults', { module: 'theme' });
         }
       } else {
-        // For signed-in users, check if admin defaults are newer
-        const shouldUseAdmin = await this.shouldUseAdminDefaults();
-        
-        if (shouldUseAdmin && this.adminDefaults) {
-          this.applyThemeSettings(this.adminDefaults);
-          // Clear old user settings to prevent conflicts
-          this.clearStaleUserSettings();
-          logger.info('Applied newer admin default theme for signed-in user', { module: 'theme' });
-        } else {
-          // Load from localStorage first for immediate application
+        // For signed-in users, try to load their personal settings
+        const client = clientManager.getClient();
+        if (client) {
+          // Load admin defaults first for comparison
+          await this.loadAdminDefaults();
+          
+          // Load from localStorage for immediate application
           this.loadFromLocalStorage();
 
-          // If user is authenticated, try to load their personal settings
-          if (client) {
-            await this.loadUserSettings();
-          }
+          // Then try to load from database
+          await this.loadUserSettings();
+        } else {
+          // No client available, use localStorage only
+          this.loadFromLocalStorage();
         }
       }
+
+      // Set up real-time listener for admin default changes
+      this.setupRealtimeListener();
 
       // Apply the final theme state
       this.applyTheme();
@@ -114,15 +120,19 @@ class ProductionThemeService {
       this.isInitialized = true;
       this.notifyListeners();
       
-      logger.info('Theme service initialized', { 
+      logger.info('Theme service initialized successfully', { 
         module: 'theme',
         mode: this.state.mode,
         hasBackground: !!this.state.backgroundImage,
-        isSignedOut
+        isSignedOut,
+        hasAdminDefaults: !!this.adminDefaults
       });
     } catch (error) {
       logger.error('Theme initialization failed', error, { module: 'theme' });
-      this.state.isReady = true; // Still mark as ready to prevent hanging
+      // Still mark as ready to prevent hanging, but apply minimal theme
+      this.applyTheme();
+      this.state.isReady = true;
+      this.isInitialized = true;
       this.notifyListeners();
     }
   }
@@ -140,38 +150,113 @@ class ProductionThemeService {
     }
   }
 
-  private async shouldUseAdminDefaults(): Promise<boolean> {
+  private async loadAdminDefaults(): Promise<void> {
     try {
-      const client = clientManager.getClient();
-      if (!client) return true;
-
-      const { data: { user } } = await client.auth.getUser();
-      if (!user) return true;
-
-      // Check if admin defaults are newer than user's saved settings
-      const userThemeSettings = localStorage.getItem('theme_settings');
-      if (!userThemeSettings || !this.adminDefaults) return false;
-
-      const userSettings = JSON.parse(userThemeSettings) as ThemeSettings;
-      const adminDate = this.adminDefaults.exportDate ? new Date(this.adminDefaults.exportDate) : new Date(0);
-      const userDate = userSettings.exportDate ? new Date(userSettings.exportDate) : new Date(0);
-
-      return adminDate > userDate;
+      const appSettings = await fetchAppSettings();
+      if (appSettings?.default_theme_settings) {
+        const newDefaults = JSON.parse(appSettings.default_theme_settings) as ThemeSettings;
+        const newVersion = newDefaults.exportDate || Date.now().toString();
+        
+        // Always update admin defaults to ensure we have the latest
+        this.adminDefaults = newDefaults;
+        this.adminDefaultsVersion = newVersion;
+        logger.info('Admin default theme loaded', { 
+          module: 'theme',
+          version: newVersion
+        });
+      } else {
+        this.adminDefaults = null;
+        this.adminDefaultsVersion = null;
+        logger.info('No admin default theme found', { module: 'theme' });
+      }
     } catch (error) {
-      logger.warn('Error checking if should use admin defaults', { module: 'theme' });
-      return false;
+      logger.warn('Failed to load admin defaults', { module: 'theme' });
+      this.adminDefaults = null;
     }
   }
 
-  private clearStaleUserSettings(): void {
+  private applyThemeSettings(settings: ThemeSettings): void {
+    this.state.mode = settings.mode || this.state.mode;
+    this.state.lightTheme = settings.lightTheme || this.state.lightTheme;
+    this.state.darkTheme = settings.darkTheme || this.state.darkTheme;
+    this.state.backgroundImage = settings.backgroundImage || null;
+    this.state.backgroundOpacity = settings.backgroundOpacity || 0.5;
+  }
+
+  private loadModeFromLocalStorage(): void {
     try {
-      // Clear localStorage theme settings when admin defaults are newer
-      localStorage.removeItem('theme_settings');
-      localStorage.removeItem('background-image');
-      localStorage.removeItem('background-opacity');
-      logger.info('Cleared stale user theme settings', { module: 'theme' });
+      const savedMode = localStorage.getItem('theme-mode');
+      if (savedMode === 'light' || savedMode === 'dark') {
+        this.state.mode = savedMode;
+      }
     } catch (error) {
-      logger.warn('Error clearing stale user settings', { module: 'theme' });
+      logger.warn('Failed to load mode from localStorage', { module: 'theme' });
+    }
+  }
+
+  private loadFromLocalStorage(): void {
+    try {
+      // Load basic mode
+      this.loadModeFromLocalStorage();
+
+      // Load background settings
+      const savedBg = localStorage.getItem('background-image');
+      const savedOpacity = localStorage.getItem('background-opacity');
+      if (savedBg) {
+        this.state.backgroundImage = savedBg;
+        this.state.backgroundOpacity = savedOpacity ? parseFloat(savedOpacity) : 0.5;
+      }
+
+      // Load theme settings
+      const savedThemeSettings = localStorage.getItem('theme_settings');
+      if (savedThemeSettings) {
+        try {
+          const settings = JSON.parse(savedThemeSettings) as ThemeSettings;
+          this.applyThemeSettings(settings);
+          logger.info('Loaded theme from localStorage', { module: 'theme' });
+        } catch (parseError) {
+          logger.warn('Failed to parse theme settings from localStorage', { module: 'theme' });
+        }
+      }
+    } catch (error) {
+      logger.warn('Failed to load from localStorage', { module: 'theme' });
+    }
+  }
+
+  private async loadUserSettings(): Promise<void> {
+    try {
+      const client = clientManager.getClient();
+      if (!client) return;
+
+      const { data: { user } } = await client.auth.getUser();
+      if (!user) return;
+
+      const { data: profile, error } = await client
+        .from('profiles')
+        .select('theme_settings')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        logger.warn('Could not load user theme settings', { module: 'theme' });
+        return;
+      }
+
+      if (profile?.theme_settings) {
+        const settings = JSON.parse(profile.theme_settings) as ThemeSettings;
+        this.applyThemeSettings(settings);
+        
+        // Save to localStorage for future sessions
+        localStorage.setItem('theme_settings', JSON.stringify(settings));
+        if (settings.backgroundImage) {
+          localStorage.setItem('background-image', settings.backgroundImage);
+          localStorage.setItem('background-opacity', this.state.backgroundOpacity.toString());
+        }
+        
+        logger.info('Loaded user theme settings', { module: 'theme' });
+      }
+    } catch (error) {
+      logger.warn('Failed to load user settings', { module: 'theme' });
     }
   }
 
@@ -219,126 +304,9 @@ class ProductionThemeService {
         this.notifyListeners();
         
         logger.info('Applied updated admin theme for signed-out user', { module: 'theme' });
-      } else {
-        // For signed-in users, check if they want to use the new defaults
-        const shouldUse = await this.shouldUseAdminDefaults();
-        if (shouldUse && this.adminDefaults) {
-          this.applyThemeSettings(this.adminDefaults);
-          this.clearStaleUserSettings();
-          this.applyTheme();
-          this.applyBackgroundToDOM();
-          this.notifyListeners();
-          
-          logger.info('Applied updated admin theme for signed-in user', { module: 'theme' });
-        }
       }
     } catch (error) {
       logger.error('Error handling admin theme change', error, { module: 'theme' });
-    }
-  }
-
-  private async loadAdminDefaults(): Promise<void> {
-    try {
-      const appSettings = await fetchAppSettings();
-      if (appSettings?.default_theme_settings) {
-        const newDefaults = JSON.parse(appSettings.default_theme_settings) as ThemeSettings;
-        const newVersion = newDefaults.exportDate || Date.now().toString();
-        
-        // Only update if version changed
-        if (newVersion !== this.adminDefaultsVersion) {
-          this.adminDefaults = newDefaults;
-          this.adminDefaultsVersion = newVersion;
-          logger.info('Admin default theme loaded/updated', { 
-            module: 'theme',
-            version: newVersion
-          });
-        }
-      } else {
-        this.adminDefaults = null;
-        this.adminDefaultsVersion = null;
-      }
-    } catch (error) {
-      logger.warn('Failed to load admin defaults', { module: 'theme' });
-    }
-  }
-
-  private applyThemeSettings(settings: ThemeSettings): void {
-    this.state.mode = settings.mode || this.state.mode;
-    this.state.lightTheme = settings.lightTheme || this.state.lightTheme;
-    this.state.darkTheme = settings.darkTheme || this.state.darkTheme;
-    this.state.backgroundImage = settings.backgroundImage || null;
-    this.state.backgroundOpacity = settings.backgroundOpacity || 0.5;
-  }
-
-  private loadFromLocalStorage(): void {
-    try {
-      // Only load basic mode, don't interfere with admin theme settings for signed-out users
-      const savedMode = localStorage.getItem('theme-mode');
-      if (savedMode === 'light' || savedMode === 'dark') {
-        this.state.mode = savedMode;
-      }
-
-      // For signed-in users, also load background settings
-      const isSignedOut = this.isUserSignedOut();
-      if (!isSignedOut) {
-        const savedBg = localStorage.getItem('background-image');
-        const savedOpacity = localStorage.getItem('background-opacity');
-        if (savedBg) {
-          this.state.backgroundImage = savedBg;
-          this.state.backgroundOpacity = savedOpacity ? parseFloat(savedOpacity) : 0.5;
-        }
-
-        // Load theme settings for signed-in users only
-        const savedThemeSettings = localStorage.getItem('theme_settings');
-        if (savedThemeSettings) {
-          try {
-            const settings = JSON.parse(savedThemeSettings) as ThemeSettings;
-            this.applyThemeSettings(settings);
-            logger.info('Loaded theme from localStorage', { module: 'theme' });
-          } catch (parseError) {
-            logger.warn('Failed to parse theme settings from localStorage', { module: 'theme' });
-          }
-        }
-      }
-    } catch (error) {
-      logger.warn('Failed to load from localStorage', { module: 'theme' });
-    }
-  }
-
-  private async loadUserSettings(): Promise<void> {
-    try {
-      const client = clientManager.getClient();
-      if (!client) return;
-
-      const { data: { user } } = await client.auth.getUser();
-      if (!user) return;
-
-      const { data: profile, error } = await client
-        .from('profiles')
-        .select('theme_settings')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (error) {
-        logger.warn('Could not load user theme settings', { module: 'theme' });
-        return;
-      }
-
-      if (profile?.theme_settings) {
-        const settings = JSON.parse(profile.theme_settings) as ThemeSettings;
-        this.applyThemeSettings(settings);
-        
-        // Save to localStorage for future sessions
-        localStorage.setItem('theme_settings', JSON.stringify(settings));
-        if (settings.backgroundImage) {
-          localStorage.setItem('background-image', settings.backgroundImage);
-          localStorage.setItem('background-opacity', this.state.backgroundOpacity.toString());
-        }
-        
-        logger.info('Loaded user theme settings', { module: 'theme' });
-      }
-    } catch (error) {
-      logger.warn('Failed to load user settings', { module: 'theme' });
     }
   }
 

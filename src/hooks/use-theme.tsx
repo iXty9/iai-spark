@@ -26,14 +26,32 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, setState] = useState<ThemeState>(() => productionThemeService.getState());
+  const [isInitializing, setIsInitializing] = useState(true);
   
-  // Initialize theme service
+  // Initialize theme service and wait for it to be ready
   useEffect(() => {
-    productionThemeService.initialize().catch(error => {
-      logger.error('Failed to initialize theme service', error, { module: 'theme-provider' });
+    const initializeTheme = async () => {
+      try {
+        // Only initialize if not already ready
+        if (!state.isReady) {
+          await productionThemeService.initialize();
+        }
+      } catch (error) {
+        logger.error('Failed to initialize theme service', error, { module: 'theme-provider' });
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    const unsubscribe = productionThemeService.subscribe((newState) => {
+      setState(newState);
+      if (newState.isReady) {
+        setIsInitializing(false);
+      }
     });
 
-    const unsubscribe = productionThemeService.subscribe(setState);
+    initializeTheme();
+
     return unsubscribe;
   }, []);
   
@@ -56,6 +74,15 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   };
   
   const currentThemeColors = state.mode === 'dark' ? state.darkTheme : state.lightTheme;
+  
+  // Show minimal loading if theme is still initializing
+  if (isInitializing && !state.isReady) {
+    return (
+      <div style={{ visibility: 'hidden' }}>
+        {children}
+      </div>
+    );
+  }
   
   return (
     <ThemeContext.Provider
