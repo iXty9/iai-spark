@@ -14,21 +14,8 @@ interface DebugEvent {
   timestamp?: string;
 }
 
-// Production-optimized no-op function that gets tree-shaken
-const createNoOpEmitter = (): ((details: DebugEvent) => void) => {
-  if (process.env.NODE_ENV === 'production') {
-    return () => {}; // No-op in production
-  }
-  return () => {}; // Fallback no-op
-};
-
-// Development debug event emitter with optimizations
-const createDevEmitter = () => {
-  // Early production check with compile-time optimization
-  if (process.env.NODE_ENV === 'production') {
-    return () => {}; // Tree-shakeable no-op
-  }
-
+// Development debug event emitter - now works in all environments when dev mode is enabled
+const createDebugEmitter = () => {
   const eventTracker = {
     lastEvents: new Map<string, { timestamp: number; details: string }>(),
     minInterval: 15000,
@@ -155,7 +142,5 @@ const createDevEmitter = () => {
   };
 };
 
-// Export with compile-time optimization
-export const emitDebugEvent = process.env.NODE_ENV === 'production' 
-  ? createNoOpEmitter() 
-  : createDevEmitter();
+// Export debug event emitter that works in all environments
+export const emitDebugEvent = createDebugEmitter();

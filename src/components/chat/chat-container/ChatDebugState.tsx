@@ -54,19 +54,16 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
   setIsTransitioning,
   setHasInteracted
 }) => {
-  // Early return for production builds
-  if (process.env.NODE_ENV === 'production') {
-    return null;
-  }
-
   const { isDevMode } = useDevMode();
   const [debugInfo, setDebugInfo] = useState(INITIAL_DEBUGINFO);
   const [lastWebhookCall, setLastWebhookCall] = useState<string | null>(null);
   const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const inputContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // Initialize debug tracking only in development
+  // Initialize debug tracking in all environments when dev mode is enabled
   useEffect(() => {
+    if (!isDevMode) return;
+
     const handler = (e: any) => {
       const url = e?.detail?.webhookUrl;
       if (url) setLastWebhookCall(`Using ${url.includes('9553f3d014f7') ? 'AUTHENTICATED' : 'ANONYMOUS'} webhook`);
@@ -106,20 +103,24 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
       window.removeEventListener('webhookCall', handler);
       clearTimeout(completeBootstrap);
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isDevMode]);
 
   // Viewport and Safari detection
   useEffect(() => {
+    if (!isDevMode) return;
+    
     setDebugInfo(di => ({
       ...di,
       isIOSSafari: /iPad|iPhone|iPod/.test(navigator.userAgent) && !('MSStream' in window) &&
         /^((?!chrome|android).)*safari/i.test(navigator.userAgent),
       viewportHeight: window.innerHeight
     }));
-  }, []);
+  }, [isDevMode]);
 
   // Main state management effect
   useEffect(() => {
+    if (!isDevMode) return;
+
     if (messages.length > 0 && !hasInteracted) {
       logger.info('Transitioning from Welcome to Chat UI', {
         messageCount: messages.length, hasInteracted, isLoading,
@@ -173,11 +174,11 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
       }
       return update;
     });
-  }, [messages.length, hasInteracted, isLoading, setHasInteracted, setIsTransitioning]);
+  }, [messages.length, hasInteracted, isLoading, setHasInteracted, setIsTransitioning, isDevMode]);
 
   // Safety timeout for transitions
   useEffect(() => {
-    if (!isTransitioning) return;
+    if (!isTransitioning || !isDevMode) return;
     const timeout = setTimeout(() => {
       setIsTransitioning(false);
       if (messages.length > 0) {
@@ -194,7 +195,7 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
       }
     }, 5000);
     return () => clearTimeout(timeout);
-  }, [isTransitioning, messages.length, setHasInteracted, setIsTransitioning]);
+  }, [isTransitioning, messages.length, setHasInteracted, setIsTransitioning, isDevMode]);
 
   // Cleanup on unmount
   useEffect(() => () => {

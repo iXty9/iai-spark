@@ -165,6 +165,8 @@ export const StateDebugPanel = ({
 
   // One compact event + console log effect  
   useEffect(() => {
+    if (!isDevMode) return;
+
     logTypes.forEach(type => {
       const fn = (console as any)[type];
       (console as any)[type] = function(...args: any[]) {
@@ -205,15 +207,18 @@ export const StateDebugPanel = ({
       fpsLoop(); 
     }
     // eslint-disable-next-line
-  }, []);
+  }, [isDevMode]);
 
   // Store orig. console (preserve only once)
   useEffect(() => { 
+    if (!isDevMode) return;
     logTypes.forEach(t => (console as any)['_'+t] = (console as any)[t]); 
     return () => {}; 
-  }, []);
+  }, [isDevMode]);
 
   function collectStorage() {
+    if (!isDevMode) return;
+
     try {
       const appKeys: string[] = [];
       const ls = localStorage;
@@ -270,6 +275,8 @@ export const StateDebugPanel = ({
 
   // All quick state sync
   useEffect(() => {
+    if (!isDevMode) return;
+
     setState(s => ({
       ...s,
       screen: messages.length === 0 ? 'Welcome Screen' : 'Chat Screen',
@@ -299,9 +306,11 @@ export const StateDebugPanel = ({
       }
     }));
     // eslint-disable-next-line
-  }, [messages.length, isLoading, hasInteracted, message, isAuthLoading, isAuthenticated, fps, lastWebhookCall, lastWebhookResponse]);
+  }, [messages.length, isLoading, hasInteracted, message, isAuthLoading, isAuthenticated, fps, lastWebhookCall, lastWebhookResponse, isDevMode]);
 
   useEffect(() => {
+    if (!isDevMode) return;
+
     const onResize = () => setState(s => ({
       ...s,
       browserInfo: {
@@ -311,7 +320,7 @@ export const StateDebugPanel = ({
     })); 
     window.addEventListener('resize', onResize); 
     return () => window.removeEventListener('resize', onResize)
-  }, []);
+  }, [isDevMode]);
 
   // Panel handlers
   const copy = () => {
