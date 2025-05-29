@@ -4,7 +4,12 @@ import { useToast } from '@/hooks/use-toast';
 import {
   UserWithRole, UserRole, UsersFetchOptions, UsersSearchOptions, UsersFetchResult
 } from '@/services/admin/types/userTypes';
-import { fetchUsers, searchUsers, updateUserRole, checkAdminConnectionStatus } from '@/services/admin/userService';
+import { 
+  fetchUsers, 
+  searchUsers, 
+  updateUserRole, 
+  checkAdminConnectionStatus 
+} from '@/services/admin/edgeFunctionUserService';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
 import { clearAllEnvironmentConfigs } from '@/config/supabase-config';
 import { validateSearchParams, sanitizeSearchQuery, normalizeRole } from '@/utils/validation';
@@ -136,14 +141,14 @@ export function useUserManagement() {
 
   // Effect for debounced search with validation
   useEffect(() => {
-    if (connectionStatus?.isConnected && connectionStatus?.isAdmin) {
+    if (connectionStatus?.isConnected && connectionStatus?.functionAvailable) {
       executeSearch(true);
     }
   }, [debouncedSearchQuery, executeSearch, connectionStatus]);
 
   // Effect for pagination and filters (not search)
   useEffect(() => {
-    if (connectionStatus?.isConnected && connectionStatus?.isAdmin && !debouncedSearchQuery) {
+    if (connectionStatus?.isConnected && connectionStatus?.functionAvailable && !debouncedSearchQuery) {
       executeSearch(false);
     }
   }, [currentPage, pageSize, roleFilter, executeSearch, connectionStatus]);
@@ -156,11 +161,9 @@ export function useUserManagement() {
         setConnectionStatus(status);
         
         if (!status.isConnected) {
-          setError('Database connection error. Please check your Supabase configuration.');
-        } else if (!status.isAuthenticated) {
-          setError('Authentication error. Please sign in again.');
-        } else if (!status.isAdmin) {
-          setError('Access denied. You do not have admin privileges.');
+          setError('Edge function connection error. Please check your configuration.');
+        } else if (!status.functionAvailable) {
+          setError('Admin functions not available. Please check your edge function deployment.');
         } else {
           setError(null);
         }
@@ -209,7 +212,7 @@ export function useUserManagement() {
       
       toast({
         title: "Role updated successfully",
-        description: `${selectedUser.email} is now ${normalizedRole === 'admin' ? 'an admin' : normalizedRole === 'moderator' ? 'a moderator' : 'a user'}.`,
+        description: `User is now ${normalizedRole === 'admin' ? 'an admin' : normalizedRole === 'moderator' ? 'a moderator' : 'a user'}.`,
       });
     } catch (e: any) {
       // Rollback optimistic update

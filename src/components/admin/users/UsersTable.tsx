@@ -1,4 +1,3 @@
-
 import { UserWithRole } from '@/services/admin/types/userTypes';
 import { 
   Table,
@@ -42,7 +41,7 @@ export function UsersTable({
   const { toast } = useToast();
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return 'N/A';
+    if (!dateString) return 'Never';
     
     try {
       return format(new Date(dateString), 'MMM dd, yyyy');
@@ -172,7 +171,7 @@ export function UsersTable({
                 </TableCell>
                 <TableCell>
                   <span className="text-sm text-muted-foreground">
-                    {user.last_sign_in_at ? formatDate(user.last_sign_in_at) : 'Never'}
+                    {formatDate(user.last_sign_in_at)}
                   </span>
                 </TableCell>
                 <TableCell className="text-right">
