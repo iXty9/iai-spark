@@ -49,7 +49,7 @@ export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ ch
   // Show setup needed
   if (status?.error && status.phase === 'error') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-red-100">
         <Card className="w-full max-w-md mx-4">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -75,15 +75,15 @@ export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ ch
   const getPhaseInfo = (phase: string) => {
     switch (phase) {
       case 'config':
-        return { icon: Settings, text: 'Loading Configuration', color: 'text-blue-500' };
+        return { icon: Settings, text: 'Loading Configuration', color: 'text-primary' };
       case 'client':
-        return { icon: Database, text: 'Connecting to Database', color: 'text-green-500' };
+        return { icon: Database, text: 'Connecting to Database', color: 'text-primary' };
       case 'theme':
-        return { icon: CheckCircle, text: 'Initializing Themes', color: 'text-purple-500' };
+        return { icon: CheckCircle, text: 'Initializing Themes', color: 'text-primary' };
       case 'complete':
-        return { icon: CheckCircle, text: 'Ready!', color: 'text-green-600' };
+        return { icon: CheckCircle, text: 'Ready!', color: 'text-primary' };
       default:
-        return { icon: Loader2, text: 'Starting...', color: 'text-blue-500' };
+        return { icon: Loader2, text: 'Starting...', color: 'text-primary' };
     }
   };
 
@@ -112,7 +112,7 @@ export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ ch
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div 
-                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                  className="bg-primary h-2 rounded-full transition-all duration-300"
                   style={{ 
                     width: `${
                       status?.phase === 'config' ? '25%' :

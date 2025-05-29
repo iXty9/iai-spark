@@ -1,4 +1,5 @@
 
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -28,9 +29,15 @@ a {
   }
 }
 
-/* Global loading styles with company color */
+/* Global loading styles with company color - ENHANCED */
 .animate-spin {
-  color: hsl(var(--primary));
+  color: hsl(var(--primary)) !important;
+  border-color: hsl(var(--primary)) !important;
+}
+
+/* Force all loading spinners to use company color */
+.animate-spin svg {
+  color: hsl(var(--primary)) !important;
 }
 
 /* Override any blue colors with company red */
@@ -44,4 +51,9 @@ a {
 
 .border-blue-500, .border-blue-600, .border-blue-700 {
   border-color: hsl(var(--primary)) !important;
+}
+
+/* Ensure Lucide icons respect the color */
+.lucide {
+  color: inherit;
 }
