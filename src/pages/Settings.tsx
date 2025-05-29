@@ -1,3 +1,4 @@
+
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
 import { useSettingsState } from '@/hooks/settings/use-settings-state';
@@ -100,7 +101,6 @@ export default function Settings() {
               theme={theme}
               lightTheme={lightTheme}
               darkTheme={darkTheme}
-              onThemeChange={handleThemeChange}
               onLightThemeChange={handleLightThemeChangeWrapper}
               onDarkThemeChange={handleDarkThemeChangeWrapper}
               onResetTheme={handleResetSettings}
@@ -113,7 +113,6 @@ export default function Settings() {
               onBackgroundImageUpload={handleBackgroundImageUpload}
               onRemoveBackground={handleRemoveBackground}
               onOpacityChange={handleOpacityChange}
-              setImageInfo={setImageInfo}
               isLoading={isBackgroundLoading}
               error={backgroundError}
               isApplied={isBackgroundApplied}
