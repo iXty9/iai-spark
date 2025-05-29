@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Message } from '@/types/chat';
 import { useDevMode } from '@/store/use-dev-mode';
@@ -379,9 +380,7 @@ export const StateDebugPanel = ({
     </div>
   );
 
-  return <div 
-    data-debug-panel="true"
-    className="fixed left-0 w-full bg-black/90 text-white p-2 z-[9999] font-mono text-xs rounded-t-md border border-gray-700"
+  return <div className="fixed left-0 w-full bg-black/90 text-white p-2 z-[9999] font-mono text-xs rounded-t-md border border-gray-700"
     style={{bottom: messages.length > 0 ? '80px' : '10px', maxHeight: isExpanded ? '40vh' : '32px', overflow: isExpanded ? 'auto' : 'hidden', transition: 'all .3s ease'}}
   >
     <div className="flex justify-between items-center mb-1">
