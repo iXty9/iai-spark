@@ -5,7 +5,6 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Upload, X, Loader2, Info, AlertTriangle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface ImageInfo {
@@ -54,12 +53,10 @@ export function BackgroundSettings({
     if (files.length > 0) {
       const file = files[0];
       if (file.type.startsWith('image/')) {
-        // Create a proper FileList-like object and input element
         const input = document.createElement('input');
         input.type = 'file';
         input.files = files;
         
-        // Create a proper ChangeEvent
         const changeEvent = new Event('change', { bubbles: true }) as any;
         changeEvent.target = input;
         
@@ -72,21 +69,23 @@ export function BackgroundSettings({
     (imageInfo.width < 1920 || imageInfo.height < 1080);
 
   return (
-    <Card className="bg-card/90 backdrop-blur-sm border shadow-md">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-lg flex items-center space-x-2">
-          <span>Background Image</span>
-          {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-        </CardTitle>
-        <CardDescription>
-          Add a custom background to your interface. Changes are saved automatically.
-        </CardDescription>
-      </CardHeader>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-medium flex items-center space-x-2">
+            <span>Background Image</span>
+            {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Add a custom background to your interface
+          </p>
+        </div>
+      </div>
       
-      <CardContent className="space-y-6">
+      <div className="space-y-6">
         <div className="flex justify-center">
           {backgroundImage ? (
-            <div className="relative w-full h-48 rounded-lg overflow-hidden bg-checkerboard border-2 border-border">
+            <div className="relative w-full h-48 rounded-lg overflow-hidden border-2 border-border">
               <img
                 src={backgroundImage}
                 alt="Background preview"
@@ -137,7 +136,7 @@ export function BackgroundSettings({
             </div>
           ) : (
             <div 
-              className={`w-full h-48 border-2 border-dashed rounded-lg flex items-center justify-center bg-checkerboard transition-colors duration-200 ${
+              className={`w-full h-48 border-2 border-dashed rounded-lg flex items-center justify-center transition-colors duration-200 ${
                 dragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground'
               }`}
               onDragOver={handleDragOver}
@@ -156,7 +155,6 @@ export function BackgroundSettings({
           )}
         </div>
 
-        {/* Warning for small images */}
         {isImageTooSmall && (
           <Alert>
             <AlertTriangle className="h-4 w-4" />
@@ -215,7 +213,7 @@ export function BackgroundSettings({
           <p>• Maximum file size: 5MB</p>
           <p>• Supported formats: JPG, PNG, WebP, GIF</p>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

@@ -3,17 +3,20 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
 import { useSimplifiedSettingsState } from '@/hooks/settings/use-simplified-settings-state';
 import { useSimplifiedSettingsActions } from '@/hooks/settings/use-simplified-settings-actions';
-import { SettingsHeader } from '@/components/settings/SettingsHeader';
-import { SettingsTabs } from '@/components/settings/SettingsTabs';
+import { Card } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, Palette, Image } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
 import { BackgroundSettings } from '@/components/settings/BackgroundSettings';
-import { SettingsActions } from '@/components/settings/SettingsActions';
 import { SettingsFooter } from '@/components/settings/SettingsFooter';
 import { AdminThemeActions } from '@/components/settings/AdminThemeActions';
 
 export default function Settings() {
+  const navigate = useNavigate();
   const { user, profile, updateProfile } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { theme } = useTheme();
 
   const {
     lightTheme,
@@ -21,15 +24,8 @@ export default function Settings() {
     backgroundImage,
     backgroundOpacity,
     isSubmitting,
-    isLoading,
     hasChanges,
     imageInfo,
-    setLightTheme,
-    setDarkTheme,
-    setBackgroundImage,
-    setBackgroundOpacity,
-    setHasChanges,
-    setImageInfo,
     isInitialized
   } = useSimplifiedSettingsState();
 
@@ -41,7 +37,6 @@ export default function Settings() {
     handleOpacityChange,
     handleSaveSettings,
     handleResetSettings,
-    handleThemeChange,
     isBackgroundLoading
   } = useSimplifiedSettingsActions({
     user,
@@ -50,7 +45,7 @@ export default function Settings() {
     darkTheme,
     backgroundImage,
     backgroundOpacity,
-    setHasChanges,
+    setHasChanges: () => {},
     updateProfile
   });
 
@@ -63,15 +58,21 @@ export default function Settings() {
     handleDarkThemeChange({ name: colorKey, value });
   };
 
-  // Show skeleton only briefly while theme service initializes
+  const handleGoBack = () => {
+    navigate('/');
+  };
+
+  // Show loading state while theme service initializes
   if (!isInitialized) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-300 rounded mb-6"></div>
-            <div className="h-64 bg-gray-300 rounded mb-4"></div>
-            <div className="h-32 bg-gray-300 rounded"></div>
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-4xl mx-auto">
+            <div className="animate-pulse space-y-4">
+              <div className="h-8 bg-muted rounded mb-6"></div>
+              <div className="h-64 bg-muted rounded mb-4"></div>
+              <div className="h-32 bg-muted rounded"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -79,49 +80,82 @@ export default function Settings() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <SettingsHeader />
-        
-        <SettingsTabs>
-          <div className="space-y-6">
-            <AppearanceSettings
-              theme={theme}
-              lightTheme={lightTheme}
-              darkTheme={darkTheme}
-              onLightThemeChange={handleLightThemeChangeWrapper}
-              onDarkThemeChange={handleDarkThemeChangeWrapper}
-              onResetTheme={handleResetSettings}
-            />
-            
-            <BackgroundSettings
-              backgroundImage={backgroundImage}
-              backgroundOpacity={backgroundOpacity}
-              imageInfo={imageInfo}
-              onBackgroundImageUpload={handleBackgroundImageUpload}
-              onRemoveBackground={handleRemoveBackground}
-              onOpacityChange={handleOpacityChange}
-              isLoading={isBackgroundLoading}
-            />
-            
-            <SettingsActions
-              hasChanges={hasChanges}
-              isSubmitting={isSubmitting}
-              onSave={handleSaveSettings}
-              onReset={handleResetSettings}
-            />
-
-            <AdminThemeActions />
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Page Header */}
+          <div className="flex items-center space-x-4 mb-8">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleGoBack}
+              aria-label="Go back"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold">Settings</h1>
+              <p className="text-muted-foreground">Customize your app experience</p>
+            </div>
           </div>
-        </SettingsTabs>
-        
-        <SettingsFooter 
-          onReset={handleResetSettings}
-          onCancel={() => window.history.back()}
-          onSave={handleSaveSettings}
-          isSubmitting={isSubmitting}
-          hasChanges={hasChanges}
-        />
+          
+          {/* Main Settings Card */}
+          <Card className="bg-card/60 backdrop-blur-sm border shadow-lg">
+            <Tabs defaultValue="appearance" className="w-full">
+              <div className="border-b px-6 pt-6">
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="appearance" className="flex items-center gap-2">
+                    <Palette className="h-4 w-4" />
+                    <span>Appearance</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="background" className="flex items-center gap-2">
+                    <Image className="h-4 w-4" />
+                    <span>Background</span>
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              
+              <div className="px-6 py-6">
+                <TabsContent value="appearance" className="mt-0">
+                  <AppearanceSettings
+                    theme={theme}
+                    lightTheme={lightTheme}
+                    darkTheme={darkTheme}
+                    onLightThemeChange={handleLightThemeChangeWrapper}
+                    onDarkThemeChange={handleDarkThemeChangeWrapper}
+                    onResetTheme={handleResetSettings}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="background" className="mt-0">
+                  <BackgroundSettings
+                    backgroundImage={backgroundImage}
+                    backgroundOpacity={backgroundOpacity}
+                    imageInfo={imageInfo}
+                    onBackgroundImageUpload={handleBackgroundImageUpload}
+                    onRemoveBackground={handleRemoveBackground}
+                    onOpacityChange={handleOpacityChange}
+                    isLoading={isBackgroundLoading}
+                  />
+                </TabsContent>
+              </div>
+
+              {/* Admin Actions Section */}
+              <div className="px-6 pb-6">
+                <AdminThemeActions />
+              </div>
+            </Tabs>
+            
+            {/* Footer Actions */}
+            <SettingsFooter 
+              onReset={handleResetSettings}
+              onCancel={handleGoBack}
+              onSave={handleSaveSettings}
+              isSubmitting={isSubmitting}
+              hasChanges={hasChanges}
+            />
+          </Card>
+        </div>
       </div>
     </div>
   );

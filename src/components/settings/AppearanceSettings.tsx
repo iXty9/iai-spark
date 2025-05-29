@@ -1,9 +1,7 @@
 
 import React from 'react';
-import { Label } from '@/components/ui/label';
 import { ThemeControls } from '@/components/settings/ThemeControls';
 import { ThemeColors } from '@/types/theme';
-import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { RotateCcw } from 'lucide-react';
@@ -44,48 +42,44 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
   
   return (
     <div className="space-y-6">
-      <Card className="bg-card/60 backdrop-blur-sm border shadow-md">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-medium">Theme Colors</h3>
-              <p className="text-sm text-muted-foreground">Customize colors for light and dark modes</p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onResetTheme}
-              className="flex items-center space-x-2"
-            >
-              <RotateCcw className="h-4 w-4" />
-              <span>Reset to defaults</span>
-            </Button>
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-medium">Theme Colors</h3>
+          <p className="text-sm text-muted-foreground">Customize colors for light and dark modes</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onResetTheme}
+          className="flex items-center space-x-2"
+        >
+          <RotateCcw className="h-4 w-4" />
+          <span>Reset</span>
+        </Button>
+      </div>
 
-          <Tabs defaultValue={theme === 'light' ? 'light' : 'dark'}>
-            <TabsList className="mb-4 grid grid-cols-2">
-              <TabsTrigger value="light">Light Mode</TabsTrigger>
-              <TabsTrigger value="dark">Dark Mode</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="light" className="space-y-4">
-              <ThemeControls 
-                colors={lightTheme}
-                onColorChange={handleLightThemeChange}
-                isActive={theme === 'light'}
-              />
-            </TabsContent>
-            
-            <TabsContent value="dark" className="space-y-4">
-              <ThemeControls 
-                colors={darkTheme}
-                onColorChange={handleDarkThemeChange}
-                isActive={theme === 'dark'}
-              />
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue={theme === 'light' ? 'light' : 'dark'}>
+        <TabsList className="mb-4 grid grid-cols-2">
+          <TabsTrigger value="light">Light Mode</TabsTrigger>
+          <TabsTrigger value="dark">Dark Mode</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="light" className="space-y-4">
+          <ThemeControls 
+            colors={lightTheme}
+            onColorChange={handleLightThemeChange}
+            isActive={theme === 'light'}
+          />
+        </TabsContent>
+        
+        <TabsContent value="dark" className="space-y-4">
+          <ThemeControls 
+            colors={darkTheme}
+            onColorChange={handleDarkThemeChange}
+            isActive={theme === 'dark'}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
