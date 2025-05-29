@@ -35,7 +35,7 @@ export function useUserManagement() {
 
   const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
   const [dialog, setDialog] = useState<"promote" | "demote" | "environment" | null>(null);
-  const [updatingRole, setUpdatingRole] = useState(false);
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
 
   // Pagination + Filter
   const [currentPage, setCurrentPage] = useState(1);
@@ -45,7 +45,14 @@ export function useUserManagement() {
   const [roleFilter, setRoleFilter] = useState('all');
 
   // Debounced search query
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+
+  // Clear filters function
+  const clearFilters = useCallback(() => {
+    setSearchQuery('');
+    setRoleFilter('all');
+    setCurrentPage(1);
+  }, []);
 
   // Memoized search function to prevent unnecessary re-renders
   const executeSearch = useCallback(async (isSearch: boolean = false) => {
@@ -97,7 +104,7 @@ export function useUserManagement() {
   // Effect for debounced search
   useEffect(() => {
     if (connectionStatus?.isConnected && connectionStatus?.isAdmin) {
-      executeSearch(true); // Always reset to page 1 for search
+      executeSearch(true);
     }
   }, [debouncedSearchQuery, executeSearch, connectionStatus]);
 
@@ -115,7 +122,6 @@ export function useUserManagement() {
         const status = await checkAdminConnectionStatus();
         setConnectionStatus(status);
         
-        // If there are connection issues, show appropriate error
         if (!status.isConnected) {
           setError('Database connection error. Please check your Supabase configuration.');
         } else if (!status.isAuthenticated) {
@@ -123,7 +129,6 @@ export function useUserManagement() {
         } else if (!status.isAdmin) {
           setError('Access denied. You do not have admin privileges.');
         } else {
-          // Only fetch users if connection status is good - will be handled by other effects
           setError(null);
         }
       } catch (e) {
@@ -137,11 +142,11 @@ export function useUserManagement() {
     checkConnection();
   }, []);
 
-  // Role update with optimistic updates
+  // Role update with optimistic updates and better UX
   const confirmRoleUpdate = async (role: UserRole) => {
     if (!selectedUser) return;
     
-    setUpdatingRole(true);
+    setUpdatingUserId(selectedUser.id);
     
     // Optimistic update
     const previousUsers = [...users];
@@ -158,19 +163,19 @@ export function useUserManagement() {
       }
       
       toast({
-        title: "User role updated",
-        description: `${selectedUser.email} is now a${role === 'admin' ? 'n' : ''} ${role}.`,
+        title: "Role updated successfully",
+        description: `${selectedUser.email} is now ${role === 'admin' ? 'an admin' : role === 'moderator' ? 'a moderator' : 'a user'}.`,
       });
     } catch (e: any) {
       // Rollback optimistic update
       setUsers(previousUsers);
       toast({
         variant: "destructive",
-        title: "Failed to update user role",
+        title: "Failed to update role",
         description: e?.message || "There was an error updating the user role.",
       });
     } finally {
-      setUpdatingRole(false);
+      setUpdatingUserId(null);
       setDialog(null);
       setSelectedUser(null);
     }
@@ -203,7 +208,7 @@ export function useUserManagement() {
     setSelectedUser,
     dialog,
     setDialog,
-    updatingRole,
+    updatingUserId,
     currentPage,
     setCurrentPage,
     totalPages,
@@ -213,6 +218,7 @@ export function useUserManagement() {
     setSearchQuery,
     roleFilter,
     setRoleFilter,
+    clearFilters,
     fetchAndSetUsers,
     confirmRoleUpdate,
     resetEnvironmentConfig,

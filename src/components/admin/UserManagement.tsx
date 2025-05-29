@@ -1,5 +1,4 @@
 
-import { useState, useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { UserManagementHeader } from './users/UserManagementHeader';
 import { UsersTable } from './users/UsersTable';
@@ -20,7 +19,7 @@ export function UserManagement() {
     setSelectedUser,
     dialog,
     setDialog,
-    updatingRole,
+    updatingUserId,
     currentPage,
     setCurrentPage,
     totalPages,
@@ -30,46 +29,56 @@ export function UserManagement() {
     setSearchQuery,
     roleFilter,
     setRoleFilter,
+    clearFilters,
     fetchAndSetUsers,
     confirmRoleUpdate,
     resetEnvironmentConfig,
     reinitializeConnection
   } = useUserManagement();
 
+  // Initial loading state with enhanced skeleton
   if (loading && users.length === 0) return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-fade-in">
       <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
         <div className="flex items-center space-x-2 w-full sm:w-auto">
-          <div className="relative flex-1 sm:max-w-xs"><Skeleton className="h-10 w-full" /></div>
-          <Skeleton className="h-10 w-16" />
+          <div className="relative flex-1 sm:max-w-xs">
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <Skeleton className="h-6 w-16" />
         </div>
         <div className="flex items-center space-x-2">
           <Skeleton className="h-10 w-[180px]" />
           <Skeleton className="h-10 w-[110px]" />
+          <Skeleton className="h-10 w-10" />
         </div>
       </div>
-      <div className="rounded-md border">
-        <div className="p-6 flex flex-col items-center justify-center">
-          <Loader className="h-6 w-6 animate-spin mb-2" />
-          <p>Loading users...</p>
+      
+      <div className="rounded-md border bg-card">
+        <div className="p-8 flex flex-col items-center justify-center">
+          <Loader className="h-8 w-8 animate-spin mb-4 text-primary" />
+          <h3 className="text-lg font-medium mb-2">Loading users</h3>
+          <p className="text-muted-foreground">Please wait while we fetch the user data...</p>
         </div>
       </div>
     </div>
   );
 
+  // Error state
   if (error) {
     return (
-      <ConnectionStatusPanel
-        error={error}
-        connectionStatus={connectionStatus}
-        onRetry={() => fetchAndSetUsers(false)}
-        onOpenEnvironmentSettings={() => setDialog('environment')}
-      />
+      <div className="animate-fade-in">
+        <ConnectionStatusPanel
+          error={error}
+          connectionStatus={connectionStatus}
+          onRetry={() => fetchAndSetUsers(false)}
+          onOpenEnvironmentSettings={() => setDialog('environment')}
+        />
+      </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 animate-fade-in">
       {/* Header with search and filters */}
       <UserManagementHeader
         searchQuery={searchQuery}
@@ -85,25 +94,35 @@ export function UserManagement() {
         onOpenEnvironmentSettings={() => setDialog('environment')}
       />
 
-      {/* Users Table */}
-      <UsersTable
-        users={users}
-        onPromoteUser={u => { setSelectedUser(u); setDialog("promote"); }}
-        onDemoteUser={u => { setSelectedUser(u); setDialog("demote"); }}
-        isLoading={loading}
-      />
+      {/* Users Table with enhanced UX */}
+      <div className="transition-all duration-200">
+        <UsersTable
+          users={users}
+          onPromoteUser={u => { setSelectedUser(u); setDialog("promote"); }}
+          onDemoteUser={u => { setSelectedUser(u); setDialog("demote"); }}
+          isLoading={loading}
+          searchQuery={searchQuery}
+          roleFilter={roleFilter}
+          onClearFilters={clearFilters}
+          updatingUserId={updatingUserId}
+        />
+      </div>
 
-      {/* Pagination */}
-      <UserManagementPagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-      />
+      {/* Pagination with improved design */}
+      {!loading && users.length > 0 && (
+        <div className="animate-fade-in">
+          <UserManagementPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        </div>
+      )}
 
-      {/* Dialogs */}
+      {/* Enhanced Dialogs */}
       <PromoteDialog
         user={dialog === "promote" ? selectedUser : null}
-        isUpdating={updatingRole}
+        isUpdating={!!updatingUserId}
         isOpen={dialog === "promote"}
         onOpenChange={v => !v && setDialog(null)}
         onConfirm={() => confirmRoleUpdate('admin')}
@@ -111,13 +130,12 @@ export function UserManagement() {
       
       <DemoteDialog
         user={dialog === "demote" ? selectedUser : null}
-        isUpdating={updatingRole}
+        isUpdating={!!updatingUserId}
         isOpen={dialog === "demote"}
         onOpenChange={v => !v && setDialog(null)}
         onConfirm={() => confirmRoleUpdate('user')}
       />
       
-      {/* Environment settings dialog */}
       <EnvironmentSettingsDialog
         isOpen={dialog === "environment"}
         onClose={() => setDialog(null)}

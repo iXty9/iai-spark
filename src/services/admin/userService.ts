@@ -33,7 +33,7 @@ export async function checkAdminConnectionStatus(): Promise<any> {
       isConnected: !dbError,
       isAuthenticated: !!user && !authError,
       isAdmin,
-      functionAvailable: true, // Edge functions are always available in Supabase
+      functionAvailable: true,
       environmentInfo: {
         environmentId: "production",
         environment: window.location.hostname,
@@ -68,44 +68,63 @@ export async function fetchUsers(options: UsersFetchOptions = {}): Promise<Users
     const { page = 1, pageSize = 10, roleFilter } = options;
     const offset = (page - 1) * pageSize;
     
-    // Build the query with proper joins
-    let query = supabase
+    // First get all profiles with pagination
+    let profileQuery = supabase
       .from('profiles')
-      .select(`
-        id,
-        username,
-        created_at:id,
-        user_roles!inner(role)
-      `, { count: 'exact' })
+      .select('id, username, created_at', { count: 'exact' })
       .range(offset, offset + pageSize - 1)
       .order('created_at', { ascending: false });
 
-    // Apply role filter if specified
-    if (roleFilter && roleFilter !== 'all') {
-      query = query.eq('user_roles.role', roleFilter);
-    }
-
-    const { data, error, count } = await query;
+    const { data: profiles, error: profileError, count } = await profileQuery;
     
-    if (error) {
-      logger.error('Error fetching users:', error);
+    if (profileError) {
+      logger.error('Error fetching profiles:', profileError);
       return { users: [], totalCount: 0 };
     }
+
+    if (!profiles || profiles.length === 0) {
+      return { users: [], totalCount: count || 0 };
+    }
+
+    // Get user roles for these profiles
+    const profileIds = profiles.map(p => p.id);
+    const { data: userRoles, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('user_id, role')
+      .in('user_id', profileIds);
+
+    if (rolesError) {
+      logger.error('Error fetching user roles:', rolesError);
+    }
+
+    // Get auth users data for emails
+    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
     
-    // Transform the data to match our UserWithRole interface
-    const users: UserWithRole[] = (data || []).map(profile => {
-      // Get user info from auth.users via RPC or use profile data
-      const role = profile.user_roles?.[0]?.role || 'user';
+    if (authError) {
+      logger.error('Error fetching auth users:', authError);
+    }
+
+    // Combine the data
+    const users: UserWithRole[] = profiles.map(profile => {
+      const userRole = userRoles?.find(ur => ur.user_id === profile.id);
+      const authUser = authUsers?.users?.find(au => au.id === profile.id);
       
+      const role = userRole?.role || 'user';
+      
+      // Apply role filter if specified
+      if (roleFilter && roleFilter !== 'all' && role !== roleFilter) {
+        return null;
+      }
+
       return {
         id: profile.id,
-        email: `user-${profile.id.slice(0, 8)}@example.com`, // We'll need to get this from auth
-        created_at: new Date().toISOString(), // We'll improve this
+        email: authUser?.email || `user-${profile.id.slice(0, 8)}@example.com`,
+        created_at: authUser?.created_at || profile.created_at || new Date().toISOString(),
         role: role as UserRole,
         username: profile.username,
-        last_sign_in_at: undefined // We'll need to get this from auth metadata
+        last_sign_in_at: authUser?.last_sign_in_at
       };
-    });
+    }).filter(Boolean) as UserWithRole[];
     
     return { 
       users,
@@ -129,44 +148,64 @@ export async function searchUsers(options: UsersSearchOptions): Promise<UsersFet
       return fetchUsers({ page, pageSize, roleFilter });
     }
     
-    // Build search query
-    let query = supabase
+    // Search in profiles by username
+    let profileQuery = supabase
       .from('profiles')
-      .select(`
-        id,
-        username,
-        created_at:id,
-        user_roles!inner(role)
-      `, { count: 'exact' })
-      .or(`username.ilike.%${searchQuery}%`)
+      .select('id, username, created_at', { count: 'exact' })
+      .ilike('username', `%${searchQuery}%`)
       .range(offset, offset + pageSize - 1)
       .order('created_at', { ascending: false });
 
-    // Apply role filter if specified
-    if (roleFilter && roleFilter !== 'all') {
-      query = query.eq('user_roles.role', roleFilter);
-    }
-
-    const { data, error, count } = await query;
+    const { data: profiles, error: profileError, count } = await profileQuery;
     
-    if (error) {
-      logger.error('Error searching users:', error);
+    if (profileError) {
+      logger.error('Error searching profiles:', profileError);
       return { users: [], totalCount: 0 };
     }
+
+    if (!profiles || profiles.length === 0) {
+      return { users: [], totalCount: count || 0 };
+    }
+
+    // Get user roles for these profiles
+    const profileIds = profiles.map(p => p.id);
+    const { data: userRoles, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('user_id, role')
+      .in('user_id', profileIds);
+
+    if (rolesError) {
+      logger.error('Error fetching user roles:', rolesError);
+    }
+
+    // Get auth users data for emails
+    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
     
-    // Transform the data
-    const users: UserWithRole[] = (data || []).map(profile => {
-      const role = profile.user_roles?.[0]?.role || 'user';
+    if (authError) {
+      logger.error('Error fetching auth users:', authError);
+    }
+
+    // Combine the data
+    const users: UserWithRole[] = profiles.map(profile => {
+      const userRole = userRoles?.find(ur => ur.user_id === profile.id);
+      const authUser = authUsers?.users?.find(au => au.id === profile.id);
       
+      const role = userRole?.role || 'user';
+      
+      // Apply role filter if specified
+      if (roleFilter && roleFilter !== 'all' && role !== roleFilter) {
+        return null;
+      }
+
       return {
         id: profile.id,
-        email: `user-${profile.id.slice(0, 8)}@example.com`,
-        created_at: new Date().toISOString(),
+        email: authUser?.email || `user-${profile.id.slice(0, 8)}@example.com`,
+        created_at: authUser?.created_at || profile.created_at || new Date().toISOString(),
         role: role as UserRole,
         username: profile.username,
-        last_sign_in_at: undefined
+        last_sign_in_at: authUser?.last_sign_in_at
       };
-    });
+    }).filter(Boolean) as UserWithRole[];
     
     return {
       users,

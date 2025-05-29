@@ -1,11 +1,11 @@
 
-import React, { useState } from 'react';
-import { Input } from '@/components/ui/input';
+import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Search, RefreshCw, Loader, Info, X } from 'lucide-react';
+import { RefreshCw, Loader, Info } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
+import { SearchInput } from './SearchInput';
 
 interface UserManagementHeaderProps {
   searchQuery: string;
@@ -34,10 +34,9 @@ export function UserManagementHeader({
   connectionInfo,
   onOpenEnvironmentSettings
 }: UserManagementHeaderProps) {
-  const [searchFocused, setSearchFocused] = useState(false);
-
-  const clearSearch = () => {
+  const clearFilters = () => {
     setSearchQuery('');
+    setRoleFilter('all');
   };
 
   const getConnectionStatusColor = () => {
@@ -56,11 +55,13 @@ export function UserManagementHeader({
     return 'Connected';
   };
 
+  const hasActiveFilters = searchQuery || roleFilter !== 'all';
+
   return (
-    <>
+    <div className="space-y-4">
       {/* Environment indicator */}
       {connectionInfo && (
-        <div className="flex justify-between items-center mb-4 p-3 bg-muted/30 rounded-lg border">
+        <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg border">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${getConnectionStatusColor()}`} />
@@ -76,7 +77,7 @@ export function UserManagementHeader({
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="text-xs text-muted-foreground flex items-center gap-1"
+                  className="text-xs text-muted-foreground flex items-center gap-1 hover:bg-muted"
                   onClick={onOpenEnvironmentSettings}
                 >
                   <Info className="h-3 w-3" />
@@ -91,48 +92,24 @@ export function UserManagementHeader({
         </div>
       )}
     
-      {/* Top controls */}
+      {/* Main controls */}
       <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
         <div className="flex items-center space-x-2 w-full sm:w-auto">
-          <div className={`relative flex-1 sm:max-w-xs transition-all duration-200 ${
-            searchFocused ? 'ring-2 ring-primary/20 rounded-md' : ''
-          }`}>
-            <Input
-              placeholder="Search by username or email..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  onSearch();
-                }
-                if (e.key === 'Escape') {
-                  clearSearch();
-                }
-              }}
-              className="pl-9 pr-9"
-              disabled={loading}
-            />
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            {searchQuery && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute right-1 top-1 h-6 w-6 p-0 hover:bg-muted"
-                onClick={clearSearch}
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
+          <SearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            onSearch={onSearch}
+            placeholder="Search by username or email..."
+            loading={loading}
+            className="flex-1 sm:max-w-xs"
+          />
           
           {/* Active filters indicator */}
-          {(searchQuery || roleFilter !== 'all') && (
-            <div className="flex items-center gap-1">
+          {hasActiveFilters && (
+            <div className="flex items-center gap-2">
               {searchQuery && (
                 <Badge variant="secondary" className="text-xs">
-                  Search: {searchQuery}
+                  Search: "{searchQuery.length > 10 ? searchQuery.slice(0, 10) + '...' : searchQuery}"
                 </Badge>
               )}
               {roleFilter !== 'all' && (
@@ -140,6 +117,14 @@ export function UserManagementHeader({
                   Role: {roleFilter}
                 </Badge>
               )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Clear all
+              </Button>
             </div>
           )}
         </div>
@@ -178,6 +163,7 @@ export function UserManagementHeader({
                   size="icon" 
                   onClick={onRefresh} 
                   disabled={loading}
+                  className="transition-all duration-200 hover:scale-105"
                 >
                   {loading ? (
                     <Loader className="h-4 w-4 animate-spin" />
@@ -193,6 +179,6 @@ export function UserManagementHeader({
           </TooltipProvider>
         </div>
       </div>
-    </>
+    </div>
   );
 }
