@@ -56,8 +56,8 @@ export const useDraftSettingsState = () => {
         }
       }
 
-      // Initialize production theme service with fresh data
-      await productionThemeService.initialize(userThemeSettings);
+      // Initialize production theme service with fresh data, forcing reinit to get latest data
+      await productionThemeService.initialize(userThemeSettings, true);
 
       // Wait for theme service to be ready
       let attempts = 0;

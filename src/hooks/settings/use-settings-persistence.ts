@@ -4,9 +4,8 @@ import { useToast } from '@/hooks/use-toast';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { logger } from '@/utils/logging';
 import { ThemeColors } from '@/types/theme';
-import { unifiedThemeController } from '@/services/unified-theme-controller';
-import { fetchAppSettings } from '@/services/admin/settingsService';
 import { productionThemeService } from '@/services/production-theme-service';
+import { fetchAppSettings } from '@/services/admin/settingsService';
 
 export interface UseSettingsPersistenceProps {
   user: any;
@@ -99,24 +98,32 @@ export const useSettingsPersistence = ({
     setIsSubmitting(true);
     
     try {
-      // Create theme settings from unified controller
-      const themeSettings = unifiedThemeController.createThemeSettings();
+      // Create theme settings from production theme service
+      const themeSettings = productionThemeService.createThemeSettings();
       
-      logger.info('Saving theme settings', { 
+      logger.info('Saving theme settings to database', { 
         module: 'settings',
         backgroundOpacity: backgroundOpacity,
-        hasBackground: !!backgroundImage
+        hasBackground: !!backgroundImage,
+        userId: user?.id
       });
 
       if (user && updateProfile) {
-        await updateProfile({ theme_settings: JSON.stringify(themeSettings) });
+        const result = await updateProfile({ theme_settings: JSON.stringify(themeSettings) });
         
-        logger.info('Settings saved successfully to profile', { module: 'settings' });
+        if (result?.success) {
+          logger.info('Settings saved successfully to profile', { module: 'settings' });
 
-        toast({
-          title: "Settings saved",
-          description: "Your theme settings have been saved successfully",
-        });
+          toast({
+            title: "Settings saved",
+            description: "Your theme settings have been saved successfully",
+          });
+          
+          // Reset changes flag after successful save
+          setHasChanges(false);
+        } else {
+          throw new Error(result?.error?.message || 'Failed to update profile');
+        }
       } else {
         // Fallback to localStorage
         localStorage.setItem('theme_settings', JSON.stringify(themeSettings));
@@ -125,10 +132,9 @@ export const useSettingsPersistence = ({
           title: "Settings saved",
           description: "Your theme settings have been saved to local storage",
         });
+        
+        setHasChanges(false);
       }
-      
-      // Reset changes flag after successful save
-      setHasChanges(false);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Error saving theme settings:', error, { module: 'settings' });
@@ -162,14 +168,6 @@ export const useSettingsPersistence = ({
         setDarkTheme(newState.darkTheme);
         setBackgroundImage(newState.backgroundImage);
         setBackgroundOpacity(newState.backgroundOpacity);
-        
-        // Update unified controller
-        unifiedThemeController.updateState({
-          lightTheme: newState.lightTheme,
-          darkTheme: newState.darkTheme,
-          backgroundImage: newState.backgroundImage,
-          backgroundOpacity: newState.backgroundOpacity
-        });
         
         toast({
           title: "Settings reset",
@@ -230,13 +228,11 @@ export const useSettingsPersistence = ({
       aiTextColor: '#ffffff'
     };
     
-    // Update unified controller
-    unifiedThemeController.updateState({
-      lightTheme: defaultLightTheme,
-      darkTheme: defaultDarkTheme,
-      backgroundImage: null,
-      backgroundOpacity: 0.5
-    });
+    // Update production theme service
+    productionThemeService.setLightTheme(defaultLightTheme);
+    productionThemeService.setDarkTheme(defaultDarkTheme);
+    productionThemeService.setBackgroundImage(null);
+    productionThemeService.setBackgroundOpacity(0.5);
     
     // Update local state
     setLightTheme(defaultLightTheme);

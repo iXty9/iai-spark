@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeColors } from '@/types/theme';
 import { logger } from '@/utils/logging';
-import { unifiedThemeController } from '@/services/unified-theme-controller';
+import { productionThemeService } from '@/services/production-theme-service';
 import { backgroundStateManager } from '@/services/background-state-manager';
 
 export interface ImageInfo {
@@ -21,8 +21,8 @@ export const useSettingsState = () => {
   const [imageInfo, setImageInfo] = useState<ImageInfo>({});
   const [isInitialized, setIsInitialized] = useState(false);
   
-  // Local state that mirrors the unified controller
-  const [localState, setLocalState] = useState(() => unifiedThemeController.getState());
+  // Local state that mirrors the production theme service
+  const [localState, setLocalState] = useState(() => productionThemeService.getState());
   const [backgroundState, setBackgroundState] = useState(() => backgroundStateManager.getState());
 
   // Initialize settings when profile data is available
@@ -33,44 +33,42 @@ export const useSettingsState = () => {
       try {
         setIsLoading(true);
 
-        // Wait for controller to be ready
+        // Initialize theme service with profile data if available
+        if (profile?.theme_settings) {
+          try {
+            const userSettings = JSON.parse(profile.theme_settings);
+            await productionThemeService.initialize(userSettings);
+            logger.info('Settings initialized from profile', { 
+              module: 'settings',
+              backgroundImage: !!userSettings.backgroundImage,
+              backgroundOpacity: userSettings.backgroundOpacity
+            });
+          } catch (parseError) {
+            logger.error('Failed to parse theme settings:', parseError, { module: 'settings' });
+            await productionThemeService.initialize();
+          }
+        } else {
+          await productionThemeService.initialize();
+        }
+
+        // Wait for service to be ready
         let attempts = 0;
         const maxAttempts = 50;
-        while (!unifiedThemeController.initialized && attempts < maxAttempts) {
+        while (!productionThemeService.getState().isReady && attempts < maxAttempts) {
           await new Promise(resolve => setTimeout(resolve, 100));
           attempts++;
         }
 
-        if (!unifiedThemeController.initialized) {
-          // Initialize controller with profile data if available
-          if (profile?.theme_settings) {
-            try {
-              const userSettings = JSON.parse(profile.theme_settings);
-              await unifiedThemeController.initialize(userSettings);
-              logger.info('Settings initialized from profile', { 
-                module: 'settings',
-                backgroundImage: !!userSettings.backgroundImage,
-                backgroundOpacity: userSettings.backgroundOpacity
-              });
-            } catch (parseError) {
-              logger.error('Failed to parse theme settings:', parseError, { module: 'settings' });
-              await unifiedThemeController.initialize();
-            }
-          } else {
-            await unifiedThemeController.initialize();
-          }
-        }
-
         // Sync local state
-        const controllerState = unifiedThemeController.getState();
-        setLocalState(controllerState);
+        const themeState = productionThemeService.getState();
+        setLocalState(themeState);
         setIsInitialized(true);
         setIsLoading(false);
         
         logger.info('Settings state initialized successfully', { 
           module: 'settings',
-          backgroundImage: !!controllerState.backgroundImage,
-          backgroundOpacity: controllerState.backgroundOpacity
+          backgroundImage: !!themeState.backgroundImage,
+          backgroundOpacity: themeState.backgroundOpacity
         });
       } catch (error) {
         logger.error('Error initializing settings:', error, { module: 'settings' });
@@ -82,13 +80,13 @@ export const useSettingsState = () => {
     initializeSettings();
   }, [profile?.theme_settings, isInitialized]);
 
-  // Subscribe to controller changes
+  // Subscribe to service changes
   useEffect(() => {
     if (!isInitialized) return;
 
-    const unsubscribeController = unifiedThemeController.subscribe((newState) => {
+    const unsubscribeTheme = productionThemeService.subscribe((newState) => {
       setLocalState(newState);
-      logger.info('Settings state updated from controller', { 
+      logger.info('Settings state updated from service', { 
         module: 'settings',
         backgroundImage: !!newState.backgroundImage,
         backgroundOpacity: newState.backgroundOpacity
@@ -106,28 +104,28 @@ export const useSettingsState = () => {
     });
 
     return () => {
-      unsubscribeController();
+      unsubscribeTheme();
       unsubscribeBackground();
     };
   }, [isInitialized]);
 
-  // Wrapper functions to track changes and update controller immediately
+  // Wrapper functions to track changes and update service immediately
   const updateLightTheme = (newTheme: ThemeColors) => {
     setLocalState(prev => ({ ...prev, lightTheme: newTheme }));
-    unifiedThemeController.setLightTheme(newTheme);
+    productionThemeService.setLightTheme(newTheme);
     setHasChanges(true);
     logger.info('Light theme updated', { module: 'settings' });
   };
   
   const updateDarkTheme = (newTheme: ThemeColors) => {
     setLocalState(prev => ({ ...prev, darkTheme: newTheme }));
-    unifiedThemeController.setDarkTheme(newTheme);
+    productionThemeService.setDarkTheme(newTheme);
     setHasChanges(true);
     logger.info('Dark theme updated', { module: 'settings' });
   };
   
   const updateBackgroundImage = (image: string | null, info?: ImageInfo) => {
-    unifiedThemeController.setBackgroundImage(image);
+    productionThemeService.setBackgroundImage(image);
     if (info) {
       setImageInfo(info);
     }
@@ -136,7 +134,7 @@ export const useSettingsState = () => {
   };
   
   const updateBackgroundOpacity = (opacity: number) => {
-    unifiedThemeController.setBackgroundOpacity(opacity);
+    productionThemeService.setBackgroundOpacity(opacity);
     setHasChanges(true);
     logger.info('Background opacity updated in settings', { module: 'settings', opacity });
   };
