@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, CheckCircle, AlertTriangle, Database, RefreshCcw, Settings } from 'lucide-react';
 import { logger } from '@/utils/logging';
 import { clientManager } from '@/services/supabase/client-manager';
-import { fastBootstrap } from '@/services/bootstrap/fast-bootstrap-service';
+import { coordinatedInitService } from '@/services/initialization/coordinated-init-service';
 import { fastConfig } from '@/services/config/fast-config-service';
 
 const Reconnect = () => {
@@ -58,12 +58,12 @@ const Reconnect = () => {
       logger.info('Attempting to reconnect with existing configuration', { module: 'reconnect' });
       
       // Try to reinitialize with existing local config
-      const result = await fastBootstrap.initialize();
+      const result = await coordinatedInitService.initialize();
       
-      if (result.isReady) {
+      if (result.isComplete) {
         logger.info('Reconnection successful', { module: 'reconnect' });
         navigate('/');
-      } else if (result.needsSetup) {
+      } else if (result.error) {
         logger.info('Reconnection failed, needs fresh setup', { module: 'reconnect' });
         navigate('/initialize');
       } else {

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, RefreshCcw, Home, Bug, Shield } from 'lucide-react';
 import { logger } from '@/utils/logging';
-import { fastBootstrap } from '@/services/bootstrap/fast-bootstrap-service';
+import { coordinatedInitService } from '@/services/initialization/coordinated-init-service';
 
 interface Props {
   children: ReactNode;
@@ -69,8 +69,8 @@ export class GlobalErrorBoundary extends Component<Props, State> {
         errorId: this.state.errorId 
       });
       
-      // Try to reinitialize the fast bootstrap system
-      await fastBootstrap.initialize();
+      // Try to reinitialize the coordinated init system
+      await coordinatedInitService.initialize();
       
       // Wait a moment then try to recover
       setTimeout(() => {
@@ -95,7 +95,7 @@ export class GlobalErrorBoundary extends Component<Props, State> {
 
   handleReset = async () => {
     try {
-      fastBootstrap.reset();
+      coordinatedInitService.reset();
       // Clear all application state
       localStorage.clear();
       sessionStorage.clear();

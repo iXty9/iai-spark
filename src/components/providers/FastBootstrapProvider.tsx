@@ -4,8 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, Settings, Database, RefreshCcw, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { fastBootstrap, FastBootstrapStatus } from '@/services/bootstrap/fast-bootstrap-service';
-import { coordinatedInitService } from '@/services/initialization/coordinated-init-service';
+import { coordinatedInitService, InitializationStatus } from '@/services/initialization/coordinated-init-service';
 import { logger } from '@/utils/logging';
 
 interface FastBootstrapProviderProps {
@@ -13,50 +12,42 @@ interface FastBootstrapProviderProps {
 }
 
 export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ children }) => {
-  const [status, setStatus] = useState<FastBootstrapStatus | null>(null);
-  const [initPhase, setInitPhase] = useState<string>('starting');
+  const [status, setStatus] = useState<InitializationStatus | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Subscribe to both bootstrap and initialization status
-    const unsubscribeBootstrap = fastBootstrap.subscribe(setStatus);
-    
-    const unsubscribeInit = coordinatedInitService.subscribe((initStatus) => {
-      setInitPhase(initStatus.phase);
-      logger.info('Initialization phase updated', { 
+    // Subscribe to initialization status
+    const unsubscribe = coordinatedInitService.subscribe((initStatus) => {
+      setStatus(initStatus);
+      logger.info('Initialization status updated', { 
         module: 'bootstrap-provider',
         phase: initStatus.phase,
         isComplete: initStatus.isComplete
       });
     });
 
-    // Start bootstrap immediately
-    fastBootstrap.initialize().catch(error => {
-      logger.error('Failed to initialize fast bootstrap', error);
+    // Start initialization immediately
+    coordinatedInitService.initialize().catch(error => {
+      logger.error('Failed to initialize coordinated init service', error);
     });
 
-    return () => {
-      unsubscribeBootstrap();
-      unsubscribeInit();
-    };
+    return unsubscribe;
   }, []);
 
   // Auto-redirect to setup when needed
   useEffect(() => {
-    if (status?.needsSetup) {
+    if (status?.error && status.phase === 'error') {
       navigate('/initialize');
-    } else if (status?.needsReconnection) {
-      navigate('/reconnect');
     }
-  }, [status?.needsSetup, status?.needsReconnection, navigate]);
+  }, [status?.error, status?.phase, navigate]);
 
   // Show app if ready
-  if (status?.isReady) {
+  if (status?.isComplete) {
     return <>{children}</>;
   }
 
   // Show setup needed
-  if (status?.needsSetup) {
+  if (status?.error && status.phase === 'error') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <Card className="w-full max-w-md mx-4">
@@ -80,56 +71,6 @@ export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ ch
     );
   }
 
-  // Show reconnection needed
-  if (status?.needsReconnection) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-yellow-100">
-        <Card className="w-full max-w-md mx-4">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <RefreshCcw className="h-5 w-5" />
-              Reconnection Required
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-4">
-              Your application appears to be disconnected. Please reconnect to continue.
-            </p>
-            <Button onClick={() => navigate('/reconnect')} className="w-full">
-              <RefreshCcw className="mr-2 h-4 w-4" />
-              Reconnect
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Show error state
-  if (status?.phase === 'error') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-pink-100">
-        <Card className="w-full max-w-md mx-4">
-          <CardHeader>
-            <CardTitle className="text-red-600">Initialization Error</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              {status.error || 'An error occurred during initialization.'}
-            </p>
-            <Button 
-              onClick={() => navigate('/initialize')} 
-              className="w-full"
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              Go to Setup
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   // Show detailed loading state with phase information
   const getPhaseInfo = (phase: string) => {
     switch (phase) {
@@ -146,7 +87,7 @@ export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ ch
     }
   };
 
-  const phaseInfo = getPhaseInfo(initPhase);
+  const phaseInfo = getPhaseInfo(status?.phase || 'starting');
   const PhaseIcon = phaseInfo.icon;
 
   return (
@@ -154,11 +95,11 @@ export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ ch
       <Card className="w-full max-w-md mx-4">
         <CardContent className="pt-6">
           <div className="flex flex-col items-center space-y-4">
-            <PhaseIcon className={`h-8 w-8 ${phaseInfo.color} ${initPhase === 'starting' ? 'animate-spin' : ''}`} />
+            <PhaseIcon className={`h-8 w-8 ${phaseInfo.color} ${status?.phase === 'starting' ? 'animate-spin' : ''}`} />
             <div className="text-center">
               <p className="font-medium">{phaseInfo.text}</p>
               <p className="text-sm text-muted-foreground">
-                {initPhase === 'complete' ? 'Loading interface...' : 'Please wait...'}
+                {status?.phase === 'complete' ? 'Loading interface...' : 'Please wait...'}
               </p>
             </div>
             {/* Progress indicator */}
@@ -174,10 +115,10 @@ export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ ch
                   className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                   style={{ 
                     width: `${
-                      initPhase === 'config' ? '25%' :
-                      initPhase === 'client' ? '50%' :
-                      initPhase === 'theme' ? '75%' :
-                      initPhase === 'complete' ? '100%' : '0%'
+                      status?.phase === 'config' ? '25%' :
+                      status?.phase === 'client' ? '50%' :
+                      status?.phase === 'theme' ? '75%' :
+                      status?.phase === 'complete' ? '100%' : '0%'
                     }` 
                   }}
                 />

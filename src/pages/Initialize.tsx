@@ -8,7 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Loader2, CheckCircle, AlertTriangle, Database, Settings, ArrowLeft } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { logger } from '@/utils/logging';
-import { fastBootstrap } from '@/services/bootstrap/fast-bootstrap-service';
+import { coordinatedInitService } from '@/services/initialization/coordinated-init-service';
 import { fastConfig } from '@/services/config/fast-config-service';
 import { ConnectionForm } from '@/components/init/ConnectionForm';
 import { DatabaseSetupStep } from '@/components/init/DatabaseSetupStep';
@@ -49,7 +49,7 @@ const Initialize = () => {
 
       // If forced init, reset everything
       if (forceInit) {
-        fastBootstrap.reset();
+        coordinatedInitService.reset();
         setCurrentStep(SetupStep.CONNECTION);
         setSetupProgress(0);
       }
@@ -97,8 +97,8 @@ const Initialize = () => {
         // For now, we'll store in localStorage as fallback
         localStorage.setItem('supabase_config', JSON.stringify(siteConfigData));
         
-        // Reinitialize the fast bootstrap system
-        await fastBootstrap.initialize();
+        // Reinitialize the coordinated init system
+        await coordinatedInitService.initialize();
         
         logger.info('Setup completed successfully', {
           module: 'initialize'

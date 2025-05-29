@@ -16,7 +16,7 @@ import {
   Trash2,
   Download
 } from 'lucide-react';
-import { fastBootstrap, FastBootstrapStatus } from '@/services/bootstrap/fast-bootstrap-service';
+import { coordinatedInitService, InitializationStatus } from '@/services/initialization/coordinated-init-service';
 import { fastConfig } from '@/services/config/fast-config-service';
 import { clientManager } from '@/services/supabase/client-manager';
 import { logger } from '@/utils/logging';
@@ -28,7 +28,7 @@ interface DebugPanelProps {
 }
 
 export const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
-  const [status, setStatus] = useState<FastBootstrapStatus | null>(null);
+  const [status, setStatus] = useState<InitializationStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string>('');
 
@@ -36,7 +36,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
   const refreshStatus = async () => {
     setIsLoading(true);
     try {
-      const newStatus = fastBootstrap.getStatus();
+      const newStatus = coordinatedInitService.getStatus();
       setStatus(newStatus);
       setLastUpdate(new Date().toLocaleTimeString());
     } catch (error) {
@@ -57,8 +57,8 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
   const handleReinitialize = async () => {
     setIsLoading(true);
     try {
-      const success = await fastBootstrap.initialize();
-      if (success) {
+      const success = await coordinatedInitService.initialize();
+      if (success.isComplete) {
         await refreshStatus();
       }
     } finally {
@@ -78,7 +78,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
       clearAllEnvironmentConfigs();
       
       // Reset systems
-      fastBootstrap.reset();
+      coordinatedInitService.reset();
       
       // Clear local storage
       localStorage.clear();
@@ -147,14 +147,14 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
             <div>
               <h3 className="text-lg font-semibold mb-3">System Status</h3>
               {status ? (
-                <Alert variant={status.isReady ? "default" : "destructive"}>
-                  {status.isReady ? (
+                <Alert variant={status.isComplete ? "default" : "destructive"}>
+                  {status.isComplete ? (
                     <CheckCircle className="h-4 w-4" />
                   ) : (
                     <AlertTriangle className="h-4 w-4" />
                   )}
                   <AlertTitle>
-                    System is {status.isReady ? 'Ready' : 'Not Ready'}
+                    System is {status.isComplete ? 'Ready' : 'Not Ready'}
                   </AlertTitle>
                   <AlertDescription>
                     Phase: {status.phase} | Last updated: {lastUpdate}
