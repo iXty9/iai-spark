@@ -6,18 +6,16 @@ import { logger } from '@/utils/logging';
  * Processes metadata from webhook responses and adds it to the message
  */
 export function processResponseMetadata(message: Message, data: any): void {
-  // Debug information - Stored only when needed
-  if (process.env.NODE_ENV === 'development' || (typeof window !== 'undefined' && (window as any).__DEV_MODE_ENABLED__)) {
-    // Store the raw response for debugging
-    message.rawResponse = data;
-    
-    // Add metadata for debugging purposes
-    message.metadata = {
-      responseFormat: typeof data,
-      responseStructure: Array.isArray(data) ? 'array' : (typeof data === 'object' ? 'object' : 'other'),
-      webhookType: message.metadata?.webhookType || 'unknown'
-    };
-  }
+  // Always store the raw response for complete data preservation
+  message.rawResponse = data;
+  
+  // Add metadata for debugging and data integrity
+  message.metadata = {
+    responseFormat: typeof data,
+    responseStructure: Array.isArray(data) ? 'array' : (typeof data === 'object' ? 'object' : 'other'),
+    webhookType: message.metadata?.webhookType || 'unknown',
+    processedAt: new Date().toISOString()
+  };
   
   // Handle token info - core business logic
   // Updated to handle the actual webhook response structure
