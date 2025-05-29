@@ -1,243 +1,125 @@
 
+/* Enhanced theme styles with proper glass effect support */
+
 :root {
-  /* Unified theme color variables with company branding */
-  --background-color: #ffffff;
-  --primary-color: #dd3333;
-  --text-color: #000000;
-  --accent-color: #9b87f5;
-  --user-bubble-color: #dd3333;
-  --ai-bubble-color: #9b87f5;
-  --user-bubble-opacity: 0.3;
-  --ai-bubble-opacity: 0.3;
-  --user-text-color: #000000;
-  --ai-text-color: #000000;
-  --link-color: #0EA5E9;
-  
-  /* Background image settings - FIXED v6.0 */
+  /* Base theme variables */
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  --primary: 221.2 83.2% 53.3%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222.2 84% 4.9%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --accent: 210 40% 96%;
+  --accent-foreground: 222.2 84% 4.9%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 221.2 83.2% 53.3%;
+  --radius: 0.75rem;
+  --chart-1: 12 76% 61%;
+  --chart-2: 173 58% 39%;
+  --chart-3: 197 37% 24%;
+  --chart-4: 43 74% 66%;
+  --chart-5: 27 87% 67%;
+
+  /* Glass effect variables */
   --bg-opacity: 0.5;
   --bg-image-url: none;
-  
-  /* Glass UI settings - More transparent when background is present */
-  --glass-opacity: 0.9;
-  --glass-opacity-with-bg: 0.2;
-  --glass-blur: 8px;
-
-  /* Shadcn/UI theme variables with company branding */
-  --background: 0 0% 100%;
-  --foreground: 224 71.4% 4.1%;
-  --card: 0 0% 100%;
-  --card-foreground: 224 71.4% 4.1%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 224 71.4% 4.1%;
-  --primary: 0 71% 52%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 220 14.3% 95.9%;
-  --secondary-foreground: 220.9 39.3% 11%;
-  --muted: 220 14.3% 95.9%;
-  --muted-foreground: 220 8.9% 46.1%;
-  --accent: 258 89% 74%;
-  --accent-foreground: 0 0% 100%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 220 13% 91%;
-  --input: 220 13% 91%;
-  --ring: 224 71.4% 4.1%;
-  --radius: 0.5rem;
-
-  /* Theme transition properties */
-  --theme-transition-duration: 300ms;
-  --theme-transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
+  --card-bg-opacity: 1;
+  --card-backdrop-blur: 0px;
 }
 
 .dark {
-  /* Dark mode theme colors with company branding */
-  --background-color: #121212;
-  --primary-color: #dd3333;
-  --text-color: #ffffff;
-  --accent-color: #9b87f5;
-  --user-bubble-color: #dd3333;
-  --ai-bubble-color: #9b87f5;
-  --user-bubble-opacity: 0.3;
-  --ai-bubble-opacity: 0.3;
-  --user-text-color: #ffffff;
-  --ai-text-color: #ffffff;
-  --link-color: #33C3F0;
-
-  /* Glass UI settings for dark mode */
-  --glass-opacity: 0.9;
-  --glass-opacity-with-bg: 0.15;
-
-  /* Shadcn/UI dark mode variables */
-  --background: 224 71.4% 4.1%;
-  --foreground: 210 20% 98%;
-  --card: 224 71.4% 4.1%;
-  --card-foreground: 210 20% 98%;
-  --popover: 224 71.4% 4.1%;
-  --popover-foreground: 210 20% 98%;
-  --primary: 0 71% 52%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 215 27.9% 16.9%;
-  --secondary-foreground: 210 20% 98%;
-  --muted: 215 27.9% 16.9%;
-  --muted-foreground: 217.9 10.6% 64.9%;
-  --accent: 258 89% 74%;
-  --accent-foreground: 0 0% 100%;
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 217.2 91.2% 59.8%;
+  --primary-foreground: 222.2 84% 4.9%;
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
   --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 20% 98%;
-  --border: 215 27.9% 16.9%;
-  --input: 215 27.9% 16.9%;
-  --ring: 216 12.2% 83.9%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 224.3 76.3% 94.1%;
+  --chart-1: 220 70% 50%;
+  --chart-2: 160 60% 45%;
+  --chart-3: 30 80% 55%;
+  --chart-4: 280 65% 60%;
+  --chart-5: 340 75% 55%;
 }
 
-/* Apply smooth transitions to all elements */
-*, *::before, *::after {
-  transition: background-color var(--theme-transition-duration) var(--theme-transition-timing),
-              color var(--theme-transition-duration) var(--theme-transition-timing),
-              border-color var(--theme-transition-duration) var(--theme-transition-timing),
-              opacity var(--theme-transition-duration) var(--theme-transition-timing);
+/* Enhanced glass effect styles */
+body.with-bg-image .card {
+  background: rgba(255, 255, 255, var(--card-bg-opacity, 0.8)) !important;
+  backdrop-filter: blur(var(--card-backdrop-blur, 12px)) !important;
+  -webkit-backdrop-filter: blur(var(--card-backdrop-blur, 12px)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1) !important;
 }
 
-/* Base body styling */
-body {
-  background-color: var(--background-color);
-  color: var(--text-color);
-  min-height: 100vh;
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+body.with-bg-image.dark .card {
+  background: rgba(17, 24, 39, var(--card-bg-opacity, 0.8)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
 }
 
-/* COMPLETELY FIXED Background image handling v6.0 */
-body.with-bg-image {
-  position: relative;
-  /* Background properties are now set directly via JavaScript */
+/* Ensure glass effect works on other components too */
+body.with-bg-image .bg-card {
+  background: rgba(255, 255, 255, var(--card-bg-opacity, 0.8)) !important;
+  backdrop-filter: blur(var(--card-backdrop-blur, 12px)) !important;
+  -webkit-backdrop-filter: blur(var(--card-backdrop-blur, 12px)) !important;
 }
 
-/* FIXED: Corrected background overlay calculation v6.0 - INVERTED LOGIC FIXED */
+body.with-bg-image.dark .bg-card {
+  background: rgba(17, 24, 39, var(--card-bg-opacity, 0.8)) !important;
+}
+
+/* Make sure tabs and other elements also get glass effect */
+body.with-bg-image .bg-muted {
+  background: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+body.with-bg-image.dark .bg-muted {
+  background: rgba(17, 24, 39, 0.6) !important;
+}
+
+/* Debug styles to verify glass effect is working */
 body.with-bg-image::before {
-  content: "";
+  content: '';
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-image-url);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  opacity: var(--bg-opacity);
   z-index: -1;
-  background-color: var(--background-color);
-  /* CRITICAL FIX: Inverted opacity - slider now controls image visibility directly */
-  opacity: calc(1 - var(--bg-opacity));
   pointer-events: none;
 }
 
-/* Message bubble styling with opacity variables - FIXED */
-.user-message-bubble {
-  background-color: var(--user-bubble-color) !important;
-  color: var(--user-text-color) !important;
-  opacity: var(--user-bubble-opacity) !important;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: none !important;
-}
-
-.ai-message-bubble {
-  background-color: var(--ai-bubble-color) !important;
-  color: var(--ai-text-color) !important;
-  opacity: var(--ai-bubble-opacity) !important;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: none !important;
-}
-
-.ai-message-bubble *,
-.user-message-bubble * {
-  color: inherit !important;
-}
-
-.ai-message-bubble a,
-.user-message-bubble a {
-  color: var(--link-color) !important;
-}
-
-/* Glass effect cards - MUCH MORE transparent when background image is present */
-.card {
-  background-color: rgba(255, 255, 255, var(--glass-opacity)) !important;
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.dark .card {
-  background-color: rgba(18, 18, 18, var(--glass-opacity)) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Enhanced transparency when background image is present */
-body.with-bg-image .card {
-  background-color: rgba(255, 255, 255, var(--glass-opacity-with-bg)) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-body.with-bg-image .dark .card {
-  background-color: rgba(18, 18, 18, var(--glass-opacity-with-bg)) !important;
-}
-
-/* Loading state for theme changes */
-.theme-loading {
-  opacity: 0;
-  transition: opacity 150ms ease-in-out;
-}
-
-.theme-loaded {
-  opacity: 1;
-}
-
-/* Prevent flash of unstyled content */
-.theme-transition-guard {
-  visibility: hidden;
-}
-
-.theme-transition-guard.theme-ready {
-  visibility: visible;
-}
-
-/* Mobile optimizations */
-@media (max-width: 767px) {
-  body.with-bg-image {
-    background-attachment: scroll !important;
-  }
-  
-  .card {
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-  }
-}
-
-/* iOS specific fixes */
-@supports (-webkit-touch-callout: none) {
-  body.with-bg-image {
-    background-attachment: scroll !important;
-  }
-  
+/* Ensure background attachment works on mobile */
+@media (max-width: 768px) {
   body.with-bg-image::before {
-    position: absolute;
-    min-height: 100vh;
+    background-attachment: scroll;
   }
-}
-
-/* Checkerboard pattern for transparency preview */
-.bg-checkerboard {
-  background-image: 
-    linear-gradient(45deg, #e5e5e5 25%, transparent 25%), 
-    linear-gradient(-45deg, #e5e5e5 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #e5e5e5 75%),
-    linear-gradient(-45deg, transparent 75%, #e5e5e5 75%);
-  background-size: 20px 20px;
-  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-}
-
-.dark .bg-checkerboard {
-  background-image: 
-    linear-gradient(45deg, #333 25%, transparent 25%), 
-    linear-gradient(-45deg, #333 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #333 75%),
-    linear-gradient(-45deg, transparent 75%, #333 75%);
 }

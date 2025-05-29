@@ -81,14 +81,15 @@ export function SettingsFooter({
             <div>
               <h4 className="font-medium text-amber-900 dark:text-amber-100">Admin Actions</h4>
               <p className="text-sm text-amber-700 dark:text-amber-200">
-                Set your current theme as the default for all users
+                Set your current saved theme as the default for all users
               </p>
             </div>
             <Button
               onClick={handleSetAsDefault}
-              disabled={isSettingDefault}
+              disabled={isSettingDefault || hasChanges}
               variant="outline"
               className="border-amber-300 hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900/50"
+              title={hasChanges ? "Save your changes first before setting as default" : "Set current theme as default"}
             >
               {isSettingDefault ? (
                 <>
@@ -122,12 +123,12 @@ export function SettingsFooter({
           <Button 
             variant="outline" 
             onClick={onCancel} 
-            disabled={isSubmitting}
+            disabled={isSubmitting || !hasChanges}
             size="sm"
             className="flex items-center gap-2"
           >
             <X className="h-4 w-4" />
-            Cancel
+            {hasChanges ? 'Discard Changes' : 'Cancel'}
           </Button>
           <Button 
             onClick={onSave} 
@@ -143,6 +144,16 @@ export function SettingsFooter({
             {isSubmitting ? 'Saving...' : 'Save Changes'}
           </Button>
         </div>
+      </div>
+      
+      {/* Help Text */}
+      <div className="w-full text-center">
+        <p className="text-xs text-muted-foreground">
+          {hasChanges 
+            ? "You have unsaved changes that will be lost if you navigate away." 
+            : "All changes are saved and applied to your theme."
+          }
+        </p>
       </div>
     </CardFooter>
   );

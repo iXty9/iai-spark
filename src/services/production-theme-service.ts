@@ -1,7 +1,8 @@
+
 import { ThemeColors, ThemeSettings } from '@/types/theme';
-import { clientManager } from '@/services/supabase/client-manager';
-import { fetchAppSettings } from '@/services/admin/settingsService';
+import { applyThemeChanges, applyBackgroundImage } from '@/utils/theme-utils';
 import { logger } from '@/utils/logging';
+import { fetchAppSettings } from '@/services/admin/settingsService';
 
 export interface ThemeState {
   mode: 'light' | 'dark';
@@ -16,9 +17,7 @@ class ProductionThemeService {
   private state: ThemeState;
   private listeners: Set<(state: ThemeState) => void> = new Set();
   private isInitialized = false;
-  private adminDefaults: ThemeSettings | null = null;
-  private realtimeChannel: any = null;
-  private adminDefaultsVersion: string | null = null;
+  private initializationPromise: Promise<void> | null = null;
 
   constructor() {
     this.state = {
@@ -61,313 +60,76 @@ class ProductionThemeService {
     };
   }
 
-  async initialize(): Promise<void> {
-    // Allow re-initialization if client becomes available
+  async initialize(userSettings?: ThemeSettings): Promise<void> {
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
     if (this.isInitialized) {
-      const client = clientManager.getClient();
-      if (!client) {
-        logger.info('Theme service already initialized but no client available', { module: 'theme' });
-        return;
-      }
-      // If we have a client now and we're re-initializing, continue
-      this.isInitialized = false;
+      return Promise.resolve();
     }
 
-    try {
-      logger.info('Initializing production theme service', { module: 'theme' });
-
-      // Determine user authentication status first
-      const isSignedOut = await this.isUserSignedOut();
-      
-      if (isSignedOut) {
-        // For signed-out users, ALWAYS load admin defaults from database
-        await this.loadAdminDefaults();
-        
-        if (this.adminDefaults) {
-          this.applyThemeSettings(this.adminDefaults);
-          logger.info('Applied admin default theme for signed-out user', { module: 'theme' });
-        } else {
-          // Fallback to built-in defaults only if no admin defaults exist
-          this.loadModeFromLocalStorage();
-          logger.info('No admin defaults found, using built-in defaults', { module: 'theme' });
-        }
-      } else {
-        // For signed-in users, try to load their personal settings
-        const client = clientManager.getClient();
-        if (client) {
-          // Load admin defaults first for comparison
-          await this.loadAdminDefaults();
-          
-          // Load from localStorage for immediate application
-          this.loadFromLocalStorage();
-
-          // Then try to load from database
-          await this.loadUserSettings();
-        } else {
-          // No client available, use localStorage only
-          this.loadFromLocalStorage();
-        }
-      }
-
-      // Set up real-time listener for admin default changes
-      this.setupRealtimeListener();
-
-      // Apply the final theme state
-      this.applyTheme();
-      this.applyBackgroundToDOM();
-      
-      this.state.isReady = true;
-      this.isInitialized = true;
-      this.notifyListeners();
-      
-      logger.info('Theme service initialized successfully', { 
-        module: 'theme',
-        mode: this.state.mode,
-        hasBackground: !!this.state.backgroundImage,
-        isSignedOut,
-        hasAdminDefaults: !!this.adminDefaults
-      });
-    } catch (error) {
-      logger.error('Theme initialization failed', error, { module: 'theme' });
-      // Still mark as ready to prevent hanging, but apply minimal theme
-      this.applyTheme();
-      this.state.isReady = true;
-      this.isInitialized = true;
-      this.notifyListeners();
-    }
+    this.initializationPromise = this.performInitialization(userSettings);
+    return this.initializationPromise;
   }
 
-  private async isUserSignedOut(): Promise<boolean> {
+  private async performInitialization(userSettings?: ThemeSettings): Promise<void> {
     try {
-      const client = clientManager.getClient();
-      if (!client) return true;
+      logger.info('Initializing production theme service', { module: 'production-theme' });
 
-      const { data: { user } } = await client.auth.getUser();
-      return !user;
-    } catch (error) {
-      logger.warn('Error checking user authentication status', { module: 'theme' });
-      return true; // Assume signed out on error
-    }
-  }
-
-  private async loadAdminDefaults(): Promise<void> {
-    try {
-      const appSettings = await fetchAppSettings();
-      if (appSettings?.default_theme_settings) {
-        const newDefaults = JSON.parse(appSettings.default_theme_settings) as ThemeSettings;
-        const newVersion = newDefaults.exportDate || Date.now().toString();
+      if (userSettings && this.validateThemeSettings(userSettings)) {
+        this.state = {
+          mode: userSettings.mode || 'light',
+          lightTheme: userSettings.lightTheme || this.getDefaultLightTheme(),
+          darkTheme: userSettings.darkTheme || this.getDefaultDarkTheme(),
+          backgroundImage: userSettings.backgroundImage || null,
+          backgroundOpacity: this.normalizeOpacity(userSettings.backgroundOpacity || 0.5),
+          isReady: true
+        };
         
-        // Always update admin defaults to ensure we have the latest
-        this.adminDefaults = newDefaults;
-        this.adminDefaultsVersion = newVersion;
-        logger.info('Admin default theme loaded', { 
-          module: 'theme',
-          version: newVersion
+        logger.info('Initialized with user settings', { 
+          module: 'production-theme',
+          backgroundImage: !!this.state.backgroundImage
         });
       } else {
-        this.adminDefaults = null;
-        this.adminDefaultsVersion = null;
-        logger.info('No admin default theme found', { module: 'theme' });
-      }
-    } catch (error) {
-      logger.warn('Failed to load admin defaults', { module: 'theme' });
-      this.adminDefaults = null;
-    }
-  }
-
-  private applyThemeSettings(settings: ThemeSettings): void {
-    this.state.mode = settings.mode || this.state.mode;
-    this.state.lightTheme = settings.lightTheme || this.state.lightTheme;
-    this.state.darkTheme = settings.darkTheme || this.state.darkTheme;
-    this.state.backgroundImage = settings.backgroundImage || null;
-    this.state.backgroundOpacity = settings.backgroundOpacity || 0.5;
-  }
-
-  private loadModeFromLocalStorage(): void {
-    try {
-      const savedMode = localStorage.getItem('theme-mode');
-      if (savedMode === 'light' || savedMode === 'dark') {
-        this.state.mode = savedMode;
-      }
-    } catch (error) {
-      logger.warn('Failed to load mode from localStorage', { module: 'theme' });
-    }
-  }
-
-  private loadFromLocalStorage(): void {
-    try {
-      // Load basic mode
-      this.loadModeFromLocalStorage();
-
-      // Load background settings
-      const savedBg = localStorage.getItem('background-image');
-      const savedOpacity = localStorage.getItem('background-opacity');
-      if (savedBg) {
-        this.state.backgroundImage = savedBg;
-        this.state.backgroundOpacity = savedOpacity ? parseFloat(savedOpacity) : 0.5;
+        this.state.isReady = true;
+        logger.info('Initialized with default settings', { module: 'production-theme' });
       }
 
-      // Load theme settings
-      const savedThemeSettings = localStorage.getItem('theme_settings');
-      if (savedThemeSettings) {
-        try {
-          const settings = JSON.parse(savedThemeSettings) as ThemeSettings;
-          this.applyThemeSettings(settings);
-          logger.info('Loaded theme from localStorage', { module: 'theme' });
-        } catch (parseError) {
-          logger.warn('Failed to parse theme settings from localStorage', { module: 'theme' });
-        }
-      }
-    } catch (error) {
-      logger.warn('Failed to load from localStorage', { module: 'theme' });
-    }
-  }
-
-  private async loadUserSettings(): Promise<void> {
-    try {
-      const client = clientManager.getClient();
-      if (!client) return;
-
-      const { data: { user } } = await client.auth.getUser();
-      if (!user) return;
-
-      const { data: profile, error } = await client
-        .from('profiles')
-        .select('theme_settings')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (error) {
-        logger.warn('Could not load user theme settings', { module: 'theme' });
-        return;
-      }
-
-      if (profile?.theme_settings) {
-        const settings = JSON.parse(profile.theme_settings) as ThemeSettings;
-        this.applyThemeSettings(settings);
-        
-        // Save to localStorage for future sessions
-        localStorage.setItem('theme_settings', JSON.stringify(settings));
-        if (settings.backgroundImage) {
-          localStorage.setItem('background-image', settings.backgroundImage);
-          localStorage.setItem('background-opacity', this.state.backgroundOpacity.toString());
-        }
-        
-        logger.info('Loaded user theme settings', { module: 'theme' });
-      }
-    } catch (error) {
-      logger.warn('Failed to load user settings', { module: 'theme' });
-    }
-  }
-
-  private setupRealtimeListener(): void {
-    try {
-      const client = clientManager.getClient();
-      if (!client) return;
-
-      // Listen for changes to app_settings table
-      this.realtimeChannel = client
-        .channel('admin-theme-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'app_settings',
-            filter: 'key=eq.default_theme_settings'
-          },
-          (payload) => {
-            logger.info('Admin theme settings changed, updating theme', { module: 'theme' });
-            this.handleAdminThemeChange(payload);
-          }
-        )
-        .subscribe();
-
-      logger.info('Real-time listener for admin theme changes set up', { module: 'theme' });
-    } catch (error) {
-      logger.warn('Failed to set up real-time listener', { module: 'theme' });
-    }
-  }
-
-  private async handleAdminThemeChange(payload: any): Promise<void> {
-    try {
-      // Reload admin defaults
-      await this.loadAdminDefaults();
+      // Apply theme and background immediately
+      this.applyCurrentTheme();
+      this.applyCurrentBackground();
       
-      const isSignedOut = await this.isUserSignedOut();
+      this.isInitialized = true;
+      this.initializationPromise = null;
       
-      // For signed-out users, always apply new admin defaults immediately
-      if (isSignedOut && this.adminDefaults) {
-        this.applyThemeSettings(this.adminDefaults);
-        this.applyTheme();
-        this.applyBackgroundToDOM();
-        this.notifyListeners();
-        
-        logger.info('Applied updated admin theme for signed-out user', { module: 'theme' });
-      }
-    } catch (error) {
-      logger.error('Error handling admin theme change', error, { module: 'theme' });
-    }
-  }
-
-  private applyTheme(): void {
-    const currentColors = this.state.mode === 'dark' ? this.state.darkTheme : this.state.lightTheme;
-    
-    // Apply all theme colors to CSS variables and body
-    const root = document.documentElement;
-    root.style.setProperty('--background-color', currentColors.backgroundColor);
-    root.style.setProperty('--primary-color', currentColors.primaryColor);
-    root.style.setProperty('--text-color', currentColors.textColor);
-    root.style.setProperty('--accent-color', currentColors.accentColor);
-    root.style.setProperty('--user-bubble-color', currentColors.userBubbleColor);
-    root.style.setProperty('--ai-bubble-color', currentColors.aiBubbleColor);
-    root.style.setProperty('--user-bubble-opacity', currentColors.userBubbleOpacity.toString());
-    root.style.setProperty('--ai-bubble-opacity', currentColors.aiBubbleOpacity.toString());
-    root.style.setProperty('--user-text-color', currentColors.userTextColor);
-    root.style.setProperty('--ai-text-color', currentColors.aiTextColor);
-
-    // Apply background color to body immediately
-    document.body.style.backgroundColor = currentColors.backgroundColor;
-    document.body.style.color = currentColors.textColor;
-
-    // Apply dark/light class
-    document.documentElement.classList.toggle('dark', this.state.mode === 'dark');
-    
-    // Save mode
-    localStorage.setItem('theme-mode', this.state.mode);
-    
-    logger.info('Theme applied', { 
-      mode: this.state.mode, 
-      backgroundColor: currentColors.backgroundColor 
-    });
-  }
-
-  private applyBackgroundToDOM(): void {
-    const body = document.body;
-    
-    if (this.state.backgroundImage) {
-      body.style.backgroundImage = `url(${this.state.backgroundImage})`;
-      body.style.backgroundSize = 'cover';
-      body.style.backgroundPosition = 'center';
-      body.style.backgroundRepeat = 'no-repeat';
-      body.style.backgroundAttachment = 'fixed';
-      body.classList.add('with-bg-image');
+      this.notifyListeners();
       
-      // Apply background opacity correctly
-      document.documentElement.style.setProperty('--bg-opacity', this.state.backgroundOpacity.toString());
-      
-      logger.info('Background image applied', { 
-        opacity: this.state.backgroundOpacity,
-        hasImage: !!this.state.backgroundImage 
+      logger.info('Production theme service initialized', { 
+        module: 'production-theme',
+        mode: this.state.mode
       });
-    } else {
-      body.style.backgroundImage = '';
-      body.classList.remove('with-bg-image');
-      document.documentElement.style.setProperty('--bg-opacity', '0.5');
+    } catch (error) {
+      logger.error('Failed to initialize production theme service:', error);
+      this.state.isReady = true;
+      this.isInitialized = true;
+      this.initializationPromise = null;
+      this.notifyListeners();
     }
   }
 
-  // Public API
+  private validateThemeSettings(settings: ThemeSettings): boolean {
+    return settings && typeof settings === 'object';
+  }
+
+  private normalizeOpacity(opacity: any): number {
+    if (typeof opacity === 'string') {
+      const parsed = parseFloat(opacity);
+      return isNaN(parsed) ? 0.5 : Math.max(0, Math.min(1, parsed));
+    }
+    return Math.max(0, Math.min(1, opacity || 0.5));
+  }
+
   getState(): ThemeState {
     return { ...this.state };
   }
@@ -377,52 +139,133 @@ class ProductionThemeService {
     return () => this.listeners.delete(listener);
   }
 
+  private notifyListeners(): void {
+    this.listeners.forEach(listener => listener(this.getState()));
+  }
+
+  // Core setters that immediately apply changes
   setMode(mode: 'light' | 'dark'): void {
     this.state.mode = mode;
-    this.applyTheme();
+    this.applyCurrentTheme();
     this.notifyListeners();
-    this.saveToProfile();
-  }
-
-  setBackgroundImage(image: string | null): void {
-    this.state.backgroundImage = image;
-    if (image) {
-      localStorage.setItem('background-image', image);
-    } else {
-      localStorage.removeItem('background-image');
-    }
-    this.applyBackgroundToDOM();
-    this.notifyListeners();
-    this.saveToProfile();
-  }
-
-  setBackgroundOpacity(opacity: number): void {
-    this.state.backgroundOpacity = Math.max(0, Math.min(1, opacity));
-    localStorage.setItem('background-opacity', this.state.backgroundOpacity.toString());
-    this.applyBackgroundToDOM();
-    this.notifyListeners();
-    this.saveToProfile();
+    logger.info('Theme mode changed', { module: 'production-theme', mode });
   }
 
   setLightTheme(theme: ThemeColors): void {
     this.state.lightTheme = theme;
     if (this.state.mode === 'light') {
-      this.applyTheme();
+      this.applyCurrentTheme();
     }
     this.notifyListeners();
-    this.saveToProfile();
   }
 
   setDarkTheme(theme: ThemeColors): void {
     this.state.darkTheme = theme;
     if (this.state.mode === 'dark') {
-      this.applyTheme();
+      this.applyCurrentTheme();
     }
     this.notifyListeners();
-    this.saveToProfile();
   }
 
-  // Create theme settings for saving
+  setBackgroundImage(image: string | null): void {
+    this.state.backgroundImage = image;
+    this.applyCurrentBackground();
+    this.notifyListeners();
+    logger.info('Background image updated', { 
+      module: 'production-theme', 
+      hasImage: !!image 
+    });
+  }
+
+  setBackgroundOpacity(opacity: number): void {
+    this.state.backgroundOpacity = this.normalizeOpacity(opacity);
+    this.applyCurrentBackground();
+    this.notifyListeners();
+    logger.info('Background opacity updated', { 
+      module: 'production-theme', 
+      opacity: this.state.backgroundOpacity 
+    });
+  }
+
+  // Preview methods that don't update state but apply visual changes
+  previewTheme(colors: ThemeColors, mode: 'light' | 'dark'): void {
+    applyThemeChanges(colors);
+    logger.info('Theme preview applied', { module: 'production-theme', mode });
+  }
+
+  previewBackground(image: string | null, opacity: number): void {
+    applyBackgroundImage(image, opacity);
+    // Ensure glass effect is enabled
+    if (image) {
+      document.body.classList.add('with-bg-image');
+    } else {
+      document.body.classList.remove('with-bg-image');
+    }
+    logger.info('Background preview applied', { 
+      module: 'production-theme', 
+      hasImage: !!image,
+      opacity 
+    });
+  }
+
+  private applyCurrentTheme(): void {
+    const currentColors = this.state.mode === 'dark' ? this.state.darkTheme : this.state.lightTheme;
+    applyThemeChanges(currentColors);
+  }
+
+  private applyCurrentBackground(): void {
+    applyBackgroundImage(this.state.backgroundImage, this.state.backgroundOpacity);
+    
+    // Ensure glass effect classes are properly applied
+    if (this.state.backgroundImage) {
+      document.body.classList.add('with-bg-image');
+    } else {
+      document.body.classList.remove('with-bg-image');
+    }
+  }
+
+  async loadDefaultTheme(): Promise<boolean> {
+    try {
+      logger.info('Loading default theme from database', { module: 'production-theme' });
+      
+      const appSettings = await fetchAppSettings();
+      
+      if (appSettings.default_theme_settings) {
+        const defaultSettings = JSON.parse(appSettings.default_theme_settings);
+        
+        if (this.validateThemeSettings(defaultSettings)) {
+          this.state.lightTheme = defaultSettings.lightTheme || this.getDefaultLightTheme();
+          this.state.darkTheme = defaultSettings.darkTheme || this.getDefaultDarkTheme();
+          this.state.backgroundImage = defaultSettings.backgroundImage || null;
+          this.state.backgroundOpacity = this.normalizeOpacity(defaultSettings.backgroundOpacity || 0.5);
+          
+          this.applyCurrentTheme();
+          this.applyCurrentBackground();
+          this.notifyListeners();
+          
+          logger.info('Default theme loaded from database', { module: 'production-theme' });
+          return true;
+        }
+      }
+      
+      // Fallback to hardcoded defaults
+      this.state.lightTheme = this.getDefaultLightTheme();
+      this.state.darkTheme = this.getDefaultDarkTheme();
+      this.state.backgroundImage = null;
+      this.state.backgroundOpacity = 0.5;
+      
+      this.applyCurrentTheme();
+      this.applyCurrentBackground();
+      this.notifyListeners();
+      
+      logger.info('Loaded hardcoded default theme', { module: 'production-theme' });
+      return false;
+    } catch (error) {
+      logger.error('Error loading default theme:', error);
+      return false;
+    }
+  }
+
   createThemeSettings(): ThemeSettings {
     return {
       mode: this.state.mode,
@@ -433,75 +276,6 @@ class ProductionThemeService {
       exportDate: new Date().toISOString(),
       name: 'Custom Theme'
     };
-  }
-
-  /**
-   * Load default theme from database
-   */
-  async loadDefaultTheme(): Promise<boolean> {
-    try {
-      if (this.adminDefaults) {
-        this.applyThemeSettings(this.adminDefaults);
-        this.applyTheme();
-        this.applyBackgroundToDOM();
-        this.notifyListeners();
-        this.saveToProfile();
-        
-        logger.info('Default theme loaded successfully', { module: 'theme' });
-        return true;
-      } else {
-        logger.warn('No admin default theme settings found', { module: 'theme' });
-        return false;
-      }
-    } catch (error) {
-      logger.error('Failed to load default theme', error, { module: 'theme' });
-      return false;
-    }
-  }
-
-  private notifyListeners(): void {
-    this.listeners.forEach(listener => {
-      try {
-        listener(this.getState());
-      } catch (error) {
-        logger.error('Error in theme listener', error, { module: 'theme' });
-      }
-    });
-  }
-
-  private async saveToProfile(): Promise<void> {
-    try {
-      const client = clientManager.getClient();
-      if (!client) return;
-
-      const { data: { user } } = await client.auth.getUser();
-      if (!user) return;
-
-      const themeSettings = this.createThemeSettings();
-
-      // Save to localStorage immediately for persistence
-      localStorage.setItem('theme_settings', JSON.stringify(themeSettings));
-
-      await client
-        .from('profiles')
-        .update({ theme_settings: JSON.stringify(themeSettings) })
-        .eq('id', user.id);
-
-      logger.info('Theme settings saved to profile', { module: 'theme' });
-    } catch (error) {
-      logger.warn('Failed to save theme settings to profile', { module: 'theme' });
-    }
-  }
-
-  // Cleanup method for real-time listener
-  destroy(): void {
-    if (this.realtimeChannel) {
-      const client = clientManager.getClient();
-      if (client) {
-        client.removeChannel(this.realtimeChannel);
-      }
-      this.realtimeChannel = null;
-    }
   }
 }
 

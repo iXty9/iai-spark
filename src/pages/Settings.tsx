@@ -1,16 +1,17 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
-import { useSimplifiedSettingsState } from '@/hooks/settings/use-simplified-settings-state';
-import { useSimplifiedSettingsActions } from '@/hooks/settings/use-simplified-settings-actions';
+import { useDraftSettingsState } from '@/hooks/settings/use-draft-settings-state';
+import { useDraftSettingsActions } from '@/hooks/settings/use-draft-settings-actions';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Palette, Image } from 'lucide-react';
+import { ArrowLeft, Palette, Image, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
 import { BackgroundSettings } from '@/components/settings/BackgroundSettings';
 import { SettingsFooter } from '@/components/settings/SettingsFooter';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -18,15 +19,20 @@ export default function Settings() {
   const { theme } = useTheme();
 
   const {
-    lightTheme,
-    darkTheme,
-    backgroundImage,
-    backgroundOpacity,
+    draftState,
+    isInitialized,
     isSubmitting,
     hasChanges,
     imageInfo,
-    isInitialized
-  } = useSimplifiedSettingsState();
+    updateDraftLightTheme,
+    updateDraftDarkTheme,
+    updateDraftBackgroundImage,
+    updateDraftBackgroundOpacity,
+    updateDraftMode,
+    saveChanges,
+    discardChanges,
+    resetToDefaults
+  } = useDraftSettingsState();
 
   const {
     handleLightThemeChange,
@@ -35,16 +41,24 @@ export default function Settings() {
     handleRemoveBackground,
     handleOpacityChange,
     handleSaveSettings,
+    handleCancelSettings,
     handleResetSettings,
     isBackgroundLoading
-  } = useSimplifiedSettingsActions({
+  } = useDraftSettingsActions({
     user,
     theme,
-    lightTheme,
-    darkTheme,
-    backgroundImage,
-    backgroundOpacity,
-    setHasChanges: () => {},
+    lightTheme: draftState?.lightTheme || {} as any,
+    darkTheme: draftState?.darkTheme || {} as any,
+    backgroundImage: draftState?.backgroundImage || null,
+    backgroundOpacity: draftState?.backgroundOpacity || 0.5,
+    updateDraftLightTheme,
+    updateDraftDarkTheme,
+    updateDraftBackgroundImage,
+    updateDraftBackgroundOpacity,
+    updateDraftMode,
+    saveChanges,
+    discardChanges,
+    resetToDefaults,
     updateProfile
   });
 
@@ -58,11 +72,20 @@ export default function Settings() {
   };
 
   const handleGoBack = () => {
+    if (hasChanges) {
+      const confirmLeave = window.confirm(
+        "You have unsaved changes. Are you sure you want to leave? Your changes will be lost."
+      );
+      if (!confirmLeave) return;
+      
+      // Discard changes before navigating
+      discardChanges();
+    }
     navigate('/');
   };
 
   // Show loading state while theme service initializes
-  if (!isInitialized) {
+  if (!isInitialized || !draftState) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8">
@@ -97,6 +120,16 @@ export default function Settings() {
               <p className="text-muted-foreground">Customize your app experience</p>
             </div>
           </div>
+
+          {/* Unsaved Changes Alert */}
+          {hasChanges && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                You have unsaved changes. Make sure to save your settings before leaving this page.
+              </AlertDescription>
+            </Alert>
+          )}
           
           {/* Main Settings Card with Glass Effect */}
           <Card className="card">
@@ -118,8 +151,8 @@ export default function Settings() {
                 <TabsContent value="appearance" className="mt-0">
                   <AppearanceSettings
                     theme={theme}
-                    lightTheme={lightTheme}
-                    darkTheme={darkTheme}
+                    lightTheme={draftState.lightTheme}
+                    darkTheme={draftState.darkTheme}
                     onLightThemeChange={handleLightThemeChangeWrapper}
                     onDarkThemeChange={handleDarkThemeChangeWrapper}
                     onResetTheme={handleResetSettings}
@@ -128,8 +161,8 @@ export default function Settings() {
                 
                 <TabsContent value="background" className="mt-0">
                   <BackgroundSettings
-                    backgroundImage={backgroundImage}
-                    backgroundOpacity={backgroundOpacity}
+                    backgroundImage={draftState.backgroundImage}
+                    backgroundOpacity={draftState.backgroundOpacity}
                     imageInfo={imageInfo}
                     onBackgroundImageUpload={handleBackgroundImageUpload}
                     onRemoveBackground={handleRemoveBackground}
@@ -143,7 +176,7 @@ export default function Settings() {
             {/* Footer Actions */}
             <SettingsFooter 
               onReset={handleResetSettings}
-              onCancel={handleGoBack}
+              onCancel={handleCancelSettings}
               onSave={handleSaveSettings}
               isSubmitting={isSubmitting}
               hasChanges={hasChanges}
