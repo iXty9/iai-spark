@@ -28,13 +28,14 @@ export const saveChatHistory = (messages: Message[]): void => {
     // Only store a limited number of messages to prevent storage issues
     const limitedMessages = messages.slice(-MAX_MESSAGES);
     
-    // Create enhanced storage format that preserves all fields
+    // Create enhanced storage format that preserves all fields including raw request/response
     const enhancedMessages = limitedMessages.map(msg => ({
       id: msg.id,
       content: msg.content,
       sender: msg.sender,
       timestamp: msg.timestamp.toISOString(), // Store as ISO string for localStorage
       ...(msg.pending && { pending: msg.pending }),
+      ...(msg.rawRequest && { rawRequest: msg.rawRequest }),
       ...(msg.rawResponse && { rawResponse: msg.rawResponse }),
       ...(msg.tokenInfo && { tokenInfo: msg.tokenInfo }),
       ...(msg.threadId && { threadId: msg.threadId }),
@@ -45,6 +46,7 @@ export const saveChatHistory = (messages: Message[]): void => {
     logger.debug('Enhanced chat history saved to localStorage', { 
       messageCount: limitedMessages.length,
       hasTokenInfo: limitedMessages.some(m => m.tokenInfo),
+      hasRawRequest: limitedMessages.some(m => m.rawRequest),
       hasRawResponse: limitedMessages.some(m => m.rawResponse)
     }, { module: 'storage' });
   } catch (error) {
@@ -86,9 +88,13 @@ export const loadChatHistory = (): Message[] => {
             timestamp: new Date(item.timestamp)
           };
           
-          // Restore optional enhanced fields
+          // Restore optional enhanced fields including raw request/response
           if (item.pending !== undefined) {
             message.pending = item.pending;
+          }
+          
+          if (item.rawRequest) {
+            message.rawRequest = item.rawRequest;
           }
           
           if (item.rawResponse) {
@@ -119,6 +125,7 @@ export const loadChatHistory = (): Message[] => {
     logger.debug('Enhanced chat history loaded from localStorage', { 
       messageCount: validMessages.length,
       hasTokenInfo: validMessages.some(m => m.tokenInfo),
+      hasRawRequest: validMessages.some(m => m.rawRequest),
       hasRawResponse: validMessages.some(m => m.rawResponse)
     }, { module: 'storage' });
     return validMessages;

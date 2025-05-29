@@ -2,7 +2,7 @@
 import { Message } from '@/types/chat';
 
 /**
- * Enhanced export format that preserves all message data including verbatim webhook responses
+ * Enhanced export format that preserves all message data including verbatim webhook requests and responses
  */
 interface EnhancedExportData {
   metadata: {
@@ -27,6 +27,7 @@ interface EnhancedMessageExport {
   pending?: boolean;
   
   // Enhanced fields for complete data preservation
+  rawRequest?: any; // Verbatim webhook request payload
   rawResponse?: any; // Verbatim webhook response
   tokenInfo?: {
     promptTokens?: number;
@@ -64,6 +65,7 @@ const convertToEnhancedFormat = (message: Message): EnhancedMessageExport => {
       iso: message.timestamp.toISOString()
     },
     ...(message.pending && { pending: message.pending }),
+    ...(message.rawRequest && { rawRequest: message.rawRequest }),
     ...(message.rawResponse && { rawResponse: message.rawResponse }),
     ...(message.tokenInfo && { tokenInfo: message.tokenInfo }),
     ...(message.threadId && { threadId: message.threadId }),
@@ -76,11 +78,11 @@ export const exportChat = (messages: Message[]): void => {
     // Create enhanced export data with complete message preservation
     const exportData: EnhancedExportData = {
       metadata: {
-        version: '2.0',
+        version: '3.0',
         format: 'enhanced',
         exportDate: new Date().toISOString(),
         messageCount: messages.length,
-        description: 'Enhanced chat export with verbatim webhook responses and complete token information'
+        description: 'Enhanced chat export with complete webhook request/response data and token information'
       },
       messages: messages.map(convertToEnhancedFormat)
     };

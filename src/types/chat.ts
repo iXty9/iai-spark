@@ -5,7 +5,8 @@ export interface Message {
   sender: 'user' | 'ai';
   timestamp: Date;
   pending?: boolean;
-  rawResponse?: string;
+  rawRequest?: any; // Store the complete outgoing webhook payload
+  rawResponse?: any; // Store the complete incoming webhook response
   tokenInfo?: TokenInfo;
   threadId?: string;
   metadata?: Record<string, any>;

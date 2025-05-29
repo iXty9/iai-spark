@@ -47,6 +47,10 @@ const convertFromEnhancedFormat = (enhancedMsg: any): Message => {
     message.pending = enhancedMsg.pending;
   }
   
+  if (enhancedMsg.rawRequest) {
+    message.rawRequest = enhancedMsg.rawRequest;
+  }
+  
   if (enhancedMsg.rawResponse) {
     message.rawResponse = enhancedMsg.rawResponse;
   }
@@ -97,7 +101,7 @@ export const importChat = (file: File): Promise<Message[]> => {
         switch (format) {
           case 'enhanced':
             messages = jsonData.messages;
-            formatDescription = 'Enhanced format with verbatim data';
+            formatDescription = 'Enhanced format with complete webhook data';
             break;
           case 'legacy_with_metadata':
             messages = jsonData.messages;
@@ -124,7 +128,7 @@ export const importChat = (file: File): Promise<Message[]> => {
               let convertedMessage: Message;
               
               if (format === 'enhanced') {
-                // Use enhanced conversion to preserve all fields
+                // Use enhanced conversion to preserve all fields including raw request/response
                 convertedMessage = convertFromEnhancedFormat(msg);
               } else {
                 // Legacy conversion
@@ -157,6 +161,7 @@ export const importChat = (file: File): Promise<Message[]> => {
           format,
           messageCount: validMessages.length,
           hasTokenInfo: validMessages.some(m => m.tokenInfo),
+          hasRawRequest: validMessages.some(m => m.rawRequest),
           hasRawResponse: validMessages.some(m => m.rawResponse)
         });
         

@@ -29,12 +29,13 @@ webhookSessionTracker.initialize();
 
 /**
  * Sends a message to the appropriate webhook based on authentication status
+ * Returns both the request payload and response for complete data preservation
  */
 export const sendWebhookMessage = async (
   message: string,
   isAuthenticated: boolean,
   userInfo?: { username?: string; first_name?: string; last_name?: string } | null
-): Promise<any> => {
+): Promise<{ request: any; response: any }> => {
   // Skip or delay webhook calls if tab is inactive
   if (!webhookSessionTracker.tabActive) {
     logger.debug('Delaying webhook call as tab is inactive', {}, { module: 'webhook' });
@@ -136,7 +137,11 @@ export const sendWebhookMessage = async (
       isLoading: false
     });
     
-    return data;
+    // Return both request and response for complete data preservation
+    return {
+      request: payload,
+      response: data
+    };
   } catch (error) {
     // Handle different error types
     const isTimeout = error instanceof DOMException && error.name === 'AbortError';

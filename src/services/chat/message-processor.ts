@@ -42,10 +42,11 @@ export async function processMessage({
       throw new Error('Message sending was canceled');
     }
 
-    let data, responseText;
+    let webhookData, responseText;
     try {
-      data = await sendWebhookMessage(message, isAuthenticated, userProfile);
-      responseText = parseWebhookResponse(data);
+      // Get both request and response from webhook
+      webhookData = await sendWebhookMessage(message, isAuthenticated, userProfile);
+      responseText = parseWebhookResponse(webhookData.response);
       debug({ lastAction: 'API: Successfully parsed webhook response' });
     } catch (error) {
       logger.error('Failed to parse webhook response', error, { module: 'chat' });
@@ -63,9 +64,11 @@ export async function processMessage({
     Object.assign(assistantMessage, {
       content: (accumulatedContent.trim() || responseText),
       pending: false,
+      rawRequest: webhookData.request, // Store the complete outgoing payload
+      rawResponse: webhookData.response, // Store the complete incoming response
     });
 
-    processResponseMetadata(assistantMessage, data);
+    processResponseMetadata(assistantMessage, webhookData.response);
     debug({ lastAction: 'API: Message from webhook completed successfully' });
 
     onMessageComplete?.(assistantMessage);
