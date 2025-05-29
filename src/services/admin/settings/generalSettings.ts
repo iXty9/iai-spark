@@ -5,6 +5,7 @@ import { AppSettings } from './types';
 
 /**
  * Fetch all app settings as a key-value map
+ * Works for both authenticated and unauthenticated users
  */
 export async function getAppSettingsMap(): Promise<Record<string, string>> {
   try {
@@ -33,6 +34,7 @@ export async function getAppSettingsMap(): Promise<Record<string, string>> {
 
 /**
  * Fetch all application settings
+ * Works for both authenticated and unauthenticated users
  */
 export async function fetchAppSettings(): Promise<AppSettings> {
   try {
@@ -60,7 +62,7 @@ export async function fetchAppSettings(): Promise<AppSettings> {
 }
 
 /**
- * Update a single application setting
+ * Update a single application setting (admin only)
  */
 export async function updateAppSetting(key: string, value: string): Promise<boolean> {
   try {
@@ -98,6 +100,22 @@ export async function updateAppSetting(key: string, value: string): Promise<bool
     return true;
   } catch (error) {
     logger.error(`Unexpected error updating setting ${key}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Set default theme settings (admin only)
+ */
+export async function setDefaultThemeSettings(themeSettings: any): Promise<boolean> {
+  try {
+    const success = await updateAppSetting('default_theme_settings', JSON.stringify(themeSettings));
+    if (success) {
+      logger.info('Default theme settings updated successfully', { module: 'admin-settings' });
+    }
+    return success;
+  } catch (error) {
+    logger.error('Error setting default theme settings:', error, { module: 'admin-settings' });
     return false;
   }
 }

@@ -1,6 +1,7 @@
 
 import { ThemeColors, ThemeSettings } from '@/types/theme';
 import { clientManager } from '@/services/supabase/client-manager';
+import { fetchAppSettings } from '@/services/admin/settingsService';
 import { logger } from '@/utils/logging';
 
 export interface ThemeState {
@@ -64,26 +65,21 @@ class ProductionThemeService {
     try {
       logger.info('Initializing production theme service', { module: 'theme' });
 
-      // Load saved mode from localStorage
-      const savedMode = localStorage.getItem('theme-mode');
-      if (savedMode === 'light' || savedMode === 'dark') {
-        this.state.mode = savedMode;
+      // First try to load from localStorage for immediate application
+      this.loadFromLocalStorage();
+
+      // Try to load default settings from database (works for both authenticated and unauthenticated users)
+      await this.loadDefaultSettings();
+
+      // If user is authenticated, try to load their personal settings
+      const client = clientManager.getClient();
+      if (client) {
+        await this.loadUserSettings();
       }
 
-      // Load background from localStorage first (immediate)
-      const savedBg = localStorage.getItem('background-image');
-      const savedOpacity = localStorage.getItem('background-opacity');
-      if (savedBg) {
-        this.state.backgroundImage = savedBg;
-        this.state.backgroundOpacity = savedOpacity ? parseFloat(savedOpacity) : 0.5;
-        this.applyBackgroundToDOM();
-      }
-
-      // Try to load user settings from profile
-      await this.loadUserSettings();
-
-      // Apply theme
+      // Apply the final theme state
       this.applyTheme();
+      this.applyBackgroundToDOM();
       
       this.state.isReady = true;
       this.isInitialized = true;
@@ -98,6 +94,68 @@ class ProductionThemeService {
       logger.error('Theme initialization failed', error, { module: 'theme' });
       this.state.isReady = true; // Still mark as ready to prevent hanging
       this.notifyListeners();
+    }
+  }
+
+  private loadFromLocalStorage(): void {
+    try {
+      // Load saved mode
+      const savedMode = localStorage.getItem('theme-mode');
+      if (savedMode === 'light' || savedMode === 'dark') {
+        this.state.mode = savedMode;
+      }
+
+      // Load background settings
+      const savedBg = localStorage.getItem('background-image');
+      const savedOpacity = localStorage.getItem('background-opacity');
+      if (savedBg) {
+        this.state.backgroundImage = savedBg;
+        this.state.backgroundOpacity = savedOpacity ? parseFloat(savedOpacity) : 0.5;
+      }
+
+      // Load theme settings
+      const savedThemeSettings = localStorage.getItem('theme_settings');
+      if (savedThemeSettings) {
+        try {
+          const settings = JSON.parse(savedThemeSettings) as ThemeSettings;
+          this.state.mode = settings.mode || this.state.mode;
+          this.state.lightTheme = settings.lightTheme || this.state.lightTheme;
+          this.state.darkTheme = settings.darkTheme || this.state.darkTheme;
+          if (settings.backgroundImage) {
+            this.state.backgroundImage = settings.backgroundImage;
+            this.state.backgroundOpacity = settings.backgroundOpacity || 0.5;
+          }
+          logger.info('Loaded theme from localStorage', { module: 'theme' });
+        } catch (parseError) {
+          logger.warn('Failed to parse theme settings from localStorage', { module: 'theme' });
+        }
+      }
+    } catch (error) {
+      logger.warn('Failed to load from localStorage', { module: 'theme' });
+    }
+  }
+
+  private async loadDefaultSettings(): Promise<void> {
+    try {
+      const appSettings = await fetchAppSettings();
+      if (appSettings?.default_theme_settings) {
+        const defaultSettings = JSON.parse(appSettings.default_theme_settings) as ThemeSettings;
+        
+        // Only apply default settings if user doesn't have personal settings
+        const hasPersonalSettings = localStorage.getItem('theme_settings');
+        if (!hasPersonalSettings) {
+          this.state.mode = defaultSettings.mode || this.state.mode;
+          this.state.lightTheme = defaultSettings.lightTheme || this.state.lightTheme;
+          this.state.darkTheme = defaultSettings.darkTheme || this.state.darkTheme;
+          if (defaultSettings.backgroundImage) {
+            this.state.backgroundImage = defaultSettings.backgroundImage;
+            this.state.backgroundOpacity = defaultSettings.backgroundOpacity || 0.5;
+          }
+          logger.info('Loaded default theme settings from database', { module: 'theme' });
+        }
+      }
+    } catch (error) {
+      logger.warn('Failed to load default settings from database', { module: 'theme' });
     }
   }
 
@@ -129,10 +187,13 @@ class ProductionThemeService {
         if (settings.backgroundImage) {
           this.state.backgroundImage = settings.backgroundImage;
           this.state.backgroundOpacity = settings.backgroundOpacity || 0.5;
-          // Save to localStorage for future sessions
+        }
+        
+        // Save to localStorage for future sessions
+        localStorage.setItem('theme_settings', JSON.stringify(settings));
+        if (settings.backgroundImage) {
           localStorage.setItem('background-image', settings.backgroundImage);
           localStorage.setItem('background-opacity', this.state.backgroundOpacity.toString());
-          this.applyBackgroundToDOM();
         }
         
         logger.info('Loaded user theme settings', { module: 'theme' });
@@ -145,7 +206,7 @@ class ProductionThemeService {
   private applyTheme(): void {
     const currentColors = this.state.mode === 'dark' ? this.state.darkTheme : this.state.lightTheme;
     
-    // FIXED: Apply all theme colors to CSS variables and body
+    // Apply all theme colors to CSS variables and body
     const root = document.documentElement;
     root.style.setProperty('--background-color', currentColors.backgroundColor);
     root.style.setProperty('--primary-color', currentColors.primaryColor);
@@ -158,7 +219,7 @@ class ProductionThemeService {
     root.style.setProperty('--user-text-color', currentColors.userTextColor);
     root.style.setProperty('--ai-text-color', currentColors.aiTextColor);
 
-    // CRITICAL FIX: Apply background color to body immediately
+    // Apply background color to body immediately
     document.body.style.backgroundColor = currentColors.backgroundColor;
     document.body.style.color = currentColors.textColor;
 
@@ -185,7 +246,7 @@ class ProductionThemeService {
       body.style.backgroundAttachment = 'fixed';
       body.classList.add('with-bg-image');
       
-      // CRITICAL FIX: Apply background opacity correctly
+      // Apply background opacity correctly
       document.documentElement.style.setProperty('--bg-opacity', this.state.backgroundOpacity.toString());
       
       logger.info('Background image applied', { 
@@ -254,6 +315,38 @@ class ProductionThemeService {
     this.saveToProfile();
   }
 
+  /**
+   * Load default theme from database
+   */
+  async loadDefaultTheme(): Promise<boolean> {
+    try {
+      const appSettings = await fetchAppSettings();
+      if (appSettings?.default_theme_settings) {
+        const defaultSettings = JSON.parse(appSettings.default_theme_settings) as ThemeSettings;
+        
+        this.state.mode = defaultSettings.mode || this.state.mode;
+        this.state.lightTheme = defaultSettings.lightTheme || this.state.lightTheme;
+        this.state.darkTheme = defaultSettings.darkTheme || this.state.darkTheme;
+        this.state.backgroundImage = defaultSettings.backgroundImage || null;
+        this.state.backgroundOpacity = defaultSettings.backgroundOpacity || 0.5;
+        
+        this.applyTheme();
+        this.applyBackgroundToDOM();
+        this.notifyListeners();
+        this.saveToProfile();
+        
+        logger.info('Default theme loaded successfully', { module: 'theme' });
+        return true;
+      } else {
+        logger.warn('No default theme settings found in database', { module: 'theme' });
+        return false;
+      }
+    } catch (error) {
+      logger.error('Failed to load default theme', error, { module: 'theme' });
+      return false;
+    }
+  }
+
   private notifyListeners(): void {
     this.listeners.forEach(listener => {
       try {
@@ -281,6 +374,9 @@ class ProductionThemeService {
         exportDate: new Date().toISOString(),
         name: 'Custom Theme'
       };
+
+      // Save to localStorage immediately for persistence
+      localStorage.setItem('theme_settings', JSON.stringify(themeSettings));
 
       await client
         .from('profiles')
