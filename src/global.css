@@ -13,7 +13,7 @@ body {
 
 /* Link color inheritance */
 a {
-  color: var(--link-color);
+  color: hsl(var(--primary));
 }
 
 @layer base {
@@ -26,4 +26,22 @@ a {
     @apply mx-auto px-4;
     max-width: 1280px;
   }
+}
+
+/* Global loading styles with company color */
+.animate-spin {
+  color: hsl(var(--primary));
+}
+
+/* Override any blue colors with company red */
+.text-blue-500, .text-blue-600, .text-blue-700 {
+  color: hsl(var(--primary)) !important;
+}
+
+.bg-blue-500, .bg-blue-600, .bg-blue-700 {
+  background-color: hsl(var(--primary)) !important;
+}
+
+.border-blue-500, .border-blue-600, .border-blue-700 {
+  border-color: hsl(var(--primary)) !important;
 }
