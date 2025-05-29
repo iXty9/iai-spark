@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { cn } from '@/lib/utils';
 
 interface HeaderLogoProps {
   isMobile?: boolean;
@@ -8,7 +9,7 @@ interface HeaderLogoProps {
   };
 }
 
-export const HeaderLogo = ({ isMobile, dynamicPadding }: HeaderLogoProps) => {
+export const HeaderLogo = ({ isMobile }: HeaderLogoProps) => {
   const handleLogoClick = () => {
     window.open('https://ixty9.com', '_blank', 'noopener,noreferrer');
   };
@@ -21,10 +22,15 @@ export const HeaderLogo = ({ isMobile, dynamicPadding }: HeaderLogoProps) => {
       <img 
         src="https://ixty9.com/wp-content/uploads/2023/10/cropped-faviconV4.png" 
         alt="Ixty AI" 
-        className="h-6 w-6 mr-2 flex-shrink-0"
+        className="h-7 w-7 mr-2 flex-shrink-0"
       />
       <div className="flex-shrink-0">
-        <h1 className="text-base font-bold whitespace-nowrap">Ixty AI</h1>
+        <h1 className={cn(
+          "font-bold whitespace-nowrap",
+          isMobile ? "text-sm" : "text-base"
+        )}>
+          Ixty AI
+        </h1>
       </div>
     </div>
   );
