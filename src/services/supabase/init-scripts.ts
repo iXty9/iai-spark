@@ -87,6 +87,7 @@ export const initScripts = {
     RETURNS boolean
     LANGUAGE sql
     STABLE SECURITY DEFINER
+    SET search_path = 'public'
     AS $$
       SELECT EXISTS (
         SELECT 1
@@ -101,7 +102,7 @@ export const initScripts = {
     RETURNS trigger
     LANGUAGE plpgsql
     SECURITY DEFINER
-    SET search_path TO 'public'
+    SET search_path = 'public'
     AS $$
     BEGIN
       INSERT INTO public.profiles (id, username)
