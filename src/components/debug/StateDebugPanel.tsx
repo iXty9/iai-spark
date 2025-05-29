@@ -1,85 +1,21 @@
 
 import React, { useState, useEffect } from 'react';
 import { Message } from '@/types/chat';
-import { useDevMode } from '@/store/use-dev-mode';
-import { Button } from '@/components/ui/button';
-import { Clipboard, ClipboardCheck, ChevronDown, ChevronUp, Send } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { PerformanceMetrics } from './PerformanceMetrics';
 import { BrowserInfoPanel } from './BrowserInfoPanel';
 import { DomInfoPanel } from './DomInfoPanel';
 import { EventsActionsPanel } from './EventsActionsPanel';
+import { DebugPanelHeader } from './components/DebugPanelHeader';
+import { LogsPanel } from './components/LogsPanel';
+import { StatusInfoPanel } from './components/StatusInfoPanel';
+import { useDebugState } from './hooks/useDebugState';
+import { useDebugEvents } from './hooks/useDebugEvents';
+import { collectStorage } from './utils/storageUtils';
 import { toast } from "@/hooks/use-toast";
 import { sendDebugInfo } from '@/utils/debug';
 
-// Type declarations for browser APIs
-declare global {
-  interface Performance {
-    memory?: {
-      usedJSHeapSize: number;
-      totalJSHeapSize: number;
-    };
-  }
-  
-  interface Window {
-    debugState?: any;
-  }
-}
-
 const MAX_LOG = 100, MAX_CONSOLE = 50;
-const nowISO = () => new Date().toISOString();
-
-const getState = () => {
-  const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-  const isIOS = /iPad|iPhone|iPod/.test(userAgent) && /safari/i.test(userAgent);
-  return {
-    screen: 'Initializing...',
-    messagesCount: 0, isLoading: false, hasInteracted: false, isTransitioning: false,
-    lastAction: 'None', lastError: null, timestamp: nowISO(),
-    inputState: 'Ready', authState: 'Unknown', lastWebhookCall: null, lastWebhookResponse: null,
-    routeInfo: {
-      pathname: window.location.pathname,
-      fullUrl: window.location.href,
-      search: window.location.search,
-      hash: window.location.hash
-    },
-    browserInfo: {
-      userAgent, platform: navigator?.platform, viewport: { width: window.innerWidth, height: window.innerHeight },
-      devicePixelRatio: window.devicePixelRatio, isIOSSafari: isIOS
-    },
-    performanceInfo: {
-      memory: performance?.memory ? {
-        usedJSHeapSize: performance.memory.usedJSHeapSize,
-        totalJSHeapSize: performance.memory.totalJSHeapSize
-      } : undefined,
-      navigationTiming: performance.timing ? {
-        loadEventEnd: performance.timing.loadEventEnd,
-        domComplete: performance.timing.domComplete
-      } : undefined,
-      fps: 0
-    },
-    domInfo: {
-      bodyChildren: document.body?.children.length || 0,
-      totalElements: document.getElementsByTagName('*').length,
-      inputElements: document.getElementsByTagName('input').length
-    },
-    supabaseInfo: {
-      connectionStatus: 'unknown', lastConnectionAttempt: null, connectionLatency: null,
-      authStatus: 'unknown', retryCount: 0, lastError: null, environment: null, isInitialized: false
-    },
-    bootstrapInfo: { stage: 'not_started', startTime: null, completionTime: null, steps: [], lastError: null },
-    environmentInfo: {
-      type: null,
-      isDevelopment: process.env.NODE_ENV === 'development',
-      isProduction: process.env.NODE_ENV === 'production',
-      publicVars: {}
-    },
-    storageInfo: { availableSpace: null, usedSpace: null, appKeys: [], errors: [] },
-    consoleLogs: []
-  }
-};
-
-const logTypes = ['log','warn','info','error'] as const;
 
 export const StateDebugPanel = ({
   messages, isLoading, hasInteracted, message, isAuthLoading, isAuthenticated, lastWebhookCall = null
@@ -92,102 +28,34 @@ export const StateDebugPanel = ({
   isAuthenticated: boolean;
   lastWebhookCall?: string | null;
 }) => {
-  const { isDevMode } = useDevMode();
-  const [state, setState] = useState(getState);
+  const {
+    state,
+    setState,
+    fps,
+    setFps,
+    lastWebhookResponse,
+    setWebhookResp,
+    logs,
+    consoleLogs,
+    addLog,
+    addConsole,
+    isDevMode
+  } = useDebugState({ messages, isLoading, hasInteracted, message, isAuthLoading, isAuthenticated, lastWebhookCall });
+
   const [copied, setCopied] = useState(false);
   const [isExpanded, setExp] = useState(true);
-  const [fps, setFps] = useState(0);
-  const [lastWebhookResponse, setWebhookResp] = useState(null);
   const [isSending, setSending] = useState(false);
   const [sendingStatus, setSendingStatus] = useState<string>('');
-  const [logs, setLogs] = useState<Array<{timestamp: string, message: string}>>([]);
-  const [consoleLogs, setConsoleLogs] = useState<Array<{timestamp: string, type: string, message: string}>>([]);
 
-  const addLog = (m: string) => setLogs(l => [{timestamp: nowISO(), message: m}, ...l].slice(0, MAX_LOG));
-  const addConsole = (type: string, args: any[]) => {
-    const msg = Array.from(args).map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-    setConsoleLogs(l => ([{timestamp:nowISO(),type, message:msg},...l]).slice(0,MAX_CONSOLE));
-    if (window.debugState) {
-      window.debugState.consoleLogs = consoleLogs;
-    }
-  };
+  // Use the events hook
+  useDebugEvents(isDevMode, setState, addLog, addConsole, consoleLogs);
 
-  const events: Array<[string, (e: any) => void]> = [
-    ['chatDebug', (e: any) => { 
-      addLog(e.detail.lastAction||'Debug event');
-      setState(s => { 
-        const ns = {...s,...e.detail,timestamp:nowISO()}; 
-        window.debugState = ns; 
-        return ns;
-      }); 
-    }],
-    ['webhookCall', (e: any) => {
-      if(e.detail.status==='RESPONSE_RECEIVED'){ 
-        setWebhookResp(e.detail.responseData); 
-        addLog(`Webhook response: ${e.detail.webhookType||'Unknown'}`)
-      } 
-    }],
-    ['supabaseConnection', (e: any) => {
-      const d = e.detail; 
-      addLog(`Supabase connection: ${d.status}${d.error?'(Error: '+d.error+')':''}`);
-      setState(s => { 
-        const ns = {
-          ...s,
-          supabaseInfo: {
-            ...s.supabaseInfo,
-            ...d, 
-            lastConnectionAttempt: d.timestamp||nowISO(),
-            retryCount: d.status==='connecting' ? (s.supabaseInfo.retryCount||0)+1 : s.supabaseInfo.retryCount,
-            isInitialized: d.status==='connected'
-          },
-          timestamp: nowISO()
-        }; 
-        window.debugState = ns; 
-        return ns; 
-      });
-    }],
-    ['bootstrapProcess', (e: any) => {
-      const d = e.detail; 
-      addLog(`Bootstrap: ${d.stage}${d.error?'(Error: '+d.error+')':''}`);
-      setState(s => { 
-        const steps = [...(s.bootstrapInfo.steps||[])]; 
-        if (d.step) steps.push(d.step);
-        const ns = {
-          ...s,
-          bootstrapInfo: {
-            ...s.bootstrapInfo, 
-            stage: d.stage, 
-            startTime: s.bootstrapInfo.startTime||d.timestamp||nowISO(), 
-            completionTime: d.stage==='completed'?(d.timestamp||nowISO()):s.bootstrapInfo.completionTime, 
-            steps, 
-            lastError: d.error||s.bootstrapInfo.lastError
-          },
-          timestamp: nowISO()
-        }; 
-        window.debugState = ns; 
-        return ns; 
-      }); 
-    }]
-  ];
-
-  // One compact event + console log effect  
+  // Storage collection and FPS tracking
   useEffect(() => {
     if (!isDevMode) return;
-
-    logTypes.forEach(type => {
-      const fn = (console as any)[type];
-      (console as any)[type] = function(...args: any[]) {
-        addConsole(type, args);
-        fn.apply(console, args);
-      };
-    });
     
-    events.forEach(([eventName, callback]) => {
-      window.addEventListener(eventName, callback as EventListener);
-    });
-    
-    collectStorage();
-    const si = setInterval(collectStorage, 30000);
+    collectStorage(setState, isDevMode);
+    const si = setInterval(() => collectStorage(setState, isDevMode), 30000);
     
     const fpsLoop = (() => {
       let frame: number;
@@ -204,97 +72,23 @@ export const StateDebugPanel = ({
     })();
     
     return () => { 
-      events.forEach(([eventName, callback]) => {
-        window.removeEventListener(eventName, callback as EventListener);
-      }); 
-      logTypes.forEach(type => {
-        (console as any)[type] = (console as any)['_'+type];
-      }); 
       clearInterval(si); 
       fpsLoop(); 
     }
-    // eslint-disable-next-line
-  }, [isDevMode]);
+  }, [isDevMode, setState, setFps]);
 
-  // Store orig. console (preserve only once)
-  useEffect(() => { 
-    if (!isDevMode) return;
-    logTypes.forEach(t => (console as any)['_'+t] = (console as any)[t]); 
-    return () => {}; 
-  }, [isDevMode]);
-
-  function collectStorage() {
-    if (!isDevMode) return;
-
-    try {
-      const appKeys: string[] = [];
-      const ls = localStorage;
-      const len = ls.length; 
-      let tSize = 0;
-      for(let i = 0; i < len; i++) {
-        const k = ls.key(i);
-        if(k && (k.startsWith('app:') || k.startsWith('supabase') || k.startsWith('sb-'))) {
-          appKeys.push(k);
-          tSize += (ls.getItem(k)?.length || 0);
-        }
-      }
-      let available = null;
-      try {
-        let tst = '';
-        const chunk = 'a'.repeat(1024);
-        for(let i = 0; i < 10; i++) {
-          tst += chunk;
-          ls.setItem('__t', tst);
-          if(tst.length >= 1024*1024) break;
-        }
-        available = tst.length; 
-        ls.removeItem('__t');
-      } catch {
-        available = 0;
-      }
-      setState(s => { 
-        const n = {
-          ...s,
-          storageInfo: {
-            availableSpace: available,
-            usedSpace: tSize,
-            appKeys,
-            errors: []
-          }
-        }; 
-        window.debugState = n; 
-        return n; 
-      });
-    } catch(e: any) {
-      setState(s => { 
-        const n = {
-          ...s,
-          storageInfo: {
-            ...s.storageInfo, 
-            errors: [...(s.storageInfo.errors||[]), e.message]
-          }
-        };
-        window.debugState = n;
-        return n;
-      });
-    }
-  }
-
-  // All quick state sync
+  // State sync effect
   useEffect(() => {
     if (!isDevMode) return;
 
-    // Determine Supabase connection status based on auth state and initialization
     const connectionStatus = isAuthenticated ? 'connected' : 
                            isAuthLoading ? 'connecting' : 
                            'disconnected';
     
-    // Improved environment detection with better localStorage parsing
     const getEnvironment = () => {
       try {
         let storedEnv = localStorage.getItem('supabase_environment_local');
         
-        // Parse JSON environment if it exists
         if (storedEnv && storedEnv.startsWith('{')) {
           const envObj = JSON.parse(storedEnv);
           storedEnv = envObj.id || envObj.type || null;
@@ -303,12 +97,11 @@ export const StateDebugPanel = ({
         return storedEnv || 
                (window.location.hostname === 'localhost' ? 'development' : 'production');
       } catch (e) {
-        // Fallback if localStorage parsing fails
         return window.location.hostname === 'localhost' ? 'development' : 'production';
       }
     };
 
-    setState(s => ({
+    setState((s: any) => ({
       ...s,
       screen: messages.length === 0 ? 'Welcome Screen' : 'Chat Screen',
       messagesCount: messages.length,
@@ -350,12 +143,12 @@ export const StateDebugPanel = ({
       }
     }));
     // eslint-disable-next-line
-  }, [messages.length, isLoading, hasInteracted, message, isAuthLoading, isAuthenticated, fps, lastWebhookCall, lastWebhookResponse, isDevMode]);
+  }, [messages.length, isLoading, hasInteracted, message, isAuthLoading, isAuthenticated, fps, lastWebhookCall, lastWebhookResponse, isDevMode, setState]);
 
   useEffect(() => {
     if (!isDevMode) return;
 
-    const onResize = () => setState(s => ({
+    const onResize = () => setState((s: any) => ({
       ...s,
       browserInfo: {
         ...s.browserInfo,
@@ -364,7 +157,7 @@ export const StateDebugPanel = ({
     })); 
     window.addEventListener('resize', onResize); 
     return () => window.removeEventListener('resize', onResize)
-  }, [isDevMode]);
+  }, [isDevMode, setState]);
 
   // Panel handlers
   const copy = () => {
@@ -385,7 +178,7 @@ export const StateDebugPanel = ({
       const kf = (k: string) => k.startsWith('app:') || k.startsWith('supabase') || k.startsWith('sb-');
       const info = {
         ...dbg, 
-        timestamp: nowISO(), 
+        timestamp: new Date().toISOString(), 
         logs: logs.slice(0, 20), 
         consoleLogs: consoleLogs.slice(0, 50),
         userAgent: state.browserInfo.userAgent, 
@@ -413,7 +206,6 @@ export const StateDebugPanel = ({
     } catch(e: any) {
       setSendingStatus('');
       
-      // Better error handling for timeouts vs actual failures
       const isTimeout = e?.message?.includes('timeout') || e?.message?.includes('30 seconds');
       const errorTitle = isTimeout ? "Bug Report May Still Be Processing" : "Failed to Send Bug Report";
       const errorDesc = isTimeout ? 
@@ -434,48 +226,20 @@ export const StateDebugPanel = ({
   
   if (!isDevMode) return null;
   
-  // Helper UI render row
   const row = (k: string, v: any) => <div><span className="text-yellow-300">{k}:</span> {v}</div>;
-  const smallPanel = (title: string, col: string, body: React.ReactNode) =>
-    <div className="col-span-2 mt-2">
-      <div className={col + " font-bold mb-1"}>{title}</div>
-      <div className="text-[10px]">{body}</div>
-    </div>;
-  const logsView = (arr: any[], max: number, empty: string, colorFn?: (type: string) => string) => (
-    <div className="max-h-32 overflow-y-auto bg-black/40 p-1 rounded text-[10px]">
-      {arr.length
-        ? arr.map((entry, i) => <div key={i} className="mb-1">
-          <span className="text-gray-400">{new Date(entry.timestamp).toLocaleTimeString()}</span>
-          {colorFn && entry.type && <span className={colorFn(entry.type)}> [{entry.type}]</span>}: {entry.message}
-        </div>)
-        : <div className="text-gray-500">{empty}</div>
-      }
-    </div>
-  );
 
   return <div className="fixed left-0 w-full bg-black/90 text-white p-2 z-[9999] font-mono text-xs rounded-t-md border border-gray-700"
     style={{bottom: messages.length > 0 ? '80px' : '10px', maxHeight: isExpanded ? '40vh' : '32px', overflow: isExpanded ? 'auto' : 'hidden', transition: 'all .3s ease'}}
   >
-    <div className="flex justify-between items-center mb-1">
-      <h3 className="font-bold text-red-400">DEBUG PANEL</h3>
-      <div className="flex gap-2">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="h-6 w-6 text-gray-400 hover:text-white" 
-          onClick={send} 
-          disabled={isSending} 
-          title={isSending ? sendingStatus || "Sending..." : "Send Bug Report"}
-        >
-          <Send size={16} className={isSending ? "animate-pulse" : ""}/>
-        </Button>
-        <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white" onClick={copy} title="Copy debug info to clipboard">{copied?<ClipboardCheck size={16}/>:<Clipboard size={16}/>}</Button>
-        <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white" onClick={()=>setExp(e=>!e)} title={isExpanded ? "Collapse panel" : "Expand panel"}>{isExpanded?<ChevronDown size={16}/>:<ChevronUp size={16}/>}</Button>
-      </div>
-    </div>
-    {isSending && sendingStatus && (
-      <div className="text-blue-400 text-[10px] mb-1">{sendingStatus}</div>
-    )}
+    <DebugPanelHeader
+      copied={copied}
+      isExpanded={isExpanded}
+      isSending={isSending}
+      sendingStatus={sendingStatus}
+      onCopy={copy}
+      onToggleExpand={() => setExp(e => !e)}
+      onSend={send}
+    />
     {isExpanded && (
       <div className="grid grid-cols-2 gap-1">
         {row('Current Screen', state.screen)}
@@ -494,20 +258,8 @@ export const StateDebugPanel = ({
         <DomInfoPanel domInfo={state.domInfo}/>
         <Separator className="col-span-2 my-1 bg-gray-700"/>
         <EventsActionsPanel lastAction={state.lastAction} lastError={state.lastError} timestamp={state.timestamp} lastWebhookResponse={state.lastWebhookResponse}/>
-        {smallPanel('Recent Log Entries ('+logs.length+'/'+MAX_LOG+')',"text-orange-300",logsView(logs,MAX_LOG,"No logs yet"))}
-        {smallPanel('Console Logs ('+consoleLogs.length+'/'+MAX_CONSOLE+')',"text-blue-300",logsView(consoleLogs,MAX_CONSOLE,"No console logs captured",(t:string)=>(
-          t==='error'?' text-red-400':t==='warn'?' text-yellow-400':t==='info'?' text-blue-400':' text-green-400')))}
-        {smallPanel('Storage Info',"text-purple-300",<>
-          <div><span className="text-purple-200">App Keys:</span> {state.storageInfo.appKeys.length}</div>
-          <div><span className="text-purple-200">Used Space:</span> {state.storageInfo.usedSpace?Math.round(state.storageInfo.usedSpace/1024)+' KB':'Unknown'}</div>
-          {!!state.storageInfo.errors.length&&<div className="text-red-400">Storage Errors: {state.storageInfo.errors.join(', ')}</div>}
-        </>)}
-        {smallPanel('Supabase Status',"text-green-300",<>
-          <div><span className="text-green-200">Connection:</span> {state.supabaseInfo.connectionStatus}</div>
-          <div><span className="text-green-200">Auth Status:</span> {state.supabaseInfo.authStatus}</div>
-          <div><span className="text-green-200">Environment:</span> {state.supabaseInfo.environment||'Unknown'}</div>
-          {state.supabaseInfo.lastError&&<div className="text-red-400">Last Error: {state.supabaseInfo.lastError}</div>}
-        </>)}
+        <LogsPanel logs={logs} consoleLogs={consoleLogs} maxLog={MAX_LOG} maxConsole={MAX_CONSOLE} />
+        <StatusInfoPanel state={state} />
       </div>
     )}
   </div>
