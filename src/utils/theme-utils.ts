@@ -1,7 +1,7 @@
 
 /**
  * Theme utility functions
- * Enhanced utilities for theme operations with proper glass effect support
+ * Enhanced utilities for theme operations with proper CSS variable mapping
  */
 
 export const reloadTheme = () => {
@@ -21,12 +21,35 @@ export const applyThemeChanges = (themeColors: any) => {
   const root = document.documentElement;
   
   if (themeColors) {
+    // Map theme colors to CSS variables
+    const colorMappings = {
+      primaryColor: '--primary',
+      accentColor: '--accent',
+      backgroundColor: '--background',
+      textColor: '--foreground',
+    };
+
     Object.entries(themeColors).forEach(([key, value]) => {
+      // Handle opacity values
       if (key.includes('Opacity')) {
         root.style.setProperty(`--${kebabCase(key)}`, String(value));
-      } else {
+      } 
+      // Handle color mappings to standard CSS variables
+      else if (colorMappings[key]) {
+        // Convert hex color to HSL for CSS variable compatibility
+        const hslValue = hexToHsl(String(value));
+        root.style.setProperty(colorMappings[key], hslValue);
+        root.style.setProperty(`--${kebabCase(key)}`, String(value));
+      } 
+      // Handle other theme properties
+      else {
         root.style.setProperty(`--${kebabCase(key)}`, String(value));
       }
+    });
+
+    console.log('Applied theme changes with CSS variable mapping', { 
+      themeColors,
+      mappedVariables: Object.keys(colorMappings)
     });
   }
 };
@@ -91,4 +114,42 @@ export const applyBackgroundImage = (imageUrl: string | null, opacity: number) =
 // Helper function to convert camelCase to kebab-case
 const kebabCase = (str: string): string => {
   return str.replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '$1-$2').toLowerCase();
+};
+
+// Helper function to convert hex to HSL for CSS variables
+const hexToHsl = (hex: string): string => {
+  // Remove the hash if present
+  hex = hex.replace('#', '');
+  
+  // Convert hex to RGB
+  const r = parseInt(hex.substring(0, 2), 16) / 255;
+  const g = parseInt(hex.substring(2, 4), 16) / 255;
+  const b = parseInt(hex.substring(4, 6), 16) / 255;
+  
+  // Find the min and max values
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+  
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+  
+  // Convert to CSS HSL format (hue in degrees, saturation and lightness as percentages)
+  const hDeg = Math.round(h * 360);
+  const sPercent = Math.round(s * 100);
+  const lPercent = Math.round(l * 100);
+  
+  return `${hDeg} ${sPercent}% ${lPercent}%`;
 };

@@ -6,7 +6,7 @@ import { useDraftSettingsActions } from '@/hooks/settings/use-draft-settings-act
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Palette, Image, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Palette, Image, AlertCircle, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
 import { BackgroundSettings } from '@/components/settings/BackgroundSettings';
@@ -22,6 +22,7 @@ export default function Settings() {
     draftState,
     isInitialized,
     isSubmitting,
+    isLoading,
     hasChanges,
     imageInfo,
     updateDraftLightTheme,
@@ -31,7 +32,8 @@ export default function Settings() {
     updateDraftMode,
     saveChanges,
     discardChanges,
-    resetToDefaults
+    resetToDefaults,
+    refreshSettings
   } = useDraftSettingsState();
 
   const {
@@ -84,10 +86,14 @@ export default function Settings() {
     navigate('/');
   };
 
+  const handleRefresh = async () => {
+    await refreshSettings();
+  };
+
   // Show loading state while theme service initializes
-  if (!isInitialized || !draftState) {
+  if (isLoading || !isInitialized || !draftState) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen">
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-4xl mx-auto">
             <div className="animate-pulse space-y-4">
@@ -102,23 +108,35 @@ export default function Settings() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Page Header */}
-          <div className="flex items-center space-x-4 mb-8">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={handleGoBack}
-              aria-label="Go back"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold">Settings</h1>
-              <p className="text-muted-foreground">Customize your app experience</p>
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center space-x-4">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleGoBack}
+                aria-label="Go back"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold">Settings</h1>
+                <p className="text-muted-foreground">Customize your app experience</p>
+              </div>
             </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </Button>
           </div>
 
           {/* Unsaved Changes Alert */}

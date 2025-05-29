@@ -1,5 +1,5 @@
 
-/* Enhanced theme styles with proper glass effect support */
+/* Enhanced theme styles with proper glass effect support and color mapping */
 
 :root {
   /* Base theme variables */
@@ -9,7 +9,7 @@
   --card-foreground: 222.2 84% 4.9%;
   --popover: 0 0% 100%;
   --popover-foreground: 222.2 84% 4.9%;
-  --primary: 221.2 83.2% 53.3%;
+  --primary: 0 82% 55%; /* Default to company red #dd3333 */
   --primary-foreground: 210 40% 98%;
   --secondary: 210 40% 96%;
   --secondary-foreground: 222.2 84% 4.9%;
@@ -34,6 +34,12 @@
   --bg-image-url: none;
   --card-bg-opacity: 1;
   --card-backdrop-blur: 0px;
+
+  /* Custom theme color variables for direct mapping */
+  --primary-color: #dd3333;
+  --accent-color: #9b87f5;
+  --background-color: #ffffff;
+  --text-color: #000000;
 }
 
 .dark {
@@ -43,7 +49,7 @@
   --card-foreground: 210 40% 98%;
   --popover: 222.2 84% 4.9%;
   --popover-foreground: 210 40% 98%;
-  --primary: 217.2 91.2% 59.8%;
+  --primary: 0 82% 55%; /* Keep company red in dark mode */
   --primary-foreground: 222.2 84% 4.9%;
   --secondary: 217.2 32.6% 17.5%;
   --secondary-foreground: 210 40% 98%;
@@ -61,6 +67,12 @@
   --chart-3: 30 80% 55%;
   --chart-4: 280 65% 60%;
   --chart-5: 340 75% 55%;
+
+  /* Custom theme color variables for dark mode */
+  --primary-color: #dd3333;
+  --accent-color: #9b87f5;
+  --background-color: #121212;
+  --text-color: #ffffff;
 }
 
 /* Enhanced glass effect styles */
@@ -122,4 +134,31 @@ body.with-bg-image::before {
   body.with-bg-image::before {
     background-attachment: scroll;
   }
+}
+
+/* Force slider components to use the primary color */
+[data-radix-slider-track] {
+  background-color: hsl(var(--secondary));
+}
+
+[data-radix-slider-range] {
+  background-color: hsl(var(--primary));
+}
+
+[data-radix-slider-thumb] {
+  border-color: hsl(var(--primary));
+  background-color: hsl(var(--background));
+}
+
+[data-radix-slider-thumb]:focus-visible {
+  box-shadow: 0 0 0 2px hsl(var(--ring));
+}
+
+/* Ensure color inputs and sliders reflect theme colors */
+input[type="color"] {
+  border-color: hsl(var(--border));
+}
+
+input[type="color"]:focus {
+  ring-color: hsl(var(--ring));
 }

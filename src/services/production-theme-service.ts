@@ -1,4 +1,3 @@
-
 import { ThemeColors, ThemeSettings } from '@/types/theme';
 import { applyThemeChanges, applyBackgroundImage } from '@/utils/theme-utils';
 import { logger } from '@/utils/logging';
@@ -60,12 +59,18 @@ class ProductionThemeService {
     };
   }
 
-  async initialize(userSettings?: ThemeSettings): Promise<void> {
+  async initialize(userSettings?: ThemeSettings, forceReinit = false): Promise<void> {
+    // Allow forced reinitialization for fresh data loading
+    if (forceReinit) {
+      this.isInitialized = false;
+      this.initializationPromise = null;
+    }
+
     if (this.initializationPromise) {
       return this.initializationPromise;
     }
 
-    if (this.isInitialized) {
+    if (this.isInitialized && !forceReinit) {
       return Promise.resolve();
     }
 
@@ -75,7 +80,10 @@ class ProductionThemeService {
 
   private async performInitialization(userSettings?: ThemeSettings): Promise<void> {
     try {
-      logger.info('Initializing production theme service', { module: 'production-theme' });
+      logger.info('Initializing production theme service', { 
+        module: 'production-theme',
+        hasUserSettings: !!userSettings
+      });
 
       if (userSettings && this.validateThemeSettings(userSettings)) {
         this.state = {
@@ -92,6 +100,25 @@ class ProductionThemeService {
           backgroundImage: !!this.state.backgroundImage
         });
       } else {
+        // Try to load default theme from database
+        try {
+          const appSettings = await fetchAppSettings();
+          if (appSettings.default_theme_settings) {
+            const defaultSettings = JSON.parse(appSettings.default_theme_settings);
+            
+            if (this.validateThemeSettings(defaultSettings)) {
+              this.state.lightTheme = defaultSettings.lightTheme || this.getDefaultLightTheme();
+              this.state.darkTheme = defaultSettings.darkTheme || this.getDefaultDarkTheme();
+              this.state.backgroundImage = defaultSettings.backgroundImage || null;
+              this.state.backgroundOpacity = this.normalizeOpacity(defaultSettings.backgroundOpacity || 0.5);
+              
+              logger.info('Loaded default theme from database', { module: 'production-theme' });
+            }
+          }
+        } catch (error) {
+          logger.warn('Could not load default theme from database, using hardcoded defaults', error);
+        }
+        
         this.state.isReady = true;
         logger.info('Initialized with default settings', { module: 'production-theme' });
       }
@@ -276,6 +303,11 @@ class ProductionThemeService {
       exportDate: new Date().toISOString(),
       name: 'Custom Theme'
     };
+  }
+
+  // Method to force refresh from fresh user data
+  async refreshFromUserData(userSettings?: ThemeSettings): Promise<void> {
+    await this.initialize(userSettings, true);
   }
 }
 

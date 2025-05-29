@@ -4,6 +4,7 @@ import { ThemeColors } from '@/types/theme';
 import { productionThemeService } from '@/services/production-theme-service';
 import { logger } from '@/utils/logging';
 import { isEqual } from 'lodash';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface ImageInfo {
   originalSize?: string;
@@ -31,43 +32,69 @@ export const useDraftSettingsState = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageInfo, setImageInfo] = useState<ImageInfo>({});
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize states from theme service
-  useEffect(() => {
-    const initializeStates = async () => {
-      try {
-        // Wait for theme service to be ready
-        let attempts = 0;
-        while (!productionThemeService.getState().isReady && attempts < 50) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-          attempts++;
+  const { user, profile } = useAuth();
+
+  // Load fresh user settings when component mounts or user changes
+  const loadFreshUserSettings = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      logger.info('Loading fresh user settings for settings page', { module: 'draft-settings' });
+
+      // Load user theme settings from profile if available
+      let userThemeSettings = null;
+      if (user && profile?.theme_settings) {
+        try {
+          userThemeSettings = JSON.parse(profile.theme_settings);
+          logger.info('Loaded theme settings from user profile', { 
+            module: 'draft-settings',
+            hasBackground: !!userThemeSettings.backgroundImage
+          });
+        } catch (error) {
+          logger.error('Error parsing theme settings from profile:', error);
         }
-
-        const currentState = productionThemeService.getState();
-        const initialState: DraftSettingsState = {
-          lightTheme: currentState.lightTheme,
-          darkTheme: currentState.darkTheme,
-          backgroundImage: currentState.backgroundImage,
-          backgroundOpacity: currentState.backgroundOpacity,
-          mode: currentState.mode
-        };
-
-        setDraftState(initialState);
-        setSavedState(initialState);
-        setIsInitialized(true);
-
-        logger.info('Draft settings state initialized', { 
-          module: 'draft-settings',
-          hasBackground: !!initialState.backgroundImage
-        });
-      } catch (error) {
-        logger.error('Failed to initialize draft settings state:', error);
-        setIsInitialized(true);
       }
-    };
 
-    initializeStates();
-  }, []);
+      // Initialize production theme service with fresh data
+      await productionThemeService.initialize(userThemeSettings);
+
+      // Wait for theme service to be ready
+      let attempts = 0;
+      while (!productionThemeService.getState().isReady && attempts < 50) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+
+      const currentState = productionThemeService.getState();
+      const initialState: DraftSettingsState = {
+        lightTheme: currentState.lightTheme,
+        darkTheme: currentState.darkTheme,
+        backgroundImage: currentState.backgroundImage,
+        backgroundOpacity: currentState.backgroundOpacity,
+        mode: currentState.mode
+      };
+
+      setDraftState(initialState);
+      setSavedState(initialState);
+      setIsInitialized(true);
+
+      logger.info('Fresh settings loaded successfully', { 
+        module: 'draft-settings',
+        hasBackground: !!initialState.backgroundImage
+      });
+    } catch (error) {
+      logger.error('Failed to load fresh user settings:', error);
+      setIsInitialized(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, profile]);
+
+  // Load fresh data on mount
+  useEffect(() => {
+    loadFreshUserSettings();
+  }, [loadFreshUserSettings]);
 
   // Subscribe to theme service changes (for external updates)
   useEffect(() => {
@@ -247,12 +274,18 @@ export const useDraftSettingsState = () => {
     }
   }, []);
 
+  // Refresh data function for manual refresh
+  const refreshSettings = useCallback(async () => {
+    await loadFreshUserSettings();
+  }, [loadFreshUserSettings]);
+
   return {
     // State
     draftState,
     savedState,
     isInitialized,
     isSubmitting,
+    isLoading,
     hasChanges: hasChanges(),
     imageInfo,
     
@@ -267,6 +300,7 @@ export const useDraftSettingsState = () => {
     saveChanges,
     discardChanges,
     resetToDefaults,
+    refreshSettings,
     
     // Setters for UI state
     setIsSubmitting,
