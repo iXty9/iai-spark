@@ -31,7 +31,7 @@ const Index = () => {
   
   return (
     <div 
-      className={`h-screen w-full bg-transparent ${isIOSSafari ? 'ios-safari-page' : ''}`}
+      className={`h-screen w-full bg-transparent overflow-hidden ${isIOSSafari ? 'ios-safari-page' : ''}`}
       style={{ height: isIOSSafari ? 'calc(var(--vh, 1vh) * 100)' : '100vh' }}
     >
       <div className={`h-full w-full ${isIOSSafari ? 'ios-viewport-fix' : ''}`}>

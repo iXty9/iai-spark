@@ -29,39 +29,43 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
   const isMobile = useIsMobile();
 
   return (
-    <div className="relative mt-4">
+    <div className="relative">
       <Button
         variant="ghost"
         size="icon"
         onClick={() => setIsExpanded(!isExpanded)}
         className={cn(
-          "absolute left-1/2 -translate-x-1/2 z-10 rounded-full hover:bg-accent",
-          isExpanded ? "top-4" : "top-2"
+          "absolute left-1/2 -translate-x-1/2 z-20 rounded-full transition-all duration-300 hover:bg-[#dd3333]/10 hover:text-[#dd3333]",
+          isExpanded ? "top-4 bg-background/80 backdrop-blur-sm shadow-sm" : "top-2 bg-background/60 backdrop-blur-sm"
         )}
       >
-        <Menu className="h-5 w-5" />
+        <Menu className={cn(
+          "h-5 w-5 transition-transform duration-300",
+          isExpanded && "rotate-90"
+        )} />
       </Button>
 
       <div 
         className={cn(
-          "transform transition-all duration-300 ease-in-out overflow-hidden bg-background/80 backdrop-blur-sm rounded-lg shadow-sm",
-          isExpanded ? "max-h-20 opacity-100" : "max-h-0 opacity-0"
+          "transform transition-all duration-300 ease-out overflow-hidden bg-background/95 backdrop-blur-md rounded-lg shadow-lg border border-border/20",
+          isExpanded ? "max-h-20 opacity-100 mt-0" : "max-h-0 opacity-0 -mt-4"
         )}
         style={{
-          // Apply minimal or no padding on mobile
           paddingLeft: isExpanded ? (isMobile ? '0.5rem' : `${dynamicPadding.left}rem`) : 0,
           paddingRight: isExpanded ? (isMobile ? '0.5rem' : `${dynamicPadding.right}rem`) : 0
         }}
       >
-        <ChatHeader 
-          onClearChat={onClearChat} 
-          onExportChat={onExportChat}
-          onImportChat={onImportChat}
-          onReloadTheme={onReloadTheme}
-          hasMessages={hasMessages}
-          dynamicPadding={dynamicPadding}
-          isMobile={isMobile}
-        />
+        <div className="pt-12 pb-2">
+          <ChatHeader 
+            onClearChat={onClearChat} 
+            onExportChat={onExportChat}
+            onImportChat={onImportChat}
+            onReloadTheme={onReloadTheme}
+            hasMessages={hasMessages}
+            dynamicPadding={dynamicPadding}
+            isMobile={isMobile}
+          />
+        </div>
       </div>
     </div>
   );

@@ -14,6 +14,11 @@ body {
 /* CRITICAL: Enhanced link color inheritance with fallback */
 a {
   color: hsl(var(--primary));
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: #dd3333;
 }
 
 @layer base {
@@ -56,20 +61,20 @@ a {
 
 /* Global loading styles with company color - ENHANCED */
 .animate-spin {
-  color: hsl(var(--primary)) !important;
-  border-color: hsl(var(--primary)) !important;
+  color: #dd3333 !important;
+  border-color: #dd3333 !important;
 }
 
 /* Force all loading spinners to use company color */
 .animate-spin svg, .animate-spin * {
-  color: hsl(var(--primary)) !important;
-  stroke: hsl(var(--primary)) !important;
+  color: #dd3333 !important;
+  stroke: #dd3333 !important;
 }
 
 /* Loading spinner animation with company color */
 .loading-spinner {
   border: 3px solid hsl(var(--muted));
-  border-top: 3px solid hsl(var(--primary));
+  border-top: 3px solid #dd3333;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -82,6 +87,7 @@ a {
 /* Ensure Lucide icons respect the color */
 .lucide {
   color: inherit;
+  transition: color 0.2s ease;
 }
 
 /* Override specific cases where color might be hardcoded */
@@ -94,13 +100,13 @@ select {
 
 /* Focus states with company color */
 :focus-visible {
-  outline: 2px solid hsl(var(--primary));
+  outline: 2px solid #dd3333;
   outline-offset: 2px;
 }
 
 /* Ensure all progress bars use primary color */
 [data-state="indeterminate"] {
-  background-color: hsl(var(--primary)) !important;
+  background-color: #dd3333 !important;
 }
 
 /* Loading states consistency */
@@ -115,4 +121,9 @@ select {
   50% {
     opacity: .5;
   }
+}
+
+/* Enhanced transitions for smoother interactions */
+button, a, [role="menuitem"] {
+  transition: all 0.2s ease;
 }

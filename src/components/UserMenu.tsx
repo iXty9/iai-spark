@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -78,12 +79,12 @@ export const UserMenu = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative rounded-full h-8 w-8 border">
+        <Button variant="ghost" size="icon" className="relative rounded-full h-8 w-8 border border-border/40 hover:border-[#dd3333]/30 transition-all duration-200">
           <Avatar className="h-8 w-8">
             {user && profile?.avatar_url ? (
               <AvatarImage src={profile.avatar_url} alt={profile?.username || "User"} />
             ) : (
-              <AvatarFallback className={user ? "bg-primary/10" : "bg-secondary/80"}>
+              <AvatarFallback className={user ? "bg-primary/10 text-primary" : "bg-secondary/80"}>
                 {user ? getInitials() : <UserRound className="h-4 w-4" />}
               </AvatarFallback>
             )}
