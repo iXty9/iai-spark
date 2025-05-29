@@ -1,7 +1,6 @@
-
 /**
  * Theme utility functions
- * Enhanced utilities for theme operations with proper CSS variable mapping
+ * Enhanced utilities for theme operations with complete CSS variable mapping
  */
 
 export const reloadTheme = () => {
@@ -14,31 +13,47 @@ export const reloadTheme = () => {
 
 export const handleReloadTheme = reloadTheme;
 
-// Apply theme changes to CSS variables
+// Apply theme changes to CSS variables - COMPLETE MAPPING
 export const applyThemeChanges = (themeColors: any) => {
   if (typeof window === 'undefined') return;
   
   const root = document.documentElement;
   
   if (themeColors) {
-    // Map theme colors to CSS variables
+    // Complete mapping of ALL theme colors to CSS variables
     const colorMappings = {
+      // Core theme colors
       primaryColor: '--primary',
-      accentColor: '--accent',
+      accentColor: '--accent', 
       backgroundColor: '--background',
       textColor: '--foreground',
+      
+      // Message bubble colors - map to custom variables
+      userBubbleColor: '--user-bubble-color',
+      aiBubbleColor: '--ai-bubble-color',
+      userTextColor: '--user-text-color',
+      aiTextColor: '--ai-text-color',
+      
+      // Opacity values
+      userBubbleOpacity: '--user-bubble-opacity',
+      aiBubbleOpacity: '--ai-bubble-opacity'
     };
 
     Object.entries(themeColors).forEach(([key, value]) => {
-      // Handle opacity values
+      // Handle opacity values (keep as is)
       if (key.includes('Opacity')) {
         root.style.setProperty(`--${kebabCase(key)}`, String(value));
       } 
-      // Handle color mappings to standard CSS variables
+      // Handle color mappings to both standard CSS variables AND custom variables
       else if (colorMappings[key]) {
-        // Convert hex color to HSL for CSS variable compatibility
-        const hslValue = hexToHsl(String(value));
-        root.style.setProperty(colorMappings[key], hslValue);
+        if (key.includes('Color')) {
+          // Convert hex color to HSL for standard CSS variable compatibility
+          const hslValue = hexToHsl(String(value));
+          root.style.setProperty(colorMappings[key], hslValue);
+        }
+        // Always set the custom variable with the raw value
+        root.style.setProperty(colorMappings[key], String(value));
+        // Also set kebab-case version for backwards compatibility
         root.style.setProperty(`--${kebabCase(key)}`, String(value));
       } 
       // Handle other theme properties
@@ -47,7 +62,7 @@ export const applyThemeChanges = (themeColors: any) => {
       }
     });
 
-    console.log('Applied theme changes with CSS variable mapping', { 
+    console.log('Applied complete theme changes with full CSS variable mapping', { 
       themeColors,
       mappedVariables: Object.keys(colorMappings)
     });

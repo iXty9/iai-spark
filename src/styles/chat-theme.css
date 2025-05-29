@@ -1,11 +1,22 @@
 
-/* Chat message bubble styles */
+/* Chat message bubble styles - Updated to use CSS variables */
 .user-message {
   background-color: var(--user-bubble-color, var(--primary-color));
-  color: white;
+  color: var(--user-text-color, white);
+  opacity: var(--user-bubble-opacity, 1);
 }
 
 .ai-message {
   background-color: var(--ai-bubble-color, var(--accent-color));
-  color: var(--text-color);
+  color: var(--ai-text-color, var(--text-color));
+  opacity: var(--ai-bubble-opacity, 1);
+}
+
+/* Ensure message text colors are applied correctly */
+.user-message * {
+  color: var(--user-text-color, white) !important;
+}
+
+.ai-message * {
+  color: var(--ai-text-color, var(--text-color)) !important;
 }

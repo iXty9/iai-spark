@@ -123,7 +123,7 @@ class ProductionThemeService {
         logger.info('Initialized with default settings', { module: 'production-theme' });
       }
 
-      // Apply theme and background immediately
+      // Apply theme and background immediately with complete mapping
       this.applyCurrentTheme();
       this.applyCurrentBackground();
       
@@ -216,8 +216,9 @@ class ProductionThemeService {
 
   // Preview methods that don't update state but apply visual changes
   previewTheme(colors: ThemeColors, mode: 'light' | 'dark'): void {
+    // Use the enhanced applyThemeChanges function with complete mapping
     applyThemeChanges(colors);
-    logger.info('Theme preview applied', { module: 'production-theme', mode });
+    logger.info('Theme preview applied with complete color mapping', { module: 'production-theme', mode });
   }
 
   previewBackground(image: string | null, opacity: number): void {
@@ -237,7 +238,12 @@ class ProductionThemeService {
 
   private applyCurrentTheme(): void {
     const currentColors = this.state.mode === 'dark' ? this.state.darkTheme : this.state.lightTheme;
+    // Use the enhanced applyThemeChanges function with complete mapping
     applyThemeChanges(currentColors);
+    
+    // Also update body classes for theme mode
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(this.state.mode);
   }
 
   private applyCurrentBackground(): void {
