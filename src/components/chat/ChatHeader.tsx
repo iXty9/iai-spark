@@ -60,16 +60,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       <div className="flex items-center gap-2">
         <UserMenu />
         
-        <HeaderActions 
-          onClearChat={onClearChat}
-          onExportChat={onExportChat}
-          onImportChat={onImportChat}
-          onReloadTheme={onReloadTheme}
-          onImportClick={handleImportClick}
-          hasMessages={hasMessages}
-          dynamicPadding={{ right: dynamicPadding.right }}
-          isMobile={isMobile}
-        />
+        <HeaderActions />
 
         <input
           type="file"
