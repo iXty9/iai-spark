@@ -1,4 +1,3 @@
-
 import { Message } from '@/types/chat';
 import { logger } from '@/utils/logging';
 
@@ -6,8 +5,7 @@ import { logger } from '@/utils/logging';
  * Processes metadata from webhook responses and adds it to the message
  */
 export function processResponseMetadata(message: Message, data: any): void {
-  // Always store the raw response for complete data preservation
-  message.rawResponse = data;
+  // NOTE: rawResponse is already set in message-processor.ts, don't overwrite it here
   
   // Add metadata for debugging and data integrity
   message.metadata = {

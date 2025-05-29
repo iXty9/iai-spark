@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Message } from '@/types/chat';
@@ -114,24 +113,22 @@ export const useChatSubmit = ({
         }
       });
       
-      const aiMessage: Message = {
-        id: uuidv4(),
-        content: aiResponse.content || 'No response received',
-        sender: 'ai',
-        timestamp: new Date()
-      };
-      
+      // Use the enhanced message object returned by processMessage instead of creating a new one
+      // This preserves rawRequest, rawResponse, tokenInfo, and other enhanced fields
       logger.info('AI response received', {
-        messageId: aiMessage.id,
-        responseTime: aiMessage.timestamp.getTime() - userMessage.timestamp.getTime(),
-        contentLength: aiMessage.content.length
+        messageId: aiResponse.id,
+        responseTime: aiResponse.timestamp.getTime() - userMessage.timestamp.getTime(),
+        contentLength: aiResponse.content.length,
+        hasRawRequest: !!aiResponse.rawRequest,
+        hasRawResponse: !!aiResponse.rawResponse,
+        hasTokenInfo: !!aiResponse.tokenInfo
       }, { module: 'chat' });
       
       window.dispatchEvent(new CustomEvent('aiRequestEnd', { 
         detail: { duration: Date.now() - requestStartTime, messageId: userMessage.id } 
       }));
       
-      addMessage(aiMessage);
+      addMessage(aiResponse);
       currentRequest = null;
       
     } catch (error) {
