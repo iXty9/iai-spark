@@ -5,7 +5,6 @@ import { Message as MessageType } from '@/types/chat';
 import { MessageActions } from './MessageActions';
 import { MessageAvatar } from './message/MessageAvatar';
 import MessageContent from './message/MessageContent';
-import { DynamicNameTag } from './message/DynamicNameTag';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface MessageProps {
@@ -67,11 +66,13 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
         'flex flex-col', 
         isUser ? 'items-end' : 'items-start'
       )}>
-        {/* Dynamic name tag with optimal contrast */}
-        <DynamicNameTag 
-          displayName={displayName}
-          isUser={isUser}
-        />
+        {/* Username text only (no inline avatar) with symmetrical spacing */}
+        <div className={cn(
+          'text-xs mb-1 font-medium', 
+          isUser ? 'text-right' : 'text-left'
+        )}>
+          {displayName}
+        </div>
         
         {/* Message bubble */}
         <div

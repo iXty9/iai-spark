@@ -116,33 +116,3 @@ select {
     opacity: .5;
   }
 }
-
-/* Enhanced dynamic contrast support for name tags */
-.dynamic-name-tag {
-  transition: color 300ms ease-in-out, text-shadow 300ms ease-in-out;
-}
-
-/* Improved text shadows for better readability on complex backgrounds */
-.text-shadow-soft {
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.text-shadow-medium {
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
-.text-shadow-strong {
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-}
-
-/* Ensure smooth transitions for all dynamic color changes */
-* {
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-/* Override transition for elements that should change instantly */
-.no-transition {
-  transition: none !important;
-}
