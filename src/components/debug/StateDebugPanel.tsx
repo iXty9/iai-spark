@@ -37,6 +37,12 @@ const getState = () => {
     messagesCount: 0, isLoading: false, hasInteracted: false, isTransitioning: false,
     lastAction: 'None', lastError: null, timestamp: nowISO(),
     inputState: 'Ready', authState: 'Unknown', lastWebhookCall: null, lastWebhookResponse: null,
+    routeInfo: {
+      pathname: window.location.pathname,
+      fullUrl: window.location.href,
+      search: window.location.search,
+      hash: window.location.hash
+    },
     browserInfo: {
       userAgent, platform: navigator?.platform, viewport: { width: window.innerWidth, height: window.innerHeight },
       devicePixelRatio: window.devicePixelRatio, isIOSSafari: isIOS
@@ -277,6 +283,16 @@ export const StateDebugPanel = ({
   useEffect(() => {
     if (!isDevMode) return;
 
+    // Determine Supabase connection status based on auth state and initialization
+    const connectionStatus = isAuthenticated ? 'connected' : 
+                           isAuthLoading ? 'connecting' : 
+                           'disconnected';
+    
+    // Get environment from localStorage or determine from hostname
+    const storedEnv = localStorage.getItem('supabase_environment_local');
+    const environment = storedEnv || 
+                       (window.location.hostname === 'localhost' ? 'development' : 'production');
+
     setState(s => ({
       ...s,
       screen: messages.length === 0 ? 'Welcome Screen' : 'Chat Screen',
@@ -287,6 +303,19 @@ export const StateDebugPanel = ({
       lastWebhookResponse,
       inputState: isLoading ? 'Disabled' : message.trim() ? 'Ready to Send' : 'Empty',
       authState: isAuthLoading ? 'Loading...' : isAuthenticated ? 'Authenticated' : 'Not Authenticated',
+      routeInfo: {
+        pathname: window.location.pathname,
+        fullUrl: window.location.href,
+        search: window.location.search,
+        hash: window.location.hash
+      },
+      supabaseInfo: {
+        ...s.supabaseInfo,
+        connectionStatus,
+        authStatus: isAuthenticated ? 'authenticated' : 'unauthenticated',
+        environment,
+        isInitialized: isAuthenticated
+      },
       browserInfo: {
         ...s.browserInfo,
         viewport: {width: window.innerWidth, height: window.innerHeight}
@@ -355,14 +384,14 @@ export const StateDebugPanel = ({
       };
       const result = await sendDebugInfo(info);
       if(result.success) {
-        toast({title: "Debug Info Sent", description: "Successfully sent debug info to webhook"}); 
-        addLog("Debug info sent to webhook");
+        toast({title: "Bug Report Sent", description: "Successfully sent bug report to development team"}); 
+        addLog("Bug report sent to development team");
       } else {
         throw new Error(result.error);
       }
     } catch(e: any) {
-      toast({variant: "destructive", title: "Failed to Send Debug Info", description: e?.message}); 
-      addLog(`Error sending debug info: ${e?.message}`);
+      toast({variant: "destructive", title: "Failed to Send Bug Report", description: e?.message}); 
+      addLog(`Error sending bug report: ${e?.message}`);
     } finally {
       setSending(false)
     }
@@ -395,7 +424,7 @@ export const StateDebugPanel = ({
     <div className="flex justify-between items-center mb-1">
       <h3 className="font-bold text-red-400">DEBUG PANEL</h3>
       <div className="flex gap-2">
-        <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white" onClick={send} disabled={isSending} title="Send debug info to webhook"><Send size={16} className={isSending ? "animate-pulse" : ""}/></Button>
+        <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white" onClick={send} disabled={isSending} title="Send Bug Report"><Send size={16} className={isSending ? "animate-pulse" : ""}/></Button>
         <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white" onClick={copy} title="Copy debug info to clipboard">{copied?<ClipboardCheck size={16}/>:<Clipboard size={16}/>}</Button>
         <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white" onClick={()=>setExp(e=>!e)} title={isExpanded ? "Collapse panel" : "Expand panel"}>{isExpanded?<ChevronDown size={16}/>:<ChevronUp size={16}/>}</Button>
       </div>
@@ -403,6 +432,7 @@ export const StateDebugPanel = ({
     {isExpanded && (
       <div className="grid grid-cols-2 gap-1">
         {row('Current Screen', state.screen)}
+        {row('Current Route', state.routeInfo.pathname)}
         {row('Messages', state.messagesCount)}
         {row('Loading', `${state.isLoading}`)}
         {row('Has Interacted', `${state.hasInteracted}`)}
