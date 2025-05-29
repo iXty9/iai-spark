@@ -1,3 +1,4 @@
+
 import { emitDebugEvent } from '@/utils/debug-events';
 import { logger } from '@/utils/logging';
 import { getWebhookUrl, getWebhookTimeout } from './url-provider';
@@ -39,8 +40,11 @@ export const sendWebhookMessage = async (
   // Skip or delay webhook calls if tab is inactive
   if (!webhookSessionTracker.tabActive) {
     logger.debug('Delaying webhook call as tab is inactive', {}, { module: 'webhook' });
-    // Return mock response for inactive tabs
-    return { inactive_tab: true, message: "Tab inactive, delaying real API call" };
+    // Return mock response for inactive tabs with proper structure
+    return { 
+      request: { message: "Tab inactive, delaying real API call" }, 
+      response: { inactive_tab: true, message: "Tab inactive, delaying real API call" } 
+    };
   }
   
   // Apply rate limiting based on authentication status
