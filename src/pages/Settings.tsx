@@ -1,4 +1,3 @@
-
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
 import { useSettingsState } from '@/hooks/settings/use-settings-state';
@@ -68,6 +67,15 @@ export default function Settings() {
     updateProfile
   });
 
+  // Create wrapper functions to match AppearanceSettings prop types
+  const handleLightThemeChangeWrapper = (colorKey: string, value: string | number) => {
+    handleLightThemeChange({ name: colorKey, value });
+  };
+
+  const handleDarkThemeChangeWrapper = (colorKey: string, value: string | number) => {
+    handleDarkThemeChange({ name: colorKey, value });
+  };
+
   if (isLoading || !isInitialized) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -93,15 +101,16 @@ export default function Settings() {
               lightTheme={lightTheme}
               darkTheme={darkTheme}
               onThemeChange={handleThemeChange}
-              onLightThemeChange={handleLightThemeChange}
-              onDarkThemeChange={handleDarkThemeChange}
+              onLightThemeChange={handleLightThemeChangeWrapper}
+              onDarkThemeChange={handleDarkThemeChangeWrapper}
+              onResetTheme={handleResetSettings}
             />
             
             <BackgroundSettings
               backgroundImage={backgroundImage}
               backgroundOpacity={backgroundOpacity}
               imageInfo={imageInfo}
-              onImageChange={handleBackgroundImageUpload}
+              onBackgroundImageUpload={handleBackgroundImageUpload}
               onRemoveBackground={handleRemoveBackground}
               onOpacityChange={handleOpacityChange}
               setImageInfo={setImageInfo}
