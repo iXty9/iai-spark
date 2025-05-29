@@ -1,4 +1,3 @@
-
 import { Skeleton } from '@/components/ui/skeleton';
 import { UserManagementHeader } from './users/UserManagementHeader';
 import { UsersTable } from './users/UsersTable';
@@ -104,7 +103,7 @@ function UserManagementContent() {
         onSearch={() => fetchAndSetUsers(true)}
         onRefresh={() => fetchAndSetUsers(false)}
         loading={loading}
-        connectionInfo={connectionStatus?.environmentInfo}
+        connectionStatus={connectionStatus}
         onOpenEnvironmentSettings={() => setDialog('environment')}
       />
 

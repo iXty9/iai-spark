@@ -17,7 +17,7 @@ interface UserManagementHeaderProps {
   onSearch: () => void;
   onRefresh: () => void;
   loading: boolean;
-  connectionInfo: any;
+  connectionStatus: any;
   onOpenEnvironmentSettings: () => void;
 }
 
@@ -31,7 +31,7 @@ export function UserManagementHeader({
   onSearch,
   onRefresh,
   loading,
-  connectionInfo,
+  connectionStatus,
   onOpenEnvironmentSettings
 }: UserManagementHeaderProps) {
   const clearFilters = () => {
@@ -40,18 +40,18 @@ export function UserManagementHeader({
   };
 
   const getConnectionStatusColor = () => {
-    if (!connectionInfo) return 'bg-gray-500';
-    if (!connectionInfo.isConnected) return 'bg-red-500';
-    if (!connectionInfo.isAuthenticated) return 'bg-yellow-500';
-    if (!connectionInfo.isAdmin) return 'bg-orange-500';
+    if (!connectionStatus) return 'bg-gray-500';
+    if (!connectionStatus.isConnected) return 'bg-red-500';
+    if (!connectionStatus.isAuthenticated) return 'bg-yellow-500';
+    if (!connectionStatus.isAdmin) return 'bg-orange-500';
     return 'bg-green-500';
   };
 
   const getConnectionStatusText = () => {
-    if (!connectionInfo) return 'Unknown';
-    if (!connectionInfo.isConnected) return 'Disconnected';
-    if (!connectionInfo.isAuthenticated) return 'Unauthenticated';
-    if (!connectionInfo.isAdmin) return 'No Admin Access';
+    if (!connectionStatus) return 'Unknown';
+    if (!connectionStatus.isConnected) return 'Disconnected';
+    if (!connectionStatus.isAuthenticated) return 'Unauthenticated';
+    if (!connectionStatus.isAdmin) return 'No Admin Access';
     return 'Connected';
   };
 
@@ -60,7 +60,7 @@ export function UserManagementHeader({
   return (
     <div className="space-y-4">
       {/* Environment indicator */}
-      {connectionInfo && (
+      {connectionStatus && (
         <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg border">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
@@ -68,7 +68,7 @@ export function UserManagementHeader({
               <span className="text-sm font-medium">{getConnectionStatusText()}</span>
             </div>
             <Badge variant="outline" className="text-xs">
-              {connectionInfo?.environmentId || 'unknown'}
+              {connectionStatus?.environmentInfo?.environmentId || 'unknown'}
             </Badge>
           </div>
           <TooltipProvider>
