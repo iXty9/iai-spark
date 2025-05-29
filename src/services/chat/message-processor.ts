@@ -1,3 +1,4 @@
+
 import { Message } from '@/types/chat';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { parseWebhookResponse } from '@/utils/debug';
@@ -14,6 +15,7 @@ export async function processMessage({
   onMessageComplete,
   onError,
   isAuthenticated = false,
+  userProfile = null,
 }: SendMessageParams): Promise<Message & { cancel?: () => void }> {
   let canceled = false;
   let controller = new AbortController();
@@ -42,7 +44,7 @@ export async function processMessage({
 
     let data, responseText;
     try {
-      data = await sendWebhookMessage(message, isAuthenticated);
+      data = await sendWebhookMessage(message, isAuthenticated, userProfile);
       responseText = parseWebhookResponse(data);
       debug({ lastAction: 'API: Successfully parsed webhook response' });
     } catch (error) {
