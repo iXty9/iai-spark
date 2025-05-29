@@ -98,15 +98,16 @@ const createDevEmitter = () => {
   
   // Cleanup on page unload
   if (typeof window !== 'undefined') {
-    const devModeHandler = (e: CustomEvent) => {
-      eventTracker.updateDevModeState(e.detail.isDevMode);
+    const devModeHandler = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      eventTracker.updateDevModeState(customEvent.detail.isDevMode);
     };
     
     const unloadHandler = () => {
       clearInterval(cleanupInterval);
     };
     
-    window.addEventListener('devModeChanged', devModeHandler as EventListener);
+    window.addEventListener('devModeChanged', devModeHandler);
     window.addEventListener('beforeunload', unloadHandler);
   }
 
@@ -125,13 +126,20 @@ const createDevEmitter = () => {
       return;
     }
     
+    // Ensure window exists before dispatching events
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
     // Use requestIdleCallback for non-critical debug events
     if ('requestIdleCallback' in window) {
       requestIdleCallback(() => {
-        const event = new CustomEvent('chatDebug', { 
-          detail: eventWithTimestamp 
-        });
-        window.dispatchEvent(event);
+        if (typeof window !== 'undefined') {
+          const event = new CustomEvent('chatDebug', { 
+            detail: eventWithTimestamp 
+          });
+          window.dispatchEvent(event);
+        }
       });
     } else {
       // Fallback for browsers without requestIdleCallback
