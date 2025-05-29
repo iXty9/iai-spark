@@ -5,6 +5,7 @@ import { ThemeColors } from '@/types/theme';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { RotateCcw, Sun, Moon } from 'lucide-react';
+import { useTheme } from '@/hooks/use-theme';
 
 export interface AppearanceSettingsProps {
   theme: 'light' | 'dark';
@@ -23,6 +24,8 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
   onDarkThemeChange,
   onResetTheme
 }) => {
+  const { setMode } = useTheme();
+
   // Create wrapper functions to adapt the event-based interface to the colorKey/value interface
   const handleLightThemeChange = (e: React.ChangeEvent<HTMLInputElement> | { name: string; value: any }) => {
     if ('target' in e) {
@@ -38,6 +41,12 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
     } else {
       onDarkThemeChange(e.name, e.value);
     }
+  };
+
+  // Handle tab change to also switch the application theme mode
+  const handleTabChange = (value: string) => {
+    const newMode = value as 'light' | 'dark';
+    setMode(newMode);
   };
   
   return (
@@ -62,7 +71,7 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
       </div>
 
       {/* Theme Mode Tabs */}
-      <Tabs defaultValue={theme === 'light' ? 'light' : 'dark'}>
+      <Tabs value={theme} onValueChange={handleTabChange}>
         <TabsList className="grid grid-cols-2 mb-4">
           <TabsTrigger value="light" className="flex items-center gap-2">
             <Sun className="h-4 w-4" />
