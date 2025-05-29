@@ -1,4 +1,5 @@
 
+
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
 import { useSettingsState } from '@/hooks/settings/use-settings-state';
@@ -114,8 +115,6 @@ export default function Settings() {
               onRemoveBackground={handleRemoveBackground}
               onOpacityChange={handleOpacityChange}
               isLoading={isBackgroundLoading}
-              error={backgroundError}
-              isApplied={isBackgroundApplied}
             />
             
             <SettingsActions
@@ -140,3 +139,4 @@ export default function Settings() {
     </div>
   );
 }
+
