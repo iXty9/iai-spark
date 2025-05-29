@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -14,7 +13,6 @@ import Initialize from '@/pages/Initialize';
 import { ErrorPage } from '@/pages/ErrorPage';
 import NotFound from '@/pages/NotFound';
 import Reconnect from '@/pages/Reconnect';
-import { InitializePage } from '@/pages/InitializePage';
 import SupabaseAuth from '@/pages/SupabaseAuth';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { ProductionErrorBoundary } from '@/components/error/ProductionErrorBoundary';
@@ -101,7 +99,6 @@ function App() {
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/supabase-auth" element={<SupabaseAuth />} />
                   <Route path="/initialize" element={<Initialize />} />
-                  <Route path="/init" element={<InitializePage />} />
                   <Route path="/reconnect" element={<Reconnect />} />
                   <Route path="/chat" element={<Index />} />
                   <Route path="/error" element={<ErrorPage />} />
