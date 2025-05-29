@@ -1,15 +1,15 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { 
   Download, Trash2, Sun, Moon, Code, 
-  Upload, RefreshCw, MoreHorizontal
+  Upload, RefreshCw 
 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { useTheme } from '@/hooks/use-theme';
 import { useDevMode } from '@/store/use-dev-mode';
@@ -28,7 +28,6 @@ interface HeaderActionsProps {
     right: number;
   };
   isMobile?: boolean;
-  isCompact?: boolean;
 }
 
 export const HeaderActions = ({ 
@@ -39,8 +38,7 @@ export const HeaderActions = ({
   onImportClick,
   hasMessages = false,
   dynamicPadding = { right: 4 },
-  isMobile = false,
-  isCompact = false
+  isMobile = false
 }: HeaderActionsProps) => {
   const { theme, setTheme } = useTheme();
   const { isDevMode, toggleDevMode } = useDevMode();
@@ -48,12 +46,14 @@ export const HeaderActions = ({
   const handleDevModeToggle = (e: React.MouseEvent) => {
     e.preventDefault();
     try {
+      // Show toast notification
       toast({
         title: `Dev Mode ${isDevMode ? 'Disabled' : 'Enabled'}`,
         description: `Developer tools are now ${isDevMode ? 'disabled' : 'enabled'}`,
         duration: 2000,
       });
       
+      // Toggle with slight delay to allow React to process changes
       setTimeout(() => {
         toggleDevMode();
       }, 0);
@@ -67,26 +67,33 @@ export const HeaderActions = ({
     }
   };
 
+  // Function to handle force reloading theme
   const handleReloadTheme = async () => {
     try {
+      // Show loading toast
       toast({
         title: "Loading Theme",
         description: "Fetching default theme settings...",
         duration: 1500,
       });
 
+      // Force reload settings from backend
       const settings = await fetchAppSettings();
       
       if (settings.default_theme_settings) {
+        // Parse theme settings
         const themeSettings = JSON.parse(settings.default_theme_settings);
         
+        // Apply theme colors based on current mode
         const currentTheme = theme === 'light' 
           ? themeSettings.lightTheme 
           : themeSettings.darkTheme;
         
         if (currentTheme) {
+          // Apply theme colors
           applyThemeChanges(currentTheme);
           
+          // Apply background if available
           if (themeSettings.backgroundImage) {
             const opacity = parseFloat(themeSettings.backgroundOpacity || '0.5');
             applyBackgroundImage(themeSettings.backgroundImage, opacity);
@@ -94,6 +101,7 @@ export const HeaderActions = ({
             applyBackgroundImage(null, 0.5);
           }
           
+          // Show success toast
           toast({
             title: "Theme Loaded",
             description: `Default theme applied successfully (${theme} mode)`,
@@ -114,6 +122,7 @@ export const HeaderActions = ({
         });
       }
       
+      // Call the parent's reload handler if provided
       if (onReloadTheme) {
         onReloadTheme();
       }
@@ -126,113 +135,78 @@ export const HeaderActions = ({
       });
     }
   };
-
-  if (isCompact) {
-    return (
-      <div className="flex items-center gap-1">
-        {!isMobile && (
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            className="h-8 w-8"
-          >
-            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </Button>
-        )}
-        
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-background border shadow-md rounded-xl z-50">
-            <DropdownMenuItem onClick={handleReloadTheme}>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              <span>Load Theme</span>
-            </DropdownMenuItem>
-            
-            {hasMessages && (
-              <DropdownMenuItem onClick={onExportChat}>
-                <Download className="mr-2 h-4 w-4" />
-                <span>Export</span>
-              </DropdownMenuItem>
-            )}
-            
-            <DropdownMenuItem onClick={onImportClick}>
-              <Upload className="mr-2 h-4 w-4" />
-              <span>Import</span>
-            </DropdownMenuItem>
-            
-            <DropdownMenuItem onClick={onClearChat}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              <span>Clear</span>
-            </DropdownMenuItem>
-            
-            <DropdownMenuSeparator />
-            
-            <DropdownMenuItem onClick={handleDevModeToggle}>
-              <Code className="mr-2 h-4 w-4" />
-              <span>Dev {isDevMode ? '(On)' : '(Off)'}</span>
-            </DropdownMenuItem>
-            
-            {isMobile && (
-              <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-                {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
-                <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    );
-  }
   
   return (
     <div 
-      className="flex items-center gap-2 justify-center w-full"
+      className="flex items-center gap-2"
       style={{ 
         marginRight: isMobile ? '0' : `calc(${dynamicPadding.right / 4}rem - 1rem)` 
       }}
     >
-      <Button 
-        variant="ghost" 
-        size="sm"
-        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-        aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-      >
-        {theme === 'dark' ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
-        {theme === 'dark' ? 'Light' : 'Dark'}
-      </Button>
-      
-      <Button variant="ghost" size="sm" onClick={handleReloadTheme}>
-        <RefreshCw className="h-4 w-4 mr-2" />
-        Load Theme
-      </Button>
-      
-      {hasMessages && (
-        <Button variant="ghost" size="sm" onClick={onExportChat}>
-          <Download className="h-4 w-4 mr-2" />
-          Export
+      {!isMobile && (
+        <Button 
+          variant="ghost" 
+          size="icon"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </Button>
       )}
       
-      <Button variant="ghost" size="sm" onClick={onImportClick}>
-        <Upload className="h-4 w-4 mr-2" />
-        Import
-      </Button>
-      
-      <Button variant="ghost" size="sm" onClick={onClearChat}>
-        <Trash2 className="h-4 w-4 mr-2" />
-        Clear
-      </Button>
-      
-      <Button variant="ghost" size="sm" onClick={handleDevModeToggle}>
-        <Code className="h-4 w-4 mr-2" />
-        Dev {isDevMode ? '(On)' : '(Off)'}
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size={isMobile ? "xs" : "sm"}>
+            Actions
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="bg-background border shadow-md rounded-xl z-50">
+          {/* Load Theme option */}
+          <DropdownMenuItem onClick={handleReloadTheme} className={isMobile ? "flex items-center" : ""}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            <span>{isMobile ? "Load Theme" : "Load Default Theme"}</span>
+          </DropdownMenuItem>
+          
+          {!isMobile && hasMessages && (
+            <DropdownMenuItem onClick={onExportChat}>
+              <Download className="mr-2 h-4 w-4" />
+              <span>Export Chat</span>
+            </DropdownMenuItem>
+          )}
+          {isMobile && hasMessages && (
+            <DropdownMenuItem onClick={onExportChat} className="flex items-center">
+              <Download className="mr-2 h-4 w-4" />
+              <span>Export</span>
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem onClick={onImportClick} className={isMobile ? "flex items-center" : ""}>
+            <Upload className="mr-2 h-4 w-4" />
+            <span>{isMobile ? "Import" : "Import Chat"}</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onClearChat} className={isMobile ? "flex items-center" : ""}>
+            <Trash2 className="mr-2 h-4 w-4" />
+            <span>{isMobile ? "Clear" : "Clear Chat"}</span>
+          </DropdownMenuItem>
+          {!isMobile && (
+            <DropdownMenuItem onClick={handleDevModeToggle}>
+              <Code className="mr-2 h-4 w-4" />
+              <span>Dev Mode {isDevMode ? '(On)' : '(Off)'}</span>
+            </DropdownMenuItem>
+          )}
+          {isMobile && (
+            <>
+              <DropdownMenuItem onClick={handleDevModeToggle} className="flex items-center">
+                <Code className="mr-2 h-4 w-4" />
+                <span>Dev {isDevMode ? '(On)' : '(Off)'}</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="flex items-center">
+                {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
+                <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 };
