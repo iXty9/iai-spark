@@ -63,13 +63,15 @@ export default function Settings() {
     handleDarkThemeChange({ name: colorKey, value });
   };
 
-  if (isLoading || !isInitialized) {
+  // Show skeleton only briefly while theme service initializes
+  if (!isInitialized) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-300 rounded mb-4"></div>
-            <div className="h-64 bg-gray-300 rounded"></div>
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 bg-gray-300 rounded mb-6"></div>
+            <div className="h-64 bg-gray-300 rounded mb-4"></div>
+            <div className="h-32 bg-gray-300 rounded"></div>
           </div>
         </div>
       </div>

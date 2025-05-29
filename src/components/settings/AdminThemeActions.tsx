@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { setDefaultThemeSettings } from '@/services/admin/settingsService';
-import { unifiedThemeController } from '@/services/unified-theme-controller';
+import { productionThemeService } from '@/services/production-theme-service';
 import { logger } from '@/utils/logging';
 import { Crown } from 'lucide-react';
 
@@ -23,8 +23,8 @@ export const AdminThemeActions = () => {
     setIsSettingDefault(true);
     
     try {
-      // Get current theme settings from unified controller
-      const currentThemeSettings = unifiedThemeController.createThemeSettings();
+      // Get current theme settings from production theme service
+      const currentThemeSettings = productionThemeService.createThemeSettings();
       
       logger.info('Setting current theme as default', { 
         module: 'admin-theme',
@@ -36,7 +36,7 @@ export const AdminThemeActions = () => {
       if (success) {
         toast({
           title: "Default theme set",
-          description: "Your current theme settings have been set as the system default for new users",
+          description: "Your current theme settings have been set as the system default. All signed-out users will now see this theme immediately.",
         });
       } else {
         throw new Error('Failed to update default theme settings');
@@ -65,7 +65,7 @@ export const AdminThemeActions = () => {
         Admin Actions
       </h3>
       <p className="text-sm text-muted-foreground mb-4">
-        Set your current theme (including background image) as the default theme for all new users.
+        Set your current theme (including background image) as the default theme for all new users and signed-out visitors. Changes will be applied in real-time across all domains.
       </p>
       <Button
         onClick={handleSetAsDefault}

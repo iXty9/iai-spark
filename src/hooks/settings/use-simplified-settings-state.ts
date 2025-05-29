@@ -17,14 +17,22 @@ export const useSimplifiedSettingsState = () => {
   const [imageInfo, setImageInfo] = useState<ImageInfo>({});
   const [themeState, setThemeState] = useState<ThemeState>(() => productionThemeService.getState());
 
-  // Subscribe to theme service changes
+  // Subscribe to theme service changes with immediate initialization
   useEffect(() => {
+    // If service is not ready, initialize it but don't block UI
+    if (!themeState.isReady) {
+      productionThemeService.initialize().catch(error => {
+        logger.error('Failed to initialize theme service in settings', error, { module: 'settings' });
+      });
+    }
+
     const unsubscribe = productionThemeService.subscribe((newState) => {
       setThemeState(newState);
       logger.info('Settings state updated from theme service', { 
         module: 'settings',
         backgroundImage: !!newState.backgroundImage,
-        backgroundOpacity: newState.backgroundOpacity
+        backgroundOpacity: newState.backgroundOpacity,
+        isReady: newState.isReady
       });
     });
 
@@ -65,7 +73,7 @@ export const useSimplifiedSettingsState = () => {
     backgroundImage: themeState.backgroundImage,
     backgroundOpacity: themeState.backgroundOpacity,
     isSubmitting,
-    isLoading: !themeState.isReady,
+    isLoading: false, // Never block UI with loading states
     hasChanges,
     imageInfo,
     setLightTheme: updateLightTheme,
