@@ -3,9 +3,8 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { initializeSupabaseDb } from '@/services/supabase/init-service';
-import { Loader2, CheckCircle, XCircle, AlertTriangle, Info, Shield } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, AlertTriangle, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Link } from 'react-router-dom';
 
 interface DatabaseSetupStepProps {
   supabaseUrl: string;
@@ -88,20 +87,8 @@ export function DatabaseSetupStep({
               <li>Configure application settings</li>
               <li>Establish security policies</li>
               <li>Create necessary database functions</li>
-              <li className="flex items-center gap-1">
-                <Shield className="h-3 w-3 text-green-600" />
-                Apply security fixes for database functions
-              </li>
             </ul>
           </div>
-          
-          <Alert className="mt-4 bg-blue-50 border-blue-200">
-            <Shield className="h-5 w-5 text-blue-500" />
-            <AlertTitle className="text-blue-700">Security Enhancement</AlertTitle>
-            <AlertDescription className="text-blue-600">
-              This setup includes security fixes that prevent search path manipulation attacks on database functions.
-            </AlertDescription>
-          </Alert>
           
           {initialized && !isReconnection && (
             <div className="flex items-center gap-2 text-green-500 mt-4">
