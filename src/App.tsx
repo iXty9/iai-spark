@@ -88,7 +88,7 @@ function App() {
         <Router>
           <AuthProvider clientReady={clientReady}>
             <ThemeProvider>
-              <div className="min-h-screen bg-background text-foreground">
+              <div className="min-h-screen text-foreground">
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/auth" element={<Auth />} />
