@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
 import { getStoredConfig } from '@/config/supabase-config';
@@ -43,7 +44,7 @@ export async function ensureStorageBucketsExist(): Promise<boolean> {
   }
 }
 
-// Upload a file to a bucket
+// Upload a file to a bucket with enhanced avatar support
 export async function uploadFile(
   bucket: string, path: string, file: File
 ): Promise<{ url: string | null; error: Error | null }> {
