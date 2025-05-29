@@ -100,7 +100,7 @@ export const useChatSubmit = ({
         emitDebugSubmitEvent('Sending to API');
       }
       
-      currentRequest = await processMessage({
+      const aiResponse = await processMessage({
         message: userMessage.content,
         isAuthenticated: isAuthenticated,
         onError: (error) => {
@@ -113,16 +113,10 @@ export const useChatSubmit = ({
       
       const aiMessage: Message = {
         id: uuidv4(),
-        content: '',
+        content: aiResponse.content || 'No response received',
         sender: 'ai',
         timestamp: new Date()
       };
-      
-      if (currentRequest && typeof currentRequest === 'object') {
-        if ('content' in currentRequest && typeof currentRequest.content === 'string') {
-          aiMessage.content = currentRequest.content;
-        }
-      }
       
       logger.info('AI response received', {
         messageId: aiMessage.id,
@@ -167,11 +161,14 @@ export const useChatSubmit = ({
     
     try {
       await handleSubmitWithRetry();
-      resetAttempts(); // Reset on successful submission
+      resetAttempts();
     } catch (error) {
-      // Let the retry logic handle it
+      const retryHandled = handleRetry(error as Error);
+      if (!retryHandled) {
+        resetAttempts();
+      }
     }
-  }, [handleSubmitWithRetry, incrementAttempt, resetAttempts]);
+  }, [handleSubmitWithRetry, incrementAttempt, resetAttempts, handleRetry]);
 
   const handleAbortRequestCallback = useCallback(() => {
     return handleAbortRequest(currentRequest, setIsLoading, setSubmitting);

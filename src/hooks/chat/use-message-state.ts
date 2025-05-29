@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Message } from '@/types/chat';
 import { toast } from '@/components/ui/sonner';
@@ -31,30 +31,32 @@ export const useMessageState = () => {
     }
   }, []);
   
-  // Save messages whenever they change
+  // Save messages whenever they change (memoized dependency)
+  const messageCount = useMemo(() => messages.length, [messages.length]);
+  
   useEffect(() => {
-    if (hasInitialized.current && messages.length > 0) {
+    if (hasInitialized.current && messageCount > 0) {
       saveChatHistory(messages);
     }
-  }, [messages]);
+  }, [messages, messageCount]);
   
-  // Use useCallback for all functions to prevent unnecessary re-renders
+  // Memoized functions to prevent unnecessary re-renders
   const addMessage = useCallback((newMessage: Message) => {
     console.log('Adding message to state:', {
       id: newMessage.id,
       sender: newMessage.sender,
       timestamp: new Date().toISOString(),
       initializing: initializing.current,
-      currentMessageCount: messages.length
+      currentMessageCount: messageCount
     });
     
     emitDebugEvent({
       lastAction: `Adding ${newMessage.sender} message to state`,
-      messagesCount: messages.length + 1,
+      messagesCount: messageCount + 1,
       hasInteracted: true
     });
     
-    if (messages.length === 0 && !initializing.current) {
+    if (messageCount === 0 && !initializing.current) {
       initializing.current = true;
       console.log('First message - initializing chat state');
       
@@ -65,14 +67,14 @@ export const useMessageState = () => {
       });
     }
     
-    // Using a function form of setState to ensure we have the latest state
+    // Use functional update for better performance
     setMessages(prev => {
       const newMessages = [...prev, newMessage];
       console.log(`Messages updated: now have ${newMessages.length} messages`);
       return newMessages;
     });
     
-    // Reset initializing flag after first message is added
+    // Reset initializing flag after first AI message
     if (initializing.current && newMessage.sender === 'ai') {
       initializing.current = false;
       console.log('Initialization complete');
@@ -83,13 +85,13 @@ export const useMessageState = () => {
         screen: 'Chat Screen'
       });
     }
-  }, [messages.length]);
+  }, [messageCount]);
 
   const clearMessages = useCallback(() => {
-    if (messages.length === 0) return;
+    if (messageCount === 0) return;
     
     console.log('Clearing chat history:', {
-      messageCount: messages.length,
+      messageCount,
       timestamp: new Date().toISOString()
     });
     
@@ -104,11 +106,11 @@ export const useMessageState = () => {
     setMessages([]);
     initializing.current = false;
     
-    // Also clear from localStorage
+    // Clear from localStorage
     clearChatHistory();
     
     toast.success('Chat history cleared');
-  }, [messages.length]);
+  }, [messageCount]);
 
   const resetState = useCallback(() => {
     console.log('Resetting message state');
@@ -125,7 +127,8 @@ export const useMessageState = () => {
     initializing.current = false;
   }, []);
 
-  return {
+  // Memoized return object to prevent unnecessary re-renders
+  return useMemo(() => ({
     messages,
     message,
     isLoading,
@@ -135,5 +138,5 @@ export const useMessageState = () => {
     clearMessages,
     setMessages,
     resetState
-  };
+  }), [messages, message, isLoading, addMessage, clearMessages, resetState]);
 };

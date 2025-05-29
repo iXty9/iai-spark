@@ -14,11 +14,21 @@ interface DebugEvent {
   timestamp?: string;
 }
 
-// Production-optimized no-op function
-const createNoOpEmitter = () => () => {};
+// Production-optimized no-op function that gets tree-shaken
+const createNoOpEmitter = (): ((details: DebugEvent) => void) => {
+  if (process.env.NODE_ENV === 'production') {
+    return () => {}; // No-op in production
+  }
+  return () => {}; // Fallback no-op
+};
 
-// Development debug event emitter
+// Development debug event emitter with optimizations
 const createDevEmitter = () => {
+  // Early production check with compile-time optimization
+  if (process.env.NODE_ENV === 'production') {
+    return () => {}; // Tree-shakeable no-op
+  }
+
   const eventTracker = {
     lastEvents: new Map<string, { timestamp: number; details: string }>(),
     minInterval: 15000,
@@ -31,9 +41,10 @@ const createDevEmitter = () => {
     
     init() {
       if (typeof document !== 'undefined') {
-        document.addEventListener('visibilitychange', () => {
+        const visibilityHandler = () => {
           this.isTabVisible = document.visibilityState === 'visible';
-        });
+        };
+        document.addEventListener('visibilitychange', visibilityHandler, { passive: true });
         this.isTabVisible = document.visibilityState === 'visible';
       }
     },
@@ -44,7 +55,7 @@ const createDevEmitter = () => {
     },
     
     isDuplicate(details: DebugEvent): boolean {
-      if (!this.isTabVisible) {
+      if (!this.isTabVisible || !this.isDevModeEnabled) {
         return true;
       }
       
@@ -81,20 +92,27 @@ const createDevEmitter = () => {
   };
 
   eventTracker.init();
-  setInterval(() => eventTracker.cleanup(), 60000);
-
+  
+  // Use a less frequent cleanup interval
+  const cleanupInterval = setInterval(() => eventTracker.cleanup(), 120000);
+  
+  // Cleanup on page unload
   if (typeof window !== 'undefined') {
-    window.addEventListener('devModeChanged', ((e: CustomEvent) => {
+    const devModeHandler = (e: CustomEvent) => {
       eventTracker.updateDevModeState(e.detail.isDevMode);
-    }) as EventListener);
+    };
+    
+    const unloadHandler = () => {
+      clearInterval(cleanupInterval);
+    };
+    
+    window.addEventListener('devModeChanged', devModeHandler as EventListener);
+    window.addEventListener('beforeunload', unloadHandler);
   }
 
   return (details: DebugEvent): void => {
-    if (!eventTracker.isDevModeEnabled) {
-      return;
-    }
-    
-    if (!eventTracker.isTabVisible) {
+    // Fast early returns for performance
+    if (!eventTracker.isDevModeEnabled || !eventTracker.isTabVisible) {
       return;
     }
     
@@ -107,14 +125,25 @@ const createDevEmitter = () => {
       return;
     }
     
-    const event = new CustomEvent('chatDebug', { 
-      detail: eventWithTimestamp 
-    });
-    window.dispatchEvent(event);
+    // Use requestIdleCallback for non-critical debug events
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(() => {
+        const event = new CustomEvent('chatDebug', { 
+          detail: eventWithTimestamp 
+        });
+        window.dispatchEvent(event);
+      });
+    } else {
+      // Fallback for browsers without requestIdleCallback
+      const event = new CustomEvent('chatDebug', { 
+        detail: eventWithTimestamp 
+      });
+      window.dispatchEvent(event);
+    }
   };
 };
 
-// Export the appropriate emitter based on environment
+// Export with compile-time optimization
 export const emitDebugEvent = process.env.NODE_ENV === 'production' 
   ? createNoOpEmitter() 
   : createDevEmitter();
