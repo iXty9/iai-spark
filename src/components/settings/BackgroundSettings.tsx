@@ -54,11 +54,16 @@ export function BackgroundSettings({
     if (files.length > 0) {
       const file = files[0];
       if (file.type.startsWith('image/')) {
-        // Create a fake input event
-        const fakeEvent = {
-          target: { files: [file] }
-        } as React.ChangeEvent<HTMLInputElement>;
-        onBackgroundImageUpload(fakeEvent);
+        // Create a proper FileList-like object and input element
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.files = files;
+        
+        // Create a proper ChangeEvent
+        const changeEvent = new Event('change', { bubbles: true }) as any;
+        changeEvent.target = input;
+        
+        onBackgroundImageUpload(changeEvent as React.ChangeEvent<HTMLInputElement>);
       }
     }
   }, [onBackgroundImageUpload]);
@@ -94,6 +99,7 @@ export function BackgroundSettings({
                 className="absolute top-2 right-2 shadow-lg"
                 onClick={onRemoveBackground}
                 disabled={isLoading}
+                aria-label="Remove background image"
               >
                 <X className="h-4 w-4 mr-1" />
                 Remove
@@ -107,6 +113,7 @@ export function BackgroundSettings({
                         variant="secondary"
                         size="sm"
                         className="absolute top-2 left-2 bg-black/70 hover:bg-black/80 text-white border-none shadow-lg"
+                        aria-label="Image information"
                       >
                         <Info className="h-4 w-4" />
                       </Button>
@@ -136,6 +143,9 @@ export function BackgroundSettings({
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
+              role="button"
+              tabIndex={0}
+              aria-label="Drop zone for background image upload"
             >
               <div className="text-center space-y-2">
                 <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
@@ -170,6 +180,7 @@ export function BackgroundSettings({
               onChange={onBackgroundImageUpload}
               className="hidden"
               disabled={isLoading}
+              aria-label="Upload background image file"
             />
           </label>
         </Button>
