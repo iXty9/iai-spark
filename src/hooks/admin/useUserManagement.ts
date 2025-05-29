@@ -1,13 +1,29 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import {
   UserWithRole, UserRole, UsersFetchOptions, UsersSearchOptions, UsersFetchResult
 } from '@/services/admin/types/userTypes';
-import { fetchUsers, searchUsers, updateUserRole } from '@/services/admin/userService';
+import { fetchUsers, searchUsers, updateUserRole, checkAdminConnectionStatus } from '@/services/admin/userService';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
-import { checkAdminConnectionStatus } from '@/services/admin/roleService';
 import { clearAllEnvironmentConfigs } from '@/config/supabase-config';
+
+// Debounce hook for search
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
 
 export function useUserManagement() {
   const { toast } = useToast();
@@ -28,34 +44,69 @@ export function useUserManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
 
-  // Universal fetcher
-  const fetchAndSetUsers = useCallback(async (search = false) => {
+  // Debounced search query
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Memoized search function to prevent unnecessary re-renders
+  const executeSearch = useCallback(async (isSearch: boolean = false) => {
     setLoading(true);
     setError(null);
+    
     try {
-      const fn = search ? searchUsers : fetchUsers;
-      const { users: usersData, totalCount } = await fn({
-        searchQuery,
-        page: search ? 1 : currentPage,
+      const options = {
+        page: isSearch ? 1 : currentPage,
         pageSize,
         roleFilter: roleFilter !== 'all' ? roleFilter as UserRole : undefined,
-      });
-      setUsers(usersData);
-      setTotalPages(Math.ceil(totalCount / pageSize) || 1);
-      if (search) setCurrentPage(1);
+      };
+
+      let result: UsersFetchResult;
+      
+      if (debouncedSearchQuery.trim()) {
+        result = await searchUsers({
+          ...options,
+          searchQuery: debouncedSearchQuery,
+        });
+      } else {
+        result = await fetchUsers(options);
+      }
+
+      setUsers(result.users);
+      setTotalPages(Math.ceil(result.totalCount / pageSize) || 1);
+      
+      if (isSearch) {
+        setCurrentPage(1);
+      }
     } catch (e: any) {
-      setError(e?.message || 'Failed to load users.');
+      const errorMessage = e?.message || 'Failed to load users.';
+      setError(errorMessage);
       toast({
         variant: "destructive",
-        title: search ? "Search failed" : "Failed to load users",
-        description: search
-          ? "Error searching users. Please check your connection and try again."
-          : "Error loading user data. Please try again.",
+        title: "Failed to load users",
+        description: errorMessage,
       });
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, currentPage, pageSize, roleFilter, toast]);
+  }, [debouncedSearchQuery, currentPage, pageSize, roleFilter, toast]);
+
+  // Universal fetcher with improved logic
+  const fetchAndSetUsers = useCallback(async (isSearch = false) => {
+    await executeSearch(isSearch);
+  }, [executeSearch]);
+
+  // Effect for debounced search
+  useEffect(() => {
+    if (connectionStatus?.isConnected && connectionStatus?.isAdmin) {
+      executeSearch(true); // Always reset to page 1 for search
+    }
+  }, [debouncedSearchQuery, executeSearch, connectionStatus]);
+
+  // Effect for pagination and filters (not search)
+  useEffect(() => {
+    if (connectionStatus?.isConnected && connectionStatus?.isAdmin && !debouncedSearchQuery) {
+      executeSearch(false);
+    }
+  }, [currentPage, pageSize, roleFilter, executeSearch, connectionStatus]);
 
   // Check connection status on component mount
   useEffect(() => {
@@ -71,35 +122,48 @@ export function useUserManagement() {
           setError('Authentication error. Please sign in again.');
         } else if (!status.isAdmin) {
           setError('Access denied. You do not have admin privileges.');
-        } else if (!status.functionAvailable) {
-          setError('Admin functions not available. This may indicate a cross-environment configuration issue.');
         } else {
-          // Only fetch users if connection status is good
-          fetchAndSetUsers(false);
+          // Only fetch users if connection status is good - will be handled by other effects
+          setError(null);
         }
       } catch (e) {
         console.error("Error checking connection status:", e);
         setError('Failed to check connection status. Please try again.');
+      } finally {
         setLoading(false);
       }
     };
     
     checkConnection();
-  }, [fetchAndSetUsers]);
+  }, []);
 
-  // Role update: promote or demote
+  // Role update with optimistic updates
   const confirmRoleUpdate = async (role: UserRole) => {
     if (!selectedUser) return;
+    
     setUpdatingRole(true);
+    
+    // Optimistic update
+    const previousUsers = [...users];
+    setUsers(users =>
+      users.map(u => u.id === selectedUser.id ? { ...u, role } : u));
+    
     try {
-      await updateUserRole(selectedUser.id, role);
-      setUsers(users =>
-        users.map(u => u.id === selectedUser.id ? { ...u, role } : u));
+      const success = await updateUserRole(selectedUser.id, role);
+      
+      if (!success) {
+        // Rollback optimistic update
+        setUsers(previousUsers);
+        throw new Error('Failed to update user role');
+      }
+      
       toast({
         title: "User role updated",
         description: `${selectedUser.email} is now a${role === 'admin' ? 'n' : ''} ${role}.`,
       });
     } catch (e: any) {
+      // Rollback optimistic update
+      setUsers(previousUsers);
       toast({
         variant: "destructive",
         title: "Failed to update user role",
@@ -119,9 +183,7 @@ export function useUserManagement() {
       title: "Configuration Reset",
       description: "All environment-specific configurations have been cleared. Please refresh the page.",
     });
-    // Close dialog
     setDialog(null);
-    // Force page reload after a short delay
     setTimeout(() => {
       window.location.reload();
     }, 1500);
