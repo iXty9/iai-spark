@@ -15,7 +15,7 @@ jest.mock('@/utils/debug-events', () => ({
 }));
 
 describe('useMessageRetry', () => {
-  let mockHandleSubmit: jest.Mock;
+  let mockHandleSubmit: jest.MockedFunction<() => void>;
 
   beforeEach(() => {
     mockHandleSubmit = jest.fn();

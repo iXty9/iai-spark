@@ -1,5 +1,6 @@
 
 module.exports = {
+  preset: 'ts-jest',
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['<rootDir>/src/test-setup.ts'],
   moduleNameMapping: {
@@ -24,9 +25,13 @@ module.exports = {
       statements: 70
     }
   },
-  transform: {
-    '^.+\\.(ts|tsx)$': 'ts-jest'
-  },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
-  testPathIgnorePatterns: ['/node_modules/', '/dist/']
+  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  globals: {
+    'ts-jest': {
+      tsconfig: {
+        jsx: 'react-jsx'
+      }
+    }
+  }
 };

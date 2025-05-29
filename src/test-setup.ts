@@ -17,36 +17,49 @@ Object.defineProperty(window, 'matchMedia', {
 });
 
 // Mock requestIdleCallback
-global.requestIdleCallback = jest.fn((cb) => setTimeout(cb, 0));
-global.cancelIdleCallback = jest.fn();
+Object.defineProperty(global, 'requestIdleCallback', {
+  writable: true,
+  value: jest.fn((cb) => setTimeout(cb, 0)),
+});
+
+Object.defineProperty(global, 'cancelIdleCallback', {
+  writable: true,
+  value: jest.fn(),
+});
 
 // Mock IntersectionObserver
-global.IntersectionObserver = class IntersectionObserver {
-  constructor() {}
-  observe() {
-    return null;
-  }
-  disconnect() {
-    return null;
-  }
-  unobserve() {
-    return null;
-  }
-};
+Object.defineProperty(global, 'IntersectionObserver', {
+  writable: true,
+  value: class IntersectionObserver {
+    constructor() {}
+    observe() {
+      return null;
+    }
+    disconnect() {
+      return null;
+    }
+    unobserve() {
+      return null;
+    }
+  },
+});
 
 // Mock ResizeObserver
-global.ResizeObserver = class ResizeObserver {
-  constructor() {}
-  observe() {
-    return null;
-  }
-  disconnect() {
-    return null;
-  }
-  unobserve() {
-    return null;
-  }
-};
+Object.defineProperty(global, 'ResizeObserver', {
+  writable: true,
+  value: class ResizeObserver {
+    constructor() {}
+    observe() {
+      return null;
+    }
+    disconnect() {
+      return null;
+    }
+    unobserve() {
+      return null;
+    }
+  },
+});
 
 // Suppress console warnings in tests
 const originalError = console.error;
