@@ -3,14 +3,12 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMessageState } from './chat/use-message-state';
 import { useChatSubmit } from './chat/use-chat-submit';
-import { useChatState } from './chat/use-chat-state';
 import { useChatInit } from './chat/use-chat-init';
 import { useChatActions } from './chat/use-chat-actions';
 import { useChatAbort } from './chat/use-chat-abort';
 
 export const useChat = () => {
   const { user, isLoading: authLoading } = useAuth();
-  const [authError, setAuthError] = useState<string | null>(null);
   
   const {
     messages,
@@ -23,14 +21,6 @@ export const useChat = () => {
     setMessages,
     resetState
   } = useMessageState();
-
-  const {
-    isTransitioning,
-    hasLoadedAuth,
-    handleTransitionStart,
-    handleTransitionEnd,
-    handleAuthLoaded
-  } = useChatState();
 
   const { handleSubmit, handleAbortRequest } = useChatSubmit({
     message,
@@ -46,7 +36,7 @@ export const useChat = () => {
     authLoading,
     addMessage,
     setIsLoading,
-    handleTransitionStart
+    handleTransitionStart: () => {} // Simplified - no longer needed
   });
 
   const { handleExportChat } = useChatActions(messages);
@@ -65,7 +55,6 @@ export const useChat = () => {
     handleClearChat: clearMessages,
     handleExportChat,
     startChat,
-    authError,
     setMessages,
     handleAbortRequest,
     getCurrentRequestInfo,

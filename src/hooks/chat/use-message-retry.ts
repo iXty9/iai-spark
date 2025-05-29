@@ -54,10 +54,15 @@ export const useMessageRetry = ({ handleSubmit, maxRetries = 3 }: UseMessageRetr
     messageAttempts.current++;
   };
 
+  const resetAttempts = () => {
+    messageAttempts.current = 0;
+  };
+
   return {
     handleRetry,
     clearRetry,
     incrementAttempt,
+    resetAttempts,
     currentAttempt: messageAttempts.current
   };
 };

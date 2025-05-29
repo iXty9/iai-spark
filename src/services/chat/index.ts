@@ -1,5 +1,5 @@
 
-export { sendMessage } from './sendMessage';
+export { processMessage as sendMessage } from './message-processor';
 export { exportChat } from '../export/exportService';
 
 // Add a global reference for dev mode state for components that can't use hooks

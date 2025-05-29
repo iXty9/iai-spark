@@ -1,12 +1,12 @@
 
-import { useRef } from 'react';
+import { useState } from 'react';
 import { emitDebugEvent } from '@/utils/debug-events';
 
 export const useSubmitState = () => {
-  const isSubmitting = useRef<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const setSubmitting = (submitting: boolean) => {
-    isSubmitting.current = submitting;
+    setIsSubmitting(submitting);
     
     emitDebugEvent({
       lastAction: submitting ? 'Message submission starting' : 'Message submission completed',
@@ -16,7 +16,7 @@ export const useSubmitState = () => {
   };
 
   return {
-    isSubmitting: isSubmitting.current,
+    isSubmitting,
     setSubmitting
   };
 };

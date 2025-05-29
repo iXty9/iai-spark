@@ -2,7 +2,7 @@
 import { useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Message } from '@/types/chat';
-import { sendMessage } from '@/services/chat';
+import { processMessage } from '@/services/chat/message-processor';
 import { logger } from '@/utils/logging';
 import { useSubmitState } from './use-submit-state';
 import { useMessageRetry } from './use-message-retry';
@@ -100,7 +100,7 @@ export const useChatSubmit = ({
         emitDebugSubmitEvent('Sending to API');
       }
       
-      currentRequest = await sendMessage({
+      currentRequest = await processMessage({
         message: userMessage.content,
         isAuthenticated: isAuthenticated,
         onError: (error) => {
@@ -154,7 +154,7 @@ export const useChatSubmit = ({
     }
   }, [message, isAuthenticated, isAuthLoading, addMessage, setMessage, setIsLoading, isSubmitting, setSubmitting, handleSubmissionError]);
   
-  const { handleRetry, clearRetry, incrementAttempt } = useMessageRetry({ 
+  const { handleRetry, clearRetry, incrementAttempt, resetAttempts } = useMessageRetry({ 
     handleSubmit: () => handleSubmitWithRetry()
   });
 
@@ -164,8 +164,14 @@ export const useChatSubmit = ({
     }
     
     incrementAttempt();
-    return handleSubmitWithRetry();
-  }, [handleSubmitWithRetry, incrementAttempt]);
+    
+    try {
+      await handleSubmitWithRetry();
+      resetAttempts(); // Reset on successful submission
+    } catch (error) {
+      // Let the retry logic handle it
+    }
+  }, [handleSubmitWithRetry, incrementAttempt, resetAttempts]);
 
   const handleAbortRequestCallback = useCallback(() => {
     return handleAbortRequest(currentRequest, setIsLoading, setSubmitting);
