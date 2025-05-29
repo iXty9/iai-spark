@@ -1,9 +1,8 @@
 
-
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
-import { useSettingsState } from '@/hooks/settings/use-settings-state';
-import { useSettingsActions } from '@/hooks/settings/use-settings-actions';
+import { useSimplifiedSettingsState } from '@/hooks/settings/use-simplified-settings-state';
+import { useSimplifiedSettingsActions } from '@/hooks/settings/use-simplified-settings-actions';
 import { SettingsHeader } from '@/components/settings/SettingsHeader';
 import { SettingsTabs } from '@/components/settings/SettingsTabs';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
@@ -11,12 +10,10 @@ import { BackgroundSettings } from '@/components/settings/BackgroundSettings';
 import { SettingsActions } from '@/components/settings/SettingsActions';
 import { SettingsFooter } from '@/components/settings/SettingsFooter';
 import { AdminThemeActions } from '@/components/settings/AdminThemeActions';
-import { useToast } from '@/hooks/use-toast';
 
 export default function Settings() {
   const { user, profile, updateProfile } = useAuth();
   const { theme, setTheme } = useTheme();
-  const { toast } = useToast();
 
   const {
     lightTheme,
@@ -31,13 +28,10 @@ export default function Settings() {
     setDarkTheme,
     setBackgroundImage,
     setBackgroundOpacity,
-    setIsSubmitting,
     setHasChanges,
     setImageInfo,
-    isInitialized,
-    backgroundError,
-    isBackgroundApplied
-  } = useSettingsState();
+    isInitialized
+  } = useSimplifiedSettingsState();
 
   const {
     handleLightThemeChange,
@@ -49,23 +43,14 @@ export default function Settings() {
     handleResetSettings,
     handleThemeChange,
     isBackgroundLoading
-  } = useSettingsActions({
+  } = useSimplifiedSettingsActions({
     user,
     theme,
-    toast,
     lightTheme,
     darkTheme,
     backgroundImage,
     backgroundOpacity,
-    isSubmitting,
-    hasChanges,
-    setLightTheme,
-    setDarkTheme,
-    setBackgroundImage,
-    setBackgroundOpacity,
-    setIsSubmitting,
     setHasChanges,
-    setTheme,
     updateProfile
   });
 
@@ -139,4 +124,3 @@ export default function Settings() {
     </div>
   );
 }
-

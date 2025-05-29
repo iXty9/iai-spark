@@ -17,6 +17,7 @@ class ProductionThemeService {
   private state: ThemeState;
   private listeners: Set<(state: ThemeState) => void> = new Set();
   private isInitialized = false;
+  private adminDefaults: ThemeSettings | null = null;
 
   constructor() {
     this.state = {
@@ -65,16 +66,25 @@ class ProductionThemeService {
     try {
       logger.info('Initializing production theme service', { module: 'theme' });
 
-      // First try to load from localStorage for immediate application
-      this.loadFromLocalStorage();
+      // Load admin defaults first (this works for both authenticated and unauthenticated users)
+      await this.loadAdminDefaults();
 
-      // Try to load default settings from database (works for both authenticated and unauthenticated users)
-      await this.loadDefaultSettings();
-
-      // If user is authenticated, try to load their personal settings
+      // Check if we should use admin defaults or user settings
       const client = clientManager.getClient();
-      if (client) {
-        await this.loadUserSettings();
+      const shouldUseAdminDefaults = await this.shouldUseAdminDefaults();
+      
+      if (shouldUseAdminDefaults && this.adminDefaults) {
+        // Use admin defaults for signed-out users or when admin defaults are newer
+        this.applyThemeSettings(this.adminDefaults);
+        logger.info('Applied admin default theme', { module: 'theme' });
+      } else {
+        // Load from localStorage first for immediate application
+        this.loadFromLocalStorage();
+
+        // If user is authenticated, try to load their personal settings
+        if (client) {
+          await this.loadUserSettings();
+        }
       }
 
       // Apply the final theme state
@@ -95,6 +105,50 @@ class ProductionThemeService {
       this.state.isReady = true; // Still mark as ready to prevent hanging
       this.notifyListeners();
     }
+  }
+
+  private async shouldUseAdminDefaults(): Promise<boolean> {
+    // Always use admin defaults for signed-out users
+    const client = clientManager.getClient();
+    if (!client) return true;
+
+    try {
+      const { data: { user } } = await client.auth.getUser();
+      if (!user) return true;
+
+      // Check if admin defaults are newer than user's saved settings
+      const userThemeSettings = localStorage.getItem('theme_settings');
+      if (!userThemeSettings || !this.adminDefaults) return false;
+
+      const userSettings = JSON.parse(userThemeSettings) as ThemeSettings;
+      const adminDate = this.adminDefaults.exportDate ? new Date(this.adminDefaults.exportDate) : new Date(0);
+      const userDate = userSettings.exportDate ? new Date(userSettings.exportDate) : new Date(0);
+
+      return adminDate > userDate;
+    } catch (error) {
+      logger.warn('Error checking if should use admin defaults', { module: 'theme' });
+      return false;
+    }
+  }
+
+  private async loadAdminDefaults(): Promise<void> {
+    try {
+      const appSettings = await fetchAppSettings();
+      if (appSettings?.default_theme_settings) {
+        this.adminDefaults = JSON.parse(appSettings.default_theme_settings) as ThemeSettings;
+        logger.info('Admin default theme loaded', { module: 'theme' });
+      }
+    } catch (error) {
+      logger.warn('Failed to load admin defaults', { module: 'theme' });
+    }
+  }
+
+  private applyThemeSettings(settings: ThemeSettings): void {
+    this.state.mode = settings.mode || this.state.mode;
+    this.state.lightTheme = settings.lightTheme || this.state.lightTheme;
+    this.state.darkTheme = settings.darkTheme || this.state.darkTheme;
+    this.state.backgroundImage = settings.backgroundImage || null;
+    this.state.backgroundOpacity = settings.backgroundOpacity || 0.5;
   }
 
   private loadFromLocalStorage(): void {
@@ -118,13 +172,7 @@ class ProductionThemeService {
       if (savedThemeSettings) {
         try {
           const settings = JSON.parse(savedThemeSettings) as ThemeSettings;
-          this.state.mode = settings.mode || this.state.mode;
-          this.state.lightTheme = settings.lightTheme || this.state.lightTheme;
-          this.state.darkTheme = settings.darkTheme || this.state.darkTheme;
-          if (settings.backgroundImage) {
-            this.state.backgroundImage = settings.backgroundImage;
-            this.state.backgroundOpacity = settings.backgroundOpacity || 0.5;
-          }
+          this.applyThemeSettings(settings);
           logger.info('Loaded theme from localStorage', { module: 'theme' });
         } catch (parseError) {
           logger.warn('Failed to parse theme settings from localStorage', { module: 'theme' });
@@ -132,30 +180,6 @@ class ProductionThemeService {
       }
     } catch (error) {
       logger.warn('Failed to load from localStorage', { module: 'theme' });
-    }
-  }
-
-  private async loadDefaultSettings(): Promise<void> {
-    try {
-      const appSettings = await fetchAppSettings();
-      if (appSettings?.default_theme_settings) {
-        const defaultSettings = JSON.parse(appSettings.default_theme_settings) as ThemeSettings;
-        
-        // Only apply default settings if user doesn't have personal settings
-        const hasPersonalSettings = localStorage.getItem('theme_settings');
-        if (!hasPersonalSettings) {
-          this.state.mode = defaultSettings.mode || this.state.mode;
-          this.state.lightTheme = defaultSettings.lightTheme || this.state.lightTheme;
-          this.state.darkTheme = defaultSettings.darkTheme || this.state.darkTheme;
-          if (defaultSettings.backgroundImage) {
-            this.state.backgroundImage = defaultSettings.backgroundImage;
-            this.state.backgroundOpacity = defaultSettings.backgroundOpacity || 0.5;
-          }
-          logger.info('Loaded default theme settings from database', { module: 'theme' });
-        }
-      }
-    } catch (error) {
-      logger.warn('Failed to load default settings from database', { module: 'theme' });
     }
   }
 
@@ -180,14 +204,7 @@ class ProductionThemeService {
 
       if (profile?.theme_settings) {
         const settings = JSON.parse(profile.theme_settings) as ThemeSettings;
-        this.state.mode = settings.mode || this.state.mode;
-        this.state.lightTheme = settings.lightTheme || this.state.lightTheme;
-        this.state.darkTheme = settings.darkTheme || this.state.darkTheme;
-        
-        if (settings.backgroundImage) {
-          this.state.backgroundImage = settings.backgroundImage;
-          this.state.backgroundOpacity = settings.backgroundOpacity || 0.5;
-        }
+        this.applyThemeSettings(settings);
         
         // Save to localStorage for future sessions
         localStorage.setItem('theme_settings', JSON.stringify(settings));
@@ -315,21 +332,26 @@ class ProductionThemeService {
     this.saveToProfile();
   }
 
+  // Create theme settings for saving
+  createThemeSettings(): ThemeSettings {
+    return {
+      mode: this.state.mode,
+      lightTheme: this.state.lightTheme,
+      darkTheme: this.state.darkTheme,
+      backgroundImage: this.state.backgroundImage,
+      backgroundOpacity: this.state.backgroundOpacity,
+      exportDate: new Date().toISOString(),
+      name: 'Custom Theme'
+    };
+  }
+
   /**
    * Load default theme from database
    */
   async loadDefaultTheme(): Promise<boolean> {
     try {
-      const appSettings = await fetchAppSettings();
-      if (appSettings?.default_theme_settings) {
-        const defaultSettings = JSON.parse(appSettings.default_theme_settings) as ThemeSettings;
-        
-        this.state.mode = defaultSettings.mode || this.state.mode;
-        this.state.lightTheme = defaultSettings.lightTheme || this.state.lightTheme;
-        this.state.darkTheme = defaultSettings.darkTheme || this.state.darkTheme;
-        this.state.backgroundImage = defaultSettings.backgroundImage || null;
-        this.state.backgroundOpacity = defaultSettings.backgroundOpacity || 0.5;
-        
+      if (this.adminDefaults) {
+        this.applyThemeSettings(this.adminDefaults);
         this.applyTheme();
         this.applyBackgroundToDOM();
         this.notifyListeners();
@@ -338,7 +360,7 @@ class ProductionThemeService {
         logger.info('Default theme loaded successfully', { module: 'theme' });
         return true;
       } else {
-        logger.warn('No default theme settings found in database', { module: 'theme' });
+        logger.warn('No admin default theme settings found', { module: 'theme' });
         return false;
       }
     } catch (error) {
@@ -365,15 +387,7 @@ class ProductionThemeService {
       const { data: { user } } = await client.auth.getUser();
       if (!user) return;
 
-      const themeSettings: ThemeSettings = {
-        mode: this.state.mode,
-        lightTheme: this.state.lightTheme,
-        darkTheme: this.state.darkTheme,
-        backgroundImage: this.state.backgroundImage,
-        backgroundOpacity: this.state.backgroundOpacity,
-        exportDate: new Date().toISOString(),
-        name: 'Custom Theme'
-      };
+      const themeSettings = this.createThemeSettings();
 
       // Save to localStorage immediately for persistence
       localStorage.setItem('theme_settings', JSON.stringify(themeSettings));

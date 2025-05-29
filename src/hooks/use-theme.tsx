@@ -39,7 +39,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   
   const resetTheme = () => {
     logger.info('Resetting theme to defaults', { module: 'theme-provider' });
-    window.location.reload();
+    productionThemeService.loadDefaultTheme();
   };
   
   const applyThemeColors = (colors: ThemeColors) => {
