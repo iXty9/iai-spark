@@ -51,13 +51,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   };
   
   return (
-    <header className={`p-4 ${isMobile ? 'rounded-b-lg' : ''} flex items-center justify-between`}>
+    <header className="py-0 px-2 flex items-center justify-between h-12 min-h-12">
       <HeaderLogo 
         isMobile={isMobile} 
-        dynamicPadding={{ left: dynamicPadding.left }}
+        dynamicPadding={{ left: 0 }}
       />
       
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <UserMenu />
         
         <HeaderActions 
@@ -67,7 +67,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           onReloadTheme={onReloadTheme}
           onImportClick={handleImportClick}
           hasMessages={hasMessages}
-          dynamicPadding={{ right: dynamicPadding.right }}
+          dynamicPadding={{ right: 0 }}
           isMobile={isMobile}
         />
 

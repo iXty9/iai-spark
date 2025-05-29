@@ -79,13 +79,13 @@ export const UserMenu = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative rounded-full h-8 w-8 border border-border/40 hover:border-[#dd3333]/30 transition-all duration-200">
-          <Avatar className="h-8 w-8">
+        <Button variant="ghost" size="icon" className="relative rounded-full h-7 w-7 border border-border/40 hover:border-[#dd3333]/30 transition-all duration-200 flex-shrink-0">
+          <Avatar className="h-6 w-6">
             {user && profile?.avatar_url ? (
               <AvatarImage src={profile.avatar_url} alt={profile?.username || "User"} />
             ) : (
-              <AvatarFallback className={user ? "bg-primary/10 text-primary" : "bg-secondary/80"}>
-                {user ? getInitials() : <UserRound className="h-4 w-4" />}
+              <AvatarFallback className={user ? "bg-primary/10 text-primary text-xs" : "bg-secondary/80 text-xs"}>
+                {user ? getInitials() : <UserRound className="h-3 w-3" />}
               </AvatarFallback>
             )}
           </Avatar>

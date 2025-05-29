@@ -15,19 +15,16 @@ export const HeaderLogo = ({ isMobile, dynamicPadding }: HeaderLogoProps) => {
   
   return (
     <div 
-      className="flex items-center cursor-pointer" 
+      className="flex items-center cursor-pointer flex-shrink-0" 
       onClick={handleLogoClick}
-      style={{ 
-        marginLeft: isMobile ? '0' : `calc(${dynamicPadding?.left || 0 / 4}rem - 1rem)` 
-      }}
     >
       <img 
         src="https://ixty9.com/wp-content/uploads/2023/10/cropped-faviconV4.png" 
         alt="Ixty AI" 
-        className="h-8 w-8 mr-3"
+        className="h-6 w-6 mr-2 flex-shrink-0"
       />
-      <div>
-        <h1 className="text-lg font-bold">Ixty AI</h1>
+      <div className="flex-shrink-0">
+        <h1 className="text-base font-bold whitespace-nowrap">Ixty AI</h1>
       </div>
     </div>
   );

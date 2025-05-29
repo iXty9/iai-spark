@@ -35,8 +35,10 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
         size="icon"
         onClick={() => setIsExpanded(!isExpanded)}
         className={cn(
-          "absolute left-1/2 -translate-x-1/2 z-20 rounded-full transition-all duration-300 hover:bg-[#dd3333]/10 hover:text-[#dd3333]",
-          isExpanded ? "top-4 bg-background/80 backdrop-blur-sm shadow-sm" : "top-2 bg-background/60 backdrop-blur-sm"
+          "absolute left-1/2 -translate-x-1/2 z-30 rounded-full transition-all duration-300 hover:bg-[#dd3333]/10 hover:text-[#dd3333]",
+          isExpanded 
+            ? "top-2 bg-background/90 backdrop-blur-sm shadow-sm" 
+            : "top-2 bg-background/70 backdrop-blur-sm"
         )}
       >
         <Menu className={cn(
@@ -48,14 +50,16 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
       <div 
         className={cn(
           "transform transition-all duration-300 ease-out overflow-hidden bg-background/95 backdrop-blur-md rounded-lg shadow-lg border border-border/20",
-          isExpanded ? "max-h-20 opacity-100 mt-0" : "max-h-0 opacity-0 -mt-4"
+          isExpanded 
+            ? "max-h-24 opacity-100 mt-0 pt-12 pb-3" 
+            : "max-h-0 opacity-0 -mt-4 pt-0 pb-0"
         )}
         style={{
-          paddingLeft: isExpanded ? (isMobile ? '0.5rem' : `${dynamicPadding.left}rem`) : 0,
-          paddingRight: isExpanded ? (isMobile ? '0.5rem' : `${dynamicPadding.right}rem`) : 0
+          paddingLeft: isExpanded ? (isMobile ? '0.75rem' : `${Math.max(1, dynamicPadding.left)}rem`) : 0,
+          paddingRight: isExpanded ? (isMobile ? '0.75rem' : `${Math.max(1, dynamicPadding.right)}rem`) : 0
         }}
       >
-        <div className="pt-12 pb-2">
+        {isExpanded && (
           <ChatHeader 
             onClearChat={onClearChat} 
             onExportChat={onExportChat}
@@ -65,7 +69,7 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
             dynamicPadding={dynamicPadding}
             isMobile={isMobile}
           />
-        </div>
+        )}
       </div>
     </div>
   );
