@@ -1,6 +1,6 @@
 
 // Define user roles
-export type UserRole = 'admin' | 'user';
+export type UserRole = 'admin' | 'moderator' | 'user';
 
 // User with role information
 export interface UserWithRole {
@@ -29,4 +29,25 @@ export interface UsersSearchOptions extends UsersFetchOptions {
 export interface UsersFetchResult {
   users: UserWithRole[];
   totalCount: number;
+}
+
+// Form validation schemas
+export interface UserFormData {
+  email: string;
+  username?: string;
+  role: UserRole;
+}
+
+// API response types
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+}
+
+// Validation error type
+export interface ValidationError {
+  field: string;
+  message: string;
 }

@@ -66,6 +66,7 @@ export function UserRowActions({ user, onPromoteUser, onDemoteUser, isUpdating }
     );
   }
 
+  // user.role === 'user'
   return (
     <Button 
       size="sm" 
@@ -77,9 +78,9 @@ export function UserRowActions({ user, onPromoteUser, onDemoteUser, isUpdating }
       {isUpdating ? (
         <Loader className="h-3 w-3 mr-1 animate-spin" />
       ) : (
-        <Crown className="h-3 w-3 mr-1" />
+        <Shield className="h-3 w-3 mr-1" />
       )}
-      Promote to Admin
+      Promote to Moderator
     </Button>
   );
 }

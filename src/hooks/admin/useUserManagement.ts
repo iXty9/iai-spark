@@ -7,8 +7,9 @@ import {
 import { fetchUsers, searchUsers, updateUserRole, checkAdminConnectionStatus } from '@/services/admin/userService';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
 import { clearAllEnvironmentConfigs } from '@/config/supabase-config';
+import { validateSearchParams, sanitizeSearchQuery, normalizeRole } from '@/utils/validation';
 
-// Debounce hook for search
+// Debounce hook for search with validation
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
@@ -25,6 +26,7 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
+// Enhanced state management hook
 export function useUserManagement() {
   const { toast } = useToast();
 
@@ -37,41 +39,72 @@ export function useUserManagement() {
   const [dialog, setDialog] = useState<"promote" | "demote" | "environment" | null>(null);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
 
-  // Pagination + Filter
+  // Pagination + Filter with validation
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
 
-  // Debounced search query
+  // Form validation states
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+  // Debounced search query with validation
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
-  // Clear filters function
+  // Validate search parameters
+  const validateParams = useCallback((params: any) => {
+    const validation = validateSearchParams(params);
+    if (!validation.success) {
+      setValidationErrors(
+        validation.errors?.reduce((acc, err) => ({ ...acc, [err.field]: err.message }), {}) || {}
+      );
+      return false;
+    }
+    setValidationErrors({});
+    return true;
+  }, []);
+
+  // Clear filters function with validation
   const clearFilters = useCallback(() => {
     setSearchQuery('');
     setRoleFilter('all');
     setCurrentPage(1);
+    setValidationErrors({});
   }, []);
 
-  // Memoized search function to prevent unnecessary re-renders
+  // Enhanced search execution with comprehensive error handling
   const executeSearch = useCallback(async (isSearch: boolean = false) => {
     setLoading(true);
     setError(null);
     
     try {
+      // Validate parameters before making request
+      const params = {
+        searchQuery: debouncedSearchQuery,
+        page: isSearch ? 1 : currentPage,
+        pageSize,
+        roleFilter: roleFilter !== 'all' ? roleFilter : undefined,
+      };
+
+      if (!validateParams(params)) {
+        setLoading(false);
+        return;
+      }
+
       const options = {
         page: isSearch ? 1 : currentPage,
         pageSize,
-        roleFilter: roleFilter !== 'all' ? roleFilter as UserRole : undefined,
+        roleFilter: roleFilter !== 'all' ? normalizeRole(roleFilter) : undefined,
       };
 
       let result: UsersFetchResult;
       
       if (debouncedSearchQuery.trim()) {
+        const sanitizedQuery = sanitizeSearchQuery(debouncedSearchQuery);
         result = await searchUsers({
           ...options,
-          searchQuery: debouncedSearchQuery,
+          searchQuery: sanitizedQuery,
         });
       } else {
         result = await fetchUsers(options);
@@ -94,14 +127,14 @@ export function useUserManagement() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearchQuery, currentPage, pageSize, roleFilter, toast]);
+  }, [debouncedSearchQuery, currentPage, pageSize, roleFilter, toast, validateParams]);
 
   // Universal fetcher with improved logic
   const fetchAndSetUsers = useCallback(async (isSearch = false) => {
     await executeSearch(isSearch);
   }, [executeSearch]);
 
-  // Effect for debounced search
+  // Effect for debounced search with validation
   useEffect(() => {
     if (connectionStatus?.isConnected && connectionStatus?.isAdmin) {
       executeSearch(true);
@@ -142,19 +175,31 @@ export function useUserManagement() {
     checkConnection();
   }, []);
 
-  // Role update with optimistic updates and better UX
+  // Enhanced role update with comprehensive validation and optimistic updates
   const confirmRoleUpdate = async (role: UserRole) => {
     if (!selectedUser) return;
     
+    // Validate role
+    const normalizedRole = normalizeRole(role);
+    if (!['admin', 'moderator', 'user'].includes(normalizedRole)) {
+      toast({
+        variant: "destructive",
+        title: "Invalid role",
+        description: "Please select a valid role.",
+      });
+      return;
+    }
+    
     setUpdatingUserId(selectedUser.id);
     
-    // Optimistic update
+    // Optimistic update with validation
     const previousUsers = [...users];
+    const updatedUser = { ...selectedUser, role: normalizedRole as UserRole };
     setUsers(users =>
-      users.map(u => u.id === selectedUser.id ? { ...u, role } : u));
+      users.map(u => u.id === selectedUser.id ? updatedUser : u));
     
     try {
-      const success = await updateUserRole(selectedUser.id, role);
+      const success = await updateUserRole(selectedUser.id, normalizedRole as UserRole);
       
       if (!success) {
         // Rollback optimistic update
@@ -164,7 +209,7 @@ export function useUserManagement() {
       
       toast({
         title: "Role updated successfully",
-        description: `${selectedUser.email} is now ${role === 'admin' ? 'an admin' : role === 'moderator' ? 'a moderator' : 'a user'}.`,
+        description: `${selectedUser.email} is now ${normalizedRole === 'admin' ? 'an admin' : normalizedRole === 'moderator' ? 'a moderator' : 'a user'}.`,
       });
     } catch (e: any) {
       // Rollback optimistic update
@@ -181,17 +226,25 @@ export function useUserManagement() {
     }
   };
   
-  // Reset environment configuration
+  // Reset environment configuration with validation
   const resetEnvironmentConfig = () => {
-    clearAllEnvironmentConfigs();
-    toast({
-      title: "Configuration Reset",
-      description: "All environment-specific configurations have been cleared. Please refresh the page.",
-    });
-    setDialog(null);
-    setTimeout(() => {
-      window.location.reload();
-    }, 1500);
+    try {
+      clearAllEnvironmentConfigs();
+      toast({
+        title: "Configuration Reset",
+        description: "All environment-specific configurations have been cleared. Please refresh the page.",
+      });
+      setDialog(null);
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Reset Failed",
+        description: "Failed to reset configuration. Please try again.",
+      });
+    }
   };
 
   const reinitializeConnection = useCallback(() => {
@@ -199,24 +252,44 @@ export function useUserManagement() {
     window.location.href = window.location.pathname + "?force_init=true";
   }, []);
 
-  return {
+  // Memoized values for performance
+  const memoizedValues = useMemo(() => ({
     users,
     loading,
     error,
     connectionStatus,
     selectedUser,
-    setSelectedUser,
     dialog,
-    setDialog,
     updatingUserId,
     currentPage,
-    setCurrentPage,
     totalPages,
     pageSize,
-    setPageSize,
     searchQuery,
-    setSearchQuery,
     roleFilter,
+    validationErrors
+  }), [
+    users,
+    loading,
+    error,
+    connectionStatus,
+    selectedUser,
+    dialog,
+    updatingUserId,
+    currentPage,
+    totalPages,
+    pageSize,
+    searchQuery,
+    roleFilter,
+    validationErrors
+  ]);
+
+  return {
+    ...memoizedValues,
+    setSelectedUser,
+    setDialog,
+    setCurrentPage,
+    setPageSize,
+    setSearchQuery,
     setRoleFilter,
     clearFilters,
     fetchAndSetUsers,

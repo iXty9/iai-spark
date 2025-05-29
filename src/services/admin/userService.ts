@@ -1,13 +1,30 @@
 
 import { logger } from '@/utils/logging';
-import { UserWithRole, UserRole, UsersFetchOptions, UsersSearchOptions, UsersFetchResult } from './types/userTypes';
+import { UserWithRole, UserRole, UsersFetchOptions, UsersSearchOptions, UsersFetchResult, ApiResponse } from './types/userTypes';
 import { supabase } from '@/integrations/supabase/client';
+import { validateSearchParams, sanitizeSearchQuery, normalizeRole } from '@/utils/validation';
+import { sanitizeInput } from '@/utils/security';
 
 /**
- * Check admin connection status with real health checks
+ * Enhanced error handling wrapper
+ */
+const withErrorHandling = async <T>(
+  operation: () => Promise<T>,
+  context: string
+): Promise<T> => {
+  try {
+    return await operation();
+  } catch (error) {
+    logger.error(`Error in ${context}:`, error);
+    throw new Error(`${context} failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+};
+
+/**
+ * Check admin connection status with comprehensive health checks
  */
 export async function checkAdminConnectionStatus(): Promise<any> {
-  try {
+  return withErrorHandling(async () => {
     // Test database connection
     const { data: dbTest, error: dbError } = await supabase
       .from('profiles')
@@ -42,44 +59,39 @@ export async function checkAdminConnectionStatus(): Promise<any> {
         lastConnection: new Date().toISOString()
       }
     };
-  } catch (error) {
-    logger.error('Error checking admin connection status:', error);
-    return {
-      isConnected: false,
-      isAuthenticated: false,
-      isAdmin: false,
-      functionAvailable: false,
-      environmentInfo: {
-        environmentId: "unknown",
-        environment: "error",
-        connectionId: "error",
-        url: "error",
-        lastConnection: new Date().toISOString()
-      }
-    };
-  }
+  }, 'checkAdminConnectionStatus');
 }
 
 /**
- * Fetch users with real database queries and pagination
+ * Fetch users with enhanced validation and error handling
  */
 export async function fetchUsers(options: UsersFetchOptions = {}): Promise<UsersFetchResult> {
-  try {
-    const { page = 1, pageSize = 10, roleFilter } = options;
+  return withErrorHandling(async () => {
+    const validation = validateSearchParams({
+      page: options.page,
+      pageSize: options.pageSize,
+      roleFilter: options.roleFilter
+    });
+    
+    if (!validation.success) {
+      throw new Error(`Invalid parameters: ${validation.errors?.map(e => e.message).join(', ')}`);
+    }
+    
+    const { page = 1, pageSize = 10, roleFilter } = validation.data!;
     const offset = (page - 1) * pageSize;
     
-    // First get all profiles with pagination
+    // Get profiles with proper error handling
     let profileQuery = supabase
       .from('profiles')
-      .select('id, username, created_at', { count: 'exact' })
+      .select('id, username, updated_at', { count: 'exact' })
       .range(offset, offset + pageSize - 1)
-      .order('created_at', { ascending: false });
+      .order('updated_at', { ascending: false });
 
     const { data: profiles, error: profileError, count } = await profileQuery;
     
     if (profileError) {
       logger.error('Error fetching profiles:', profileError);
-      return { users: [], totalCount: 0 };
+      throw new Error(`Database error: ${profileError.message}`);
     }
 
     if (!profiles || profiles.length === 0) {
@@ -95,21 +107,27 @@ export async function fetchUsers(options: UsersFetchOptions = {}): Promise<Users
 
     if (rolesError) {
       logger.error('Error fetching user roles:', rolesError);
+      // Don't throw here, continue with default roles
     }
 
-    // Get auth users data for emails
-    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-    
-    if (authError) {
-      logger.error('Error fetching auth users:', authError);
+    // Get auth users data for emails (with error handling)
+    let authUsers: any = null;
+    try {
+      const { data: authUsersData, error: authError } = await supabase.auth.admin.listUsers();
+      if (!authError) {
+        authUsers = authUsersData;
+      }
+    } catch (error) {
+      logger.error('Error fetching auth users:', error);
+      // Continue without auth data
     }
 
-    // Combine the data
+    // Combine the data with validation
     const users: UserWithRole[] = profiles.map(profile => {
       const userRole = userRoles?.find(ur => ur.user_id === profile.id);
-      const authUser = authUsers?.users?.find(au => au.id === profile.id);
+      const authUser = authUsers?.users?.find((au: any) => au.id === profile.id);
       
-      const role = userRole?.role || 'user';
+      const role = normalizeRole(userRole?.role || 'user');
       
       // Apply role filter if specified
       if (roleFilter && roleFilter !== 'all' && role !== roleFilter) {
@@ -118,10 +136,10 @@ export async function fetchUsers(options: UsersFetchOptions = {}): Promise<Users
 
       return {
         id: profile.id,
-        email: authUser?.email || `user-${profile.id.slice(0, 8)}@example.com`,
-        created_at: authUser?.created_at || profile.created_at || new Date().toISOString(),
+        email: sanitizeInput(authUser?.email || `user-${profile.id.slice(0, 8)}@example.com`),
+        created_at: authUser?.created_at || profile.updated_at || new Date().toISOString(),
         role: role as UserRole,
-        username: profile.username,
+        username: sanitizeInput(profile.username || ''),
         last_sign_in_at: authUser?.last_sign_in_at
       };
     }).filter(Boolean) as UserWithRole[];
@@ -130,37 +148,47 @@ export async function fetchUsers(options: UsersFetchOptions = {}): Promise<Users
       users,
       totalCount: count || 0
     };
-  } catch (error) {
-    logger.error('Error in fetchUsers:', error);
-    return { users: [], totalCount: 0 };
-  }
+  }, 'fetchUsers');
 }
 
 /**
- * Search users with real database queries
+ * Search users with enhanced validation and sanitization
  */
 export async function searchUsers(options: UsersSearchOptions): Promise<UsersFetchResult> {
-  try {
-    const { searchQuery, page = 1, pageSize = 10, roleFilter } = options;
-    const offset = (page - 1) * pageSize;
+  return withErrorHandling(async () => {
+    const validation = validateSearchParams({
+      searchQuery: options.searchQuery,
+      page: options.page,
+      pageSize: options.pageSize,
+      roleFilter: options.roleFilter
+    });
     
-    if (!searchQuery.trim()) {
+    if (!validation.success) {
+      throw new Error(`Invalid search parameters: ${validation.errors?.map(e => e.message).join(', ')}`);
+    }
+    
+    const { searchQuery, page = 1, pageSize = 10, roleFilter } = validation.data!;
+    
+    if (!searchQuery?.trim()) {
       return fetchUsers({ page, pageSize, roleFilter });
     }
     
-    // Search in profiles by username
+    const sanitizedQuery = sanitizeSearchQuery(searchQuery);
+    const offset = (page - 1) * pageSize;
+    
+    // Search in profiles by username with sanitized input
     let profileQuery = supabase
       .from('profiles')
-      .select('id, username, created_at', { count: 'exact' })
-      .ilike('username', `%${searchQuery}%`)
+      .select('id, username, updated_at', { count: 'exact' })
+      .ilike('username', `%${sanitizedQuery}%`)
       .range(offset, offset + pageSize - 1)
-      .order('created_at', { ascending: false });
+      .order('updated_at', { ascending: false });
 
     const { data: profiles, error: profileError, count } = await profileQuery;
     
     if (profileError) {
       logger.error('Error searching profiles:', profileError);
-      return { users: [], totalCount: 0 };
+      throw new Error(`Search failed: ${profileError.message}`);
     }
 
     if (!profiles || profiles.length === 0) {
@@ -179,18 +207,22 @@ export async function searchUsers(options: UsersSearchOptions): Promise<UsersFet
     }
 
     // Get auth users data for emails
-    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-    
-    if (authError) {
-      logger.error('Error fetching auth users:', authError);
+    let authUsers: any = null;
+    try {
+      const { data: authUsersData, error: authError } = await supabase.auth.admin.listUsers();
+      if (!authError) {
+        authUsers = authUsersData;
+      }
+    } catch (error) {
+      logger.error('Error fetching auth users:', error);
     }
 
-    // Combine the data
+    // Combine the data with proper validation
     const users: UserWithRole[] = profiles.map(profile => {
       const userRole = userRoles?.find(ur => ur.user_id === profile.id);
-      const authUser = authUsers?.users?.find(au => au.id === profile.id);
+      const authUser = authUsers?.users?.find((au: any) => au.id === profile.id);
       
-      const role = userRole?.role || 'user';
+      const role = normalizeRole(userRole?.role || 'user');
       
       // Apply role filter if specified
       if (roleFilter && roleFilter !== 'all' && role !== roleFilter) {
@@ -199,10 +231,10 @@ export async function searchUsers(options: UsersSearchOptions): Promise<UsersFet
 
       return {
         id: profile.id,
-        email: authUser?.email || `user-${profile.id.slice(0, 8)}@example.com`,
-        created_at: authUser?.created_at || profile.created_at || new Date().toISOString(),
+        email: sanitizeInput(authUser?.email || `user-${profile.id.slice(0, 8)}@example.com`),
+        created_at: authUser?.created_at || profile.updated_at || new Date().toISOString(),
         role: role as UserRole,
-        username: profile.username,
+        username: sanitizeInput(profile.username || ''),
         last_sign_in_at: authUser?.last_sign_in_at
       };
     }).filter(Boolean) as UserWithRole[];
@@ -211,50 +243,71 @@ export async function searchUsers(options: UsersSearchOptions): Promise<UsersFet
       users,
       totalCount: count || 0
     };
-  } catch (error) {
-    logger.error('Error in searchUsers:', error);
-    return { users: [], totalCount: 0 };
-  }
+  }, 'searchUsers');
 }
 
 /**
- * Update user role with real database operations
+ * Update user role with comprehensive validation and error handling
  */
 export async function updateUserRole(userId: string, role: UserRole): Promise<boolean> {
-  try {
+  return withErrorHandling(async () => {
+    // Validate inputs
+    if (!userId?.trim()) {
+      throw new Error('User ID is required');
+    }
+    
+    const normalizedRole = normalizeRole(role);
+    if (!['admin', 'moderator', 'user'].includes(normalizedRole)) {
+      throw new Error('Invalid role specified');
+    }
+
+    // Sanitize user ID (basic validation)
+    const sanitizedUserId = sanitizeInput(userId.trim());
+    
+    // Check if user exists
+    const { data: profileExists, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', sanitizedUserId)
+      .maybeSingle();
+      
+    if (profileError) {
+      throw new Error(`Failed to verify user: ${profileError.message}`);
+    }
+    
+    if (!profileExists) {
+      throw new Error('User not found');
+    }
+
     // Check if user role exists
     const { data: existingRole } = await supabase
       .from('user_roles')
-      .select('id')
-      .eq('user_id', userId)
+      .select('id, role')
+      .eq('user_id', sanitizedUserId)
       .maybeSingle();
 
     if (existingRole) {
       // Update existing role
       const { error } = await supabase
         .from('user_roles')
-        .update({ role })
-        .eq('user_id', userId);
+        .update({ role: normalizedRole })
+        .eq('user_id', sanitizedUserId);
       
       if (error) {
-        logger.error('Error updating user role:', error);
-        return false;
+        throw new Error(`Failed to update user role: ${error.message}`);
       }
     } else {
       // Insert new role
       const { error } = await supabase
         .from('user_roles')
-        .insert({ user_id: userId, role });
+        .insert({ user_id: sanitizedUserId, role: normalizedRole });
       
       if (error) {
-        logger.error('Error inserting user role:', error);
-        return false;
+        throw new Error(`Failed to assign user role: ${error.message}`);
       }
     }
     
+    logger.info(`Successfully updated role to ${normalizedRole} for user ${sanitizedUserId}`);
     return true;
-  } catch (error) {
-    logger.error('Error in updateUserRole:', error);
-    return false;
-  }
+  }, 'updateUserRole');
 }

@@ -6,10 +6,11 @@ import { UserManagementPagination } from './users/UserManagementPagination';
 import { ConnectionStatusPanel } from './users/ConnectionStatusPanel';
 import { EnvironmentSettingsDialog } from './users/EnvironmentSettingsDialog';
 import { PromoteDialog, DemoteDialog } from './users/RoleDialogs';
+import { UserManagementErrorBoundary } from './users/UserManagementErrorBoundary';
 import { Loader } from 'lucide-react';
 import { useUserManagement } from '@/hooks/admin/useUserManagement';
 
-export function UserManagement() {
+function UserManagementContent() {
   const {
     users,
     loading,
@@ -33,7 +34,8 @@ export function UserManagement() {
     fetchAndSetUsers,
     confirmRoleUpdate,
     resetEnvironmentConfig,
-    reinitializeConnection
+    reinitializeConnection,
+    validationErrors
   } = useUserManagement();
 
   // Initial loading state with enhanced skeleton
@@ -79,6 +81,18 @@ export function UserManagement() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Display validation errors if any */}
+      {Object.keys(validationErrors).length > 0 && (
+        <div className="bg-destructive/10 border border-destructive/20 rounded-md p-4">
+          <h4 className="font-medium text-destructive mb-2">Validation Errors:</h4>
+          <ul className="list-disc list-inside text-sm text-destructive">
+            {Object.entries(validationErrors).map(([field, message]) => (
+              <li key={field}>{field}: {message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Header with search and filters */}
       <UserManagementHeader
         searchQuery={searchQuery}
@@ -144,5 +158,13 @@ export function UserManagement() {
         onReinitialize={reinitializeConnection}
       />
     </div>
+  );
+}
+
+export function UserManagement() {
+  return (
+    <UserManagementErrorBoundary>
+      <UserManagementContent />
+    </UserManagementErrorBoundary>
   );
 }
