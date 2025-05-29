@@ -101,7 +101,7 @@ export default function Settings() {
               backgroundImage={backgroundImage}
               backgroundOpacity={backgroundOpacity}
               imageInfo={imageInfo}
-              onImageUpload={handleBackgroundImageUpload}
+              onImageChange={handleBackgroundImageUpload}
               onRemoveBackground={handleRemoveBackground}
               onOpacityChange={handleOpacityChange}
               setImageInfo={setImageInfo}
@@ -121,7 +121,13 @@ export default function Settings() {
           </div>
         </SettingsTabs>
         
-        <SettingsFooter />
+        <SettingsFooter 
+          onReset={handleResetSettings}
+          onCancel={() => window.history.back()}
+          onSave={handleSaveSettings}
+          isSubmitting={isSubmitting}
+          hasChanges={hasChanges}
+        />
       </div>
     </div>
   );
