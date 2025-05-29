@@ -45,6 +45,10 @@ export const applyThemeChanges = (themeColors: any) => {
       userTextColor: '--user-text-color',
       aiTextColor: '--ai-text-color',
       
+      // Name tag colors - NEW
+      userNameColor: '--user-name-color',
+      aiNameColor: '--ai-name-color',
+      
       // Opacity values
       userBubbleOpacity: '--user-bubble-opacity',
       aiBubbleOpacity: '--ai-bubble-opacity'

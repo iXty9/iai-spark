@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo } from 'react';
 import { useTheme } from '@/hooks/use-theme';
 import { Input } from '@/components/ui/input';
@@ -28,12 +27,16 @@ const defaultColors = {
   aiBubbleOpacity: 0.3,
   userTextColor: '#000000',
   aiTextColor: '#000000',
+  userNameColor: '#666666',
+  aiNameColor: '#666666',
 };
 
 const contrastLabels = [
   { title: 'Text on Background', fg: 'textColor', bg: 'backgroundColor' },
   { title: 'User Text', fg: 'userTextColor', bg: 'userBubbleColor' },
   { title: 'AI Text', fg: 'aiTextColor', bg: 'aiBubbleColor' },
+  { title: 'User Name on Background', fg: 'userNameColor', bg: 'backgroundColor' },
+  { title: 'AI Name on Background', fg: 'aiNameColor', bg: 'backgroundColor' },
 ];
 
 const msgConfigs = [
@@ -240,23 +243,35 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
             <Palette className="h-5 w-5" />
             Live Theme Preview
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {msgConfigs.map(({ bubbleColor, bubbleOpacity, textColor, msgLabel }) => (
-              <div
-                key={msgLabel}
-                className="p-4 rounded-xl flex items-center justify-center text-center transition-all duration-300 hover:scale-105 shadow-md border border-border/20"
-                style={{ 
-                  backgroundColor: c[bubbleColor], 
-                  opacity: c[bubbleOpacity], 
-                  color: c[textColor] 
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4" />
-                  <span className="font-medium">{msgLabel} Message</span>
-                </div>
+          <div className="space-y-4">
+            {/* Name tag preview */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="text-xs font-medium" style={{ color: c.userNameColor }}>
+                User Name Preview
               </div>
-            ))}
+              <div className="text-xs font-medium" style={{ color: c.aiNameColor }}>
+                AI Name Preview
+              </div>
+            </div>
+            {/* Message bubbles */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {msgConfigs.map(({ bubbleColor, bubbleOpacity, textColor, msgLabel }) => (
+                <div
+                  key={msgLabel}
+                  className="p-4 rounded-xl flex items-center justify-center text-center transition-all duration-300 hover:scale-105 shadow-md border border-border/20"
+                  style={{ 
+                    backgroundColor: c[bubbleColor], 
+                    opacity: c[bubbleOpacity], 
+                    color: c[textColor] 
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4" />
+                    <span className="font-medium">{msgLabel} Message</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -279,7 +294,7 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
           </Button>
         </div>
         {showContrastChecks && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {contrastData.map(item =>
               <ContrastCheckBlock key={item.title} {...item} onApplySuggestion={applySuggestion} />
             )}
@@ -310,6 +325,32 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
               onColorChange={onColorChange}
               isActive={isActive}
               icon={<div className="w-3 h-3 rounded-full bg-foreground"></div>}
+            />
+          </div>
+        </div>
+
+        {/* NEW: Name Tag Colors Section */}
+        <div className="bg-card/60 rounded-xl p-6 border border-border/20 space-y-6">
+          <h4 className="font-semibold text-lg border-b border-border/30 pb-3 flex items-center gap-2">
+            <MessageSquare className="h-5 w-5 text-primary" />
+            Name Tag Colors
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <ColorInputRow
+              label="User Name Color"
+              name="userNameColor"
+              value={c.userNameColor}
+              onColorChange={onColorChange}
+              isActive={isActive}
+              icon={<div className="w-3 h-3 rounded-full border border-border" style={{ backgroundColor: c.userNameColor }}></div>}
+            />
+            <ColorInputRow
+              label="AI Name Color"
+              name="aiNameColor"
+              value={c.aiNameColor}
+              onColorChange={onColorChange}
+              isActive={isActive}
+              icon={<div className="w-3 h-3 rounded-full border border-border" style={{ backgroundColor: c.aiNameColor }}></div>}
             />
           </div>
         </div>

@@ -1,4 +1,3 @@
-
 export interface ThemeColors {
   backgroundColor: string;
   primaryColor: string;
@@ -10,6 +9,8 @@ export interface ThemeColors {
   aiBubbleOpacity: number;
   userTextColor: string;
   aiTextColor: string;
+  userNameColor: string;
+  aiNameColor: string;
 }
 
 export interface ThemeSettings {

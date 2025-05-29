@@ -66,11 +66,16 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
         'flex flex-col', 
         isUser ? 'items-end' : 'items-start'
       )}>
-        {/* Username text only (no inline avatar) with symmetrical spacing */}
-        <div className={cn(
-          'text-xs mb-1 font-medium', 
-          isUser ? 'text-right' : 'text-left'
-        )}>
+        {/* Username text with dynamic name tag colors */}
+        <div 
+          className={cn(
+            'text-xs mb-1 font-medium', 
+            isUser ? 'text-right' : 'text-left'
+          )}
+          style={{
+            color: isUser ? 'var(--user-name-color)' : 'var(--ai-name-color)'
+          }}
+        >
           {displayName}
         </div>
         

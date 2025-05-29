@@ -40,7 +40,9 @@ class ProductionThemeService {
       userBubbleOpacity: 0.3,
       aiBubbleOpacity: 0.3,
       userTextColor: '#000000',
-      aiTextColor: '#000000'
+      aiTextColor: '#000000',
+      userNameColor: '#666666',
+      aiNameColor: '#666666'
     };
   }
 
@@ -55,7 +57,9 @@ class ProductionThemeService {
       userBubbleOpacity: 0.3,
       aiBubbleOpacity: 0.3,
       userTextColor: '#ffffff',
-      aiTextColor: '#ffffff'
+      aiTextColor: '#ffffff',
+      userNameColor: '#cccccc',
+      aiNameColor: '#cccccc'
     };
   }
 
