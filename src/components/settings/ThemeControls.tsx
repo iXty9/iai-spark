@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo } from 'react';
 import { useTheme } from '@/hooks/use-theme';
 import { Input } from '@/components/ui/input';
@@ -15,7 +16,7 @@ export interface ThemeControlsProps {
   isActive?: boolean;
 }
 
-// FIXED: Use correct default colors from production theme service
+// Use correct default colors from production theme service
 const defaultColors = {
   backgroundColor: '#ffffff',
   primaryColor: '#dd3333',
@@ -54,7 +55,7 @@ const msgConfigs = [
 
 const ContrastBadge = React.memo(({ rating }: { rating: 'AAA' | 'AA' | 'Fail' }) => (
   <Badge className={`text-xs ${
-    rating === 'AAA' ? 'bg-green-500' : rating === 'AA' ? 'bg-yellow-500' : 'bg-red-500'
+    rating === 'AAA' ? 'bg-green-500 text-white' : rating === 'AA' ? 'bg-yellow-500 text-black' : 'bg-red-500 text-white'
   }`}>
     {rating === 'Fail' ? <AlertCircle className="h-3 w-3 mr-1" /> : <Check className="h-3 w-3 mr-1" />}
     {rating}
@@ -81,7 +82,7 @@ const ColorInputRow = React.memo(({
         {icon}
         {label}
       </Label>
-      <div className="flex items-center space-x-4 p-3 rounded-lg border border-border/20 bg-gradient-to-r from-background/60 to-background/40 hover:from-background/80 hover:to-background/60 transition-all duration-200">
+      <div className="flex items-center space-x-4 p-3 rounded-lg border border-border/20 bg-card/60 hover:bg-card/80 transition-all duration-200">
         <div 
           className="w-10 h-10 rounded-lg border-2 cursor-pointer transition-all hover:scale-105 shadow-sm" 
           style={{
@@ -128,13 +129,13 @@ const OpacitySliderRow = React.memo(({
   }, [name, onChange]);
 
   return (
-    <div className="space-y-4 p-4 rounded-lg border border-border/20 bg-gradient-to-r from-background/60 to-background/40">
+    <div className="space-y-4 p-4 rounded-lg border border-border/20 bg-card/60">
       <div className="flex justify-between items-center">
         <Label htmlFor={name} className="text-sm font-medium flex items-center gap-2">
           {icon}
           {label}
         </Label>
-        <div className="bg-gradient-to-r from-primary/20 to-accent/20 px-3 py-1 rounded-md border border-border/20">
+        <div className="bg-primary/20 px-3 py-1 rounded-md border border-border/20">
           <span className="text-sm font-mono font-semibold">{Math.round(value * 100)}%</span>
         </div>
       </div>
@@ -204,14 +205,13 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
     onColorChange({ name, value });
   }, [onColorChange]);
   
-  // FIXED: Proper slider change handler with useCallback
   const handleSliderChange = useCallback((name: string, value: number) => {
     onColorChange({ name, value });
   }, [onColorChange]);
   
   const c = useMemo(() => ({ ...defaultColors, ...colors }), [colors]);
 
-  // FIXED: Memoize contrast data to prevent unnecessary recalculation
+  // Memoize contrast data to prevent unnecessary recalculation
   const contrastData = useMemo(() => contrastLabels.map(({ title, fg, bg }) => {
     const rating = getContrastRating(c[fg], c[bg]);
     const contrastRatio = getContrastRatio(c[fg], c[bg]);
@@ -231,9 +231,9 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
   }, []);
 
   return (
-    <div className={`space-y-8 ${theme === 'light' ? 'text-black' : 'text-white'}`}>
+    <div className="space-y-8">
       {/* Enhanced Theme Preview */}
-      <div className="relative overflow-hidden rounded-xl border-2 border-border/30 bg-gradient-to-br from-background/80 to-background/60 p-6 shadow-lg" style={{ backgroundColor: c.backgroundColor }}>
+      <div className="relative overflow-hidden rounded-xl border-2 border-border/30 bg-card/80 p-6 shadow-lg" style={{ backgroundColor: c.backgroundColor }}>
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none"></div>
         <div className="relative">
           <h3 className="font-semibold mb-4 text-lg flex items-center gap-2" style={{ color: c.textColor }}>
@@ -262,7 +262,7 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
       </div>
 
       {/* Enhanced Accessibility Checks */}
-      <div className="bg-gradient-to-br from-muted/20 via-muted/10 to-muted/20 rounded-xl p-6 border border-border/20 space-y-4">
+      <div className="bg-muted/20 rounded-xl p-6 border border-border/20 space-y-4">
         <div className="flex justify-between items-center">
           <h3 className="font-semibold text-lg flex items-center gap-2">
             <Check className="h-5 w-5 text-green-500" />
@@ -289,7 +289,7 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
 
       {/* Enhanced Color Sections */}
       <div className="space-y-6">
-        <div className="bg-gradient-to-br from-background/60 to-background/40 rounded-xl p-6 border border-border/20 space-y-6">
+        <div className="bg-card/60 rounded-xl p-6 border border-border/20 space-y-6">
           <h4 className="font-semibold text-lg border-b border-border/30 pb-3 flex items-center gap-2">
             <Palette className="h-5 w-5 text-primary" />
             Base Colors
@@ -316,7 +316,7 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
 
         {/* Enhanced Message Settings */}
         {msgConfigs.map(({ heading, bubbleColor, bubbleOpacity, textColor, msgLabel }) => (
-          <div className="bg-gradient-to-br from-background/60 to-background/40 rounded-xl p-6 border border-border/20 space-y-6" key={heading}>
+          <div className="bg-card/60 rounded-xl p-6 border border-border/20 space-y-6" key={heading}>
             <h4 className="font-semibold text-lg border-b border-border/30 pb-3 flex items-center gap-2">
               <MessageSquare className="h-5 w-5 text-primary" />
               {heading}

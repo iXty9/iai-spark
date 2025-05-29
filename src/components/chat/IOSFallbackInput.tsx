@@ -33,8 +33,8 @@ export const IOSFallbackInput: React.FC<IOSFallbackInputProps> = ({ show }) => {
         right: 0,
         zIndex: 1100,
         padding: '12px',
-        backgroundColor: 'var(--background)',
-        borderTop: '1px solid var(--border)',
+        backgroundColor: 'hsl(var(--background))',
+        borderTop: '1px solid hsl(var(--border))',
         minHeight: '60px',
         display: 'block',
         paddingBottom: 'env(safe-area-inset-bottom, 12px)'
@@ -45,12 +45,13 @@ export const IOSFallbackInput: React.FC<IOSFallbackInputProps> = ({ show }) => {
           width: '100%',
           padding: '14px',
           borderRadius: '20px',
-          backgroundColor: 'var(--primary)',
-          color: 'white',
+          backgroundColor: 'hsl(var(--primary))',
+          color: 'hsl(var(--primary-foreground))',
           textAlign: 'center',
           fontSize: '16px',
           fontWeight: 'bold',
-          touchAction: 'manipulation'
+          touchAction: 'manipulation',
+          border: 'none'
         }}
         onClick={handleClick}
       >

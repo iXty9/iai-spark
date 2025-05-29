@@ -1,5 +1,4 @@
 
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -30,7 +29,7 @@ a {
   
   /* COMPREHENSIVE TEXT COLOR ENFORCEMENT */
   body, html {
-    color: var(--text-color-hex, hsl(var(--foreground)));
+    color: hsl(var(--foreground));
   }
   
   /* Force all text elements to respect theme text color */
@@ -38,18 +37,20 @@ a {
     color: inherit;
   }
   
-  /* Override any hardcoded text colors */
-  .text-black {
-    color: var(--text-color-hex, hsl(var(--foreground))) !important;
-  }
-  
-  .text-white {
-    color: var(--text-color-hex, hsl(var(--foreground))) !important;
-  }
-  
   /* Ensure components inherit text color properly */
   .card, .card-header, .card-content, .card-footer {
     color: inherit;
+  }
+  
+  /* Dropdown content should have proper background and high z-index */
+  [data-radix-popper-content-wrapper] {
+    z-index: 50 !important;
+  }
+  
+  [role="menu"] {
+    background-color: hsl(var(--background)) !important;
+    border: 1px solid hsl(var(--border)) !important;
+    z-index: 50 !important;
   }
 }
 
@@ -60,30 +61,26 @@ a {
 }
 
 /* Force all loading spinners to use company color */
-.animate-spin svg {
+.animate-spin svg, .animate-spin * {
   color: hsl(var(--primary)) !important;
+  stroke: hsl(var(--primary)) !important;
 }
 
-/* Override any blue colors with company red */
-.text-blue-500, .text-blue-600, .text-blue-700 {
-  color: hsl(var(--primary)) !important;
+/* Loading spinner animation with company color */
+.loading-spinner {
+  border: 3px solid hsl(var(--muted));
+  border-top: 3px solid hsl(var(--primary));
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 
-.bg-blue-500, .bg-blue-600, .bg-blue-700 {
-  background-color: hsl(var(--primary)) !important;
-}
-
-.border-blue-500, .border-blue-600, .border-blue-700 {
-  border-color: hsl(var(--primary)) !important;
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 /* Ensure Lucide icons respect the color */
 .lucide {
-  color: inherit;
-}
-
-/* FORCE text color inheritance in all scenarios */
-* {
   color: inherit;
 }
 
@@ -93,4 +90,29 @@ input:not([type="color"]),
 textarea,
 select {
   color: inherit !important;
+}
+
+/* Focus states with company color */
+:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+/* Ensure all progress bars use primary color */
+[data-state="indeterminate"] {
+  background-color: hsl(var(--primary)) !important;
+}
+
+/* Loading states consistency */
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
 }

@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { RotateCcw, Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/hooks/use-theme';
+import { productionThemeService } from '@/services/production-theme-service';
 
 export interface AppearanceSettingsProps {
   theme: 'light' | 'dark';
@@ -43,10 +44,13 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
     }
   };
 
-  // Handle tab change to also switch the application theme mode
+  // Handle tab change to switch theme mode and immediately apply changes
   const handleTabChange = (value: string) => {
     const newMode = value as 'light' | 'dark';
     setMode(newMode);
+    
+    // Immediately apply the theme for the new mode using production service
+    productionThemeService.setMode(newMode);
   };
   
   return (

@@ -61,7 +61,7 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({ isUser, onAiIconEr
   const displayName = getDisplayName();
   const initials = displayName === 'AI' ? 'AI' : displayName.charAt(0).toUpperCase();
 
-  // Both user and AI avatars use the same size
+  // Both user and AI avatars use the same size but theme-aware styling
   return (
     <Avatar className="w-6 h-6" title={displayName}>
       <AvatarImage
@@ -74,7 +74,7 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({ isUser, onAiIconEr
           }
         }}
       />
-      <AvatarFallback className={isUser ? "bg-primary/10 text-primary text-xs" : "bg-[#ea384c] text-white text-xs"}>
+      <AvatarFallback className={isUser ? "bg-primary/10 text-primary text-xs" : "bg-primary text-primary-foreground text-xs"}>
         {initials}
       </AvatarFallback>
     </Avatar>

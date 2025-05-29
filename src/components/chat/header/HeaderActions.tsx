@@ -160,7 +160,7 @@ export const HeaderActions = ({
             Actions
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="border-none shadow-md rounded-xl">
+        <DropdownMenuContent align="end" className="bg-background border shadow-md rounded-xl z-50">
           {/* Load Theme option */}
           <DropdownMenuItem onClick={handleReloadTheme} className={isMobile ? "flex items-center" : ""}>
             <RefreshCw className="mr-2 h-4 w-4" />

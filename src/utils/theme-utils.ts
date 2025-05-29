@@ -1,3 +1,4 @@
+
 /**
  * Theme utility functions
  * Enhanced utilities for theme operations with complete CSS variable mapping
@@ -87,14 +88,18 @@ export const applyThemeChanges = (themeColors: any) => {
     if (themeColors.textColor) {
       document.body.style.color = themeColors.textColor;
       
-      // Update all text elements immediately - FIX: Cast to HTMLElement
+      // Update all text elements immediately with proper casting
       const textElements = document.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, div, label, a, button, input, textarea, select');
       textElements.forEach(element => {
         const htmlElement = element as HTMLElement;
-        if (!htmlElement.style.color || htmlElement.style.color === '') {
-          htmlElement.style.color = themeColors.textColor;
+        // Only update if the element doesn't have an explicit color set
+        if (!htmlElement.style.color || htmlElement.style.color === '' || htmlElement.style.color === 'inherit') {
+          htmlElement.style.color = 'inherit';
         }
       });
+      
+      // Force a repaint to ensure changes are visible immediately
+      document.body.offsetHeight;
     }
 
     console.log('Applied comprehensive theme changes with FULL text color mapping', { 
