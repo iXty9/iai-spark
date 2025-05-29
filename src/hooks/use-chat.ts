@@ -8,7 +8,7 @@ import { useChatActions } from './chat/use-chat-actions';
 import { useChatAbort } from './chat/use-chat-abort';
 
 export const useChat = () => {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, profile, isLoading: authLoading } = useAuth();
   
   const {
     messages,
@@ -28,7 +28,8 @@ export const useChat = () => {
     addMessage,
     setIsLoading,
     isAuthenticated: !!user,
-    isAuthLoading: authLoading
+    isAuthLoading: authLoading,
+    userProfile: profile
   });
 
   const { startChat } = useChatInit({

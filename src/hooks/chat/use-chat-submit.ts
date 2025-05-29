@@ -17,6 +17,7 @@ interface UseChatSubmitProps {
   setIsLoading: (loading: boolean) => void;
   isAuthenticated: boolean;
   isAuthLoading: boolean;
+  userProfile?: { username?: string; first_name?: string; last_name?: string } | null;
 }
 
 export const useChatSubmit = ({
@@ -25,7 +26,8 @@ export const useChatSubmit = ({
   addMessage,
   setIsLoading,
   isAuthenticated,
-  isAuthLoading
+  isAuthLoading,
+  userProfile
 }: UseChatSubmitProps) => {
   const { setSubmitting, isSubmitting } = useSubmitState();
   const { handleSubmissionError } = useErrorHandling({ addMessage });
@@ -103,6 +105,7 @@ export const useChatSubmit = ({
       const aiResponse = await processMessage({
         message: userMessage.content,
         isAuthenticated: isAuthenticated,
+        userProfile: userProfile,
         onError: (error) => {
           logger.error('Error in AI response', error, { module: 'chat' });
           if (process.env.NODE_ENV === 'development') {
@@ -146,7 +149,7 @@ export const useChatSubmit = ({
         messageId: userMessage.id
       }, { module: 'chat', throttle: true });
     }
-  }, [message, isAuthenticated, isAuthLoading, addMessage, setMessage, setIsLoading, isSubmitting, setSubmitting, handleSubmissionError]);
+  }, [message, isAuthenticated, isAuthLoading, addMessage, setMessage, setIsLoading, isSubmitting, setSubmitting, handleSubmissionError, userProfile]);
   
   const { handleRetry, clearRetry, incrementAttempt, resetAttempts } = useMessageRetry({ 
     handleSubmit: () => handleSubmitWithRetry()
