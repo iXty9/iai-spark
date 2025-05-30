@@ -24,7 +24,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onImportChat,
   onReloadTheme,
   hasMessages = false,
-  dynamicPadding = { left: 4, right: 4 },
+  dynamicPadding = { left: 0, right: 0 },
   isMobile = false
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -51,13 +51,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   };
   
   return (
-    <header className="py-0 px-2 flex items-center justify-between h-12 min-h-12">
+    <header className="py-3 flex items-center justify-between min-h-[3rem]">
       <HeaderLogo 
         isMobile={isMobile} 
         dynamicPadding={{ left: 0 }}
       />
       
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-3 flex-shrink-0">
         <UserMenu />
         
         <HeaderActions 

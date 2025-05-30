@@ -37,7 +37,7 @@ export const HeaderActions = ({
   onReloadTheme,
   onImportClick,
   hasMessages = false,
-  dynamicPadding = { right: 4 },
+  dynamicPadding = { right: 0 },
   isMobile = false
 }: HeaderActionsProps) => {
   const { theme, setTheme } = useTheme();
@@ -137,18 +137,14 @@ export const HeaderActions = ({
   };
   
   return (
-    <div 
-      className="flex items-center gap-2"
-      style={{ 
-        marginRight: isMobile ? '0' : `calc(${dynamicPadding.right / 4}rem - 1rem)` 
-      }}
-    >
+    <div className="flex items-center gap-3">
       {!isMobile && (
         <Button 
           variant="ghost" 
           size="icon"
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          className="h-9 w-9 shadow-sm"
         >
           {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </Button>
@@ -156,54 +152,51 @@ export const HeaderActions = ({
       
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size={isMobile ? "xs" : "sm"}>
+          <Button 
+            variant="outline" 
+            size={isMobile ? "sm" : "default"}
+            className="shadow-sm min-h-[2.25rem] px-4"
+          >
             Actions
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="bg-background border shadow-md rounded-xl z-50">
+        <DropdownMenuContent 
+          align="end" 
+          className="bg-background/95 backdrop-blur-md border border-border/30 shadow-lg rounded-xl z-50 min-w-[160px]"
+        >
           {/* Load Theme option */}
-          <DropdownMenuItem onClick={handleReloadTheme} className={isMobile ? "flex items-center" : ""}>
+          <DropdownMenuItem onClick={handleReloadTheme} className="py-2.5">
             <RefreshCw className="mr-2 h-4 w-4" />
             <span>{isMobile ? "Load Theme" : "Load Default Theme"}</span>
           </DropdownMenuItem>
           
-          {!isMobile && hasMessages && (
-            <DropdownMenuItem onClick={onExportChat}>
+          {hasMessages && (
+            <DropdownMenuItem onClick={onExportChat} className="py-2.5">
               <Download className="mr-2 h-4 w-4" />
-              <span>Export Chat</span>
+              <span>{isMobile ? "Export" : "Export Chat"}</span>
             </DropdownMenuItem>
           )}
-          {isMobile && hasMessages && (
-            <DropdownMenuItem onClick={onExportChat} className="flex items-center">
-              <Download className="mr-2 h-4 w-4" />
-              <span>Export</span>
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onClick={onImportClick} className={isMobile ? "flex items-center" : ""}>
+          
+          <DropdownMenuItem onClick={onImportClick} className="py-2.5">
             <Upload className="mr-2 h-4 w-4" />
             <span>{isMobile ? "Import" : "Import Chat"}</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={onClearChat} className={isMobile ? "flex items-center" : ""}>
+          
+          <DropdownMenuItem onClick={onClearChat} className="py-2.5">
             <Trash2 className="mr-2 h-4 w-4" />
             <span>{isMobile ? "Clear" : "Clear Chat"}</span>
           </DropdownMenuItem>
-          {!isMobile && (
-            <DropdownMenuItem onClick={handleDevModeToggle}>
-              <Code className="mr-2 h-4 w-4" />
-              <span>Dev Mode {isDevMode ? '(On)' : '(Off)'}</span>
-            </DropdownMenuItem>
-          )}
+          
+          <DropdownMenuItem onClick={handleDevModeToggle} className="py-2.5">
+            <Code className="mr-2 h-4 w-4" />
+            <span>{isMobile ? `Dev ${isDevMode ? '(On)' : '(Off)'}` : `Dev Mode ${isDevMode ? '(On)' : '(Off)'}`}</span>
+          </DropdownMenuItem>
+          
           {isMobile && (
-            <>
-              <DropdownMenuItem onClick={handleDevModeToggle} className="flex items-center">
-                <Code className="mr-2 h-4 w-4" />
-                <span>Dev {isDevMode ? '(On)' : '(Off)'}</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="flex items-center">
-                {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
-                <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
-              </DropdownMenuItem>
-            </>
+            <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="py-2.5">
+              {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
+              <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+            </DropdownMenuItem>
           )}
         </DropdownMenuContent>
       </DropdownMenu>

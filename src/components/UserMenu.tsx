@@ -79,8 +79,12 @@ export const UserMenu = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative rounded-full h-7 w-7 border border-border/40 hover:border-[#dd3333]/30 transition-all duration-200 flex-shrink-0">
-          <Avatar className="h-6 w-6">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="relative rounded-full h-9 w-9 md:h-8 md:w-8 border border-border/40 hover:border-[#dd3333]/30 transition-all duration-200 flex-shrink-0 shadow-sm"
+        >
+          <Avatar className="h-7 w-7 md:h-6 md:w-6">
             {user && profile?.avatar_url ? (
               <AvatarImage src={profile.avatar_url} alt={profile?.username || "User"} />
             ) : (
@@ -91,41 +95,44 @@ export const UserMenu = () => {
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent 
+        align="end" 
+        className="w-56 bg-background/95 backdrop-blur-md border border-border/30 shadow-lg"
+      >
         {user ? (
           <>
             <DropdownMenuLabel>
-              <div className="flex flex-col space-y-1">
+              <div className="flex flex-col space-y-1 py-1">
                 <p className="text-sm font-medium leading-none">{profile?.username || "User"}</p>
                 <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleProfileClick}>
+            <DropdownMenuItem onClick={handleProfileClick} className="py-2">
               <User className="mr-2 h-4 w-4" />
               <span>Profile</span>
             </DropdownMenuItem>
             {user && (
-              <DropdownMenuItem onClick={handleSettingsClick}>
+              <DropdownMenuItem onClick={handleSettingsClick} className="py-2">
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Settings</span>
               </DropdownMenuItem>
             )}
             {isAdmin && (
-              <DropdownMenuItem onClick={handleAdminClick}>
+              <DropdownMenuItem onClick={handleAdminClick} className="py-2">
                 <Shield className="mr-2 h-4 w-4" />
                 <span>Admin Panel</span>
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleSignOut}>
+            <DropdownMenuItem onClick={handleSignOut} className="py-2">
               <LogOut className="mr-2 h-4 w-4" />
               <span>Log out</span>
             </DropdownMenuItem>
           </>
         ) : (
           <>
-            <DropdownMenuItem onClick={handleLoginClick}>
+            <DropdownMenuItem onClick={handleLoginClick} className="py-2">
               <User className="mr-2 h-4 w-4" />
               <span>Log in</span>
             </DropdownMenuItem>
