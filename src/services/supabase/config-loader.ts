@@ -76,15 +76,19 @@ export async function loadFromUrlParameters(): Promise<ConfigLoadResult> {
     }
     
     const bootstrapConfig = await fetchBootstrapConfig(publicUrl!, publicKey!);
-    if ('error' in bootstrapConfig) {
+    if ('error' in bootstrapConfig && bootstrapConfig.error) {
       return createErrorResult(ConfigSource.URL_PARAMETERS, `Bootstrap failed: ${bootstrapConfig.error}`);
     }
     
+    if (!bootstrapConfig.config) {
+      return createErrorResult(ConfigSource.URL_PARAMETERS, 'Bootstrap config not found');
+    }
+    
     const config = createConfig(
-      bootstrapConfig.url, 
-      bootstrapConfig.anonKey, 
-      bootstrapConfig.serviceKey, 
-      bootstrapConfig.isInitialized ?? true
+      bootstrapConfig.config.url, 
+      bootstrapConfig.config.anonKey, 
+      bootstrapConfig.config.serviceKey, 
+      bootstrapConfig.config.isInitialized ?? true
     );
     
     const validation = validateConfig(config);
@@ -200,21 +204,21 @@ export async function loadFromDatabase(defaultUrl?: string, defaultKey?: string)
     }
     
     const bootstrapConfig = await fetchBootstrapConfig(defaultUrl!.trim(), defaultKey!.trim());
-    if ('error' in bootstrapConfig) {
+    if ('error' in bootstrapConfig && bootstrapConfig.error) {
       return createErrorResult(ConfigSource.DATABASE, bootstrapConfig.error || 'Bootstrap config error');
     }
     
-    if (isEmptyValue(bootstrapConfig.url) || isEmptyValue(bootstrapConfig.anonKey)) {
+    if (!bootstrapConfig.config || isEmptyValue(bootstrapConfig.config.url) || isEmptyValue(bootstrapConfig.config.anonKey)) {
       return createErrorResult(ConfigSource.DATABASE, 'Database returned incomplete config');
     }
     
     logger.info('Successfully loaded config from database', { module: 'config-loader' });
     return { 
       config: createConfig(
-        bootstrapConfig.url, 
-        bootstrapConfig.anonKey, 
-        bootstrapConfig.serviceKey, 
-        bootstrapConfig.isInitialized ?? true
+        bootstrapConfig.config.url, 
+        bootstrapConfig.config.anonKey, 
+        bootstrapConfig.config.serviceKey, 
+        bootstrapConfig.config.isInitialized ?? true
       ), 
       source: ConfigSource.DATABASE 
     };
