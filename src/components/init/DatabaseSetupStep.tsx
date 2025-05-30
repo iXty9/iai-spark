@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { initializeSupabaseDb } from '@/services/supabase/init-service';
 import { Loader2, CheckCircle, XCircle, AlertTriangle, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { logger } from '@/utils/logging';
 
 interface DatabaseSetupStepProps {
   supabaseUrl: string;
@@ -37,6 +38,8 @@ export function DatabaseSetupStep({
     setReconnectionMessage(null);
     
     try {
+      logger.info('Starting database initialization', { module: 'database-setup' });
+      
       const result = await initializeSupabaseDb(supabaseUrl, serviceKey, anonKey);
       
       if (result.success) {
@@ -46,12 +49,19 @@ export function DatabaseSetupStep({
         if (result.reconnected) {
           setIsReconnection(true);
           setReconnectionMessage(result.detail || 'Connected to existing database structure successfully.');
+          logger.info('Reconnected to existing database', { module: 'database-setup' });
+        } else {
+          logger.info('Database initialized successfully', { module: 'database-setup' });
         }
         
         // Configuration is saved in the init service
         setTimeout(onSuccess, 1500); // Show success state before continuing
       } else {
         setError(result.error || 'Database initialization failed');
+        logger.error('Database initialization failed', { 
+          error: result.error, 
+          module: 'database-setup' 
+        });
         
         // Check if the error is related to missing exec_sql function
         if (result.error?.includes('function exec_sql(text) does not exist') ||
@@ -60,7 +70,9 @@ export function DatabaseSetupStep({
         }
       }
     } catch (err: any) {
-      setError(`Error: ${err.message || 'Unknown error'}`);
+      const errorMessage = `Error: ${err.message || 'Unknown error'}`;
+      setError(errorMessage);
+      logger.error('Database initialization exception', err, { module: 'database-setup' });
     } finally {
       setIsInitializing(false);
     }

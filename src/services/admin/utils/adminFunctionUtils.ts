@@ -5,6 +5,8 @@ import { logger } from '@/utils/logging';
 // Helper function to invoke admin-users edge function
 export async function invokeAdminFunction(action: string, params: any = {}): Promise<any> {
   try {
+    logger.info('Invoking admin function', { action, module: 'admin-functions' });
+    
     // Get the current session
     const sessionResponse = await supabase.auth.getSession();
     const session = sessionResponse?.data?.session;
@@ -15,7 +17,7 @@ export async function invokeAdminFunction(action: string, params: any = {}): Pro
 
     // Check if functions property exists before calling invoke
     if (!supabase.functions || typeof supabase.functions.invoke !== 'function') {
-      logger.error(`Supabase functions API is not available`, { module: 'roles' });
+      logger.error('Supabase functions API is not available', { module: 'admin-functions' });
       throw new Error('Supabase functions API is not available');
     }
 
@@ -34,18 +36,31 @@ export async function invokeAdminFunction(action: string, params: any = {}): Pro
       
       // Use in operator to safely check for error property
       if (response && 'error' in response && response.error) {
-        logger.error(`Error invoking admin-users function (${action}):`, response.error, { module: 'roles' });
+        logger.error('Error from admin-users function', response.error, { 
+          action, 
+          module: 'admin-functions' 
+        });
         throw response.error;
       }
 
+      logger.info('Admin function completed successfully', { action, module: 'admin-functions' });
+      
       // Safely return data if it exists
       return response && 'data' in response ? response.data : null;
+      
     } catch (err) {
-      logger.error(`Error in supabase.functions.invoke:`, err, { module: 'roles' });
+      logger.error('Error in supabase.functions.invoke', err, { 
+        action, 
+        module: 'admin-functions' 
+      });
       throw err;
     }
+    
   } catch (error) {
-    logger.error(`Error in admin function call (${action}):`, error, { module: 'roles' });
+    logger.error('Error in admin function call', error, { 
+      action, 
+      module: 'admin-functions' 
+    });
     throw error;
   }
 }

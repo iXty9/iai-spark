@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from './types/userTypes';
 import { logger } from '@/utils/logging';
@@ -17,13 +18,16 @@ export async function hasRole(userId: string, role: UserRole): Promise<boolean> 
       .eq('role', role);
     
     if (error) {
-      logger.error('Error checking user role:', error);
+      logger.error('Error checking user role', error, { userId, role, module: 'role-service' });
       return false;
     }
     
-    return data && data.length > 0;
+    const hasUserRole = data && data.length > 0;
+    logger.info('Role check completed', { userId, role, hasRole: hasUserRole, module: 'role-service' });
+    
+    return hasUserRole;
   } catch (error) {
-    logger.error('Unexpected error in hasRole:', error);
+    logger.error('Unexpected error in hasRole', error, { userId, role, module: 'role-service' });
     return false;
   }
 }
@@ -39,13 +43,16 @@ export async function getUserRole(userId: string): Promise<UserRole | null> {
       .eq('user_id', userId);
     
     if (error) {
-      logger.error('Error fetching user role:', error);
+      logger.error('Error fetching user role', error, { userId, module: 'role-service' });
       return null;
     }
 
-    return data && data.length > 0 ? data[0].role as UserRole : null;
+    const userRole = data && data.length > 0 ? data[0].role as UserRole : null;
+    logger.info('User role fetched', { userId, role: userRole, module: 'role-service' });
+    
+    return userRole;
   } catch (error) {
-    logger.error('Unexpected error in getUserRole:', error);
+    logger.error('Unexpected error in getUserRole', error, { userId, module: 'role-service' });
     return null;
   }
 }
@@ -57,6 +64,8 @@ export async function setUserRole(userId: string, role: UserRole): Promise<boole
   try {
     if (!userId) throw new Error('No user logged in');
 
+    logger.info('Setting user role', { userId, role, module: 'role-service' });
+
     // Check if role entry exists
     const { data, error } = await supabase
       .from('user_roles')
@@ -64,33 +73,38 @@ export async function setUserRole(userId: string, role: UserRole): Promise<boole
       .eq('user_id', userId);
     
     if (error) {
-      logger.error('Error checking existing user role:', error);
+      logger.error('Error checking existing user role', error, { userId, module: 'role-service' });
       return false;
     }
 
     let updateResult;
     
     if (data && data.length > 0) {
-      // Update
+      // Update existing role
       updateResult = await supabase
         .from('user_roles')
         .update({ role })
         .eq('user_id', userId);
+        
+      logger.info('Updating existing user role', { userId, role, module: 'role-service' });
     } else {
-      // Insert
+      // Insert new role
       updateResult = await supabase
         .from('user_roles')
         .insert({ user_id: userId, role });
+        
+      logger.info('Inserting new user role', { userId, role, module: 'role-service' });
     }
 
     if (updateResult.error) {
-      logger.error('Error setting user role:', updateResult.error);
+      logger.error('Error setting user role', updateResult.error, { userId, role, module: 'role-service' });
       return false;
     }
 
+    logger.info('User role set successfully', { userId, role, module: 'role-service' });
     return true;
   } catch (error) {
-    logger.error('Unexpected error in setUserRole:', error);
+    logger.error('Unexpected error in setUserRole', error, { userId, role, module: 'role-service' });
     return false;
   }
 }
@@ -99,6 +113,8 @@ export async function setUserRole(userId: string, role: UserRole): Promise<boole
  * Check admin connection status
  */
 export async function checkAdminConnectionStatus(): Promise<any> {
+  logger.info('Checking admin connection status', { module: 'role-service' });
+  
   // Implementation to check connection status
   return {
     isConnected: true,

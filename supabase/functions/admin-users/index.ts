@@ -6,13 +6,19 @@ import { handleListUsers } from "./handlers/listUsers.ts";
 import { handleSearchUsers } from "./handlers/searchUsers.ts";
 import { handleUpdateUserRole } from "./handlers/updateUserRole.ts";
 
+// Simple logging utility for edge functions
+function log(level: string, message: string, data?: any) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] [${level.toUpperCase()}] [admin-users] ${message}`, data ? JSON.stringify(data) : '');
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return handleCorsPreflightRequest();
   }
 
-  console.log("Request received to admin-users function");
+  log('info', 'Request received to admin-users function');
 
   try {
     const requestBody = await req.json();
@@ -20,6 +26,7 @@ serve(async (req) => {
     
     // Handle ping action without authentication
     if (action === 'ping') {
+      log('info', 'Ping request received');
       return createJsonResponse({ 
         success: true, 
         message: 'admin-users function is available' 
@@ -30,6 +37,7 @@ serve(async (req) => {
     const authResult = await authenticateAndAuthorize(req.headers.get('Authorization'));
     
     if (!authResult.success) {
+      log('warn', 'Authentication failed', { error: authResult.error, code: authResult.code });
       return createJsonResponse({
         error: authResult.error,
         message: authResult.error,
@@ -37,7 +45,7 @@ serve(async (req) => {
       }, authResult.code === 'access_denied' ? 403 : 401);
     }
 
-    console.log(`Processing action: ${action} with params:`, params);
+    log('info', 'Processing authenticated action', { action, paramsCount: Object.keys(params).length });
 
     // Handle different actions
     switch (action) {
@@ -48,6 +56,7 @@ serve(async (req) => {
       case 'updateUserRole':
         return await handleUpdateUserRole(params);
       default:
+        log('warn', 'Invalid action requested', { action });
         return createJsonResponse({ 
           error: 'Invalid action', 
           supportedActions: ['ping', 'listUsers', 'searchUsers', 'updateUserRole'],
@@ -55,7 +64,11 @@ serve(async (req) => {
         }, 400);
     }
   } catch (error) {
-    console.error('Error processing request:', error);
+    log('error', 'Error processing request', { 
+      message: error.message, 
+      stack: error.stack?.split('\n').slice(0, 3).join('\n')
+    });
+    
     return createJsonResponse({ 
       error: error.message,
       code: "server_error",

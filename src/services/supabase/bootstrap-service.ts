@@ -34,17 +34,17 @@ export async function fetchBootstrapConfig(
       };
     }
     
+    logger.info('Fetching bootstrap configuration', { 
+      module: 'bootstrap',
+      url: url.split('//')[1] // Log domain only for security
+    });
+    
     // Create a minimal client just for this operation
     const bootstrapClient = createClient(url, anonKey, {
       auth: {
-        persistSession: false, // Don't persist this temporary client
+        persistSession: false,
         autoRefreshToken: false,
       }
-    });
-    
-    logger.info('Bootstrapping connection using temporary client', { 
-      module: 'bootstrap',
-      url: url.split('//')[1] // Log domain only for security
     });
     
     // Try to fetch connection settings from app_settings table
@@ -63,7 +63,7 @@ export async function fetchBootstrapConfig(
     }
     
     if (!data || data.length === 0) {
-      logger.info('No connection settings found in database during bootstrap', { module: 'bootstrap' });
+      logger.info('No connection settings found in database', { module: 'bootstrap' });
       return {
         error: 'No configuration found in database',
         code: 'no_config_found'
@@ -78,13 +78,16 @@ export async function fetchBootstrapConfig(
     
     // Ensure we have the minimum required settings
     if (!config.supabase_url || !config.supabase_anon_key) {
-      logger.warn('Incomplete connection settings found during bootstrap', { module: 'bootstrap' });
-      return null;
+      logger.warn('Incomplete connection settings found', { module: 'bootstrap' });
+      return {
+        error: 'Incomplete configuration in database',
+        code: 'incomplete_config'
+      };
     }
     
-    logger.info('Successfully retrieved bootstrap config from database', { 
+    logger.info('Successfully retrieved bootstrap config', { 
       module: 'bootstrap',
-      url: config.supabase_url.split('//')[1] // Log domain only for security
+      url: config.supabase_url.split('//')[1]
     });
     
     return {
@@ -94,10 +97,10 @@ export async function fetchBootstrapConfig(
       isInitialized: config.supabase_initialized === 'true',
       lastConnection: config.supabase_last_connection
     };
+    
   } catch (error) {
     logger.error('Error retrieving bootstrap config', error, { module: 'bootstrap' });
     
-    // Categorize errors for better handling
     if (error instanceof TypeError && error.message.includes('fetch')) {
       return {
         error: 'Network error connecting to Supabase',
@@ -114,7 +117,7 @@ export async function fetchBootstrapConfig(
 
 /**
  * Test if we have connection to Supabase with the provided credentials
- * Enhanced with permission testing and detailed error reporting
+ * Simplified without the timeout complexity
  */
 export async function testBootstrapConnection(
   url: string, 
@@ -135,56 +138,40 @@ export async function testBootstrapConnection(
       };
     }
     
-    // Create AbortController for timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    logger.info('Testing bootstrap connection', { 
+      module: 'bootstrap',
+      url: url.split('//')[1]
+    });
     
     const testClient = createClient(url, anonKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
-      },
-      global: {
-        fetch: (fetchUrl, options) => {
-          return fetch(fetchUrl, { 
-            ...options, 
-            signal: controller.signal 
-          });
-        }
       }
     });
     
-    try {
-      // Try to make a simple query to test the connection
-      const { error: connectionError } = await testClient
-        .from('app_settings')
-        .select('key')
-        .limit(1);
+    // Try to make a simple query to test the connection
+    const { error: connectionError } = await testClient
+      .from('app_settings')
+      .select('key')
+      .limit(1);
+    
+    // Connection is good if there's no error or if it's just a "table not found" error
+    const isConnected = !connectionError || connectionError.code === '42P01';
+    
+    if (!isConnected) {
+      logger.warn('Bootstrap connection test failed', { 
+        module: 'bootstrap',
+        url: url.split('//')[1],
+        errorCode: connectionError?.code
+      });
       
-      // Clear timeout since request completed
-      clearTimeout(timeoutId);
-      
-      // Connection is good if there's no error or if it's just a "table not found" error
-      const isConnected = !connectionError || connectionError.code === '42P01';
-      
-      if (!isConnected) {
-        logger.warn('Bootstrap connection test failed', { 
-          module: 'bootstrap',
-          url: url.split('//')[1],
-          errorCode: connectionError?.code
-        });
-        
-        return {
-          isConnected: false,
-          hasPermissions: false,
-          error: connectionError?.message || 'Unknown connection error',
-          errorCode: connectionError?.code
-        };
-      }
-    } catch (innerError) {
-      // Clear timeout
-      clearTimeout(timeoutId);
-      throw innerError;
+      return {
+        isConnected: false,
+        hasPermissions: false,
+        error: connectionError?.message || 'Unknown connection error',
+        errorCode: connectionError?.code
+      };
     }
     
     logger.info('Bootstrap connection test successful', { 
@@ -193,7 +180,6 @@ export async function testBootstrapConnection(
     });
     
     // Test permissions by trying to create a temporary table
-    // This is a more thorough test than just reading
     try {
       const { error: permissionError } = await testClient.rpc('test_permissions', {});
       
@@ -223,10 +209,10 @@ export async function testBootstrapConnection(
         isConnected: true,
         hasPermissions: true
       };
+      
     } catch (permError) {
       // If the RPC doesn't exist yet, that's expected during initial setup
-      // So we'll consider this a successful connection but note the permission issue
-      logger.info('Permission test RPC not available, considering connection successful', {
+      logger.info('Permission test RPC not available, connection successful', {
         module: 'bootstrap',
         url: url.split('//')[1]
       });
@@ -238,18 +224,9 @@ export async function testBootstrapConnection(
         errorCode: 'rpc_not_found'
       };
     }
+    
   } catch (error) {
     logger.error('Error testing bootstrap connection', error, { module: 'bootstrap' });
-    
-    // Check for timeout
-    if (error.name === 'AbortError') {
-      return {
-        isConnected: false,
-        hasPermissions: false,
-        error: 'Connection timed out after 10 seconds',
-        errorCode: 'timeout_error'
-      };
-    }
     
     // Categorize network errors
     if (error instanceof TypeError && error.message.includes('fetch')) {

@@ -6,8 +6,8 @@ interface ChatDebugOverlayProps {
   debugInfo: DebugInfo;
 }
 
-// This component was simplified as it only returns null
-// Removing the unused DebugInfo import and props since debug overlay is disabled
-export const ChatDebugOverlay: React.FC<ChatDebugOverlayProps> = ({ debugInfo }) => {
+// Debug overlay simplified - no longer renders anything in production
+// This eliminates the unnecessary component complexity
+export const ChatDebugOverlay: React.FC<ChatDebugOverlayProps> = () => {
   return null;
 };
