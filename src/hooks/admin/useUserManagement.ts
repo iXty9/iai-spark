@@ -1,2 +1,2 @@
 
-export { useUserManagement } from './useUserManagement';
+export { useUserManagement } from './useUserManagement/index';
