@@ -1,21 +1,22 @@
-
 /**
  * Bootstrap diagnostics service
  * Provides tools to diagnose and troubleshoot bootstrap issues
  */
 
 import { logger } from '@/utils/logging';
+import { getConnectionInfo } from './connection-service';
+import { BootstrapContext, BootstrapState, initBootstrapContext } from './bootstrap-state-machine';
 import { testBootstrapConnection } from './bootstrap-service';
 import { validateConfig } from './config-validation';
-import { connectionService } from '@/services/config/connection-service';
-import { configManager } from '@/services/config/ConfigurationManager';
+import { getStoredConfig } from '@/config/supabase-config';
 
 /**
  * Result of diagnostic tests
  */
 export interface DiagnosticResult {
   timestamp: string;
-  connectionInfo: any;
+  connectionInfo: ReturnType<typeof getConnectionInfo>;
+  bootstrapContext: BootstrapContext;
   networkConnectivity: boolean;
   databaseConnectivity: boolean;
   localStorageAvailable: boolean;
@@ -31,11 +32,8 @@ export async function runBootstrapDiagnostics(): Promise<DiagnosticResult> {
     module: 'bootstrap-diagnostics'
   });
   
-  const connectionInfo = {
-    hasStoredConfig: configManager.hasConfiguration(),
-    isReady: connectionService.isReady()
-  };
-  
+  const connectionInfo = getConnectionInfo();
+  const bootstrapContext = getBootstrapContext();
   const recommendations: string[] = [];
   
   // Check network connectivity
@@ -46,19 +44,21 @@ export async function runBootstrapDiagnostics(): Promise<DiagnosticResult> {
   
   // Check database connectivity
   let databaseConnectivity = false;
-  const currentConfig = configManager.getCurrentConfig();
-  if (currentConfig?.supabaseUrl && currentConfig?.supabaseAnonKey) {
-    const connectionTest = await testBootstrapConnection(
-      currentConfig.supabaseUrl, 
-      currentConfig.supabaseAnonKey
-    );
-    
-    databaseConnectivity = connectionTest.isConnected;
-    
-    if (!databaseConnectivity) {
-      recommendations.push(`Verify your Supabase credentials: ${connectionTest.error}`);
-    } else if (!connectionTest.hasPermissions) {
-      recommendations.push(`Your connection works but has permission issues: ${connectionTest.error}`);
+  if (connectionInfo.hasStoredConfig) {
+    const storedConfig = getStoredConfig();
+    if (storedConfig?.url && storedConfig?.anonKey) {
+      const connectionTest = await testBootstrapConnection(
+        storedConfig.url, 
+        storedConfig.anonKey
+      );
+      
+      databaseConnectivity = connectionTest.isConnected;
+      
+      if (!databaseConnectivity) {
+        recommendations.push(`Verify your Supabase credentials: ${connectionTest.error}`);
+      } else if (!connectionTest.hasPermissions) {
+        recommendations.push(`Your connection works but has permission issues: ${connectionTest.error}`);
+      }
     }
   } else {
     recommendations.push('No stored configuration found. Complete the setup process');
@@ -76,15 +76,45 @@ export async function runBootstrapDiagnostics(): Promise<DiagnosticResult> {
     recommendations.push('Your configuration appears to be invalid. Try resetting it');
   }
   
+  // Add bootstrap state-specific recommendations
+  if (bootstrapContext.state === BootstrapState.CONNECTION_ERROR) {
+    recommendations.push(`Connection error: ${bootstrapContext.error}. Try resetting your configuration.`);
+  } else if (bootstrapContext.state === BootstrapState.CONFIG_MISSING) {
+    recommendations.push('No configuration found. Complete the setup process.');
+  }
+  
   return {
     timestamp: new Date().toISOString(),
     connectionInfo,
+    bootstrapContext,
     networkConnectivity,
     databaseConnectivity,
     localStorageAvailable,
     configurationValid,
     recommendations
   };
+}
+
+/**
+ * Get the bootstrap context
+ * This is a wrapper to handle cases where the context might not be available
+ */
+export function getBootstrapContext(): BootstrapContext {
+  try {
+    return initBootstrapContext();
+  } catch (e) {
+    logger.error('Error getting bootstrap context', e, {
+      module: 'bootstrap-diagnostics'
+    });
+    
+    return {
+      state: BootstrapState.INITIAL,
+      retryCount: 0,
+      lastAttempt: '',
+      environment: 'unknown',
+      error: 'Error retrieving bootstrap context'
+    };
+  }
 }
 
 /**
@@ -127,12 +157,12 @@ function checkLocalStorageAvailable(): boolean {
  */
 function validateStoredConfiguration(): boolean {
   try {
-    const currentConfig = configManager.getCurrentConfig();
-    if (!currentConfig) {
+    const storedConfig = getStoredConfig();
+    if (!storedConfig) {
       return false;
     }
     
-    const validation = validateConfig(currentConfig);
+    const validation = validateConfig(storedConfig);
     return validation.valid;
   } catch (e) {
     logger.error('Error validating stored configuration', e, {

@@ -8,8 +8,8 @@ import { Separator } from '@/components/ui/separator';
 import { Loader2, CheckCircle, AlertTriangle, Database, Settings, ArrowLeft } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { logger } from '@/utils/logging';
-import { initializationService } from '@/services/config/initialization-service';
-import { configManager } from '@/services/config/ConfigurationManager';
+import { coordinatedInitService } from '@/services/initialization/coordinated-init-service';
+import { fastConfig } from '@/services/config/fast-config-service';
 import { ConnectionForm } from '@/components/init/ConnectionForm';
 import { DatabaseSetupStep } from '@/components/init/DatabaseSetupStep';
 import { AdminSetupForm } from '@/components/init/AdminSetupForm';
@@ -36,7 +36,7 @@ const Initialize = () => {
     // Check if we already have a valid configuration
     const checkExistingConfig = async () => {
       if (!forceInit) {
-        const configResult = await configManager.loadConfiguration();
+        const configResult = await fastConfig.loadConfig();
         
         if (configResult.success && configResult.config) {
           logger.info('Valid configuration found, redirecting to app', {
@@ -49,7 +49,7 @@ const Initialize = () => {
 
       // If forced init, reset everything
       if (forceInit) {
-        initializationService.reset();
+        coordinatedInitService.reset();
         setCurrentStep(SetupStep.CONNECTION);
         setSetupProgress(0);
       }
@@ -87,27 +87,26 @@ const Initialize = () => {
     // Save the configuration and reinitialize
     if (connectionConfig) {
       try {
-        // Save configuration using the config manager
-        const result = configManager.saveConfiguration({
+        // Save to site-config.json via the build service
+        const siteConfigData = {
           supabaseUrl: connectionConfig.url,
-          supabaseAnonKey: connectionConfig.anonKey,
-          supabaseServiceKey: connectionConfig.serviceKey
+          supabaseAnonKey: connectionConfig.anonKey
+        };
+        
+        // Write to public/site-config.json (this would normally be done by a build process)
+        // For now, we'll store in localStorage as fallback
+        localStorage.setItem('supabase_config', JSON.stringify(siteConfigData));
+        
+        // Reinitialize the coordinated init system
+        await coordinatedInitService.initialize();
+        
+        logger.info('Setup completed successfully', {
+          module: 'initialize'
         });
         
-        if (result.success) {
-          // Reinitialize the system
-          await initializationService.initialize();
-          
-          logger.info('Setup completed successfully', {
-            module: 'initialize'
-          });
-          
-          setTimeout(() => {
-            navigate('/');
-          }, 2000);
-        } else {
-          setError(result.error || 'Failed to save configuration');
-        }
+        setTimeout(() => {
+          navigate('/');
+        }, 2000);
       } catch (error) {
         logger.error('Failed to save configuration', error);
         setError('Failed to save configuration');

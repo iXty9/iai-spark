@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, CheckCircle, AlertTriangle, Database, RefreshCcw, Settings } from 'lucide-react';
 import { logger } from '@/utils/logging';
-import { connectionService } from '@/services/config/connection-service';
-import { initializationService } from '@/services/config/initialization-service';
-import { configManager } from '@/services/config/ConfigurationManager';
+import { clientManager } from '@/services/supabase/client-manager';
+import { coordinatedInitService } from '@/services/initialization/coordinated-init-service';
+import { fastConfig } from '@/services/config/fast-config-service';
 
 const Reconnect = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -26,7 +26,7 @@ const Reconnect = () => {
       logger.info('Checking application state for reconnection', { module: 'reconnect' });
       
       // Try to load config first
-      const configResult = await configManager.loadConfiguration();
+      const configResult = await fastConfig.loadConfig();
       
       if (configResult.success && configResult.config) {
         // Config exists and is valid, redirect to main app
@@ -36,7 +36,8 @@ const Reconnect = () => {
       }
 
       // Check if we can detect existing database setup
-      const hasLocalConfig = localStorage.getItem('app-config') || 
+      // This is a simple heuristic - in a real app you might check for specific tables
+      const hasLocalConfig = localStorage.getItem('site-config') || 
                             localStorage.getItem('supabase_config');
       
       setHasExistingData(!!hasLocalConfig);
@@ -57,14 +58,16 @@ const Reconnect = () => {
       logger.info('Attempting to reconnect with existing configuration', { module: 'reconnect' });
       
       // Try to reinitialize with existing local config
-      const result = await initializationService.initialize();
+      const result = await coordinatedInitService.initialize();
       
       if (result.isComplete) {
         logger.info('Reconnection successful', { module: 'reconnect' });
         navigate('/');
-      } else {
+      } else if (result.error) {
         logger.info('Reconnection failed, needs fresh setup', { module: 'reconnect' });
         navigate('/initialize');
+      } else {
+        setError(result.error || 'Failed to reconnect');
       }
     } catch (error) {
       logger.error('Reconnection failed', error, { module: 'reconnect' });
