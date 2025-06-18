@@ -6,6 +6,8 @@ import { initializationService } from '@/services/config/initialization-service'
 import { useConfiguration } from '@/hooks/useConfiguration';
 import { ConfigurationForm } from '@/components/config/ConfigurationForm';
 import { ConfigurationStatus } from '@/components/config/ConfigurationStatus';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { clientManager } from '@/services/supabase/client-manager';
 import { Loader2 } from 'lucide-react';
 
 // Lazy load main components
@@ -15,10 +17,19 @@ const Initialize = React.lazy(() => import('@/pages/Initialize'));
 function App() {
   const { isInitialized, isLoading } = useConfiguration();
   const [showConfig, setShowConfig] = useState(false);
+  const [clientReady, setClientReady] = useState(false);
 
   useEffect(() => {
-    // Initialize the application
-    initializationService.initialize();
+    // Initialize the application and monitor client readiness
+    const initializeApp = async () => {
+      await initializationService.initialize();
+      
+      // Wait for client to be ready
+      const isReady = await clientManager.waitForReadiness();
+      setClientReady(isReady);
+    };
+
+    initializeApp();
   }, []);
 
   // Show loading state
@@ -56,21 +67,23 @@ function App() {
     );
   }
 
-  // Main application
+  // Main application wrapped with AuthProvider
   return (
     <BrowserRouter>
-      <React.Suspense fallback={
-        <div className="min-h-screen flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      }>
-        <Routes>
-          <Route path="/" element={<ChatContainer />} />
-          <Route path="/initialize" element={<Initialize />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </React.Suspense>
-      <Toaster />
+      <AuthProvider clientReady={clientReady}>
+        <React.Suspense fallback={
+          <div className="min-h-screen flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        }>
+          <Routes>
+            <Route path="/" element={<ChatContainer />} />
+            <Route path="/initialize" element={<Initialize />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </React.Suspense>
+        <Toaster />
+      </AuthProvider>
     </BrowserRouter>
   );
 }
