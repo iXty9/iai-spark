@@ -1,5 +1,6 @@
 
-import { useDevMode } from '@/store/use-dev-mode';
+import { logger } from './logging';
+import { CONFIG_CONSTANTS } from './constants';
 
 interface DebugEvent {
   screen?: string;
@@ -14,11 +15,11 @@ interface DebugEvent {
   timestamp?: string;
 }
 
-// Development debug event emitter - now works in all environments when dev mode is enabled
+// Development debug event emitter
 const createDebugEmitter = () => {
   const eventTracker = {
     lastEvents: new Map<string, { timestamp: number; details: string }>(),
-    minInterval: 15000,
+    minInterval: CONFIG_CONSTANTS.LOG_THROTTLE_MS * 3, // 15 seconds for debug events
     isDevModeEnabled: false,
     isTabVisible: true,
 
@@ -80,10 +81,8 @@ const createDebugEmitter = () => {
 
   eventTracker.init();
   
-  // Use a less frequent cleanup interval
-  const cleanupInterval = setInterval(() => eventTracker.cleanup(), 120000);
+  const cleanupInterval = setInterval(() => eventTracker.cleanup(), CONFIG_CONSTANTS.LOG_THROTTLE_MS * 24);
   
-  // Cleanup on page unload
   if (typeof window !== 'undefined') {
     const devModeHandler = (e: Event) => {
       const customEvent = e as CustomEvent;
@@ -99,7 +98,6 @@ const createDebugEmitter = () => {
   }
 
   return (details: DebugEvent): void => {
-    // Fast early returns for performance
     if (!eventTracker.isDevModeEnabled || !eventTracker.isTabVisible) {
       return;
     }
@@ -113,18 +111,20 @@ const createDebugEmitter = () => {
       return;
     }
     
-    // Ensure window exists before dispatching events
     if (typeof window === 'undefined') {
       return;
     }
     
     const dispatchEvent = (event: CustomEvent) => {
       if (typeof window !== 'undefined' && window.dispatchEvent) {
-        window.dispatchEvent(event);
+        try {
+          window.dispatchEvent(event);
+        } catch (error) {
+          logger.warn('Failed to dispatch debug event', error, { module: 'debug-events' });
+        }
       }
     };
     
-    // Use requestIdleCallback for non-critical debug events
     if ('requestIdleCallback' in window) {
       requestIdleCallback(() => {
         const event = new CustomEvent('chatDebug', { 
@@ -133,7 +133,6 @@ const createDebugEmitter = () => {
         dispatchEvent(event);
       });
     } else {
-      // Fallback for browsers without requestIdleCallback
       const event = new CustomEvent('chatDebug', { 
         detail: eventWithTimestamp 
       });
@@ -142,5 +141,4 @@ const createDebugEmitter = () => {
   };
 };
 
-// Export debug event emitter that works in all environments
 export const emitDebugEvent = createDebugEmitter();
