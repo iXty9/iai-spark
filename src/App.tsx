@@ -1,153 +1,77 @@
-import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from '@/components/ui/toaster';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { ThemeProvider } from '@/hooks/use-theme';
-import Index from '@/pages/Index';
-import Auth from '@/pages/Auth';
-import Settings from '@/pages/Settings';
-import Profile from '@/pages/Profile';
-import Admin from '@/pages/Admin';
-import Initialize from '@/pages/Initialize';
-import { ErrorPage } from '@/pages/ErrorPage';
-import NotFound from '@/pages/NotFound';
-import Reconnect from '@/pages/Reconnect';
-import SupabaseAuth from '@/pages/SupabaseAuth';
-import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
-import { ProductionErrorBoundary } from '@/components/error/ProductionErrorBoundary';
-import { coordinatedInitService } from '@/services/initialization/coordinated-init-service';
-import { logger } from '@/utils/logging';
-import { applySiteTitle } from '@/utils/site-utils';
-import './App.css';
-import { globalCleanupService } from '@/services/global/global-cleanup-service';
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000,
-    },
-  },
-});
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from '@/components/ui/toaster';
+import { initializationService } from '@/services/config/initialization-service';
+import { useConfiguration } from '@/hooks/useConfiguration';
+import { ConfigurationForm } from '@/components/config/ConfigurationForm';
+import { ConfigurationStatus } from '@/components/config/ConfigurationStatus';
+import { Loader2 } from 'lucide-react';
+
+// Lazy load main components
+const ChatContainer = React.lazy(() => import('@/components/chat/chat-container/ChatContainer'));
+const Initialize = React.lazy(() => import('@/pages/Initialize'));
 
 function App() {
-  const [isAppReady, setIsAppReady] = useState(false);
-  const [initError, setInitError] = useState<string | null>(null);
-  const [clientReady, setClientReady] = useState(false);
+  const { isInitialized, isLoading } = useConfiguration();
+  const [showConfig, setShowConfig] = useState(false);
 
   useEffect(() => {
-    // Initialize global cleanup service
-    globalCleanupService.initialize();
-    
-    return () => {
-      // Cleanup will be handled automatically by the service
-      // but we can also trigger it manually here if needed
-    };
+    // Initialize the application
+    initializationService.initialize();
   }, []);
 
-  useEffect(() => {
-    const initializeApp = async () => {
-      try {
-        logger.info('Starting app initialization', { module: 'app' });
-        
-        const initResult = await coordinatedInitService.initialize();
-        
-        if (initResult.isComplete) {
-          setClientReady(true);
-          logger.info('App initialized successfully', { module: 'app' });
-          
-          // Apply site title after successful initialization
-          try {
-            await applySiteTitle();
-          } catch (error) {
-            logger.warn('Failed to apply site title', { module: 'app' });
-          }
-        } else if (initResult.error) {
-          throw new Error(initResult.error);
-        }
-        
-        setIsAppReady(true);
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.error('App initialization failed', error, { module: 'app' });
-        setInitError(errorMessage);
-        setIsAppReady(true); // Still show the app so user can access setup
-      }
-    };
-
-    initializeApp();
-  }, []);
-
-  if (!isAppReady) {
+  // Show loading state
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p>Loading...</p>
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+          <p className="text-muted-foreground">Loading application...</p>
         </div>
       </div>
     );
   }
 
+  // Show configuration if not initialized
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-2xl space-y-6">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold mb-2">Welcome</h1>
+            <p className="text-muted-foreground">
+              Please configure your application to get started
+            </p>
+          </div>
+          
+          <ConfigurationStatus onConfigureClick={() => setShowConfig(true)} />
+          
+          {showConfig && (
+            <ConfigurationForm onSuccess={() => setShowConfig(false)} />
+          )}
+        </div>
+        <Toaster />
+      </div>
+    );
+  }
+
+  // Main application
   return (
-    <ProductionErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <Router>
-          <AuthProvider clientReady={clientReady}>
-            <ThemeProvider>
-              <div className="min-h-screen text-foreground">
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/supabase-auth" element={<SupabaseAuth />} />
-                  <Route path="/initialize" element={<Initialize />} />
-                  <Route path="/reconnect" element={<Reconnect />} />
-                  <Route path="/chat" element={<Index />} />
-                  <Route path="/error" element={<ErrorPage />} />
-                  <Route
-                    path="/settings"
-                    element={
-                      <ProtectedRoute>
-                        <Settings />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/profile"
-                    element={
-                      <ProtectedRoute>
-                        <Profile />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin"
-                    element={
-                      <ProtectedRoute>
-                        <Admin />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-                
-                <Toaster />
-                
-                {/* Only show debug in development */}
-                {process.env.NODE_ENV === 'development' && initError && (
-                  <div className="fixed bottom-4 right-4 bg-red-500 text-white p-2 text-xs rounded z-50 max-w-xs">
-                    <div className="font-bold">Init Error:</div>
-                    <div>{initError}</div>
-                  </div>
-                )}
-              </div>
-            </ThemeProvider>
-          </AuthProvider>
-        </Router>
-      </QueryClientProvider>
-    </ProductionErrorBoundary>
+    <BrowserRouter>
+      <React.Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      }>
+        <Routes>
+          <Route path="/" element={<ChatContainer />} />
+          <Route path="/initialize" element={<Initialize />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </React.Suspense>
+      <Toaster />
+    </BrowserRouter>
   );
 }
 
