@@ -1,6 +1,7 @@
 
 import { logger } from '@/utils/logging';
 import { SupabaseConfig } from '@/config/supabase/types';
+import { validateSupabaseConfig } from '@/config/supabase/utils';
 
 export interface FastConfigResult {
   success: boolean;
@@ -10,7 +11,7 @@ export interface FastConfigResult {
 
 /**
  * Ultra-fast config service that ONLY loads from site-config.json
- * No caching, no validation, no complexity - just direct loading
+ * Now uses consolidated validation utilities
  */
 export class FastConfigService {
   private static instance: FastConfigService | null = null;
@@ -23,7 +24,7 @@ export class FastConfigService {
   }
 
   /**
-   * Direct load from site-config.json with no caching
+   * Direct load from site-config.json with consolidated validation
    */
   async loadConfig(): Promise<FastConfigResult> {
     try {
@@ -45,28 +46,33 @@ export class FastConfigService {
 
       const data = await response.json();
 
-      // Quick validation - if missing required fields, it's invalid
-      if (!data.supabaseUrl || !data.supabaseAnonKey) {
-        logger.warn('Invalid site-config.json - missing required fields', { module: 'fast-config' });
-        return {
-          success: false,
-          error: 'Invalid configuration - missing Supabase credentials'
-        };
-      }
-
-      const config: SupabaseConfig = {
-        url: data.supabaseUrl.trim(),
-        anonKey: data.supabaseAnonKey.trim(),
+      // Use consolidated validation
+      const configData = {
+        url: data.supabaseUrl,
+        anonKey: data.supabaseAnonKey,
         isInitialized: true,
         savedAt: new Date().toISOString(),
         environment: window.location.hostname
       };
 
+      const validationResult = validateSupabaseConfig(configData);
+      
+      if (!validationResult.valid) {
+        logger.warn('Invalid site-config.json', { 
+          module: 'fast-config',
+          errors: validationResult.errors 
+        });
+        return {
+          success: false,
+          error: validationResult.errors?.join(', ') || 'Invalid configuration'
+        };
+      }
+
       logger.info('Config loaded successfully', { module: 'fast-config' });
       
       return {
         success: true,
-        config
+        config: validationResult.config!
       };
 
     } catch (error) {
