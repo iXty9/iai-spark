@@ -5,7 +5,6 @@ import { ThemeColors } from '@/types/theme';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { RotateCcw, Sun, Moon } from 'lucide-react';
-import { useTheme } from '@/hooks/use-theme';
 
 export interface AppearanceSettingsProps {
   theme: 'light' | 'dark';
@@ -14,6 +13,7 @@ export interface AppearanceSettingsProps {
   onLightThemeChange: (colorKey: string, value: string | number) => void;
   onDarkThemeChange: (colorKey: string, value: string | number) => void;
   onResetTheme: () => void;
+  onThemeModeChange?: (mode: 'light' | 'dark') => void;
 }
 
 export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
@@ -22,7 +22,8 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
   darkTheme,
   onLightThemeChange,
   onDarkThemeChange,
-  onResetTheme
+  onResetTheme,
+  onThemeModeChange
 }) => {
   // Create wrapper functions to adapt the event-based interface to the colorKey/value interface
   const handleLightThemeChange = (e: React.ChangeEvent<HTMLInputElement> | { name: string; value: any }) => {
@@ -38,6 +39,13 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
       onDarkThemeChange(e.target.name, e.target.value);
     } else {
       onDarkThemeChange(e.name, e.value);
+    }
+  };
+
+  // Handle tab change for theme mode switching - FIXED: Use prop callback instead of direct service calls
+  const handleThemeModeChange = (newMode: string) => {
+    if (onThemeModeChange) {
+      onThemeModeChange(newMode as 'light' | 'dark');
     }
   };
   
@@ -62,8 +70,8 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
         </Button>
       </div>
 
-      {/* Theme Mode Tabs - FIXED: Remove automatic theme switching */}
-      <Tabs value={theme} onValueChange={() => {}}>
+      {/* Theme Mode Tabs - FIXED: Use controlled switching through parent component */}
+      <Tabs value={theme} onValueChange={handleThemeModeChange}>
         <TabsList className="grid grid-cols-2 mb-4">
           <TabsTrigger value="light" className="flex items-center gap-2">
             <Sun className="h-4 w-4" />

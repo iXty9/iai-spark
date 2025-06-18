@@ -73,6 +73,11 @@ export default function Settings() {
     handleDarkThemeChange({ name: colorKey, value });
   };
 
+  // FIXED: Handle theme mode changes through draft state system
+  const handleThemeModeChange = (mode: 'light' | 'dark') => {
+    updateDraftMode(mode);
+  };
+
   const handleGoBack = () => {
     if (hasChanges) {
       const confirmLeave = window.confirm(
@@ -156,12 +161,13 @@ export default function Settings() {
             
             <TabsContent value="appearance" className="space-y-6">
               <AppearanceSettings
-                theme={theme}
+                theme={draftState.mode || theme}
                 lightTheme={draftState.lightTheme}
                 darkTheme={draftState.darkTheme}
                 onLightThemeChange={handleLightThemeChangeWrapper}
                 onDarkThemeChange={handleDarkThemeChangeWrapper}
                 onResetTheme={handleResetSettings}
+                onThemeModeChange={handleThemeModeChange}
               />
             </TabsContent>
             
