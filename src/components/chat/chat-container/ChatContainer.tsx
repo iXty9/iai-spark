@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { MessageList } from '../MessageList';
 import { MessageInput } from '../MessageInput';
@@ -16,7 +15,7 @@ interface ChatContainerProps {
   className?: string;
 }
 
-export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
+const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
   const {
     messages,
     message,
@@ -104,3 +103,6 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     </ChatLayout>
   );
 };
+
+// Add default export for React.lazy
+export default ChatContainer;

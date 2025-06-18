@@ -16,15 +16,20 @@ import {
   Trash2,
   Download
 } from 'lucide-react';
-import { coordinatedInitService, InitializationStatus } from '@/services/initialization/coordinated-init-service';
-import { fastConfig } from '@/services/config/fast-config-service';
-import { clientManager } from '@/services/supabase/client-manager';
+import { initializationService } from '@/services/config/initialization-service';
+import { configManager } from '@/services/config/ConfigurationManager';
+import { connectionService } from '@/services/config/connection-service';
 import { logger } from '@/utils/logging';
-import { clearAllEnvironmentConfigs } from '@/config/supabase-config';
 
 interface DebugPanelProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+interface InitializationStatus {
+  isComplete: boolean;
+  needsConfiguration: boolean;
+  error?: string;
 }
 
 export const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
@@ -36,8 +41,9 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
   const refreshStatus = async () => {
     setIsLoading(true);
     try {
-      const newStatus = coordinatedInitService.getStatus();
-      setStatus(newStatus);
+      const initStatus = initializationService.getStatus();
+      const result = await initializationService.initialize();
+      setStatus(result);
       setLastUpdate(new Date().toLocaleTimeString());
     } catch (error) {
       logger.error('Failed to refresh debug status', error);
@@ -57,8 +63,8 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
   const handleReinitialize = async () => {
     setIsLoading(true);
     try {
-      const success = await coordinatedInitService.initialize();
-      if (success.isComplete) {
+      const result = await initializationService.initialize();
+      if (result.isComplete) {
         await refreshStatus();
       }
     } finally {
@@ -75,10 +81,10 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
     setIsLoading(true);
     try {
       // Clear all configs
-      clearAllEnvironmentConfigs();
+      configManager.clearConfiguration();
       
       // Reset systems
-      coordinatedInitService.reset();
+      initializationService.reset();
       
       // Clear local storage
       localStorage.clear();
@@ -100,9 +106,9 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
       status,
       url: window.location.href,
       userAgent: navigator.userAgent,
-      clientState: clientManager.getState(),
+      connectionState: connectionService.isReady(),
       localStorage: Object.keys(localStorage).filter(key => 
-        key.includes('supabase') || key.includes('spark')
+        key.includes('supabase') || key.includes('app')
       ).reduce((acc, key) => {
         acc[key] = localStorage.getItem(key)?.substring(0, 100) + '...';
         return acc;
@@ -157,7 +163,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
                     System is {status.isComplete ? 'Ready' : 'Not Ready'}
                   </AlertTitle>
                   <AlertDescription>
-                    Phase: {status.phase} | Last updated: {lastUpdate}
+                    Last updated: {lastUpdate}
                     {status.error && (
                       <div className="mt-2 text-red-600">
                         Error: {status.error}
@@ -219,7 +225,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
                   <strong>Host:</strong> {window.location.hostname}
                 </div>
                 <div>
-                  <strong>Bootstrap Phase:</strong> {status?.phase || 'Unknown'}
+                  <strong>Configuration:</strong> {status?.isComplete ? 'Ready' : 'Pending'}
                 </div>
               </div>
             </div>

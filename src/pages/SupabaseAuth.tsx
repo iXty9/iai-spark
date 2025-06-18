@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, CheckCircle, AlertTriangle, Home, RefreshCcw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { logger } from '@/utils/logging';
-import { clientManager, ClientStatus } from '@/services/supabase/client-manager';
-import { coordinatedInitService } from '@/services/initialization/coordinated-init-service';
+import { connectionService } from '@/services/config/connection-service';
+import { initializationService } from '@/services/config/initialization-service';
 
 const SupabaseAuth = () => {
   const [searchParams] = useSearchParams();
@@ -23,14 +23,14 @@ const SupabaseAuth = () => {
     const processAuthCallback = async () => {
       try {
         // Check if client is ready
-        const clientState = clientManager.getState();
-        const initStatus = coordinatedInitService.getStatus();
+        const isClientReady = connectionService.isReady();
+        const isSystemReady = initializationService.isReady();
         
-        if (clientState.status !== ClientStatus.READY || !initStatus.isComplete) {
+        if (!isClientReady || !isSystemReady) {
           logger.warn('Auth callback attempted but system not ready', {
             module: 'auth-callback',
-            clientStatus: clientState.status,
-            initComplete: initStatus.isComplete
+            clientReady: isClientReady,
+            systemReady: isSystemReady
           });
           
           setNeedsBootstrap(true);
@@ -58,7 +58,7 @@ const SupabaseAuth = () => {
           logger.info('Auth callback successful with tokens', { module: 'auth-callback' });
           
           // Get the client and process the auth
-          const client = clientManager.getClient();
+          const client = connectionService.getClient();
           if (!client) {
             throw new Error('Client not available after successful callback');
           }
@@ -73,7 +73,7 @@ const SupabaseAuth = () => {
           }, 2000);
         } else {
           // Handle auth state that might be in session storage
-          const client = clientManager.getClient();
+          const client = connectionService.getClient();
           if (client) {
             const { data: { session } } = await client.auth.getSession();
             if (session) {

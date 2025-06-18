@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, Settings, Database, RefreshCcw, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { coordinatedInitService, InitializationStatus } from '@/services/initialization/coordinated-init-service';
+import { initializationService } from '@/services/config/initialization-service';
 import { logger } from '@/utils/logging';
 
 interface FastBootstrapProviderProps {
@@ -12,42 +12,45 @@ interface FastBootstrapProviderProps {
 }
 
 export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ children }) => {
-  const [status, setStatus] = useState<InitializationStatus | null>(null);
+  const [isReady, setIsReady] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Subscribe to initialization status
-    const unsubscribe = coordinatedInitService.subscribe((initStatus) => {
-      setStatus(initStatus);
-      logger.info('Initialization status updated', { 
-        module: 'bootstrap-provider',
-        phase: initStatus.phase,
-        isComplete: initStatus.isComplete
-      });
-    });
+    const initialize = async () => {
+      try {
+        setIsLoading(true);
+        const result = await initializationService.initialize();
+        
+        if (result.isComplete) {
+          setIsReady(true);
+          setError(null);
+        } else {
+          setError(result.error || 'Configuration required');
+          if (result.needsConfiguration) {
+            navigate('/initialize');
+          }
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        setError(errorMessage);
+        logger.error('Bootstrap initialization failed', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    // Start initialization immediately
-    coordinatedInitService.initialize().catch(error => {
-      logger.error('Failed to initialize coordinated init service', error);
-    });
-
-    return unsubscribe;
-  }, []);
-
-  // Auto-redirect to setup when needed
-  useEffect(() => {
-    if (status?.error && status.phase === 'error') {
-      navigate('/initialize');
-    }
-  }, [status?.error, status?.phase, navigate]);
+    initialize();
+  }, [navigate]);
 
   // Show app if ready
-  if (status?.isComplete) {
+  if (isReady) {
     return <>{children}</>;
   }
 
   // Show setup needed
-  if (status?.error && status.phase === 'error') {
+  if (error && !isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-red-100">
         <Card className="w-full max-w-md mx-4">
@@ -59,7 +62,7 @@ export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ ch
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-4">
-              Please configure your database connection to continue.
+              {error}
             </p>
             <Button onClick={() => navigate('/initialize')} className="w-full">
               <Settings className="mr-2 h-4 w-4" />
@@ -71,58 +74,16 @@ export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ ch
     );
   }
 
-  // Show detailed loading state with phase information
-  const getPhaseInfo = (phase: string) => {
-    switch (phase) {
-      case 'config':
-        return { icon: Settings, text: 'Loading Configuration', color: 'text-primary' };
-      case 'client':
-        return { icon: Database, text: 'Connecting to Database', color: 'text-primary' };
-      case 'theme':
-        return { icon: CheckCircle, text: 'Initializing Themes', color: 'text-primary' };
-      case 'complete':
-        return { icon: CheckCircle, text: 'Ready!', color: 'text-primary' };
-      default:
-        return { icon: Loader2, text: 'Starting...', color: 'text-primary' };
-    }
-  };
-
-  const phaseInfo = getPhaseInfo(status?.phase || 'starting');
-  const PhaseIcon = phaseInfo.icon;
-
+  // Show loading state
   return (
     <div className="min-h-screen flex items-center justify-center">
       <Card className="w-full max-w-md mx-4">
         <CardContent className="pt-6">
           <div className="flex flex-col items-center space-y-4">
-            <PhaseIcon className={`h-8 w-8 ${phaseInfo.color} ${status?.phase === 'starting' ? 'animate-spin' : ''}`} />
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <div className="text-center">
-              <p className="font-medium">{phaseInfo.text}</p>
-              <p className="text-sm text-muted-foreground">
-                {status?.phase === 'complete' ? 'Loading interface...' : 'Please wait...'}
-              </p>
-            </div>
-            {/* Progress indicator */}
-            <div className="w-full max-w-xs">
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>Config</span>
-                <span>Client</span>
-                <span>Theme</span>
-                <span>Ready</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-primary h-2 rounded-full transition-all duration-300"
-                  style={{ 
-                    width: `${
-                      status?.phase === 'config' ? '25%' :
-                      status?.phase === 'client' ? '50%' :
-                      status?.phase === 'theme' ? '75%' :
-                      status?.phase === 'complete' ? '100%' : '0%'
-                    }` 
-                  }}
-                />
-              </div>
+              <p className="font-medium">Initializing Application</p>
+              <p className="text-sm text-muted-foreground">Please wait...</p>
             </div>
           </div>
         </CardContent>

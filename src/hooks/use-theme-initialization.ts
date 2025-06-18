@@ -1,38 +1,46 @@
 
 import { useEffect, useState } from 'react';
-import { coordinatedInitService, InitializationStatus } from '@/services/initialization/coordinated-init-service';
+import { initializationService } from '@/services/config/initialization-service';
 import { logger } from '@/utils/logging';
 
 export const useThemeInitialization = () => {
-  const [status, setStatus] = useState<InitializationStatus>(() => coordinatedInitService.getStatus());
   const [isThemeReady, setIsThemeReady] = useState(false);
   const [themeError, setThemeError] = useState<string | null>(null);
   const [isClientReady, setIsClientReady] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = coordinatedInitService.subscribe((newStatus) => {
-      setStatus(newStatus);
-      
-      // Update derived states
-      setIsClientReady(newStatus.phase === 'complete' || newStatus.phase === 'theme');
-      setIsThemeReady(newStatus.isComplete);
-      setThemeError(newStatus.error || null);
-      
-      logger.info('Theme initialization status updated', { 
-        module: 'theme-init',
-        phase: newStatus.phase,
-        isComplete: newStatus.isComplete,
-        error: newStatus.error
-      });
-    });
+    const checkInitialization = async () => {
+      try {
+        const isReady = initializationService.isReady();
+        const status = initializationService.getStatus();
+        
+        setIsClientReady(status.hasConnection);
+        setIsThemeReady(isReady);
+        setThemeError(null);
+        
+        logger.info('Theme initialization status updated', { 
+          module: 'theme-init',
+          isReady,
+          hasConnection: status.hasConnection
+        });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        setThemeError(errorMessage);
+        logger.error('Theme initialization failed', error, { module: 'theme-init' });
+      }
+    };
 
-    return unsubscribe;
+    checkInitialization();
+    
+    // Poll for changes
+    const interval = setInterval(checkInitialization, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   return {
     isThemeReady,
     themeError,
     isClientReady,
-    initializationPhase: status.phase
+    initializationPhase: isThemeReady ? 'complete' : 'loading'
   };
 };

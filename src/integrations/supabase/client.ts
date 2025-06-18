@@ -18,7 +18,7 @@ export function getSupabaseClient() {
   const serviceClient = connectionService.getClient();
   
   if (serviceClient) {
-    return serviceClient as any; // Type assertion for Database compatibility
+    return serviceClient;
   }
   
   logger.warn('Using default Supabase client - connection service not initialized', {
