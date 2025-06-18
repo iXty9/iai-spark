@@ -1,7 +1,7 @@
 
 import { Message } from '@/types/chat';
 import { emitDebugEvent } from '@/utils/debug-events';
-import { parseWebhookResponse } from '@/utils/debug';
+import { parseWebhookResponse } from '@/utils/debug/webhook-debug';
 import { logger } from '@/utils/logging';
 import { sendWebhookMessage } from '@/services/webhook';
 import { SendMessageParams } from '../types/messageTypes';

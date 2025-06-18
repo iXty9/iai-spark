@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { toast } from "@/hooks/use-toast";
-import { sendDebugInfo } from '@/utils/debug';
+import { sendDebugInfo } from '@/utils/debug/webhook-debug';
 
 interface UseDebugPanelActionsProps {
   state: any;

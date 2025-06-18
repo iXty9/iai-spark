@@ -1,6 +1,7 @@
 
 import { useEffect } from 'react';
-import { emitBootstrapEvent, collectEnvironmentInfo } from '@/utils/debug';
+import { emitBootstrapEvent } from '@/utils/debug/supabase-debug';
+import { collectEnvironmentInfo } from '@/utils/debug/environment-debug';
 
 export const useBootstrapInit = (isDevMode: boolean, isAuthenticated: boolean) => {
   useEffect(() => {
