@@ -3,6 +3,23 @@
  * Global type definitions for window objects and debug state
  */
 
+// Browser API extensions
+declare global {
+  interface Performance {
+    memory?: {
+      usedJSHeapSize: number;
+      totalJSHeapSize: number;
+      totalJSHeapSizeLimit: number;
+    };
+  }
+  
+  interface Window {
+    debugState?: DebugState;
+    supabaseConnectionStartTime?: number;
+    bootstrapStartTime?: string;
+  }
+}
+
 export interface DebugState {
   screen: string;
   messagesCount: number;
@@ -81,12 +98,4 @@ export interface DebugState {
     type: string;
     message: string;
   }>;
-}
-
-declare global {
-  interface Window {
-    debugState?: DebugState;
-    supabaseConnectionStartTime?: number;
-    bootstrapStartTime?: string;
-  }
 }
