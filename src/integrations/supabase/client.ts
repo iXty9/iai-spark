@@ -28,8 +28,8 @@ export function getSupabaseClient() {
   return supabase;
 }
 
-// Export the client getter as the default export
-export { getSupabaseClient as supabase };
+// Export the client directly (not as a function)
+export const supabase = getSupabaseClient();
 
 // Also export as named export for backward compatibility
 export const supabaseClient = getSupabaseClient;

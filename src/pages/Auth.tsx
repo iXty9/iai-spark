@@ -1,112 +1,200 @@
 
-import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AuthCard } from '@/components/auth/AuthCard';
-import { LoginForm } from '@/components/auth/LoginForm';
-import { RegisterForm } from '@/components/auth/RegisterForm';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield } from 'lucide-react';
-import { getStoredConfig } from '@/config/supabase-config';
-
-// Brute force protection - track failed login attempts
-const loginAttempts = {
-  count: 0,
-  lastAttemptTime: 0,
-  ipAddress: '',
-  reset() {
-    this.count = 0;
-    this.lastAttemptTime = 0;
-  }
-};
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { connectionService } from '@/services/config/connection-service';
+import { AlertTriangle, LogIn, UserPlus } from 'lucide-react';
 
 const Auth = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { signIn, signUp, isLoading } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // If user is already logged in, redirect to home
-  useEffect(() => {
-    if (user) {
-      navigate('/');
-    }
-    
-    // Reset login attempts counter when component mounts
-    loginAttempts.reset();
-    
-    // Log connection info for debugging
-    if (process.env.NODE_ENV === 'development') {
-      try {
-        const storedConfig = getStoredConfig();
-        const connectionId = localStorage.getItem('supabase_connection_id') || 'unknown';
-        
-        console.log('Auth page connection info:', { 
-          connectionId,
-          url: storedConfig?.url ? storedConfig.url.split('//')[1] : 'No stored config',
-          hostname: window.location.hostname
-        });
-      } catch (e) {
-        console.error('Error retrieving connection info:', e);
-      }
-    }
-    
-    // Optional: Get approximate user location based on IP for logging
-    const fetchClientInfo = async () => {
-      try {
-        const res = await fetch('https://api.ipify.org?format=json');
-        const data = await res.json();
-        loginAttempts.ipAddress = data.ip;
-      } catch (error) {
-        // Non-critical, just fail silently
-        console.log('Could not get IP info');
-      }
-    };
-    
-    if (process.env.NODE_ENV === 'production') {
-      fetchClientInfo();
-    }
-    
-  }, [user, navigate]);
+  // Check if we have a valid connection
+  const hasConnection = connectionService.isReady();
   
-  // Use sessionStorage to remember the last active tab
-  const [activeTab, setActiveTab] = React.useState(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('authTab') || 'login';
-    }
-    return 'login';
-  });
+  if (!hasConnection) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-600">
+              <AlertTriangle className="h-5 w-5" />
+              Setup Required
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                The application needs to be configured before you can sign in.
+              </AlertDescription>
+            </Alert>
+            <Button 
+              onClick={() => navigate('/initialize')} 
+              className="w-full mt-4"
+            >
+              Complete Setup
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('authTab', value);
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      await signIn(email, password);
+      navigate('/');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign in failed');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password || !username) return;
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      await signUp(email, password, username);
+      // User will need to check their email
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign up failed');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <AuthCard>
-      <Alert className="mb-4 border-primary/20 bg-primary/10">
-        <Shield className="h-4 w-4 text-primary" />
-        <AlertDescription className="text-sm">
-          This site uses secure authentication. Make sure you're on the correct domain.
-        </AlertDescription>
-      </Alert>
-      
-      <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="grid w-full grid-cols-2 mb-4">
-          <TabsTrigger value="login">Login</TabsTrigger>
-          <TabsTrigger value="register">Register</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="login">
-          <LoginForm />
-        </TabsContent>
-        
-        <TabsContent value="register">
-          <RegisterForm />
-        </TabsContent>
-      </Tabs>
-    </AuthCard>
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-center">Authentication</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="signin" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="signin">Sign In</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="signin">
+              <form onSubmit={handleSignIn} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signin-email">Email</Label>
+                  <Input
+                    id="signin-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signin-password">Password</Label>
+                  <Input
+                    id="signin-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    required
+                  />
+                </div>
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={isSubmitting || isLoading}
+                >
+                  <LogIn className="mr-2 h-4 w-4" />
+                  {isSubmitting ? 'Signing In...' : 'Sign In'}
+                </Button>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="signup">
+              <form onSubmit={handleSignUp} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signup-username">Username</Label>
+                  <Input
+                    id="signup-username"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Choose a username"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email">Email</Label>
+                  <Input
+                    id="signup-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password">Password</Label>
+                  <Input
+                    id="signup-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Create a password"
+                    required
+                  />
+                </div>
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={isSubmitting || isLoading}
+                >
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  {isSubmitting ? 'Creating Account...' : 'Sign Up'}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
