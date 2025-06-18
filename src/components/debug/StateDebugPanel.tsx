@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Message } from '@/types/chat';
 import { Separator } from '@/components/ui/separator';
@@ -12,6 +13,7 @@ import { useDebugState } from './hooks/useDebugState';
 import { useDebugEvents } from './hooks/useDebugEvents';
 import { useDebugStateSync } from './hooks/useDebugStateSync';
 import { useDebugPanelActions } from './hooks/useDebugPanelActions';
+import { collectStorage } from './utils/storageUtils';
 import { domManagerService } from '@/services/global/dom-manager-service';
 import { timerManagerService } from '@/services/global/timer-manager-service';
 
