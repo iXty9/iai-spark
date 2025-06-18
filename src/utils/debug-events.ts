@@ -1,6 +1,9 @@
 
 import { logger } from './logging';
 import { CONFIG_CONSTANTS } from './constants';
+import { eventManagerService } from '@/services/global/event-manager-service';
+import { timerManagerService } from '@/services/global/timer-manager-service';
+import { domManagerService } from '@/services/global/dom-manager-service';
 
 interface DebugEvent {
   screen?: string;
@@ -22,19 +25,30 @@ const createDebugEmitter = () => {
     minInterval: CONFIG_CONSTANTS.LOG_THROTTLE_MS * 3, // 15 seconds for debug events
     isDevModeEnabled: false,
     isTabVisible: true,
+    cleanupTimerId: null as string | null,
+    devModeListenerId: null as string | null,
+    visibilityListenerId: null as string | null,
 
     updateDevModeState(isEnabled: boolean) {
       this.isDevModeEnabled = isEnabled;
     },
     
     init() {
-      if (typeof document !== 'undefined') {
-        const visibilityHandler = () => {
-          this.isTabVisible = document.visibilityState === 'visible';
-        };
-        document.addEventListener('visibilitychange', visibilityHandler, { passive: true });
+      // Use the new event manager service
+      this.visibilityListenerId = eventManagerService.addDocumentListener('visibilitychange', () => {
         this.isTabVisible = document.visibilityState === 'visible';
-      }
+      }, { passive: true });
+
+      this.isTabVisible = typeof document !== 'undefined' ? 
+        document.visibilityState === 'visible' : true;
+
+      // Set up cleanup timer using timer manager service
+      this.cleanupTimerId = timerManagerService.setInterval(() => this.cleanup(), CONFIG_CONSTANTS.LOG_THROTTLE_MS * 24);
+
+      // Listen for dev mode changes
+      this.devModeListenerId = eventManagerService.addCustomEventListener('devModeChanged', (e: CustomEvent) => {
+        this.updateDevModeState(e.detail.isDevMode);
+      });
     },
     
     getEventFingerprint(details: DebugEvent): string {
@@ -76,26 +90,26 @@ const createDebugEmitter = () => {
           this.lastEvents.delete(key);
         }
       });
+    },
+
+    destroy() {
+      if (this.cleanupTimerId) {
+        timerManagerService.clearTimer(this.cleanupTimerId);
+        this.cleanupTimerId = null;
+      }
+      if (this.devModeListenerId) {
+        eventManagerService.removeListener(this.devModeListenerId);
+        this.devModeListenerId = null;
+      }
+      if (this.visibilityListenerId) {
+        eventManagerService.removeListener(this.visibilityListenerId);
+        this.visibilityListenerId = null;
+      }
+      this.lastEvents.clear();
     }
   };
 
   eventTracker.init();
-  
-  const cleanupInterval = setInterval(() => eventTracker.cleanup(), CONFIG_CONSTANTS.LOG_THROTTLE_MS * 24);
-  
-  if (typeof window !== 'undefined') {
-    const devModeHandler = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      eventTracker.updateDevModeState(customEvent.detail.isDevMode);
-    };
-    
-    const unloadHandler = () => {
-      clearInterval(cleanupInterval);
-    };
-    
-    window.addEventListener('devModeChanged', devModeHandler);
-    window.addEventListener('beforeunload', unloadHandler);
-  }
 
   return (details: DebugEvent): void => {
     if (!eventTracker.isDevModeEnabled || !eventTracker.isTabVisible) {
@@ -111,34 +125,23 @@ const createDebugEmitter = () => {
       return;
     }
     
-    if (typeof window === 'undefined') {
-      return;
-    }
-    
-    const dispatchEvent = (event: CustomEvent) => {
-      if (typeof window !== 'undefined' && window.dispatchEvent) {
-        try {
-          window.dispatchEvent(event);
-        } catch (error) {
-          logger.warn('Failed to dispatch debug event', error, { module: 'debug-events' });
-        }
-      }
+    const dispatchEvent = () => {
+      eventManagerService.dispatchCustomEvent('chatDebug', eventWithTimestamp);
     };
     
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(() => {
-        const event = new CustomEvent('chatDebug', { 
-          detail: eventWithTimestamp 
-        });
-        dispatchEvent(event);
-      });
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      requestIdleCallback(dispatchEvent);
     } else {
-      const event = new CustomEvent('chatDebug', { 
-        detail: eventWithTimestamp 
-      });
-      dispatchEvent(event);
+      dispatchEvent();
     }
   };
 };
 
 export const emitDebugEvent = createDebugEmitter();
+
+// Cleanup function for proper teardown
+export const cleanupDebugEvents = () => {
+  if (emitDebugEvent && typeof (emitDebugEvent as any).destroy === 'function') {
+    (emitDebugEvent as any).destroy();
+  }
+};

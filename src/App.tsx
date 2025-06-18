@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -21,6 +20,7 @@ import { coordinatedInitService } from '@/services/initialization/coordinated-in
 import { logger } from '@/utils/logging';
 import { applySiteTitle } from '@/utils/site-utils';
 import './App.css';
+import { globalCleanupService } from '@/services/global/global-cleanup-service';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,6 +36,16 @@ function App() {
   const [isAppReady, setIsAppReady] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   const [clientReady, setClientReady] = useState(false);
+
+  useEffect(() => {
+    // Initialize global cleanup service
+    globalCleanupService.initialize();
+    
+    return () => {
+      // Cleanup will be handled automatically by the service
+      // but we can also trigger it manually here if needed
+    };
+  }, []);
 
   useEffect(() => {
     const initializeApp = async () => {

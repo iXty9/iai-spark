@@ -2,6 +2,9 @@
 import { useEffect, useState } from 'react';
 import { logger } from '@/utils/logging';
 import { useDevMode } from '@/store/use-dev-mode';
+import { eventManagerService } from '@/services/global/event-manager-service';
+import { timerManagerService } from '@/services/global/timer-manager-service';
+import { domManagerService } from '@/services/global/dom-manager-service';
 
 export const useIOSSafari = () => {
   const [showFallbackInput, setShowFallbackInput] = useState(false);
@@ -31,26 +34,26 @@ export const useIOSSafari = () => {
     
     checkMessageState();
     
-    // Event-based approach instead of polling
-    const events = ['visibilitychange', 'orientationchange', 'resize'];
+    let resizeTimerId: string | null = null;
     
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        setTimeout(() => checkInputVisibility(), 500);
+        timerManagerService.setTimeout(() => checkInputVisibility(), 500);
       }
     };
     
     const handleOrientationChange = () => {
-      setTimeout(() => checkInputVisibility(), 300);
+      timerManagerService.setTimeout(() => checkInputVisibility(), 300);
     };
     
-    // Only run a resize check with a delay
-    let resizeTimeout: number;
     const handleResize = () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = window.setTimeout(() => {
+      if (resizeTimerId) {
+        timerManagerService.clearTimer(resizeTimerId);
+      }
+      resizeTimerId = timerManagerService.setTimeout(() => {
         checkMessageState();
         checkInputVisibility();
+        resizeTimerId = null;
       }, 500);
     };
     
@@ -60,53 +63,53 @@ export const useIOSSafari = () => {
         return;
       }
       
-      const inputContainer = document.getElementById('message-input-container');
-      if (!inputContainer) return;
+      const inputInfo = domManagerService.getElementInfo('#message-input-container');
+      if (!inputInfo.exists || !inputInfo.rect || !inputInfo.computedStyle) return;
       
-      const rect = inputContainer.getBoundingClientRect();
-      const style = window.getComputedStyle(inputContainer);
+      const { rect, computedStyle } = inputInfo;
+      const viewport = domManagerService.getViewportInfo();
       
       const isHidden = 
         rect.height === 0 || 
-        style.display === 'none' || 
-        style.visibility === 'hidden' ||
-        style.opacity === '0' ||
+        computedStyle.display === 'none' || 
+        computedStyle.visibility === 'hidden' ||
+        computedStyle.opacity === '0' ||
         rect.bottom <= 0 || 
-        rect.top >= window.innerHeight;
+        rect.top >= viewport.height;
       
       setShowFallbackInput(isHidden && hasMessages);
     };
     
-    // Listen for new messages being added
-    const messageObserver = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.addedNodes.length > 0) {
-          checkMessageState();
-          checkInputVisibility();
-        }
-      });
-    });
+    // Use event manager service for all event listeners
+    const visibilityListenerId = eventManagerService.addDocumentListener('visibilitychange', handleVisibilityChange);
+    const orientationListenerId = eventManagerService.addGlobalListener('orientationchange', handleOrientationChange);
+    const resizeListenerId = eventManagerService.addGlobalListener('resize', handleResize);
     
+    // Listen for new messages being added using DOM manager
     const chatContainer = document.querySelector('.messages-container');
+    let mutationCleanup: (() => void) | null = null;
+    
     if (chatContainer) {
-      messageObserver.observe(chatContainer, { childList: true, subtree: true });
+      mutationCleanup = domManagerService.addMutationListener(chatContainer, () => {
+        checkMessageState();
+        checkInputVisibility();
+      }, { childList: true, subtree: true });
     }
     
-    // Add event listeners
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('orientationchange', handleOrientationChange);
-    window.addEventListener('resize', handleResize);
-    
     // Immediately check visibility after load
-    setTimeout(checkInputVisibility, 1000);
+    timerManagerService.setTimeout(checkInputVisibility, 1000);
     
     // Cleanup
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('orientationchange', handleOrientationChange);
-      window.removeEventListener('resize', handleResize);
-      clearTimeout(resizeTimeout);
-      messageObserver.disconnect();
+      eventManagerService.removeListener(visibilityListenerId);
+      eventManagerService.removeListener(orientationListenerId);
+      eventManagerService.removeListener(resizeListenerId);
+      if (resizeTimerId) {
+        timerManagerService.clearTimer(resizeTimerId);
+      }
+      if (mutationCleanup) {
+        mutationCleanup();
+      }
     };
   }, [hasMessages, isIOSSafari, isDevMode]);
 
