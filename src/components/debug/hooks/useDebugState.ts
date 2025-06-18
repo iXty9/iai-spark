@@ -2,25 +2,12 @@
 import { useState, useEffect } from 'react';
 import { Message } from '@/types/chat';
 import { useDevMode } from '@/store/use-dev-mode';
-
-// Type declarations for browser APIs
-declare global {
-  interface Performance {
-    memory?: {
-      usedJSHeapSize: number;
-      totalJSHeapSize: number;
-    };
-  }
-  
-  interface Window {
-    debugState?: any;
-  }
-}
+import { DebugState } from '@/types/global';
 
 const MAX_LOG = 100, MAX_CONSOLE = 50;
 const nowISO = () => new Date().toISOString();
 
-const getInitialState = () => {
+const getInitialState = (): DebugState => {
   const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
   const isIOS = /iPad|iPhone|iPod/.test(userAgent) && /safari/i.test(userAgent);
   return {
@@ -35,7 +22,7 @@ const getInitialState = () => {
       hash: window.location.hash
     },
     browserInfo: {
-      userAgent, platform: navigator?.platform, viewport: { width: window.innerWidth, height: window.innerHeight },
+      userAgent, platform: navigator?.platform || 'unknown', viewport: { width: window.innerWidth, height: window.innerHeight },
       devicePixelRatio: window.devicePixelRatio, isIOSSafari: isIOS
     },
     performanceInfo: {
@@ -82,7 +69,7 @@ export const useDebugState = ({
   lastWebhookCall?: string | null;
 }) => {
   const { isDevMode } = useDevMode();
-  const [state, setState] = useState(getInitialState);
+  const [state, setState] = useState<DebugState>(getInitialState);
   const [fps, setFps] = useState(0);
   const [lastWebhookResponse, setWebhookResp] = useState(null);
   const [logs, setLogs] = useState<Array<{timestamp: string, message: string}>>([]);
