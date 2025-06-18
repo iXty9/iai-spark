@@ -1,9 +1,9 @@
-
 import { logger } from '@/utils/logging';
 import { UserWithRole, UserRole, UsersFetchOptions, UsersSearchOptions, UsersFetchResult, ApiResponse } from './types/userTypes';
 import { supabase } from '@/integrations/supabase/client';
 import { validateSearchParams, sanitizeSearchQuery, normalizeRole } from '@/utils/validation';
 import { sanitizeInput } from '@/utils/security';
+import { connectionService } from '@/services/config/connection-service';
 
 /**
  * Enhanced error handling wrapper
@@ -46,6 +46,10 @@ export async function checkAdminConnectionStatus(): Promise<any> {
       isAdmin = !!roleData;
     }
 
+    // Get URL from config instead of accessing protected property
+    const config = connectionService.getCurrentConfig();
+    const supabaseUrl = config?.supabaseUrl || 'unknown';
+
     return {
       isConnected: !dbError,
       isAuthenticated: !!user && !authError,
@@ -55,7 +59,7 @@ export async function checkAdminConnectionStatus(): Promise<any> {
         environmentId: "production",
         environment: window.location.hostname,
         connectionId: user?.id || 'anonymous',
-        url: supabase.supabaseUrl,
+        url: supabaseUrl,
         lastConnection: new Date().toISOString()
       }
     };
@@ -90,9 +94,9 @@ const fetchAuthUserEmails = async (): Promise<Record<string, string>> => {
     
     logger.info(`Successfully fetched ${authUsersData.users.length} auth users`);
     
-    // Build email mapping
-    authUsersData.users.forEach(authUser => {
-      if (authUser.id && authUser.email) {
+    // Build email mapping with proper type checking
+    authUsersData.users.forEach((authUser: any) => {
+      if (authUser && typeof authUser === 'object' && authUser.id && authUser.email) {
         emailMap[authUser.id] = authUser.email;
       }
     });

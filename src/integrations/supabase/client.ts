@@ -5,7 +5,7 @@ import { connectionService } from '@/services/config/connection-service';
 import { logger } from '@/utils/logging';
 
 // Create a default client that will be replaced when properly initialized
-let supabase = createClient<Database>(
+let defaultSupabaseClient = createClient<Database>(
   'https://ymtdtzkskjdqlzhjuesk.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltdGR0emtza2pkcWx6aGp1ZXNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5MjUyNDYsImV4cCI6MjA2MDUwMTI0Nn0.sOQdxH63edhcIgjx6mxjHkeam4IQGViaWYLdFDepIaE'
 );
@@ -25,10 +25,10 @@ export function getSupabaseClient() {
     module: 'supabase-client'
   });
   
-  return supabase;
+  return defaultSupabaseClient;
 }
 
-// Export the client directly (not as a function)
+// Export the client directly
 export const supabase = getSupabaseClient();
 
 // Also export as named export for backward compatibility
@@ -39,7 +39,7 @@ export const supabaseClient = getSupabaseClient;
  * This will be called by the connection service
  */
 export function updateSupabaseClient(url: string, anonKey: string) {
-  supabase = createClient<Database>(url, anonKey);
+  defaultSupabaseClient = createClient<Database>(url, anonKey);
   logger.info('Supabase client updated with new configuration', {
     module: 'supabase-client'
   });

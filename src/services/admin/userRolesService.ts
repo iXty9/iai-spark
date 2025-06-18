@@ -1,7 +1,7 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from './types/userTypes';
 import { logger } from '@/utils/logging';
+import { connectionService } from '@/services/config/connection-service';
 
 // Check if a user is an admin
 export async function checkIsAdmin(userId: string): Promise<boolean> {
@@ -159,6 +159,10 @@ export async function checkAdminConnectionStatus(): Promise<any> {
     // Test edge functions availability (basic check)
     const functionAvailable = true; // Supabase edge functions are always available if configured
 
+    // Get URL from config instead of accessing protected property
+    const config = connectionService.getCurrentConfig();
+    const supabaseUrl = config?.supabaseUrl || 'unknown';
+
     return {
       isConnected: !dbError,
       isAuthenticated: !!user && !authError,
@@ -168,7 +172,7 @@ export async function checkAdminConnectionStatus(): Promise<any> {
         environmentId: process.env.NODE_ENV || "development",
         environment: window.location.hostname,
         connectionId: user?.id || 'anonymous',
-        url: supabase.supabaseUrl,
+        url: supabaseUrl,
         lastConnection: new Date().toISOString()
       }
     };
