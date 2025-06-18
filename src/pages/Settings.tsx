@@ -36,6 +36,34 @@ export default function Settings() {
     refreshSettings
   } = useDraftSettingsState();
 
+  // Create wrapper functions that return boolean to match expected interface
+  const wrappedSaveChanges = async (): Promise<boolean> => {
+    try {
+      await saveChanges();
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const wrappedDiscardChanges = async (): Promise<boolean> => {
+    try {
+      await discardChanges();
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const wrappedResetToDefaults = async (): Promise<boolean> => {
+    try {
+      await resetToDefaults();
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+
   const {
     handleLightThemeChange,
     handleDarkThemeChange,
@@ -58,9 +86,9 @@ export default function Settings() {
     updateDraftBackgroundImage,
     updateDraftBackgroundOpacity,
     updateDraftMode,
-    saveChanges,
-    discardChanges,
-    resetToDefaults,
+    saveChanges: wrappedSaveChanges,
+    discardChanges: wrappedDiscardChanges,
+    resetToDefaults: wrappedResetToDefaults,
     updateProfile
   });
 
@@ -73,7 +101,7 @@ export default function Settings() {
     handleDarkThemeChange({ name: colorKey, value });
   };
 
-  // FIXED: Handle theme mode changes through draft state system
+  // Handle theme mode changes through draft state system
   const handleThemeModeChange = (mode: 'light' | 'dark') => {
     updateDraftMode(mode);
   };
