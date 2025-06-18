@@ -6,10 +6,20 @@ import { AlertCircle, CheckCircle, Database } from 'lucide-react';
 import { initializationService } from '@/services/config/initialization-service';
 
 interface DatabaseSetupStepProps {
-  onComplete: () => void;
+  supabaseUrl: string;
+  anonKey: string;
+  serviceKey: string;
+  onSuccess: () => void;
+  onBack: () => void;
 }
 
-export const DatabaseSetupStep: React.FC<DatabaseSetupStepProps> = ({ onComplete }) => {
+export const DatabaseSetupStep: React.FC<DatabaseSetupStepProps> = ({ 
+  supabaseUrl, 
+  anonKey, 
+  serviceKey, 
+  onSuccess, 
+  onBack 
+}) => {
   const [isInitializing, setIsInitializing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -24,7 +34,7 @@ export const DatabaseSetupStep: React.FC<DatabaseSetupStepProps> = ({ onComplete
       if (result.isComplete) {
         setSuccess(true);
         setTimeout(() => {
-          onComplete();
+          onSuccess();
         }, 1500);
       } else {
         setError(result.error || 'Database initialization failed');
