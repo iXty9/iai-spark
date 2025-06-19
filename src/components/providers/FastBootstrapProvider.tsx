@@ -75,15 +75,15 @@ export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ ch
   const getPhaseInfo = (phase: string) => {
     switch (phase) {
       case 'config':
-        return { icon: Settings, text: 'Loading Configuration', color: 'text-primary' };
+        return { icon: Settings, text: 'Loading Configuration', color: 'text-[#dd3333]' };
       case 'client':
-        return { icon: Database, text: 'Connecting to Database', color: 'text-primary' };
+        return { icon: Database, text: 'Connecting to Database', color: 'text-[#dd3333]' };
       case 'theme':
-        return { icon: CheckCircle, text: 'Initializing Themes', color: 'text-primary' };
+        return { icon: CheckCircle, text: 'Initializing Themes', color: 'text-[#dd3333]' };
       case 'complete':
-        return { icon: CheckCircle, text: 'Ready!', color: 'text-primary' };
+        return { icon: CheckCircle, text: 'Ready!', color: 'text-[#dd3333]' };
       default:
-        return { icon: Loader2, text: 'Starting...', color: 'text-primary' };
+        return { icon: Loader2, text: 'Starting...', color: 'text-[#dd3333]' };
     }
   };
 
@@ -112,8 +112,9 @@ export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ ch
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div 
-                  className="bg-primary h-2 rounded-full transition-all duration-300"
+                  className="h-2 rounded-full transition-all duration-300"
                   style={{ 
+                    backgroundColor: '#dd3333',
                     width: `${
                       status?.phase === 'config' ? '25%' :
                       status?.phase === 'client' ? '50%' :
