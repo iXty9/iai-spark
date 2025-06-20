@@ -10,14 +10,18 @@ import { getEnvironmentInfo, setEnvironmentOverride, clearEnvironmentOverride } 
 import { collectEnvironmentInfo } from '@/utils/debug/environment-debug';
 import { globalStateService } from '@/services/debug/global-state-service';
 import { logger } from '@/utils/logging';
+import { useAuth } from '@/contexts/AuthContext';
+import { getClient } from '@/integrations/supabase/client';
 
 export default function Environment() {
+  const { user, isAuthenticated } = useAuth();
   const [environmentInfo, setEnvironmentInfo] = useState<any>(null);
   const [supabaseInfo, setSupabaseInfo] = useState<any>(null);
   const [performanceInfo, setPerformanceInfo] = useState<any>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [debugMode, setDebugMode] = useState(false);
   const [envOverride, setEnvOverride] = useState('');
+  const [fps, setFps] = useState(0);
 
   const refreshData = async () => {
     setIsRefreshing(true);
@@ -31,8 +35,41 @@ export default function Environment() {
       
       // Get global state information
       const globalState = globalStateService.getDebugState();
-      setSupabaseInfo(globalState.supabaseInfo || {});
-      setPerformanceInfo(globalState.performanceInfo || {});
+      
+      // Update Supabase info with real-time data
+      const client = getClient();
+      const supabaseData = {
+        ...globalState.supabaseInfo,
+        connectionStatus: client ? 'connected' : 'disconnected',
+        authStatus: isAuthenticated ? 'authenticated' : 'unauthenticated',
+        isInitialized: !!client,
+        environment: envInfo.type
+      };
+      
+      // Test connection latency
+      if (client) {
+        const startTime = performance.now();
+        try {
+          await client.from('profiles').select('count', { count: 'exact' }).limit(1);
+          const endTime = performance.now();
+          supabaseData.connectionLatency = Math.round(endTime - startTime);
+        } catch (error) {
+          supabaseData.lastError = error instanceof Error ? error.message : 'Connection test failed';
+        }
+      }
+      
+      setSupabaseInfo(supabaseData);
+      
+      // Update performance info
+      const perfData = {
+        ...globalState.performanceInfo,
+        fps,
+        memory: performance.memory ? {
+          usedJSHeapSize: performance.memory.usedJSHeapSize,
+          totalJSHeapSize: performance.memory.totalJSHeapSize
+        } : undefined
+      };
+      setPerformanceInfo(perfData);
       
       logger.info('Environment data refreshed', { module: 'environment-page' });
     } catch (error) {
@@ -42,13 +79,38 @@ export default function Environment() {
     }
   };
 
+  // FPS tracking
+  useEffect(() => {
+    let animationId: number;
+    let lastTime = performance.now();
+    let frameCount = 0;
+    let fpsTime = 0;
+
+    const trackFPS = (currentTime: number) => {
+      frameCount++;
+      fpsTime += currentTime - lastTime;
+      lastTime = currentTime;
+
+      if (fpsTime >= 1000) {
+        setFps(Math.round((frameCount * 1000) / fpsTime));
+        frameCount = 0;
+        fpsTime = 0;
+      }
+
+      animationId = requestAnimationFrame(trackFPS);
+    };
+
+    animationId = requestAnimationFrame(trackFPS);
+    return () => cancelAnimationFrame(animationId);
+  }, []);
+
   useEffect(() => {
     refreshData();
     
     // Set up periodic refresh every 30 seconds
     const interval = setInterval(refreshData, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isAuthenticated, user]);
 
   const handleEnvironmentOverride = (enabled: boolean) => {
     if (enabled && envOverride) {
@@ -147,7 +209,7 @@ export default function Environment() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Hostname:</span>
-              <span className="text-sm text-muted-foreground">{environmentInfo?.hostname}</span>
+              <span className="text-sm text-muted-foreground">{window.location.hostname}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Development Mode:</span>
@@ -232,7 +294,7 @@ export default function Environment() {
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Connection Status:</span>
-              <Badge variant={supabaseInfo?.isInitialized ? "default" : "destructive"}>
+              <Badge variant={supabaseInfo?.connectionStatus === 'connected' ? "default" : "destructive"}>
                 {supabaseInfo?.connectionStatus || 'Unknown'}
               </Badge>
             </div>
@@ -255,8 +317,10 @@ export default function Environment() {
               </Badge>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Retry Count:</span>
-              <span className="text-sm text-muted-foreground">{supabaseInfo?.retryCount || 0}</span>
+              <span className="text-sm font-medium">User ID:</span>
+              <span className="text-xs text-muted-foreground font-mono">
+                {user?.id ? `${user.id.substring(0, 8)}...` : 'None'}
+              </span>
             </div>
             {supabaseInfo?.lastError && (
               <div className="space-y-1">
@@ -274,6 +338,10 @@ export default function Environment() {
             <CardTitle className="text-lg">Performance Metrics</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">FPS:</span>
+              <span className="text-sm text-muted-foreground">{fps || 'Calculating...'}</span>
+            </div>
             {performanceInfo?.memory && (
               <>
                 <div className="flex items-center justify-between">
@@ -290,10 +358,6 @@ export default function Environment() {
                 </div>
               </>
             )}
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">FPS:</span>
-              <span className="text-sm text-muted-foreground">{performanceInfo?.fps || 'N/A'}</span>
-            </div>
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Connection Type:</span>
               <span className="text-sm text-muted-foreground">

@@ -72,7 +72,8 @@ export function collectEnvironmentInfo() {
     isDevelopment,
     isProduction,
     publicVars,
-    buildInfo
+    buildInfo,
+    hasOverride: storedEnv !== null && storedEnv !== envType
   };
   
   // Dispatch the environment information event
