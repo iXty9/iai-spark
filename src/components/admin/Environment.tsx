@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,7 +29,7 @@ export default function Environment() {
       setEnvironmentInfo(envInfo);
       
       // Get global state information
-      const globalState = globalStateService.getGlobalState();
+      const globalState = globalStateService.getDebugState();
       setSupabaseInfo(globalState.supabaseInfo || {});
       setPerformanceInfo(globalState.performanceInfo || {});
       
