@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -76,6 +77,26 @@ export default function Environment() {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  // Safe environment variable access
+  const getBuildInfo = () => {
+    try {
+      return {
+        version: import.meta.env.VITE_APP_VERSION || 'Unknown',
+        buildDate: import.meta.env.VITE_BUILD_DATE || 'Unknown',
+        commitHash: import.meta.env.VITE_COMMIT_HASH || 'Unknown'
+      };
+    } catch (error) {
+      logger.warn('Failed to get build info', error, { module: 'environment-page' });
+      return {
+        version: 'Unknown',
+        buildDate: 'Unknown',
+        commitHash: 'Unknown'
+      };
+    }
+  };
+
+  const buildInfo = getBuildInfo();
 
   return (
     <div className="space-y-6">
@@ -298,19 +319,19 @@ export default function Environment() {
             <div className="space-y-1">
               <span className="text-sm font-medium">App Version:</span>
               <p className="text-sm text-muted-foreground">
-                {process.env.VITE_APP_VERSION || 'Unknown'}
+                {buildInfo.version}
               </p>
             </div>
             <div className="space-y-1">
               <span className="text-sm font-medium">Build Date:</span>
               <p className="text-sm text-muted-foreground">
-                {process.env.VITE_BUILD_DATE || 'Unknown'}
+                {buildInfo.buildDate}
               </p>
             </div>
             <div className="space-y-1">
               <span className="text-sm font-medium">Commit Hash:</span>
               <p className="text-sm text-muted-foreground font-mono">
-                {process.env.VITE_COMMIT_HASH || 'Unknown'}
+                {buildInfo.commitHash}
               </p>
             </div>
           </div>
