@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
@@ -10,6 +9,7 @@ import { AdminTabs } from '@/components/admin/AdminTabs';
 import { WebhookSettings } from '@/components/admin/webhooks/WebhookSettings';
 import { AppSettings } from '@/components/admin/AppSettings';
 import { UserManagement } from '@/components/admin/UserManagement';
+import Environment from '@/components/admin/Environment';
 import { ArrowLeft } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -26,7 +26,7 @@ export default function Admin() {
   useEffect(() => {
     const queryParams = new URLSearchParams(window.location.search);
     const tabParam = queryParams.get('tab');
-    if (tabParam === 'users' || tabParam === 'webhooks' || tabParam === 'app-settings') {
+    if (tabParam === 'users' || tabParam === 'webhooks' || tabParam === 'app-settings' || tabParam === 'environment') {
       setActiveTab(tabParam);
     }
   }, []);
@@ -176,6 +176,7 @@ export default function Admin() {
             webhookContent={<WebhookSettings />}
             appSettingsContent={<AppSettings />}
             userManagementContent={<UserManagement />}
+            environmentContent={<Environment />}
             activeTab={activeTab}
             onTabChange={handleTabChange}
           />

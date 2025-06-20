@@ -6,11 +6,19 @@ interface AdminTabsProps {
   webhookContent: ReactNode;
   appSettingsContent: ReactNode;
   userManagementContent: ReactNode;
+  environmentContent: ReactNode;
   activeTab?: string;
   onTabChange?: (tab: string) => void;
 }
 
-export function AdminTabs({ webhookContent, appSettingsContent, userManagementContent, activeTab = "app-settings", onTabChange }: AdminTabsProps) {
+export function AdminTabs({ 
+  webhookContent, 
+  appSettingsContent, 
+  userManagementContent, 
+  environmentContent,
+  activeTab = "app-settings", 
+  onTabChange 
+}: AdminTabsProps) {
   const handleValueChange = (value: string) => {
     if (onTabChange) {
       onTabChange(value);
@@ -23,6 +31,7 @@ export function AdminTabs({ webhookContent, appSettingsContent, userManagementCo
         <TabsTrigger value="app-settings" className="flex-1">App Settings</TabsTrigger>
         <TabsTrigger value="webhooks" className="flex-1">Webhooks</TabsTrigger>
         <TabsTrigger value="users" className="flex-1">User Management</TabsTrigger>
+        <TabsTrigger value="environment" className="flex-1">Environment</TabsTrigger>
       </TabsList>
       
       <TabsContent value="app-settings" className="mt-6">
@@ -35,6 +44,10 @@ export function AdminTabs({ webhookContent, appSettingsContent, userManagementCo
       
       <TabsContent value="users" className="mt-6">
         {userManagementContent}
+      </TabsContent>
+      
+      <TabsContent value="environment" className="mt-6">
+        {environmentContent}
       </TabsContent>
     </Tabs>
   );
