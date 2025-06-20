@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,7 +13,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getClient } from '@/integrations/supabase/client';
 
 export default function Environment() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isLoading } = useAuth();
+  const isAuthenticated = !!user;
+  
   const [environmentInfo, setEnvironmentInfo] = useState<any>(null);
   const [supabaseInfo, setSupabaseInfo] = useState<any>(null);
   const [performanceInfo, setPerformanceInfo] = useState<any>(null);
