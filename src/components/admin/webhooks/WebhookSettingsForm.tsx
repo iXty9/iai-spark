@@ -60,6 +60,8 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
       await updateAppSetting('authenticated_webhook_url', settings.authenticated_webhook_url);
       await updateAppSetting('anonymous_webhook_url', settings.anonymous_webhook_url);
       await updateAppSetting('debug_webhook_url', settings.debug_webhook_url);
+      await updateAppSetting('thumbs_up_webhook_url', settings.thumbs_up_webhook_url);
+      await updateAppSetting('thumbs_down_webhook_url', settings.thumbs_down_webhook_url);
       
       toast({
         title: "Webhook settings saved",
@@ -115,6 +117,26 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
           onChange={handleChange}
           placeholder="Enter debug webhook URL"
           error={errors.debug_webhook_url}
+        />
+        
+        <WebhookUrlFormField
+          id="thumbs_up_webhook_url"
+          name="thumbs_up_webhook_url"
+          label="Thumbs Up Feedback Webhook URL"
+          value={settings.thumbs_up_webhook_url}
+          onChange={handleChange}
+          placeholder="Enter thumbs up feedback webhook URL"
+          error={errors.thumbs_up_webhook_url}
+        />
+        
+        <WebhookUrlFormField
+          id="thumbs_down_webhook_url"
+          name="thumbs_down_webhook_url"
+          label="Thumbs Down Feedback Webhook URL"
+          value={settings.thumbs_down_webhook_url}
+          onChange={handleChange}
+          placeholder="Enter thumbs down feedback webhook URL"
+          error={errors.thumbs_down_webhook_url}
         />
         
         <Button 

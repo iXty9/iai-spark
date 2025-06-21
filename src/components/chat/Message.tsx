@@ -14,6 +14,7 @@ interface MessageProps {
 export const Message: React.FC<MessageProps> = ({ message }) => {
   const { user, profile } = useAuth();
   const isUser = message.sender === 'user';
+  const isAuthenticated = !!user;
   const [aiIconError, setAiIconError] = React.useState(false);
   
   // Get display name for the user messages - prioritizing username
@@ -105,7 +106,13 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
           </span>
           {!isUser && (
             <span className="ml-2">
-              <MessageActions messageId={message.id} content={message.content} tokenInfo={message.tokenInfo} />
+              <MessageActions 
+                messageId={message.id} 
+                content={message.content} 
+                tokenInfo={message.tokenInfo}
+                isAuthenticated={isAuthenticated}
+                userInfo={profile}
+              />
             </span>
           )}
         </div>

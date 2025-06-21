@@ -14,12 +14,16 @@ export interface WebhookSettings {
   authenticated_webhook_url: string;
   anonymous_webhook_url: string;
   debug_webhook_url: string;
+  thumbs_up_webhook_url: string;
+  thumbs_down_webhook_url: string;
 }
 
 export interface WebhookFormErrors {
   authenticated_webhook_url?: string;
   anonymous_webhook_url?: string;
   debug_webhook_url?: string;
+  thumbs_up_webhook_url?: string;
+  thumbs_down_webhook_url?: string;
 }
 
 export const validateWebhookUrl = (name: string, value: string): string | null => {
