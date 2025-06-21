@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,20 +11,13 @@ import { globalStateService } from '@/services/debug/global-state-service';
 import { logger } from '@/utils/logging';
 import { useAuth } from '@/contexts/AuthContext';
 import { getClient } from '@/integrations/supabase/client';
-import { getBuildInfoFromSiteConfig } from '@/utils/site-config-utils';
 
-// Reusable Info Row with optional properties
-const Info = ({ label, value, badgeVariant, className = '', mono }: {
-  label: string;
-  value: any;
-  badgeVariant?: string;
-  className?: string;
-  mono?: boolean;
-}) => (
+// Reusable Info Row
+const Info = ({ label, value, badgeVariant, className = '', mono }) => (
   <div className={`flex items-center justify-between ${className}`}>
     <span className="text-sm font-medium">{label}</span>
     {badgeVariant ? (
-      <Badge variant={badgeVariant as any}>{value}</Badge>
+      <Badge variant={badgeVariant}>{value}</Badge>
     ) : (
       <span className={`text-sm text-muted-foreground ${mono ? 'font-mono' : ''}`}>{value}</span>
     )}
@@ -48,6 +40,7 @@ export default function Environment() {
     try {
       collectEnvironmentInfo();
       const e = getEnvironmentInfo(); setEnv(e);
+      const { getBuildInfoFromSiteConfig } = await import('@/utils/site-config-utils');
       setBuild(await getBuildInfoFromSiteConfig());
       const g = globalStateService.getDebugState();
       const client = getClient();
@@ -184,7 +177,7 @@ export default function Environment() {
             <Info label="Environment:" value={s.environment || 'Unknown'} />
             <Info label="Latency:" value={s.connectionLatency ? `${s.connectionLatency}ms` : 'N/A'} />
             <Info label="Auth Status:" value={s.authStatus || 'Unknown'} badgeVariant={s.authStatus === 'authenticated' ? "default" : "secondary"} />
-            <Info label="User ID:" value={user?.id ? `${user.id.substring(0, 8)}...` : 'None'} mono={true} />
+            <Info label="User ID:" value={user?.id ? `${user.id.substring(0, 8)}...` : 'None'} mono />
             {s.lastError && (
               <div className="space-y-1">
                 <span className="text-sm font-medium text-destructive">Last Error:</span>
@@ -204,7 +197,7 @@ export default function Environment() {
               <Info label="Used Memory:" value={`${Math.round(p.memory.usedJSHeapSize / 1024 / 1024)}MB`} />
               <Info label="Total Memory:" value={`${Math.round(p.memory.totalJSHeapSize / 1024 / 1024)}MB`} />
             </>}
-            <Info label="Connection Type:" value={(navigator as any).connection?.effectiveType || 'Unknown'} />
+            <Info label="Connection Type:" value={(navigator.connection && navigator.connection.effectiveType) || 'Unknown'} />
             <Info label="Hardware Concurrency:" value={navigator.hardwareConcurrency} />
           </CardContent>
         </Card>
@@ -219,7 +212,7 @@ export default function Environment() {
             <Info label="App Version:" value={b.version || 'Loading...'} />
             <Info label="Build Date:" value={b.buildDate || 'Loading...'} />
             <Info label="Environment:" value={b.environment || 'Loading...'} />
-            <Info label="Build Hash:" value={b.commitHash || 'Loading...'} mono={true} />
+            <Info label="Build Hash:" value={b.commitHash || 'Loading...'} mono />
           </div>
         </CardContent>
       </Card>
