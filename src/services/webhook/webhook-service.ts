@@ -1,4 +1,3 @@
-
 import { emitDebugEvent } from '@/utils/debug-events';
 import { logger } from '@/utils/logging';
 import { getWebhookUrl, getWebhookTimeout } from './url-provider';
@@ -98,10 +97,19 @@ export const sendWebhookMessage = async (
     dispatchWebhookRequestStart(requestId, timeoutMs);
     
     // Determine sender name based on authentication and user info
-    let senderName = 'Anonymous';
-    if (isAuthenticated && userInfo) {
-      // Use username first, then first_name, then fallback to 'Authenticated User'
-      senderName = userInfo.username || userInfo.first_name || 'Authenticated User';
+    let senderName;
+    if (isAuthenticated) {
+      // For authenticated users, try to get specific name info, fallback to 'Authenticated User'
+      if (userInfo?.username) {
+        senderName = userInfo.username;
+      } else if (userInfo?.first_name) {
+        senderName = userInfo.first_name;
+      } else {
+        // Always identify authenticated users as such, even without profile data
+        senderName = 'Authenticated User';
+      }
+    } else {
+      senderName = 'Anonymous';
     }
     
     // Prepare message - keep it compact but include proper sender info
