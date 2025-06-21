@@ -23,6 +23,7 @@ export default function Environment() {
   const [debugMode, setDebugMode] = useState(false);
   const [envOverride, setEnvOverride] = useState('');
   const [fps, setFps] = useState(0);
+  const [buildInfo, setBuildInfo] = useState<any>(null);
 
   const refreshData = async () => {
     setIsRefreshing(true);
@@ -33,6 +34,11 @@ export default function Environment() {
       // Get current environment info
       const envInfo = getEnvironmentInfo();
       setEnvironmentInfo(envInfo);
+      
+      // Load build info from site-config.json
+      const { getBuildInfoFromSiteConfig } = await import('@/utils/site-config-utils');
+      const siteConfigBuildInfo = await getBuildInfoFromSiteConfig();
+      setBuildInfo(siteConfigBuildInfo);
       
       // Get global state information
       const globalState = globalStateService.getDebugState();
@@ -140,26 +146,6 @@ export default function Environment() {
     a.click();
     URL.revokeObjectURL(url);
   };
-
-  // Safe environment variable access
-  const getBuildInfo = () => {
-    try {
-      return {
-        version: import.meta.env.VITE_APP_VERSION || 'Unknown',
-        buildDate: import.meta.env.VITE_BUILD_DATE || 'Unknown',
-        commitHash: import.meta.env.VITE_COMMIT_HASH || 'Unknown'
-      };
-    } catch (error) {
-      logger.warn('Failed to get build info', error, { module: 'environment-page' });
-      return {
-        version: 'Unknown',
-        buildDate: 'Unknown',
-        commitHash: 'Unknown'
-      };
-    }
-  };
-
-  const buildInfo = getBuildInfo();
 
   return (
     <div className="space-y-6">
@@ -380,23 +366,29 @@ export default function Environment() {
           <CardTitle className="text-lg">Build & Version Information</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-1">
               <span className="text-sm font-medium">App Version:</span>
               <p className="text-sm text-muted-foreground">
-                {buildInfo.version}
+                {buildInfo?.version || 'Loading...'}
               </p>
             </div>
             <div className="space-y-1">
               <span className="text-sm font-medium">Build Date:</span>
               <p className="text-sm text-muted-foreground">
-                {buildInfo.buildDate}
+                {buildInfo?.buildDate || 'Loading...'}
               </p>
             </div>
             <div className="space-y-1">
-              <span className="text-sm font-medium">Commit Hash:</span>
+              <span className="text-sm font-medium">Environment:</span>
+              <p className="text-sm text-muted-foreground">
+                {buildInfo?.environment || 'Loading...'}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <span className="text-sm font-medium">Build Hash:</span>
               <p className="text-sm text-muted-foreground font-mono">
-                {buildInfo.commitHash}
+                {buildInfo?.commitHash || 'Loading...'}
               </p>
             </div>
           </div>
