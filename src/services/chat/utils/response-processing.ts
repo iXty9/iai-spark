@@ -1,3 +1,4 @@
+
 import { Message } from '@/types/chat';
 import { logger } from '@/utils/logging';
 
@@ -54,7 +55,7 @@ export function createErrorResponse(
     id: `error_${Date.now()}`,
     sender: 'ai' as 'ai', // Explicitly type this as 'ai' to match the Message type
     content: "I'm sorry, but I encountered an error processing your message. Please try again.",
-    timestamp: new Date(),
+    timestamp: new Date().toISOString(),
     metadata: { 
       error: true,
       errorMessage: error instanceof Error ? error.message : 'Unknown error'

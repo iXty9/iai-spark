@@ -33,7 +33,7 @@ export const saveChatHistory = (messages: Message[]): void => {
       id: msg.id,
       content: msg.content,
       sender: msg.sender,
-      timestamp: msg.timestamp.toISOString(), // Store as ISO string for localStorage
+      timestamp: msg.timestamp, // msg.timestamp is already a string (ISO format)
       ...(msg.pending && { pending: msg.pending }),
       ...(msg.rawRequest && { rawRequest: msg.rawRequest }),
       ...(msg.rawResponse && { rawResponse: msg.rawResponse }),
@@ -85,7 +85,7 @@ export const loadChatHistory = (): Message[] => {
             id: item.id,
             content: item.content,
             sender: item.sender,
-            timestamp: new Date(item.timestamp)
+            timestamp: typeof item.timestamp === 'string' ? item.timestamp : new Date(item.timestamp).toISOString()
           };
           
           // Restore optional enhanced fields including raw request/response

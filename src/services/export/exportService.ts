@@ -62,7 +62,7 @@ const convertToEnhancedFormat = (message: Message): EnhancedMessageExport => {
     sender: message.sender,
     timestamp: {
       __type: 'Date',
-      iso: message.timestamp.toISOString()
+      iso: message.timestamp // message.timestamp is already a string (ISO format)
     },
     ...(message.pending && { pending: message.pending }),
     ...(message.rawRequest && { rawRequest: message.rawRequest }),

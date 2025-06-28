@@ -31,7 +31,7 @@ export async function processMessage({
       id: messageId,
       sender: 'ai',
       content: '',
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       pending: true,
     };
 
