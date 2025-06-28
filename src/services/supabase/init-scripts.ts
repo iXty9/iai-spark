@@ -82,6 +82,19 @@ export const initScripts = {
       updated_by UUID
     );
   `,
+  insertDefaultSettings: `
+    -- Insert default webhook settings if they don't exist
+    INSERT INTO public.app_settings (key, value) VALUES 
+      ('authenticated_webhook_url', 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7'),
+      ('anonymous_webhook_url', 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574'),
+      ('debug_webhook_url', 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d8534'),
+      ('webhook_timeout', '300000'),
+      ('default_avatar_url', 'https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png'),
+      ('websocket_enabled', 'false'),
+      ('app_name', 'The Everywhere Intelligent Assistant'),
+      ('site_title', 'AI Chat Application')
+    ON CONFLICT (key) DO NOTHING;
+  `,
   createHasRoleFunction: `
     CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role app_role)
     RETURNS boolean
@@ -135,6 +148,10 @@ export const initScripts = {
       FOR UPDATE USING (auth.uid() = id);
     -- Admin policies
     ${adminTables.map(adminPolicySql).join('')}
+    -- App settings policies - allow read access for all authenticated users
+    DROP POLICY IF EXISTS "Allow read access to app settings" ON public.app_settings;
+    CREATE POLICY "Allow read access to app settings" ON public.app_settings
+      FOR SELECT USING (true);
   `,
   createAvatarsBucket: `
     INSERT INTO storage.buckets (id, name, public, avif_autodetection)

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CardContent } from '@/components/ui/card';
-import { Info, Loader2 } from 'lucide-react';
+import { Info, Loader2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { updateAppSetting } from '@/services/admin/settingsService';
 import { WebhookUrlFormField } from './WebhookUrlFormField';
@@ -84,7 +84,15 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
       <Alert className="mb-6">
         <Info className="h-4 w-4" />
         <AlertDescription>
-          Webhook URLs must use HTTPS and be from the ixty.ai domain for security.
+          Webhook URLs must use HTTPS for security. You can now use any domain - not restricted to ixty.ai domains.
+        </AlertDescription>
+      </Alert>
+
+      <Alert className="mb-6" variant="default">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertDescription>
+          <strong>Deployment Note:</strong> These webhook URLs are configurable per deployment. 
+          When deploying to a new environment, make sure to update these URLs to match your new domain/infrastructure.
         </AlertDescription>
       </Alert>
       
@@ -95,7 +103,7 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
           label="Authenticated Webhook URL"
           value={settings.authenticated_webhook_url}
           onChange={handleChange}
-          placeholder="Enter authenticated webhook URL"
+          placeholder="https://your-domain.com/webhook/authenticated"
           error={errors.authenticated_webhook_url}
         />
         
@@ -105,7 +113,7 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
           label="Anonymous Webhook URL"
           value={settings.anonymous_webhook_url}
           onChange={handleChange}
-          placeholder="Enter anonymous webhook URL"
+          placeholder="https://your-domain.com/webhook/anonymous"
           error={errors.anonymous_webhook_url}
         />
         
@@ -115,7 +123,7 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
           label="Debug Webhook URL"
           value={settings.debug_webhook_url}
           onChange={handleChange}
-          placeholder="Enter debug webhook URL"
+          placeholder="https://your-domain.com/webhook/debug"
           error={errors.debug_webhook_url}
         />
         
@@ -125,7 +133,7 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
           label="Thumbs Up Feedback Webhook URL"
           value={settings.thumbs_up_webhook_url}
           onChange={handleChange}
-          placeholder="Enter thumbs up feedback webhook URL"
+          placeholder="https://your-domain.com/webhook/thumbs-up"
           error={errors.thumbs_up_webhook_url}
         />
         
@@ -135,7 +143,7 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
           label="Thumbs Down Feedback Webhook URL"
           value={settings.thumbs_down_webhook_url}
           onChange={handleChange}
-          placeholder="Enter thumbs down feedback webhook URL"
+          placeholder="https://your-domain.com/webhook/thumbs-down"
           error={errors.thumbs_down_webhook_url}
         />
         

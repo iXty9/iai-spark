@@ -1,12 +1,19 @@
 
 import { z } from 'zod';
-import { isValidUrl } from '@/utils/security';
 
-// Schema for webhook URL validation
+// More permissive schema for webhook URL validation - allows any HTTPS URL
 export const webhookUrlSchema = z.string().refine(
-  (url) => !url || isValidUrl(url, ['ixty.ai'], ['https:']),
+  (url) => {
+    if (!url) return true; // Allow empty URLs
+    try {
+      const parsedUrl = new URL(url);
+      return parsedUrl.protocol === 'https:'; // Only require HTTPS, no domain restriction
+    } catch {
+      return false;
+    }
+  },
   {
-    message: 'URL must be a valid HTTPS URL from ixty.ai domain',
+    message: 'URL must be a valid HTTPS URL',
   }
 );
 

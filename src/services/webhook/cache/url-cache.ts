@@ -2,15 +2,29 @@
 import { logger } from '@/utils/logging';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 
-// Default URLs as fallbacks
-const DEFAULT_AUTHENTICATED_WEBHOOK = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7';
-const DEFAULT_ANONYMOUS_WEBHOOK = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574';
-const DEFAULT_DEBUG_WEBHOOK = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d8534';
-
 // Cache for webhook URLs to avoid excessive database queries
 let webhookUrlCache: Record<string, string> = {};
 let lastCacheUpdate = 0;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Get default webhook URLs from environment or fallback defaults
+ */
+export const getDefaultUrls = () => {
+  // Check for environment variables first (for deployment flexibility)
+  const DEFAULT_AUTHENTICATED_WEBHOOK = process.env.AUTHENTICATED_WEBHOOK_URL || 
+    'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7';
+  const DEFAULT_ANONYMOUS_WEBHOOK = process.env.ANONYMOUS_WEBHOOK_URL || 
+    'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574';
+  const DEFAULT_DEBUG_WEBHOOK = process.env.DEBUG_WEBHOOK_URL || 
+    'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d8534';
+
+  return {
+    DEFAULT_AUTHENTICATED_WEBHOOK,
+    DEFAULT_ANONYMOUS_WEBHOOK,
+    DEFAULT_DEBUG_WEBHOOK
+  };
+};
 
 /**
  * Refresh the webhook URL cache if it has expired
@@ -23,8 +37,9 @@ export const refreshWebhookCache = async (): Promise<void> => {
 
   try {
     const settings = await fetchAppSettings();
+    const { DEFAULT_AUTHENTICATED_WEBHOOK, DEFAULT_ANONYMOUS_WEBHOOK, DEFAULT_DEBUG_WEBHOOK } = getDefaultUrls();
     
-    // Update cache with new values
+    // Update cache with new values, using defaults if not configured
     webhookUrlCache = {
       'authenticated_webhook_url': settings['authenticated_webhook_url'] || DEFAULT_AUTHENTICATED_WEBHOOK,
       'anonymous_webhook_url': settings['anonymous_webhook_url'] || DEFAULT_ANONYMOUS_WEBHOOK,
@@ -32,10 +47,10 @@ export const refreshWebhookCache = async (): Promise<void> => {
       'webhook_timeout': settings['webhook_timeout'] || '300000' // Default 5 minutes (300,000ms)
     };
     
-    // Log any invalid URLs for admin awareness
+    // Log any invalid URLs for admin awareness (but don't block them)
     Object.entries(webhookUrlCache).forEach(([key, url]) => {
       if (key !== 'webhook_timeout' && !isValidWebhookUrl(url)) {
-        logger.warn(`Invalid webhook URL detected for ${key}`, { url }, { module: 'webhook' });
+        logger.warn(`Potentially invalid webhook URL detected for ${key}`, { url }, { module: 'webhook' });
       }
     });
     
@@ -61,32 +76,15 @@ export const isCacheInitialized = (): boolean => {
 };
 
 /**
- * Validate a webhook URL against allowed domains and protocols
+ * Validate a webhook URL - now more permissive to allow different domains
  */
 export const isValidWebhookUrl = (url: string): boolean => {
   try {
     const webhookUrl = new URL(url);
-    // Only allow https URLs from trusted domains
-    return (
-      webhookUrl.protocol === 'https:' && 
-      (
-        webhookUrl.hostname === 'n8n.ixty.ai' || 
-        webhookUrl.hostname === 'api.ixty.ai' || 
-        webhookUrl.hostname.endsWith('.ixty.ai')
-      )
-    );
+    // Allow HTTPS URLs from any domain (removed domain restriction)
+    // Still require HTTPS for security
+    return webhookUrl.protocol === 'https:';
   } catch (error) {
     return false;
   }
-};
-
-/**
- * Get default URLs for fallback
- */
-export const getDefaultUrls = () => {
-  return {
-    DEFAULT_AUTHENTICATED_WEBHOOK,
-    DEFAULT_ANONYMOUS_WEBHOOK,
-    DEFAULT_DEBUG_WEBHOOK
-  };
 };
