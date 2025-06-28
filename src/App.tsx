@@ -1,9 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { WebSocketProvider } from '@/contexts/WebSocketContext';
 import { ThemeProvider } from '@/hooks/use-theme';
 import { NotificationPermissionManager } from '@/components/notifications/NotificationPermissionManager';
 import Index from '@/pages/Index';
@@ -98,55 +98,57 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <Router>
           <AuthProvider clientReady={clientReady}>
-            <ThemeProvider>
-              <NotificationPermissionManager />
-              <div className="min-h-screen text-foreground">
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/supabase-auth" element={<SupabaseAuth />} />
-                  <Route path="/initialize" element={<Initialize />} />
-                  <Route path="/reconnect" element={<Reconnect />} />
-                  <Route path="/chat" element={<Index />} />
-                  <Route path="/error" element={<ErrorPage />} />
-                  <Route
-                    path="/settings"
-                    element={
-                      <ProtectedRoute>
-                        <Settings />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/profile"
-                    element={
-                      <ProtectedRoute>
-                        <Profile />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin"
-                    element={
-                      <ProtectedRoute>
-                        <Admin />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-                
-                <Toaster />
-                
-                {/* Only show debug in development */}
-                {process.env.NODE_ENV === 'development' && initError && (
-                  <div className="fixed bottom-4 right-4 bg-red-500 text-white p-2 text-xs rounded z-50 max-w-xs">
-                    <div className="font-bold">Init Error:</div>
-                    <div>{initError}</div>
-                  </div>
-                )}
-              </div>
-            </ThemeProvider>
+            <WebSocketProvider>
+              <ThemeProvider>
+                <NotificationPermissionManager />
+                <div className="min-h-screen text-foreground">
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/supabase-auth" element={<SupabaseAuth />} />
+                    <Route path="/initialize" element={<Initialize />} />
+                    <Route path="/reconnect" element={<Reconnect />} />
+                    <Route path="/chat" element={<Index />} />
+                    <Route path="/error" element={<ErrorPage />} />
+                    <Route
+                      path="/settings"
+                      element={
+                        <ProtectedRoute>
+                          <Settings />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/profile"
+                      element={
+                        <ProtectedRoute>
+                          <Profile />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin"
+                      element={
+                        <ProtectedRoute>
+                          <Admin />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                  
+                  <Toaster />
+                  
+                  {/* Only show debug in development */}
+                  {process.env.NODE_ENV === 'development' && initError && (
+                    <div className="fixed bottom-4 right-4 bg-red-500 text-white p-2 text-xs rounded z-50 max-w-xs">
+                      <div className="font-bold">Init Error:</div>
+                      <div>{initError}</div>
+                    </div>
+                  )}
+                </div>
+              </ThemeProvider>
+            </WebSocketProvider>
           </AuthProvider>
         </Router>
       </QueryClientProvider>

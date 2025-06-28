@@ -3,9 +3,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from '@/contexts/AuthContext';
+import { useWebSocket, ProactiveMessage } from '@/contexts/WebSocketContext';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
-import { useWebSocketConnection } from './chat/use-websocket-connection';
 
 interface Message {
   id: string;
@@ -24,6 +24,7 @@ export const useChat = () => {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { isConnected: isWebSocketConnected, isEnabled: isWebSocketEnabled, onProactiveMessage } = useWebSocket();
 
   // Load chat history from local storage on mount
   useEffect(() => {
@@ -38,6 +39,34 @@ export const useChat = () => {
   useEffect(() => {
     localStorage.setItem('chat_messages', JSON.stringify(messages));
   }, [messages]);
+
+  // Handle proactive messages in chat
+  useEffect(() => {
+    const unsubscribe = onProactiveMessage((proactiveMessage: ProactiveMessage) => {
+      logger.info('Received proactive message in chat:', proactiveMessage);
+      
+      // Convert proactive message to chat message format
+      const chatMessage: Message = {
+        id: proactiveMessage.id,
+        content: proactiveMessage.content,
+        role: 'assistant',
+        timestamp: proactiveMessage.timestamp,
+        sender: proactiveMessage.sender,
+        metadata: { isProactive: true, ...proactiveMessage.metadata }
+      };
+      
+      // Add the message to the chat
+      setMessages(prev => [...prev, chatMessage]);
+      
+      // Show a toast notification for proactive messages
+      toast({
+        title: `New message from ${proactiveMessage.sender}`,
+        description: proactiveMessage.content.substring(0, 100) + (proactiveMessage.content.length > 100 ? '...' : ''),
+      });
+    });
+
+    return unsubscribe;
+  }, [onProactiveMessage, toast]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -117,23 +146,6 @@ export const useChat = () => {
       setIsLoading(false);
     }
   };
-
-  // Add WebSocket connection
-  const { isConnected: isWebSocketConnected, isEnabled: isWebSocketEnabled } = useWebSocketConnection(
-    (message) => {
-      // Handle incoming proactive messages
-      console.log('Received proactive message via WebSocket:', message);
-      
-      // Add the message to the chat
-      setMessages(prev => [...prev, message]);
-      
-      // Show a toast notification for proactive messages
-      toast({
-        title: `New message from ${message.sender || 'System'}`,
-        description: message.content.substring(0, 100) + (message.content.length > 100 ? '...' : ''),
-      });
-    }
-  );
 
   return {
     messages,
