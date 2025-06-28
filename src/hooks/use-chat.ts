@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWebSocket, ProactiveMessage } from '@/contexts/WebSocketContext';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
+import { processMessage } from '@/services/chat/message-processor';
 
 interface Message {
   id: string;
@@ -85,6 +86,94 @@ export const useChat = () => {
     })
   };
 
+  const startChat = useCallback(async (initialMessage: string) => {
+    if (!initialMessage.trim()) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    const userMessage: Message = {
+      id: uuidv4(),
+      content: initialMessage,
+      role: 'user',
+      timestamp: new Date().toISOString(),
+    };
+
+    addMessage(userMessage);
+
+    try {
+      // Use the real message processor instead of echo
+      const aiResponse = await processMessage({
+        message: initialMessage,
+        isAuthenticated: !!user,
+        userProfile: user ? {
+          username: user.user_metadata?.username,
+          first_name: user.user_metadata?.first_name,
+          last_name: user.user_metadata?.last_name
+        } : null,
+        onError: (error) => {
+          logger.error('Error in AI response:', error);
+          setError(error.message || 'Failed to get AI response');
+        }
+      });
+
+      // Convert the enhanced response to our message format
+      const aiMessage: Message = {
+        id: aiResponse.id,
+        content: aiResponse.content,
+        role: 'assistant',
+        timestamp: aiResponse.timestamp,
+        metadata: aiResponse.metadata
+      };
+      
+      addMessage(aiMessage);
+      
+      // Log the interaction to Supabase
+      if (user) {
+        try {
+          const { error } = await supabase
+            .from('chat_logs')
+            .insert([
+              {
+                user_id: user.id,
+                user_message: userMessage.content,
+                ai_response: aiMessage.content,
+                timestamp: new Date().toISOString(),
+                metadata: {}
+              },
+            ]);
+          
+          if (error) {
+            logger.error('Error logging chat interaction to Supabase:', error);
+          }
+        } catch (supabaseError: any) {
+          logger.error('Unexpected error logging chat interaction to Supabase:', supabaseError);
+        }
+      }
+    } catch (err: any) {
+      logger.error('Error in startChat:', err);
+      setError(err.message || 'Failed to start chat');
+      
+      // Add error message to chat
+      const errorMessage: Message = {
+        id: uuidv4(),
+        content: "I'm sorry, but I encountered an error processing your message. Please try again.",
+        role: 'assistant',
+        timestamp: new Date().toISOString(),
+        metadata: { error: true }
+      };
+      addMessage(errorMessage);
+      
+      toast({
+        variant: "destructive",
+        title: "Uh oh! Something went wrong.",
+        description: "There was an error starting the chat. Please try again.",
+      })
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, addMessage, toast]);
+
   const sendMessage = async () => {
     if (!input.trim()) return;
 
@@ -102,12 +191,28 @@ export const useChat = () => {
     setInput('');
 
     try {
-      // Simple echo response for now - replace with actual AI integration
+      // Use the real message processor instead of echo
+      const aiResponse = await processMessage({
+        message: userMessage.content,
+        isAuthenticated: !!user,
+        userProfile: user ? {
+          username: user.user_metadata?.username,
+          first_name: user.user_metadata?.first_name,
+          last_name: user.user_metadata?.last_name
+        } : null,
+        onError: (error) => {
+          logger.error('Error in AI response:', error);
+          setError(error.message || 'Failed to get AI response');
+        }
+      });
+
+      // Convert the enhanced response to our message format
       const aiMessage: Message = {
-        id: uuidv4(),
-        content: `Echo: ${userMessage.content}`,
+        id: aiResponse.id,
+        content: aiResponse.content,
         role: 'assistant',
-        timestamp: new Date().toISOString(),
+        timestamp: aiResponse.timestamp,
+        metadata: aiResponse.metadata
       };
       
       addMessage(aiMessage);
@@ -137,6 +242,17 @@ export const useChat = () => {
     } catch (err: any) {
       logger.error('Error in sendMessage:', err);
       setError(err.message || 'Failed to send message');
+      
+      // Add error message to chat
+      const errorMessage: Message = {
+        id: uuidv4(),
+        content: "I'm sorry, but I encountered an error processing your message. Please try again.",
+        role: 'assistant',
+        timestamp: new Date().toISOString(),
+        metadata: { error: true }
+      };
+      addMessage(errorMessage);
+      
       toast({
         variant: "destructive",
         title: "Uh oh! Something went wrong.",
@@ -161,7 +277,7 @@ export const useChat = () => {
     clearChat,
     handleClearChat: clearChat, // alias for compatibility
     handleExportChat: () => {}, // placeholder
-    startChat: () => {}, // placeholder
+    startChat, // Now properly implemented
     setMessages,
     addMessage,
     isWebSocketConnected,
