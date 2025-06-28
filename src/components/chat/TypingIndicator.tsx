@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { TimerWithAbort } from './TimerWithAbort';
-import { useChat } from '@/hooks/use-chat';
 
 interface TypingIndicatorProps {
   isVisible: boolean;
@@ -10,7 +9,6 @@ interface TypingIndicatorProps {
 export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ isVisible }) => {
   const [responseStatus, setResponseStatus] = useState<'thinking' | 'responding'>('thinking');
   const [requestStartTime, setRequestStartTime] = useState<number>(0);
-  const { handleAbortRequest, getCurrentRequestInfo, hasActiveRequest } = useChat();
   
   useEffect(() => {
     const handleStatusChange = (event: CustomEvent) => {
@@ -28,14 +26,7 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ isVisible }) =
     // Reset status to 'thinking' whenever visibility changes
     if (isVisible) {
       setResponseStatus('thinking');
-      
-      // Check if there's an active request
-      const requestInfo = getCurrentRequestInfo();
-      if (requestInfo) {
-        setRequestStartTime(requestInfo.startTime);
-      } else {
-        setRequestStartTime(Date.now());
-      }
+      setRequestStartTime(Date.now());
     }
     
     // Listen for custom events
@@ -46,7 +37,7 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ isVisible }) =
       window.removeEventListener('aiResponseStatus', handleStatusChange as EventListener);
       window.removeEventListener('aiRequestStart', handleRequestStart as EventListener);
     };
-  }, [isVisible, getCurrentRequestInfo]);
+  }, [isVisible]);
   
   if (!isVisible) return null;
   
@@ -69,11 +60,11 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ isVisible }) =
           <div className="typing-dot" style={{ animationDelay: '400ms' }}></div>
         </div>
         
-        {/* Timer with Abort Button */}
+        {/* Timer with Abort Button - simplified */}
         <TimerWithAbort 
           startTime={requestStartTime} 
-          onAbort={handleAbortRequest}
-          isVisible={isVisible && hasActiveRequest()}
+          onAbort={() => {}} // placeholder abort function
+          isVisible={isVisible}
         />
       </div>
     </div>

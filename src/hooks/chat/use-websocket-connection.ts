@@ -1,180 +1,151 @@
 
-import { useEffect, useRef, useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { logger } from '@/utils/logging';
 import { useAuth } from '@/contexts/AuthContext';
-import { getAppSettingsMap } from '@/services/admin/settingsService';
+import { fetchAppSettings } from '@/services/admin/settingsService';
+import { logger } from '@/utils/logging';
 
-interface WebSocketMessage {
+export interface WebSocketMessage {
   id: string;
   content: string;
-  role: 'user' | 'assistant';
-  timestamp: string;
   sender?: string;
+  timestamp: string;
+  user_id?: string;
   metadata?: Record<string, any>;
 }
 
-export const useWebSocketConnection = (onMessage?: (message: WebSocketMessage) => void) => {
-  const { user } = useAuth();
+export interface ProactiveMessage {
+  id: string;
+  content: string;
+  sender: string;
+  timestamp: string;
+  metadata?: Record<string, any>;
+}
+
+export const useWebSocketConnection = (onMessage?: (message: any) => void) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isEnabled, setIsEnabled] = useState(false);
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const { user } = useAuth();
+  const channelRef = useRef<any>(null);
+  const messageCallbackRef = useRef(onMessage);
 
-  // Check if WebSocket is enabled in settings
+  // Update the callback ref when onMessage changes
   useEffect(() => {
-    const checkWebSocketEnabled = async () => {
+    messageCallbackRef.current = onMessage;
+  }, [onMessage]);
+
+  // Load WebSocket settings
+  useEffect(() => {
+    const loadSettings = async () => {
       try {
-        const settings = await getAppSettingsMap();
-        const enabled = settings.websocket_enabled === 'true';
-        setIsEnabled(enabled);
+        const settings = await fetchAppSettings();
+        const websocketEnabled = settings.websocket_enabled === 'true';
+        setIsEnabled(websocketEnabled);
         
-        if (!enabled && channelRef.current) {
-          // If disabled, disconnect existing connection
-          channelRef.current.unsubscribe();
-          channelRef.current = null;
-          setIsConnected(false);
+        if (websocketEnabled && user) {
+          connectToChannel();
+        } else if (!websocketEnabled && channelRef.current) {
+          disconnect();
         }
       } catch (error) {
-        logger.error('Error checking WebSocket enabled setting:', error);
+        logger.error('Failed to load WebSocket settings:', error);
         setIsEnabled(false);
       }
     };
 
-    checkWebSocketEnabled();
-    
-    // Check settings periodically in case admin changes them
-    const interval = setInterval(checkWebSocketEnabled, 30000); // Check every 30 seconds
-    
-    return () => clearInterval(interval);
+    loadSettings();
+  }, [user]);
+
+  const connectToChannel = useCallback(() => {
+    if (!user || !isEnabled || channelRef.current) return;
+
+    try {
+      const channel = supabase.channel('proactive_messages', {
+        config: { presence: { key: user.id } }
+      });
+
+      channel
+        .on('broadcast', { event: 'proactive_message' }, (payload) => {
+          if (payload.payload?.user_id === user.id && payload.payload?.message) {
+            logger.info('Received targeted proactive message:', payload.payload.message);
+            if (messageCallbackRef.current) {
+              messageCallbackRef.current(payload.payload.message);
+            }
+          }
+        })
+        .on('broadcast', { event: 'proactive_message_broadcast' }, (payload) => {
+          if (payload.payload?.message) {
+            logger.info('Received broadcast proactive message:', payload.payload.message);
+            if (messageCallbackRef.current) {
+              messageCallbackRef.current(payload.payload.message);
+            }
+          }
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            setIsConnected(true);
+            logger.info('Connected to proactive messages channel');
+          } else if (status === 'CHANNEL_ERROR') {
+            setIsConnected(false);
+            logger.error('Failed to connect to proactive messages channel');
+          }
+        });
+
+      channelRef.current = channel;
+    } catch (error) {
+      logger.error('Error connecting to WebSocket channel:', error);
+      setIsConnected(false);
+    }
+  }, [user, isEnabled]);
+
+  const disconnect = useCallback(() => {
+    if (channelRef.current) {
+      channelRef.current.unsubscribe();
+      channelRef.current = null;
+      setIsConnected(false);
+      logger.info('Disconnected from proactive messages channel');
+    }
   }, []);
 
-  useEffect(() => {
-    // Only attempt connection if WebSocket is enabled
-    if (!isEnabled) {
-      return;
-    }
-
-    // Initialize WebSocket connection
-    const initializeWebSocket = async () => {
-      try {
-        logger.info('Initializing WebSocket connection for real-time messaging');
-        
-        const channel = supabase.channel('proactive_messages', {
-          config: {
-            broadcast: { self: true }
-          }
-        });
-
-        // Listen for proactive messages targeted at this user
-        channel.on('broadcast', { event: 'proactive_message' }, (payload) => {
-          const { user_id, message } = payload.payload;
-          
-          // Only handle messages for the current user
-          if (user && user_id === user.id) {
-            logger.info('Received proactive message for user', { user_id, message_id: message.id });
-            onMessage?.(message);
-          }
-        });
-
-        // Listen for broadcast messages (sent to all users)
-        channel.on('broadcast', { event: 'proactive_message_broadcast' }, (payload) => {
-          const { message } = payload.payload;
-          logger.info('Received broadcast proactive message', { message_id: message.id });
-          onMessage?.(message);
-        });
-
-        // Handle connection state changes
-        channel.on('presence', { event: 'sync' }, () => {
-          logger.info('WebSocket presence synced');
-          setIsConnected(true);
-        });
-
-        channel.on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
-          logger.info('Received database change via WebSocket', payload);
-        });
-
-        // Subscribe to the channel
-        const subscription = await channel.subscribe((status) => {
-          logger.info('WebSocket subscription status:', status);
-          setIsConnected(status === 'SUBSCRIBED');
-          
-          if (status === 'SUBSCRIBED') {
-            logger.info('Successfully connected to WebSocket channel');
-          } else if (status === 'CHANNEL_ERROR') {
-            logger.error('WebSocket channel error');
-            setIsConnected(false);
-          } else if (status === 'TIMED_OUT') {
-            logger.warn('WebSocket connection timed out');
-            setIsConnected(false);
-          } else if (status === 'CLOSED') {
-            logger.info('WebSocket connection closed');
-            setIsConnected(false);
-          }
-        });
-
-        channelRef.current = channel;
-
-        // Track user presence if authenticated
-        if (user) {
-          const presenceData = {
-            user_id: user.id,
-            online_at: new Date().toISOString(),
-          };
-          
-          await channel.track(presenceData);
-          logger.info('User presence tracked in WebSocket', { user_id: user.id });
-        }
-
-      } catch (error) {
-        logger.error('Error initializing WebSocket connection:', error);
-        setIsConnected(false);
-      }
-    };
-
-    initializeWebSocket();
-
-    // Cleanup function
-    return () => {
-      if (channelRef.current) {
-        logger.info('Cleaning up WebSocket connection');
-        channelRef.current.unsubscribe();
-        channelRef.current = null;
-        setIsConnected(false);
-      }
-    };
-  }, [user, onMessage, isEnabled]);
-
-  const sendMessage = async (message: WebSocketMessage) => {
-    if (!channelRef.current || !isConnected || !isEnabled) {
-      logger.warn('Cannot send message: WebSocket not connected or not enabled');
+  const sendMessage = useCallback(async (message: WebSocketMessage): Promise<boolean> => {
+    if (!channelRef.current || !isConnected) {
+      logger.warn('Cannot send message: WebSocket not connected');
       return false;
     }
 
     try {
-      await channelRef.current.send({
+      const response = await channelRef.current.send({
         type: 'broadcast',
         event: 'user_message',
-        payload: { message }
+        payload: message
       });
       
-      logger.info('Message sent via WebSocket', { message_id: message.id });
-      return true;
+      return response === 'ok';
     } catch (error) {
-      logger.error('Error sending message via WebSocket:', error);
+      logger.error('Failed to send WebSocket message:', error);
       return false;
     }
-  };
+  }, [isConnected]);
+
+  const onProactiveMessage = useCallback((callback: (message: ProactiveMessage) => void) => {
+    messageCallbackRef.current = callback;
+    return () => {
+      messageCallbackRef.current = undefined;
+    };
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      disconnect();
+    };
+  }, [disconnect]);
 
   return {
-    isConnected: isConnected && isEnabled,
+    isConnected,
     isEnabled,
     sendMessage,
-    disconnect: () => {
-      if (channelRef.current) {
-        channelRef.current.unsubscribe();
-        channelRef.current = null;
-        setIsConnected(false);
-      }
-    }
+    disconnect,
+    onProactiveMessage
   };
 };

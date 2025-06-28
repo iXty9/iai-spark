@@ -1,12 +1,10 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { useCompletion } from 'ai/react';
-import { trackEvent } from '@/utils/analytics';
 import { logger } from '@/utils/logging';
-import { useSettings } from '@/contexts/SettingsContext';
 import { useWebSocketConnection } from './chat/use-websocket-connection';
 
 interface Message {
@@ -26,10 +24,6 @@ export const useChat = () => {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
-  const { complete, completion, setCompletion } = useCompletion({
-    api: '/api/completion'
-  });
-	const { settings } = useSettings();
 
   // Load chat history from local storage on mount
   useEffect(() => {
@@ -79,13 +73,10 @@ export const useChat = () => {
     setInput('');
 
     try {
-      trackEvent('chat_message_sent', { userId: user?.id });
-      
-      const aiResponse = await complete(input);
-      
+      // Simple echo response for now - replace with actual AI integration
       const aiMessage: Message = {
         id: uuidv4(),
-        content: aiResponse,
+        content: `Echo: ${userMessage.content}`,
         role: 'assistant',
         timestamp: new Date().toISOString(),
       };
@@ -95,7 +86,7 @@ export const useChat = () => {
       // Log the interaction to Supabase
       if (user) {
         try {
-          const { data, error } = await supabase
+          const { error } = await supabase
             .from('chat_logs')
             .insert([
               {
@@ -103,16 +94,12 @@ export const useChat = () => {
                 user_message: userMessage.content,
                 ai_response: aiMessage.content,
                 timestamp: new Date().toISOString(),
-                metadata: {
-                  theme: settings?.theme
-                }
+                metadata: {}
               },
             ]);
           
           if (error) {
             logger.error('Error logging chat interaction to Supabase:', error);
-          } else {
-            logger.info('Chat interaction logged to Supabase', { chatLogId: data?.[0]?.id });
           }
         } catch (supabaseError: any) {
           logger.error('Unexpected error logging chat interaction to Supabase:', supabaseError);
@@ -151,13 +138,24 @@ export const useChat = () => {
   return {
     messages,
     input,
+    message: input, // alias for compatibility
     isLoading,
     isInitialising,
     error,
     handleInputChange,
+    setMessage: setInput, // alias for compatibility
+    handleSubmit: sendMessage, // alias for compatibility
     sendMessage,
     clearChat,
+    handleClearChat: clearChat, // alias for compatibility
+    handleExportChat: () => {}, // placeholder
+    startChat: () => {}, // placeholder
+    setMessages,
+    addMessage,
     isWebSocketConnected,
     isWebSocketEnabled,
+    handleAbortRequest: () => {}, // placeholder
+    getCurrentRequestInfo: () => null, // placeholder
+    hasActiveRequest: () => false, // placeholder
   };
 };

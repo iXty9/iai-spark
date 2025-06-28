@@ -11,7 +11,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Message } from '@/types/chat';
 import { useIOSSafari } from '@/hooks/use-ios-safari';
 import { cn } from '@/lib/utils';
-import { useWebSocketConnection } from '@/hooks/chat/use-websocket-connection';
 import { logger } from '@/utils/logging';
 
 interface ChatContainerProps {
@@ -29,49 +28,39 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     handleExportChat,
     startChat,
     setMessages,
-    addMessage
+    addMessage,
+    isWebSocketConnected,
+    isWebSocketEnabled
   } = useChat();
   
   const { isIOSSafari } = useIOSSafari();
   const { user, isLoading: authLoading } = useAuth();
-  const { isConnected, onProactiveMessage } = useWebSocketConnection();
   
   const [hasInteracted, setHasInteracted] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
 
-  // Handle proactive messages from WebSocket (only if enabled)
-  useEffect(() => {
-    if (!user) return;
-
-    const unsubscribe = onProactiveMessage((proactiveMessage) => {
-      logger.info('Received proactive message:', proactiveMessage, { module: 'chat-container' });
-      
-      // Convert proactive message to chat message format
-      const chatMessage: Message = {
-        id: proactiveMessage.id,
-        sender: 'ai',
-        content: proactiveMessage.content,
-        timestamp: proactiveMessage.timestamp,
-        source: 'proactive'
-      };
-
-      // Add to message state
-      addMessage(chatMessage);
-      
-      // If this is the first message, ensure we transition to chat view
-      if (!hasInteracted) {
-        setHasInteracted(true);
-      }
-    });
-
-    return unsubscribe;
-  }, [user, onProactiveMessage, addMessage, hasInteracted]);
+  // Convert messages to the expected format for components
+  const convertedMessages: Message[] = messages.map(msg => ({
+    id: msg.id,
+    sender: msg.role === 'user' ? 'user' : 'ai',
+    content: msg.content,
+    timestamp: msg.timestamp,
+    source: msg.metadata?.isProactive ? 'proactive' : (msg.role === 'user' ? 'user' : 'ai')
+  }));
   
   const handleImportChat = (importedMessages: Message[]) => {
     if (importedMessages && importedMessages.length > 0) {
-      setMessages(importedMessages);
+      // Convert imported messages to internal format
+      const convertedImported = importedMessages.map(msg => ({
+        id: msg.id,
+        content: msg.content,
+        role: msg.sender === 'user' ? 'user' as const : 'assistant' as const,
+        timestamp: msg.timestamp,
+        metadata: msg.source === 'proactive' ? { isProactive: true } : {}
+      }));
+      setMessages(convertedImported);
       setHasInteracted(true);
     }
   };
@@ -81,24 +70,24 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
       onClearChat={handleClearChat}
       onExportChat={handleExportChat}
       onImportChat={handleImportChat}
-      messages={messages}
+      messages={convertedMessages}
       className={className}
     >
       <div className="flex-1 overflow-hidden relative bg-transparent">
         {/* Only show connection indicator if user is authenticated and WebSocket is enabled */}
-        {user && (
+        {user && isWebSocketEnabled && (
           <div className="absolute top-2 right-2 z-10">
-            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-gray-400'}`} 
-                 title={isConnected ? 'Connected to real-time updates' : 'Real-time updates disabled'} />
+            <div className={`w-2 h-2 rounded-full ${isWebSocketConnected ? 'bg-green-500' : 'bg-gray-400'}`} 
+                 title={isWebSocketConnected ? 'Connected to real-time updates' : 'Real-time updates disabled'} />
           </div>
         )}
         
-        {messages.length === 0 ? (
+        {convertedMessages.length === 0 ? (
           <Welcome onStartChat={startChat} onImportChat={handleImportChat} />
         ) : (
           <ScrollArea className="h-full py-4 px-2 bg-transparent messages-container">
             <MessageList
-              messages={messages}
+              messages={convertedMessages}
               isLoading={isLoading}
               scrollRef={scrollRef}
             />
@@ -106,7 +95,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
         )}
       </div>
       
-      {messages.length > 0 && (
+      {convertedMessages.length > 0 && (
         <div 
           ref={inputContainerRef}
           className={cn(
@@ -132,7 +121,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
       )}
       
       <ChatDebugState 
-        messages={messages}
+        messages={convertedMessages}
         isLoading={isLoading}
         hasInteracted={hasInteracted}
         message={message}
