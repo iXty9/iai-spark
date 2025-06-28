@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState, FormEvent, KeyboardEvent } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -20,9 +19,10 @@ const DEFAULT_AVATAR = "https://ixty9.com/wp-content/uploads/2024/05/faviconV4.p
 interface WelcomeProps {
   onStartChat: (message: string) => void;
   onImportChat: (messages: Message[]) => void;
+  onProactiveTransition?: (message: ProactiveMessage) => void;
 }
 
-export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
+export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransition }) => {
   const [message, setMessage] = useState('');
   const [tagline, setTagline] = useState<string | null>(null);
   const [isLoading, setLoading] = useState(true);
@@ -42,17 +42,17 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     const unsubscribe = onProactiveMessage((proactiveMessage: ProactiveMessage) => {
       logger.info('Received proactive message on Welcome screen:', proactiveMessage);
       
-      // Auto-start chat with the proactive message
-      if (!hasSubmitted.current) {
+      // Use the dedicated proactive transition handler instead of startChat
+      if (!hasSubmitted.current && onProactiveTransition) {
         hasSubmitted.current = true;
         setTimeout(() => {
-          onStartChat(proactiveMessage.content);
+          onProactiveTransition(proactiveMessage);
         }, 100);
       }
     });
 
     return unsubscribe;
-  }, [onProactiveMessage, onStartChat]);
+  }, [onProactiveMessage, onProactiveTransition]);
 
   useEffect(() => {
     const loadSettings = async () => {

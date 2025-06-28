@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageList } from '../MessageList';
 import { MessageInput } from '../MessageInput';
@@ -12,6 +13,7 @@ import { useIOSSafari } from '@/hooks/use-ios-safari';
 import { cn } from '@/lib/utils';
 import { logger } from '@/utils/logging';
 import { WebSocketStatusIndicator } from '@/components/websocket/WebSocketStatusIndicator';
+import { ProactiveMessage } from '@/contexts/WebSocketContext';
 
 interface ChatContainerProps {
   className?: string;
@@ -65,6 +67,24 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     }
   };
 
+  // Handle proactive message transition - this only adds the AI message without creating a user message
+  const handleProactiveTransition = (proactiveMessage: ProactiveMessage) => {
+    logger.info('Handling proactive message transition:', proactiveMessage);
+    
+    // Convert proactive message to chat message format
+    const chatMessage = {
+      id: proactiveMessage.id,
+      content: proactiveMessage.content,
+      role: 'assistant' as const,
+      timestamp: proactiveMessage.timestamp,
+      metadata: { isProactive: true, ...proactiveMessage.metadata }
+    };
+    
+    // Add only the AI message to the chat - no user message creation
+    addMessage(chatMessage);
+    setHasInteracted(true);
+  };
+
   return (
     <ChatLayout
       onClearChat={handleClearChat}
@@ -80,7 +100,11 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
         </div>
         
         {convertedMessages.length === 0 ? (
-          <Welcome onStartChat={startChat} onImportChat={handleImportChat} />
+          <Welcome 
+            onStartChat={startChat} 
+            onImportChat={handleImportChat}
+            onProactiveTransition={handleProactiveTransition}
+          />
         ) : (
           <ScrollArea className="h-full py-4 px-2 bg-transparent messages-container">
             <MessageList
