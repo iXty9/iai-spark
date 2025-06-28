@@ -26,6 +26,7 @@ export const useDraftSettingsState = () => {
   const { theme: currentTheme, lightTheme, darkTheme, backgroundImage, backgroundOpacity } = useTheme();
   
   const [draftState, setDraftState] = useState<DraftState | null>(null);
+  const [originalState, setOriginalState] = useState<DraftState | null>(null); // Track original state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
@@ -53,6 +54,7 @@ export const useDraftSettingsState = () => {
         };
 
         setDraftState(initialDraftState);
+        setOriginalState({ ...initialDraftState }); // Store original state for comparison
         setIsInitialized(true);
         setHasChanges(false);
         
@@ -73,10 +75,30 @@ export const useDraftSettingsState = () => {
     }
   }, [currentTheme, lightTheme, darkTheme, backgroundImage, backgroundOpacity, isInitialized]);
 
+  // Helper function to check if draft state differs from original
+  const checkForChanges = useCallback((newDraftState: DraftState, original: DraftState | null) => {
+    if (!original) return false;
+    
+    return (
+      newDraftState.mode !== original.mode ||
+      JSON.stringify(newDraftState.lightTheme) !== JSON.stringify(original.lightTheme) ||
+      JSON.stringify(newDraftState.darkTheme) !== JSON.stringify(original.darkTheme) ||
+      newDraftState.backgroundImage !== original.backgroundImage ||
+      newDraftState.backgroundOpacity !== original.backgroundOpacity
+    );
+  }, []);
+
   // Draft state update functions
   const updateDraftLightTheme = useCallback((newTheme: ThemeColors) => {
-    setDraftState(prev => prev ? { ...prev, lightTheme: newTheme } : null);
-    setHasChanges(true);
+    setDraftState(prev => {
+      if (!prev) return null;
+      
+      const updatedDraft = { ...prev, lightTheme: newTheme };
+      const hasActualChanges = checkForChanges(updatedDraft, originalState);
+      setHasChanges(hasActualChanges);
+      
+      return updatedDraft;
+    });
     
     // Apply preview if currently in light mode
     if (draftState?.mode === 'light') {
@@ -84,11 +106,18 @@ export const useDraftSettingsState = () => {
     }
     
     logger.info('Draft light theme updated', { module: 'draft-settings' });
-  }, [draftState?.mode]);
+  }, [draftState?.mode, checkForChanges, originalState]);
 
   const updateDraftDarkTheme = useCallback((newTheme: ThemeColors) => {
-    setDraftState(prev => prev ? { ...prev, darkTheme: newTheme } : null);
-    setHasChanges(true);
+    setDraftState(prev => {
+      if (!prev) return null;
+      
+      const updatedDraft = { ...prev, darkTheme: newTheme };
+      const hasActualChanges = checkForChanges(updatedDraft, originalState);
+      setHasChanges(hasActualChanges);
+      
+      return updatedDraft;
+    });
     
     // Apply preview if currently in dark mode
     if (draftState?.mode === 'dark') {
@@ -96,11 +125,18 @@ export const useDraftSettingsState = () => {
     }
     
     logger.info('Draft dark theme updated', { module: 'draft-settings' });
-  }, [draftState?.mode]);
+  }, [draftState?.mode, checkForChanges, originalState]);
 
   const updateDraftBackgroundImage = useCallback((image: string | null, info?: ImageInfo) => {
-    setDraftState(prev => prev ? { ...prev, backgroundImage: image } : null);
-    setHasChanges(true);
+    setDraftState(prev => {
+      if (!prev) return null;
+      
+      const updatedDraft = { ...prev, backgroundImage: image };
+      const hasActualChanges = checkForChanges(updatedDraft, originalState);
+      setHasChanges(hasActualChanges);
+      
+      return updatedDraft;
+    });
     
     if (info) {
       setImageInfo(info);
@@ -110,22 +146,36 @@ export const useDraftSettingsState = () => {
     productionThemeService.previewBackground(image, draftState?.backgroundOpacity || 0.5);
     
     logger.info('Draft background image updated', { module: 'draft-settings', hasImage: !!image });
-  }, [draftState?.backgroundOpacity]);
+  }, [draftState?.backgroundOpacity, checkForChanges, originalState]);
 
   const updateDraftBackgroundOpacity = useCallback((opacity: number) => {
-    setDraftState(prev => prev ? { ...prev, backgroundOpacity: opacity } : null);
-    setHasChanges(true);
+    setDraftState(prev => {
+      if (!prev) return null;
+      
+      const updatedDraft = { ...prev, backgroundOpacity: opacity };
+      const hasActualChanges = checkForChanges(updatedDraft, originalState);
+      setHasChanges(hasActualChanges);
+      
+      return updatedDraft;
+    });
     
     // Apply preview immediately
     productionThemeService.previewBackground(draftState?.backgroundImage || null, opacity);
     
     logger.info('Draft background opacity updated', { module: 'draft-settings', opacity });
-  }, [draftState?.backgroundImage]);
+  }, [draftState?.backgroundImage, checkForChanges, originalState]);
 
-  // FIXED: Add proper draft mode update function
+  // FIXED: Updated draft mode update function to only mark changes if mode differs from original
   const updateDraftMode = useCallback((mode: 'light' | 'dark') => {
-    setDraftState(prev => prev ? { ...prev, mode } : null);
-    setHasChanges(true);
+    setDraftState(prev => {
+      if (!prev) return null;
+      
+      const updatedDraft = { ...prev, mode };
+      const hasActualChanges = checkForChanges(updatedDraft, originalState);
+      setHasChanges(hasActualChanges);
+      
+      return updatedDraft;
+    });
     
     // Apply preview immediately with the correct theme colors
     const themeColors = mode === 'light' ? draftState?.lightTheme : draftState?.darkTheme;
@@ -134,7 +184,7 @@ export const useDraftSettingsState = () => {
     }
     
     logger.info('Draft theme mode updated', { module: 'draft-settings', mode });
-  }, [draftState?.lightTheme, draftState?.darkTheme]);
+  }, [draftState?.lightTheme, draftState?.darkTheme, checkForChanges, originalState]);
 
   const saveChanges = useCallback(async () => {
     if (!draftState) return;
@@ -149,6 +199,8 @@ export const useDraftSettingsState = () => {
       productionThemeService.setBackgroundImage(draftState.backgroundImage);
       productionThemeService.setBackgroundOpacity(draftState.backgroundOpacity);
       
+      // Update original state to current draft state
+      setOriginalState({ ...draftState });
       setHasChanges(false);
       
       logger.info('Draft changes saved successfully', { module: 'draft-settings' });
@@ -161,28 +213,20 @@ export const useDraftSettingsState = () => {
   }, [draftState]);
 
   const discardChanges = useCallback(async () => {
-    if (!draftState) return;
+    if (!originalState) return;
     
-    // Reset draft state to current theme values
-    const resetState: DraftState = {
-      mode: currentTheme,
-      lightTheme,
-      darkTheme,
-      backgroundImage,
-      backgroundOpacity
-    };
-    
-    setDraftState(resetState);
+    // Reset draft state to original state
+    setDraftState({ ...originalState });
     setHasChanges(false);
     
     // Restore original theme
-    productionThemeService.setMode(currentTheme);
-    const currentColors = currentTheme === 'light' ? lightTheme : darkTheme;
-    productionThemeService.previewTheme(currentColors, currentTheme);
-    productionThemeService.previewBackground(backgroundImage, backgroundOpacity);
+    productionThemeService.setMode(originalState.mode);
+    const currentColors = originalState.mode === 'light' ? originalState.lightTheme : originalState.darkTheme;
+    productionThemeService.previewTheme(currentColors, originalState.mode);
+    productionThemeService.previewBackground(originalState.backgroundImage, originalState.backgroundOpacity);
     
     logger.info('Draft changes discarded', { module: 'draft-settings' });
-  }, [currentTheme, lightTheme, darkTheme, backgroundImage, backgroundOpacity]);
+  }, [originalState]);
 
   const resetToDefaults = useCallback(async () => {
     // Load default theme from service
@@ -198,10 +242,11 @@ export const useDraftSettingsState = () => {
     };
     
     setDraftState(defaultState);
-    setHasChanges(true);
+    const hasActualChanges = checkForChanges(defaultState, originalState);
+    setHasChanges(hasActualChanges);
     
     logger.info('Draft state reset to defaults', { module: 'draft-settings' });
-  }, []);
+  }, [checkForChanges, originalState]);
 
   const refreshSettings = useCallback(async () => {
     setIsInitialized(false);
