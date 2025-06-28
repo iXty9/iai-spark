@@ -44,8 +44,8 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
     const loadSettingsAndConnect = async () => {
       try {
         const settings = await fetchAppSettings();
-        // Handle both boolean true and string 'true'
-        const websocketEnabled = settings.websocket_enabled === true || settings.websocket_enabled === 'true';
+        // Handle both boolean true and string 'true' by converting to boolean
+        const websocketEnabled = Boolean(settings.websocket_enabled === true || settings.websocket_enabled === 'true');
         setIsEnabled(websocketEnabled);
         
         if (websocketEnabled) {
