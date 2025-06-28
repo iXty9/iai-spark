@@ -12,6 +12,7 @@ interface ActionTooltipProps {
   disabled?: boolean;
   loading?: boolean;
   active?: boolean;
+  variant?: 'default' | 'success' | 'destructive' | 'none';
 }
 
 export const ActionTooltip: React.FC<ActionTooltipProps> = ({ 
@@ -20,8 +21,25 @@ export const ActionTooltip: React.FC<ActionTooltipProps> = ({
   onClick, 
   disabled = false,
   loading = false,
-  active = false
+  active = false,
+  variant = 'default'
 }) => {
+  const getActiveStyles = () => {
+    if (!active) return '';
+    
+    switch (variant) {
+      case 'success':
+        return 'text-green-600 hover:text-green-600 bg-green-50 scale-105';
+      case 'destructive':
+        return 'text-red-600 hover:text-red-600 bg-red-50 scale-105';
+      case 'none':
+        return '';
+      case 'default':
+      default:
+        return 'text-primary hover:text-primary bg-primary/10 scale-105';
+    }
+  };
+
   return (
     <TooltipProvider>
       <Tooltip>
@@ -33,7 +51,7 @@ export const ActionTooltip: React.FC<ActionTooltipProps> = ({
             disabled={disabled || loading}
             className={cn(
               "h-6 w-6 p-0 text-muted-foreground hover:text-foreground transition-all duration-200",
-              active && "text-primary hover:text-primary bg-primary/10 scale-105",
+              getActiveStyles(),
               disabled && "opacity-40 cursor-not-allowed",
               "hover:scale-110"
             )}
@@ -41,7 +59,7 @@ export const ActionTooltip: React.FC<ActionTooltipProps> = ({
             {loading ? (
               <Loader2 className="h-3 w-3 animate-spin" />
             ) : (
-              <Icon className={cn("h-3 w-3 transition-transform duration-200", active && "animate-pulse")} />
+              <Icon className="h-3 w-3 transition-transform duration-200" />
             )}
           </Button>
         </TooltipTrigger>

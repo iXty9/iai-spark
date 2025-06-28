@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ThumbsUp, ThumbsDown, Copy, Volume2, Info, Check, VolumeX } from 'lucide-react';
 import { toast } from 'sonner';
@@ -130,6 +129,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
         disabled={!isAuthenticated || feedbackLoading !== null}
         loading={feedbackLoading === 'thumbs_up'}
         active={feedbackSent === 'thumbs_up'}
+        variant="success"
       />
       <ActionTooltip 
         icon={ThumbsDown} 
@@ -138,25 +138,27 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
         disabled={!isAuthenticated || feedbackLoading !== null}
         loading={feedbackLoading === 'thumbs_down'}
         active={feedbackSent === 'thumbs_down'}
+        variant="destructive"
       />
       <ActionTooltip 
         icon={copySuccess ? Check : Copy} 
         label={copySuccess ? "Copied!" : "Copy to clipboard"} 
         onClick={handleCopy}
         active={copySuccess}
+        variant="success"
       />
       <ActionTooltip 
         icon={isSpeaking ? VolumeX : Volume2} 
         label={isSpeaking ? "Stop reading" : "Read aloud"} 
         onClick={handleReadAloud}
-        active={isSpeaking}
+        variant="none"
       />
       <ActionTooltip 
         icon={Info} 
         label="Token usage info" 
         onClick={handleTokenInfo}
         disabled={!tokenInfo}
-        active={showTokenInfo}
+        variant="none"
       />
 
       {tokenInfo && (
