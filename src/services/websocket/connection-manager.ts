@@ -44,12 +44,7 @@ class WebSocketConnectionManager {
 
       const wsUrl = `wss://ymtdtzkskjdqlzhjuesk.functions.supabase.co/proactive-chat-websocket`;
       
-      this.ws = new WebSocket(wsUrl, [], {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltdGR0emtza2pkcWx6aGp1ZXNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5MjUyNDYsImV4cCI6MjA2MDUwMTI0Nn0.sOQdxH63edhcIgjx6mxjHkeam4IQGViaWYLdFDepIaE'
-        }
-      } as any);
+      this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {
         logger.info('WebSocket connection established', { module: 'websocket' });

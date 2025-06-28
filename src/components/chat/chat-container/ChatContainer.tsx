@@ -136,7 +136,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
         hasInteracted={hasInteracted}
         message={message}
         isAuthLoading={authLoading}
-        isAuthenticed={!!user}
+        isAuthenticated={!!user}
         isTransitioning={isTransitioning}
         setIsTransitioning={setIsTransitioning}
         setHasInteracted={setHasInteracted}

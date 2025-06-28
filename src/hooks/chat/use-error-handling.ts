@@ -42,7 +42,7 @@ export const useErrorHandling = ({ addMessage }: UseErrorHandlingProps) => {
       id: uuidv4(),
       content: "I'm sorry, but I encountered an error processing your message. Please try again.",
       sender: 'ai',
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       metadata: { 
         error: true,
         errorType: appError.type,

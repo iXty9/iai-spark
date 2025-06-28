@@ -55,7 +55,7 @@ export const useChatInit = ({
         id: uuidv4(),
         content: initialMessage,
         sender: 'user' as const,
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       };
 
       addMessage(userMessage);
@@ -77,7 +77,7 @@ export const useChatInit = ({
         id: uuidv4(),
         content: response.content,
         sender: 'ai' as const,
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       };
 
       addMessage(aiMessage);
@@ -91,7 +91,7 @@ export const useChatInit = ({
         id: uuidv4(),
         content: "I'm sorry, but I encountered an error processing your message. Please try again.",
         sender: 'ai' as const,
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         metadata: { error: true }
       };
 

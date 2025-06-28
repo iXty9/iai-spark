@@ -40,7 +40,7 @@ describe('useMessageState', () => {
       id: '1',
       content: 'Test message',
       sender: 'user',
-      timestamp: new Date()
+      timestamp: new Date().toISOString()
     };
     
     act(() => {
@@ -58,7 +58,7 @@ describe('useMessageState', () => {
       id: '1',
       content: 'Test message',
       sender: 'user',
-      timestamp: new Date()
+      timestamp: new Date().toISOString()
     };
     
     act(() => {

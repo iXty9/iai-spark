@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Message } from '@/types/chat';
@@ -64,7 +65,7 @@ export const useChatSubmit = ({
       id: uuidv4(),
       content: message,
       sender: 'user',
-      timestamp: new Date()
+      timestamp: new Date().toISOString()
     };
     
     logger.info('New message created', {
@@ -117,7 +118,7 @@ export const useChatSubmit = ({
       // This preserves rawRequest, rawResponse, tokenInfo, and other enhanced fields
       logger.info('AI response received', {
         messageId: aiResponse.id,
-        responseTime: aiResponse.timestamp.getTime() - userMessage.timestamp.getTime(),
+        responseTime: new Date(aiResponse.timestamp).getTime() - new Date(userMessage.timestamp).getTime(),
         contentLength: aiResponse.content.length,
         hasRawRequest: !!aiResponse.rawRequest,
         hasRawResponse: !!aiResponse.rawResponse,
