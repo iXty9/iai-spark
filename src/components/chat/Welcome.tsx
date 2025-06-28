@@ -13,7 +13,6 @@ import { logger } from '@/utils/logging';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWebSocket, ProactiveMessage } from '@/contexts/WebSocketContext';
-import { WebSocketStatusIndicator } from '@/components/websocket/WebSocketStatusIndicator';
 
 const DEFAULT_TAGLINE = "The Everywhere Intelligent Assistant";
 const DEFAULT_AVATAR = "https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png";
@@ -167,11 +166,6 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   return (
     <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto px-4">
       <div className="w-full text-center space-y-6">
-        {/* WebSocket Status Indicator */}
-        <div className="flex justify-end mb-4">
-          <WebSocketStatusIndicator />
-        </div>
-        
         <div className="flex items-center justify-center gap-3">
           <Avatar className="w-16 h-16 relative">
             {renderAvatar()}

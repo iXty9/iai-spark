@@ -1,6 +1,5 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { notificationService } from '@/services/notification-service';
@@ -38,19 +37,18 @@ interface WebSocketProviderProps {
 export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isEnabled, setIsEnabled] = useState(false);
-  const { user } = useAuth();
   const channelRef = useRef<any>(null);
   const messageHandlersRef = useRef<Set<(message: ProactiveMessage) => void>>(new Set());
 
-  // Load WebSocket settings
+  // Load WebSocket settings and connect immediately when enabled
   useEffect(() => {
-    const loadSettings = async () => {
+    const loadSettingsAndConnect = async () => {
       try {
         const settings = await fetchAppSettings();
         const websocketEnabled = settings.websocket_enabled === 'true';
         setIsEnabled(websocketEnabled);
         
-        if (websocketEnabled && user) {
+        if (websocketEnabled) {
           connectToChannel();
         } else if (!websocketEnabled && channelRef.current) {
           disconnect();
@@ -61,20 +59,20 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
       }
     };
 
-    loadSettings();
-  }, [user]);
+    loadSettingsAndConnect();
+  }, []); // Remove user dependency - connect immediately when app loads
 
   const connectToChannel = useCallback(() => {
-    if (!user || !isEnabled || channelRef.current) return;
+    if (!isEnabled || channelRef.current) return;
 
     try {
       const channel = supabase.channel('proactive_messages', {
-        config: { presence: { key: user.id } }
+        config: { presence: { key: 'anonymous' } } // Use anonymous key when no user
       });
 
       channel
         .on('broadcast', { event: 'proactive_message' }, (payload) => {
-          if (payload.payload?.user_id === user.id && payload.payload?.message) {
+          if (payload.payload?.message) {
             logger.info('Received targeted proactive message:', payload.payload.message);
             
             const message: ProactiveMessage = {
@@ -138,7 +136,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
       logger.error('Error connecting to WebSocket channel:', error);
       setIsConnected(false);
     }
-  }, [user, isEnabled]);
+  }, [isEnabled]); // Remove user dependency
 
   const disconnect = useCallback(() => {
     if (channelRef.current) {
