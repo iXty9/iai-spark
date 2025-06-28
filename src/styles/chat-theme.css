@@ -55,3 +55,9 @@
 .ai-message-bubble .prose * {
   color: var(--ai-text-color, var(--text-color)) !important;
 }
+
+/* Message actions positioning - restored to original */
+.message-actions {
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+}

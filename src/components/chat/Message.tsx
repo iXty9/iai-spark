@@ -3,9 +3,9 @@ import React from 'react';
 import { Message as ChatMessage } from '@/types/chat';
 import { MessageAvatar } from './MessageAvatar';
 import { MessageContent } from './MessageContent';
+import { MessageActions } from './message-actions/MessageActions';
 import { formatTimestamp } from '@/lib/utils';
-import { ActionTooltip } from './message-actions/ActionTooltip';
-import { Copy, RedoDot, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface MessageProps {
   message: ChatMessage;
@@ -15,6 +15,7 @@ interface MessageProps {
 export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
   const isUser = message.sender === 'user';
   const isProactive = message.source === 'proactive';
+  const { user, profile } = useAuth();
   
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
@@ -24,8 +25,8 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
           <div
             className={`inline-block p-3 rounded-lg ${
               isUser
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted'
+                ? 'user-message-bubble'
+                : 'ai-message-bubble'
             } ${isProactive ? 'border-l-2 border-blue-400' : ''}`}
           >
             {/* Subtle indicator for proactive messages */}
@@ -42,38 +43,20 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
             <MessageContent content={message.content} message={message} />
           </div>
           
+          {/* Message Actions - restored to original location */}
+          {message.sender === 'ai' && (
+            <MessageActions
+              messageId={message.id}
+              content={message.content}
+              tokenInfo={message.tokenInfo}
+              isAuthenticated={!!user}
+              userInfo={profile}
+            />
+          )}
+          
           <div className="mt-1 text-xs text-muted-foreground">
             {formatTimestamp(message.timestamp)}
           </div>
-        </div>
-        
-        <div className="flex flex-col justify-center">
-          {message.sender === 'ai' && (
-            <div className="flex items-center space-x-2">
-              <ActionTooltip
-                icon={ThumbsUp}
-                label="Thumbs Up"
-                onClick={() => {}}
-              />
-              <ActionTooltip
-                icon={ThumbsDown}
-                label="Thumbs Down"
-                onClick={() => {}}
-              />
-              {onRetry && (
-                <ActionTooltip
-                  icon={RedoDot}
-                  label="Retry"
-                  onClick={() => onRetry(message)}
-                />
-              )}
-              <ActionTooltip
-                icon={Copy}
-                label="Copy"
-                onClick={() => navigator.clipboard.writeText(message.content)}
-              />
-            </div>
-          )}
         </div>
       </div>
     </div>

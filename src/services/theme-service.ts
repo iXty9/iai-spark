@@ -1,3 +1,4 @@
+
 import { ThemeColors, ThemeSettings } from '@/types/theme';
 import { applyThemeChanges, applyBackgroundImage } from '@/utils/theme-utils';
 import { logger } from '@/utils/logging';
