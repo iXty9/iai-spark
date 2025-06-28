@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAppSettings } from '@/services/admin/settingsService';
@@ -45,8 +44,8 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
     const loadSettingsAndConnect = async () => {
       try {
         const settings = await fetchAppSettings();
-        // Handle both boolean true and string 'true' by checking the actual value
-        const websocketEnabled = settings.websocket_enabled === true || settings.websocket_enabled === 'true';
+        // Convert any truthy value to boolean - handles both boolean true and string 'true'
+        const websocketEnabled = String(settings.websocket_enabled).toLowerCase() === 'true';
         setIsEnabled(websocketEnabled);
         
         if (websocketEnabled) {
