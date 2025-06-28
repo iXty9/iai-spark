@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, FormEvent, KeyboardEvent } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useWebSocket, ProactiveMessage } from '@/contexts/WebSocketContext';
 
 const DEFAULT_TAGLINE = "The Everywhere Intelligent Assistant";
-const DEFAULT_AVATAR = "https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png";
 
 interface WelcomeProps {
   onStartChat: (message: string) => void;
@@ -59,14 +59,14 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
       try {
         const settings = await fetchAppSettings();
         setTagline(settings.app_name || DEFAULT_TAGLINE);
-        setAvatarUrl(settings.avatar_url || DEFAULT_AVATAR);
+        setAvatarUrl(settings.default_avatar_url || null);
         if (settings.site_title && typeof document !== 'undefined') {
           document.title = settings.site_title;
         }
       } catch (e) {
         logger.warn('Failed to load app settings, using defaults', e, { module: 'welcome' });
         setTagline(DEFAULT_TAGLINE);
-        setAvatarUrl(DEFAULT_AVATAR);
+        setAvatarUrl(null);
       } finally {
         setLoading(false);
       }

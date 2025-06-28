@@ -13,32 +13,38 @@ interface MessageAvatarProps {
 
 export const MessageAvatar: React.FC<MessageAvatarProps> = ({ isUser, onAiIconError }) => {
   const { user, profile } = useAuth();
-  const [aiAvatarUrl, setAiAvatarUrl] = useState<string>("https://ixty9.com/wp-content/uploads/2023/10/cropped-faviconV4.png");
+  const [aiAvatarUrl, setAiAvatarUrl] = useState<string | null>(null);
+  const [defaultUserAvatar, setDefaultUserAvatar] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState<boolean>(false);
   
   useEffect(() => {
     let isMounted = true;
     
-    if (!isUser) {
-      // Only fetch avatar URL for AI messages
-      const getAvatarUrl = async () => {
-        try {
-          const settings = await fetchAppSettings();
-          if (isMounted && settings?.avatar_url && settings.avatar_url.trim() !== '') {
-            setAiAvatarUrl(settings.avatar_url);
-            setAvatarError(false);
+    const getAvatarSettings = async () => {
+      try {
+        const settings = await fetchAppSettings();
+        if (isMounted) {
+          const defaultAvatar = settings?.default_avatar_url || null;
+          
+          if (!isUser) {
+            // For AI messages, use avatar_url or default to default_avatar_url
+            setAiAvatarUrl(settings?.avatar_url || defaultAvatar);
+          } else {
+            // For user messages, store the default for fallback
+            setDefaultUserAvatar(defaultAvatar);
           }
-        } catch (error) {
-          logger.error('Error fetching AI avatar URL:', error);
-          if (isMounted) {
-            setAvatarError(true);
-            if (onAiIconError) onAiIconError();
-          }
+          setAvatarError(false);
         }
-      };
-      
-      getAvatarUrl();
-    }
+      } catch (error) {
+        logger.error('Error fetching avatar settings:', error);
+        if (isMounted) {
+          setAvatarError(true);
+          if (!isUser && onAiIconError) onAiIconError();
+        }
+      }
+    };
+    
+    getAvatarSettings();
     
     // Cleanup function to prevent state updates after unmount
     return () => {
@@ -61,11 +67,20 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({ isUser, onAiIconEr
   const displayName = getDisplayName();
   const initials = displayName === 'AI' ? 'AI' : displayName.charAt(0).toUpperCase();
 
+  // Get the appropriate avatar URL
+  const getAvatarUrl = (): string | undefined => {
+    if (isUser) {
+      return profile?.avatar_url || defaultUserAvatar || undefined;
+    } else {
+      return aiAvatarUrl || undefined;
+    }
+  };
+
   // Both user and AI avatars use the same size but theme-aware styling
   return (
     <Avatar className="w-6 h-6" title={displayName}>
       <AvatarImage
-        src={isUser ? (profile?.avatar_url || "https://ixty9.com/wp-content/uploads/2025/04/profile-circle-icon-256x256-1.png") : aiAvatarUrl}
+        src={getAvatarUrl()}
         alt={`${displayName}'s Avatar`}
         onError={() => {
           if (!isUser && !avatarError) {

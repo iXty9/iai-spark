@@ -15,6 +15,7 @@ export function AppSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [tagline, setTagline] = useState('');
   const [siteTitle, setSiteTitle] = useState('');
+  const [defaultAvatarUrl, setDefaultAvatarUrl] = useState('');
 
   useEffect(() => {
     loadSettings();
@@ -28,6 +29,7 @@ export function AppSettings() {
       // Map settings to state
       setTagline(settings.app_name || 'The Everywhere Intelligent Assistant');
       setSiteTitle(settings.site_title || 'AI Chat Application');
+      setDefaultAvatarUrl(settings.default_avatar_url || '');
     } catch (error) {
       console.error('Error loading app settings:', error);
       toast({
@@ -48,6 +50,9 @@ export function AppSettings() {
       
       // Save site title
       await updateAppSetting('site_title', siteTitle);
+      
+      // Save default avatar URL
+      await updateAppSetting('default_avatar_url', defaultAvatarUrl);
       
       toast({
         title: "Settings saved",
@@ -109,6 +114,20 @@ export function AppSettings() {
                 />
                 <p className="text-sm text-muted-foreground">
                   This title appears in the browser's title bar and tabs
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="defaultAvatarUrl">Default Avatar URL</Label>
+                <Input
+                  id="defaultAvatarUrl"
+                  value={defaultAvatarUrl}
+                  onChange={(e) => setDefaultAvatarUrl(e.target.value)}
+                  placeholder="Enter default avatar URL (HTTPS required)"
+                  type="url"
+                />
+                <p className="text-sm text-muted-foreground">
+                  This avatar is used as the default for AI messages and user fallbacks. Leave empty to use built-in fallback.
                 </p>
               </div>
               

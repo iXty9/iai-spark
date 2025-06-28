@@ -15,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { User, LogOut, Settings, UserRound, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
+import { fetchAppSettings } from '@/services/admin/settingsService';
 import { logger } from '@/utils/logging';
 
 export const UserMenu = () => {
@@ -23,6 +24,21 @@ export const UserMenu = () => {
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminCheckLoading, setAdminCheckLoading] = useState(false);
+  const [defaultAvatar, setDefaultAvatar] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Load default avatar setting
+    const loadDefaultAvatar = async () => {
+      try {
+        const settings = await fetchAppSettings();
+        setDefaultAvatar(settings?.default_avatar_url || null);
+      } catch (error) {
+        logger.warn('Failed to load default avatar setting', error, { module: 'user-menu' });
+      }
+    };
+
+    loadDefaultAvatar();
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -97,6 +113,13 @@ export const UserMenu = () => {
     return 'G';
   };
 
+  const getAvatarUrl = () => {
+    if (user && profile?.avatar_url) {
+      return profile.avatar_url;
+    }
+    return defaultAvatar || undefined;
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -106,13 +129,10 @@ export const UserMenu = () => {
           className="relative rounded-full h-9 w-9 md:h-8 md:w-8 border border-border/40 hover:border-[#dd3333]/30 transition-all duration-200 flex-shrink-0 shadow-sm"
         >
           <Avatar className="h-7 w-7 md:h-6 md:w-6">
-            {user && profile?.avatar_url ? (
-              <AvatarImage src={profile.avatar_url} alt={profile?.username || "User"} />
-            ) : (
-              <AvatarFallback className={user ? "bg-primary/10 text-primary text-xs" : "bg-secondary/80 text-xs"}>
-                {user ? getInitials() : <UserRound className="h-3 w-3" />}
-              </AvatarFallback>
-            )}
+            <AvatarImage src={getAvatarUrl()} alt={profile?.username || "User"} />
+            <AvatarFallback className={user ? "bg-primary/10 text-primary text-xs" : "bg-secondary/80 text-xs"}>
+              {user ? getInitials() : <UserRound className="h-3 w-3" />}
+            </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>

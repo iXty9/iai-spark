@@ -83,11 +83,13 @@ export const initScripts = {
     );
   `,
   insertDefaultSettings: `
-    -- Insert default webhook settings if they don't exist
+    -- Insert default webhook and avatar settings if they don't exist
     INSERT INTO public.app_settings (key, value) VALUES 
       ('authenticated_webhook_url', 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7'),
       ('anonymous_webhook_url', 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574'),
       ('debug_webhook_url', 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d8534'),
+      ('thumbs_up_webhook_url', ''),
+      ('thumbs_down_webhook_url', ''),
       ('webhook_timeout', '300000'),
       ('default_avatar_url', 'https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png'),
       ('websocket_enabled', 'false'),
