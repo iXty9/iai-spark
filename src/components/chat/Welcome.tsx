@@ -22,6 +22,13 @@ interface WelcomeProps {
   onProactiveTransition?: (message: ProactiveMessage) => void;
 }
 
+// Mobile Safari detection helper
+const isMobileSafari = () => {
+  const userAgent = navigator.userAgent;
+  return /iPad|iPhone|iPod/.test(userAgent) && 
+         /^((?!chrome|android).)*safari/i.test(userAgent);
+};
+
 export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransition }) => {
   const [message, setMessage] = useState('');
   const [tagline, setTagline] = useState<string | null>(null);
@@ -34,19 +41,75 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
   const { onProactiveMessage } = useWebSocket();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasSubmitted = useRef(false);
+  const isTransitioning = useRef(false);
 
   useTextareaResize(textareaRef, message);
 
-  // Handle proactive messages on Welcome screen
+  // Enhanced proactive message handling for mobile Safari
   useEffect(() => {
     const unsubscribe = onProactiveMessage((proactiveMessage: ProactiveMessage) => {
-      logger.info('Received proactive message on Welcome screen:', proactiveMessage);
+      const mobile = isMobileSafari();
       
-      // Use the dedicated proactive transition handler instead of startChat
-      if (!hasSubmitted.current && onProactiveTransition) {
+      logger.info('Welcome screen received proactive message', {
+        messageId: proactiveMessage.id,
+        sender: proactiveMessage.sender,
+        isMobile: mobile,  
+        isTransitioning: isTransitioning.current,
+        hasSubmitted: hasSubmitted.current,
+        module: 'welcome-mobile'
+      });
+      
+      // Prevent processing if already transitioning or submitted
+      if (isTransitioning.current || hasSubmitted.current) {
+        logger.warn('Proactive message ignored - already transitioning', {
+          messageId: proactiveMessage.id,
+          isTransitioning: isTransitioning.current,
+          hasSubmitted: hasSubmitted.current,
+          module: 'welcome-mobile'
+        });
+        return;
+      }
+
+      // Mobile Safari specific handling
+      if (mobile) {
+        logger.info('Processing proactive message for mobile Safari', {
+          messageId: proactiveMessage.id,
+          module: 'welcome-mobile'
+        });
+
+        // Set transition flags immediately
+        isTransitioning.current = true;
         hasSubmitted.current = true;
+
+        // Add a small delay for mobile Safari state consistency
         setTimeout(() => {
-          onProactiveTransition(proactiveMessage);
+          try {
+            if (onProactiveTransition) {
+              onProactiveTransition(proactiveMessage);
+              logger.info('Mobile Safari proactive transition completed', {
+                messageId: proactiveMessage.id,
+                module: 'welcome-mobile'
+              });
+            }
+          } catch (error) {
+            logger.error('Error in mobile Safari proactive transition:', error, {
+              messageId: proactiveMessage.id,
+              module: 'welcome-mobile'
+            });
+            // Reset flags on error
+            isTransitioning.current = false;
+            hasSubmitted.current = false;
+          }
+        }, 150); // Slightly longer delay for mobile Safari
+      } else {
+        // Desktop handling - immediate
+        isTransitioning.current = true;
+        hasSubmitted.current = true;
+        
+        setTimeout(() => {
+          if (onProactiveTransition) {
+            onProactiveTransition(proactiveMessage);
+          }
         }, 100);
       }
     });
@@ -87,12 +150,12 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
   }, [isDevMode]);
 
   const submitMessage = () => {
-    if (isSubmitting || hasSubmitted.current || !message.trim()) {
+    if (isSubmitting || hasSubmitted.current || isTransitioning.current || !message.trim()) {
       if (!message.trim() && (process.env.NODE_ENV === 'development' || isDevMode)) {
         emitDebugEvent({ lastAction: 'Submit prevented: Empty message', isLoading: false });
       }
       logger.warn(
-        `Welcome screen: ${!message.trim() ? 'Empty message prevented' : 'Submission prevented - already submitting'}`, 
+        `Welcome screen: ${!message.trim() ? 'Empty message prevented' : 'Submission prevented - already submitting/transitioning'}`, 
         null, 
         { module: 'ui' }
       );
@@ -101,7 +164,8 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
 
     logger.info('Welcome screen: Starting chat with message', {
       message: message.trim(),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      isMobile: isMobileSafari()
     }, { module: 'ui' });
 
     if (process.env.NODE_ENV === 'development' || isDevMode) {
@@ -115,8 +179,10 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
 
     setSubmitting(true);
     hasSubmitted.current = true;
+    isTransitioning.current = true;
     const messageToSend = message.trim();
     setMessage('');
+    
     setTimeout(() => {
       if (process.env.NODE_ENV === 'development' || isDevMode) {
         emitDebugEvent({
@@ -193,7 +259,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
             onKeyDown={handleKeyDown}
             placeholder={isMobile ? "Ask me anything..." : "What can I assist you with today?"}
             className="flex-1 rounded-lg shadow-sm min-h-[60px] max-h-[150px] resize-none"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isTransitioning.current}
             aria-label="Message input"
             spellCheck="true"
             rows={1}
@@ -201,7 +267,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
           <div className="flex items-center justify-end mt-2">
             <Button
               type="submit"
-              disabled={!message.trim() || isSubmitting}
+              disabled={!message.trim() || isSubmitting || isTransitioning.current}
               className="rounded-full bg-[#ea384c] hover:bg-[#dd3333]"
             >
               {isMobile ? <Send className="h-4 w-4" /> : <>Send <Send className="ml-2 h-4 w-4" /></>}

@@ -1,9 +1,12 @@
 
 import React from 'react';
-import { ChatContainer } from './chat-container/ChatContainer';
+import { ChatContainer } from '@/components/chat/chat-container/ChatContainer';
+import { MobileSafariErrorBoundary } from '@/components/error/MobileSafariErrorBoundary';
 
-export const Chat = () => {
+export const Chat: React.FC = () => {
   return (
-    <ChatContainer className="bg-transparent" />
+    <MobileSafariErrorBoundary>
+      <ChatContainer />
+    </MobileSafariErrorBoundary>
   );
 };

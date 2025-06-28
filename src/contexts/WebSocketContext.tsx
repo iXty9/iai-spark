@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAppSettings } from '@/services/admin/settingsService';
@@ -34,18 +33,146 @@ interface WebSocketProviderProps {
   children: React.ReactNode;
 }
 
+// Mobile Safari detection
+const isMobileSafari = () => {
+  const userAgent = navigator.userAgent;
+  return /iPad|iPhone|iPod/.test(userAgent) && 
+         /^((?!chrome|android).)*safari/i.test(userAgent);
+};
+
 export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isEnabled, setIsEnabled] = useState(false);
   const channelRef = useRef<any>(null);
   const messageHandlersRef = useRef<Set<(message: ProactiveMessage) => void>>(new Set());
+  
+  // Message deduplication - track processed message IDs
+  const processedMessageIds = useRef<Set<string>>(new Set());
+  const messageProcessingTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  // Cleanup processed message IDs periodically to prevent memory leaks
+  const cleanupProcessedMessages = useCallback(() => {
+    // Keep only the last 100 message IDs to prevent memory growth
+    if (processedMessageIds.current.size > 100) {
+      const idsArray = Array.from(processedMessageIds.current);
+      const toKeep = idsArray.slice(-50); // Keep last 50
+      processedMessageIds.current = new Set(toKeep);
+      
+      logger.info('Cleaned up processed message IDs', { 
+        previousCount: idsArray.length, 
+        currentCount: processedMessageIds.current.size,
+        module: 'websocket-mobile'
+      });
+    }
+  }, []);
+
+  // Enhanced message processing with deduplication
+  const processProactiveMessage = useCallback((payload: any, eventType: string) => {
+    if (!payload?.message) return;
+
+    const message: ProactiveMessage = {
+      id: payload.message.id,
+      content: payload.message.content,
+      sender: payload.message.sender || 'System',
+      timestamp: payload.message.timestamp,
+      metadata: payload.message.metadata
+    };
+
+    // Check for duplicate message processing
+    if (processedMessageIds.current.has(message.id)) {
+      logger.warn('Duplicate message detected and prevented', { 
+        messageId: message.id,
+        eventType,
+        isMobile: isMobileSafari(),
+        module: 'websocket-mobile'
+      });
+      return;
+    }
+
+    // Mark message as being processed
+    processedMessageIds.current.add(message.id);
+
+    logger.info(`Processing ${eventType} proactive message`, {
+      messageId: message.id,
+      sender: message.sender,
+      isMobile: isMobileSafari(),
+      module: 'websocket-mobile'
+    });
+
+    // Mobile Safari specific handling with delay
+    if (isMobileSafari()) {
+      // Clear any existing timeout for this message
+      const existingTimeout = messageProcessingTimeouts.current.get(message.id);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+      }
+
+      // Add a small delay for mobile Safari to ensure proper state handling
+      const timeout = setTimeout(() => {
+        try {
+          // Use notification service for coordinated notifications
+          notificationService.showProactiveMessage(message.content, message.sender);
+          
+          // Notify all registered handlers
+          messageHandlersRef.current.forEach(handler => {
+            try {
+              handler(message);
+            } catch (error) {
+              logger.error('Error in mobile proactive message handler:', error, { 
+                messageId: message.id,
+                module: 'websocket-mobile'
+              });
+            }
+          });
+          
+          logger.info('Mobile Safari message processing completed', {
+            messageId: message.id,
+            handlerCount: messageHandlersRef.current.size,
+            module: 'websocket-mobile'
+          });
+        } catch (error) {
+          logger.error('Error processing mobile Safari message:', error, {
+            messageId: message.id,
+            module: 'websocket-mobile'
+          });
+        } finally {
+          messageProcessingTimeouts.current.delete(message.id);
+        }
+      }, 100); // 100ms delay for mobile Safari
+
+      messageProcessingTimeouts.current.set(message.id, timeout);
+    } else {
+      // Desktop processing - immediate
+      try {
+        notificationService.showProactiveMessage(message.content, message.sender);
+        
+        messageHandlersRef.current.forEach(handler => {
+          try {
+            handler(message);
+          } catch (error) {
+            logger.error('Error in desktop proactive message handler:', error, {
+              messageId: message.id,
+              module: 'websocket-desktop'
+            });
+          }
+        });
+      } catch (error) {
+        logger.error('Error processing desktop message:', error, {
+          messageId: message.id,
+          module: 'websocket-desktop'
+        });
+      }
+    }
+
+    // Cleanup old processed messages
+    cleanupProcessedMessages();
+  }, [cleanupProcessedMessages]);
 
   // Load WebSocket settings and connect immediately when enabled
   useEffect(() => {
     const loadSettingsAndConnect = async () => {
       try {
         const settings = await fetchAppSettings();
-        // Convert any truthy value to boolean - handles both boolean true and string 'true'
         const websocketEnabled = String(settings.websocket_enabled).toLowerCase() === 'true';
         setIsEnabled(websocketEnabled);
         
@@ -61,71 +188,30 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
     };
 
     loadSettingsAndConnect();
-  }, []); // Remove user dependency - connect immediately when app loads
+  }, []);
 
   const connectToChannel = useCallback((websocketEnabled: boolean) => {
     if (!websocketEnabled || channelRef.current) return;
 
     try {
       const channel = supabase.channel('proactive_messages', {
-        config: { presence: { key: 'anonymous' } } // Use anonymous key when no user
+        config: { presence: { key: 'anonymous' } }
       });
 
       channel
         .on('broadcast', { event: 'proactive_message' }, (payload) => {
-          if (payload.payload?.message) {
-            logger.info('Received targeted proactive message:', payload.payload.message);
-            
-            const message: ProactiveMessage = {
-              id: payload.payload.message.id,
-              content: payload.payload.message.content,
-              sender: payload.payload.message.sender || 'System',
-              timestamp: payload.payload.message.timestamp,
-              metadata: payload.payload.message.metadata
-            };
-            
-            // Use notification service for coordinated notifications
-            notificationService.showProactiveMessage(message.content, message.sender);
-            
-            // Notify all registered handlers
-            messageHandlersRef.current.forEach(handler => {
-              try {
-                handler(message);
-              } catch (error) {
-                logger.error('Error in proactive message handler:', error);
-              }
-            });
-          }
+          processProactiveMessage(payload.payload, 'targeted');
         })
         .on('broadcast', { event: 'proactive_message_broadcast' }, (payload) => {
-          if (payload.payload?.message) {
-            logger.info('Received broadcast proactive message:', payload.payload.message);
-            
-            const message: ProactiveMessage = {
-              id: payload.payload.message.id,
-              content: payload.payload.message.content,
-              sender: payload.payload.message.sender || 'System',
-              timestamp: payload.payload.message.timestamp,
-              metadata: payload.payload.message.metadata
-            };
-            
-            // Use notification service for coordinated notifications
-            notificationService.showProactiveMessage(message.content, message.sender);
-            
-            // Notify all registered handlers
-            messageHandlersRef.current.forEach(handler => {
-              try {
-                handler(message);
-              } catch (error) {
-                logger.error('Error in proactive message handler:', error);
-              }
-            });
-          }
+          processProactiveMessage(payload.payload, 'broadcast');
         })
         .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
             setIsConnected(true);
-            logger.info('Connected to proactive messages channel');
+            logger.info('Connected to proactive messages channel', {
+              isMobile: isMobileSafari(),
+              module: 'websocket'
+            });
           } else if (status === 'CHANNEL_ERROR') {
             setIsConnected(false);
             logger.error('Failed to connect to proactive messages channel');
@@ -137,7 +223,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
       logger.error('Error connecting to WebSocket channel:', error);
       setIsConnected(false);
     }
-  }, []); // Remove isEnabled dependency since we pass it as parameter
+  }, [processProactiveMessage]);
 
   const disconnect = useCallback(() => {
     if (channelRef.current) {
@@ -146,12 +232,27 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
       setIsConnected(false);
       logger.info('Disconnected from proactive messages channel');
     }
+
+    // Clear any pending timeouts
+    messageProcessingTimeouts.current.forEach(timeout => clearTimeout(timeout));
+    messageProcessingTimeouts.current.clear();
   }, []);
 
   const onProactiveMessage = useCallback((callback: (message: ProactiveMessage) => void) => {
     messageHandlersRef.current.add(callback);
+    
+    logger.info('Added proactive message handler', {
+      totalHandlers: messageHandlersRef.current.size,
+      isMobile: isMobileSafari(),
+      module: 'websocket'
+    });
+    
     return () => {
       messageHandlersRef.current.delete(callback);
+      logger.info('Removed proactive message handler', {
+        totalHandlers: messageHandlersRef.current.size,
+        module: 'websocket'
+      });
     };
   }, []);
 
@@ -163,6 +264,8 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
   useEffect(() => {
     return () => {
       disconnect();
+      // Clear processed message IDs
+      processedMessageIds.current.clear();
     };
   }, [disconnect]);
 
