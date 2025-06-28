@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/hooks/use-theme';
+import { NotificationPermissionManager } from '@/components/notifications/NotificationPermissionManager';
 import Index from '@/pages/Index';
 import Auth from '@/pages/Auth';
 import Settings from '@/pages/Settings';
@@ -98,6 +99,7 @@ function App() {
         <Router>
           <AuthProvider clientReady={clientReady}>
             <ThemeProvider>
+              <NotificationPermissionManager />
               <div className="min-h-screen text-foreground">
                 <Routes>
                   <Route path="/" element={<Index />} />

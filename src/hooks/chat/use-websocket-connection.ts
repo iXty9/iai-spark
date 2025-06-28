@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { logger } from '@/utils/logging';
+import { notificationService } from '@/services/notification-service';
 
 export interface WebSocketMessage {
   id: string;
@@ -68,6 +69,13 @@ export const useWebSocketConnection = (onMessage?: (message: any) => void) => {
         .on('broadcast', { event: 'proactive_message' }, (payload) => {
           if (payload.payload?.user_id === user.id && payload.payload?.message) {
             logger.info('Received targeted proactive message:', payload.payload.message);
+            
+            // Use notification service for coordinated notifications
+            notificationService.showProactiveMessage(
+              payload.payload.message.content,
+              payload.payload.message.sender
+            );
+            
             if (messageCallbackRef.current) {
               messageCallbackRef.current(payload.payload.message);
             }
@@ -76,6 +84,13 @@ export const useWebSocketConnection = (onMessage?: (message: any) => void) => {
         .on('broadcast', { event: 'proactive_message_broadcast' }, (payload) => {
           if (payload.payload?.message) {
             logger.info('Received broadcast proactive message:', payload.payload.message);
+            
+            // Use notification service for coordinated notifications
+            notificationService.showProactiveMessage(
+              payload.payload.message.content,
+              payload.payload.message.sender
+            );
+            
             if (messageCallbackRef.current) {
               messageCallbackRef.current(payload.payload.message);
             }
