@@ -1,15 +1,15 @@
-
 export interface Message {
   id: string;
-  content: string;
   sender: 'user' | 'ai';
-  timestamp: Date;
-  pending?: boolean;
-  rawRequest?: any; // Store the complete outgoing webhook payload
-  rawResponse?: any; // Store the complete incoming webhook response
-  tokenInfo?: TokenInfo;
-  threadId?: string;
-  metadata?: Record<string, any>;
+  content: string;
+  timestamp: string;
+  source?: 'user' | 'ai' | 'proactive'; // Added source tracking
+  isLoading?: boolean;
+  tokens?: {
+    prompt: number;
+    completion: number;
+    total: number;
+  };
 }
 
 export interface ChatState {

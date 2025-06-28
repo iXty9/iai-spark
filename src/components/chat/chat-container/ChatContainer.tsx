@@ -1,5 +1,4 @@
-
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { MessageList } from '../MessageList';
 import { MessageInput } from '../MessageInput';
 import { Welcome } from '../Welcome';
@@ -11,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Message } from '@/types/chat';
 import { useIOSSafari } from '@/hooks/use-ios-safari';
 import { cn } from '@/lib/utils';
+import { useWebSocketConnection } from '@/hooks/chat/use-websocket-connection';
 
 interface ChatContainerProps {
   className?: string;
@@ -26,15 +26,46 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     handleClearChat,
     handleExportChat,
     startChat,
-    setMessages
+    setMessages,
+    addMessage
   } = useChat();
   
   const { isIOSSafari } = useIOSSafari();
   const { user, isLoading: authLoading } = useAuth();
+  const { isConnected, onProactiveMessage } = useWebSocketConnection();
+  
   const [hasInteracted, setHasInteracted] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
+
+  // Handle proactive messages from WebSocket
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubscribe = onProactiveMessage((proactiveMessage) => {
+      logger.info('Received proactive message:', proactiveMessage, { module: 'chat-container' });
+      
+      // Convert proactive message to chat message format
+      const chatMessage: Message = {
+        id: proactiveMessage.id,
+        sender: 'ai',
+        content: proactiveMessage.content,
+        timestamp: proactiveMessage.timestamp,
+        source: 'proactive'
+      };
+
+      // Add to message state
+      addMessage(chatMessage);
+      
+      // If this is the first message, ensure we transition to chat view
+      if (!hasInteracted) {
+        setHasInteracted(true);
+      }
+    });
+
+    return unsubscribe;
+  }, [user, onProactiveMessage, addMessage, hasInteracted]);
   
   const handleImportChat = (importedMessages: Message[]) => {
     if (importedMessages && importedMessages.length > 0) {
@@ -52,6 +83,13 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
       className={className}
     >
       <div className="flex-1 overflow-hidden relative bg-transparent">
+        {user && (
+          <div className="absolute top-2 right-2 z-10">
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-gray-400'}`} 
+                 title={isConnected ? 'Connected to real-time updates' : 'Not connected to real-time updates'} />
+          </div>
+        )}
+        
         {messages.length === 0 ? (
           <Welcome onStartChat={startChat} onImportChat={handleImportChat} />
         ) : (

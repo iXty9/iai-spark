@@ -1,129 +1,88 @@
-
 import React from 'react';
-import { cn } from '@/lib/utils';
-import { Message as MessageType } from '@/types/chat';
-import { MessageActions } from './message-actions/MessageActions';
-import { MessageAvatar } from './message/MessageAvatar';
-import MessageContent from './message/MessageContent';
-import { useAuth } from '@/contexts/AuthContext';
+import { Message as ChatMessage } from '@/types/chat';
+import { MessageAvatar } from './MessageAvatar';
+import { MessageContent } from './MessageContent';
+import { formatTimestamp } from '@/lib/utils';
+import { ActionTooltip } from './message-actions/ActionTooltip';
+import { Copy, RedoDot, ThumbsDown, ThumbsUp } from 'lucide-react';
 
 interface MessageProps {
-  message: MessageType;
+  message: ChatMessage;
+  onRetry?: (message: ChatMessage) => void;
 }
 
-export const Message: React.FC<MessageProps> = ({ message }) => {
-  const { user, profile } = useAuth();
+export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
   const isUser = message.sender === 'user';
-  const isAuthenticated = !!user;
-  const [aiIconError, setAiIconError] = React.useState(false);
+  const isProactive = message.source === 'proactive';
   
-  // Get display name for the user messages - prioritizing username
-  const getDisplayName = (): string => {
-    if (!isUser) return 'Ixty AI';
-    if (!user) return 'You';
-    
-    // Prioritize username over first/last name
-    if (profile?.username) return profile.username;
-    if (profile?.first_name && profile?.last_name) {
-      return `${profile.first_name} ${profile.last_name}`;
-    }
-    if (profile?.first_name) return profile.first_name;
-    return 'You';
-  };
-
-  const displayName = getDisplayName();
-
-  // Enhanced bubble styling with no border and no shadow
-  const bubbleBase = 
-    'rounded-2xl px-4 py-2 max-w-[80vw] md:max-w-[70%] min-w-[140px] transition-all break-words backdrop-blur-md'; 
-
-  // Use CSS variables for colors to respect user theme settings
-  const bubbleUser =
-    'bg-[var(--user-bubble-color)] text-left ml-auto ' +
-    'backdrop-blur-md';
-
-  const bubbleAI =
-    'bg-[var(--ai-bubble-color)] text-left mr-auto ' +
-    'backdrop-blur-md';
-
   return (
-    <div
-      className={cn(
-        'message py-2 w-full flex',
-        isUser ? 'justify-end' : 'justify-start',
-        message.pending && 'opacity-70'
-      )}
-      aria-label={`${isUser ? 'Your' : 'Ixty AI'} message`}
-    >
-      {/* AI avatar appears before the message content with consistent spacing */}
-      {!isUser && (
-        <div className="flex-shrink-0 w-6 h-6 self-start mt-1 mr-3">
-          <MessageAvatar isUser={isUser} onAiIconError={() => setAiIconError(true)} />
-        </div>
-      )}
-      
-      {/* Message content with symmetrical spacing for user and AI messages */}
-      <div className={cn(
-        'flex flex-col', 
-        isUser ? 'items-end' : 'items-start'
-      )}>
-        {/* Username text with dynamic name tag colors */}
-        <div 
-          className={cn(
-            'text-xs mb-1 font-medium', 
-            isUser ? 'text-right' : 'text-left'
-          )}
-          style={{
-            color: isUser ? 'var(--user-name-color)' : 'var(--ai-name-color)'
-          }}
-        >
-          {displayName}
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
+      <div className={`flex max-w-[80%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+        <MessageAvatar sender={message.sender} />
+        <div className={`mx-3 ${isUser ? 'text-right' : 'text-left'}`}>
+          <div
+            className={`inline-block p-3 rounded-lg ${
+              isUser
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted'
+            } ${isProactive ? 'border-l-2 border-blue-400' : ''}`}
+          >
+            {/* Subtle indicator for proactive messages */}
+            {isProactive && (
+              <div className="flex items-center gap-1 mb-1 opacity-70">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+                  <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
+                </svg>
+                <span className="text-xs">Proactive</span>
+              </div>
+            )}
+            
+            <MessageContent content={message.content} />
+          </div>
+          
+          <div className="mt-1 text-xs text-muted-foreground">
+            {formatTimestamp(message.timestamp)}
+          </div>
         </div>
         
-        {/* Message bubble with custom text colors */}
-        <div
-          className={cn(
-            bubbleBase,
-            isUser ? bubbleUser : bubbleAI,
-            isUser ? 'user-message-bubble' : 'ai-message-bubble',
-            'mb-1'
-          )}
-          style={{
-            opacity: isUser ? 'var(--user-bubble-opacity)' : 'var(--ai-bubble-opacity)',
-            color: isUser ? 'var(--user-text-color)' : 'var(--ai-text-color)'
-          }}
-        >
-          <MessageContent message={message} isUser={isUser} />
-        </div>
-        
-        {/* Timestamp and actions row */}
-        <div className={cn(
-          'flex items-center text-xs opacity-60', 
-          isUser ? 'justify-end' : 'justify-start'
-        )}>
-          <span>
-            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </span>
-          {!isUser && (
-            <span className="ml-2">
-              <MessageActions 
-                messageId={message.id} 
-                content={message.content} 
-                tokenInfo={message.tokenInfo}
-                isAuthenticated={isAuthenticated}
-                userInfo={profile}
+        <div className="flex flex-col justify-center">
+          {message.sender === 'ai' && (
+            <div className="flex items-center space-x-2">
+              <ActionTooltip
+                icon={ThumbsUp}
+                label="Thumbs Up"
+                onClick={() => {}}
               />
-            </span>
+              <ActionTooltip
+                icon={ThumbsDown}
+                label="Thumbs Down"
+                onClick={() => {}}
+              />
+              {onRetry && (
+                <ActionTooltip
+                  icon={RedoDot}
+                  label="Retry"
+                  onClick={() => onRetry(message)}
+                />
+              )}
+              <ActionTooltip
+                icon={Copy}
+                label="Copy"
+                onClick={() => navigator.clipboard.writeText(message.content)}
+              />
+            </div>
           )}
         </div>
       </div>
-
-      {/* User avatar appears after the message content with consistent spacing */}
-      {isUser && (
-        <div className="flex-shrink-0 w-6 h-6 self-start mt-1 ml-3">
-          <MessageAvatar isUser={isUser} onAiIconError={() => setAiIconError(true)} />
-        </div>
-      )}
     </div>
   );
 };
+
+function formatTimestamp(timestamp: string): string {
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
