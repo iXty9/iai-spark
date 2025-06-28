@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { WebSocketSettings } from './WebSocketSettings';
 
 export function AppSettings() {
   const { toast } = useToast();
@@ -38,7 +40,7 @@ export function AppSettings() {
     }
   };
 
-  const saveSettings = async () => {
+  const saveGeneralSettings = async () => {
     setIsSaving(true);
     try {
       // Save tagline (previously app_name)
@@ -72,46 +74,59 @@ export function AppSettings() {
 
   return (
     <div className="space-y-6">
-      <Card className="bg-background/80 backdrop-blur-sm">
-        <CardHeader>
-          <CardTitle>Application Settings</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="tagline">Tagline</Label>
-            <Input
-              id="tagline"
-              value={tagline}
-              onChange={(e) => setTagline(e.target.value)}
-              placeholder="Enter welcome screen tagline"
-            />
-            <p className="text-sm text-muted-foreground">
-              This tagline appears on the welcome screen. The default is "The Everywhere Intelligent Assistant"
-            </p>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="siteTitle">Site Title</Label>
-            <Input
-              id="siteTitle"
-              value={siteTitle}
-              onChange={(e) => setSiteTitle(e.target.value)}
-              placeholder="Enter site title"
-            />
-            <p className="text-sm text-muted-foreground">
-              This title appears in the browser's title bar and tabs
-            </p>
-          </div>
-          
-          <Button 
-            onClick={saveSettings} 
-            disabled={isSaving}
-            className="mt-4"
-          >
-            {isSaving ? "Saving..." : "Save Settings"}
-          </Button>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="general" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="general">General Settings</TabsTrigger>
+          <TabsTrigger value="websocket">Real-time Messaging</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="general" className="space-y-6">
+          <Card className="bg-background/80 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle>General Application Settings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="tagline">Tagline</Label>
+                <Input
+                  id="tagline"
+                  value={tagline}
+                  onChange={(e) => setTagline(e.target.value)}
+                  placeholder="Enter welcome screen tagline"
+                />
+                <p className="text-sm text-muted-foreground">
+                  This tagline appears on the welcome screen. The default is "The Everywhere Intelligent Assistant"
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="siteTitle">Site Title</Label>
+                <Input
+                  id="siteTitle"
+                  value={siteTitle}
+                  onChange={(e) => setSiteTitle(e.target.value)}
+                  placeholder="Enter site title"
+                />
+                <p className="text-sm text-muted-foreground">
+                  This title appears in the browser's title bar and tabs
+                </p>
+              </div>
+              
+              <Button 
+                onClick={saveGeneralSettings} 
+                disabled={isSaving}
+                className="mt-4"
+              >
+                {isSaving ? "Saving..." : "Save Settings"}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="websocket" className="space-y-6">
+          <WebSocketSettings />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
