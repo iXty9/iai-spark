@@ -6,7 +6,6 @@ import { Send, Circle, Info } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { useDevMode } from '@/store/use-dev-mode';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 import { useTextareaResize } from '@/hooks/use-textarea-resize';
 import { Message } from '@/types/chat';
@@ -147,13 +146,6 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
 
   return (
     <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto px-4">
-      {isDevMode && (
-        <Alert variant="destructive" className="mb-4 max-w-md">
-          <AlertDescription>
-            Welcome flow is using real webhook integration
-          </AlertDescription>
-        </Alert>
-      )}
       <div className="w-full text-center space-y-6">
         <div className="flex items-center justify-center gap-3">
           <Avatar className="w-16 h-16 relative">
