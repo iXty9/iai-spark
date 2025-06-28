@@ -65,6 +65,28 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     }
   };
 
+  // Determine status indicator color and tooltip text
+  const getStatusIndicator = () => {
+    if (!isWebSocketEnabled) {
+      return {
+        color: 'bg-red-500',
+        tooltip: 'Real-time messaging is disabled'
+      };
+    } else if (isWebSocketConnected) {
+      return {
+        color: 'bg-green-500',
+        tooltip: 'Connected to real-time updates'
+      };
+    } else {
+      return {
+        color: 'bg-gray-400',
+        tooltip: 'Real-time messaging enabled but not connected'
+      };
+    }
+  };
+
+  const statusIndicator = getStatusIndicator();
+
   return (
     <ChatLayout
       onClearChat={handleClearChat}
@@ -74,13 +96,13 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
       className={className}
     >
       <div className="flex-1 overflow-hidden relative bg-transparent">
-        {/* Only show connection indicator if user is authenticated and WebSocket is enabled */}
-        {user && isWebSocketEnabled && (
-          <div className="absolute top-2 right-2 z-10">
-            <div className={`w-2 h-2 rounded-full ${isWebSocketConnected ? 'bg-green-500' : 'bg-gray-400'}`} 
-                 title={isWebSocketConnected ? 'Connected to real-time updates' : 'Real-time updates disabled'} />
-          </div>
-        )}
+        {/* Always show WebSocket status indicator */}
+        <div className="absolute top-2 right-2 z-10">
+          <div 
+            className={`w-2 h-2 rounded-full ${statusIndicator.color}`}
+            title={statusIndicator.tooltip}
+          />
+        </div>
         
         {convertedMessages.length === 0 ? (
           <Welcome onStartChat={startChat} onImportChat={handleImportChat} />
