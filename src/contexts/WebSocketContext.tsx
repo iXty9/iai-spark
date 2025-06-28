@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAppSettings } from '@/services/admin/settingsService';
@@ -49,7 +50,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
         setIsEnabled(websocketEnabled);
         
         if (websocketEnabled) {
-          connectToChannel();
+          connectToChannel(websocketEnabled);
         } else if (!websocketEnabled && channelRef.current) {
           disconnect();
         }
@@ -62,8 +63,8 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
     loadSettingsAndConnect();
   }, []); // Remove user dependency - connect immediately when app loads
 
-  const connectToChannel = useCallback(() => {
-    if (!isEnabled || channelRef.current) return;
+  const connectToChannel = useCallback((websocketEnabled: boolean) => {
+    if (!websocketEnabled || channelRef.current) return;
 
     try {
       const channel = supabase.channel('proactive_messages', {
@@ -136,7 +137,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
       logger.error('Error connecting to WebSocket channel:', error);
       setIsConnected(false);
     }
-  }, [isEnabled]); // Remove user dependency
+  }, []); // Remove isEnabled dependency since we pass it as parameter
 
   const disconnect = useCallback(() => {
     if (channelRef.current) {
