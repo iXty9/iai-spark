@@ -32,15 +32,16 @@ export const ActionTooltip: React.FC<ActionTooltipProps> = ({
             onClick={onClick}
             disabled={disabled || loading}
             className={cn(
-              "h-6 w-6 p-0 text-muted-foreground hover:text-foreground",
-              active && "text-primary hover:text-primary",
-              disabled && "opacity-40 cursor-not-allowed"
+              "h-6 w-6 p-0 text-muted-foreground hover:text-foreground transition-all duration-200",
+              active && "text-primary hover:text-primary bg-primary/10 scale-105",
+              disabled && "opacity-40 cursor-not-allowed",
+              "hover:scale-110"
             )}
           >
             {loading ? (
               <Loader2 className="h-3 w-3 animate-spin" />
             ) : (
-              <Icon className="h-3 w-3" />
+              <Icon className={cn("h-3 w-3 transition-transform duration-200", active && "animate-pulse")} />
             )}
           </Button>
         </TooltipTrigger>

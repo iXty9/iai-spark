@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ThumbsUp, ThumbsDown, Copy, Volume2, Info } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Copy, Volume2, Info, Check, VolumeX } from 'lucide-react';
 import { toast } from 'sonner';
 import { TokenInfo } from '@/types/chat';
 import { ActionTooltip } from './ActionTooltip';
@@ -26,14 +26,31 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
   const [showTokenInfo, setShowTokenInfo] = React.useState(false);
   const [feedbackLoading, setFeedbackLoading] = useState<FeedbackType | null>(null);
   const [feedbackSent, setFeedbackSent] = useState<FeedbackType | null>(null);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content);
+    setCopySuccess(true);
     toast.success('Message copied to clipboard');
+    
+    // Reset copy success state after 2 seconds
+    setTimeout(() => {
+      setCopySuccess(false);
+    }, 2000);
   };
 
   const handleReadAloud = () => {
     if ('speechSynthesis' in window) {
+      // If already speaking, stop the speech
+      if (isSpeaking) {
+        window.speechSynthesis.cancel();
+        setIsSpeaking(false);
+        toast.info('Speech stopped');
+        return;
+      }
+
+      // Start new speech
       window.speechSynthesis.cancel();
       const cleanText = stripMarkdown(content);
       const utterance = new SpeechSynthesisUtterance(cleanText);
@@ -47,7 +64,16 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
       
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+      };
+      
+      utterance.onend = () => {
+        setIsSpeaking(false);
+      };
+      
       utterance.onerror = () => {
+        setIsSpeaking(false);
         toast.error('Could not read message aloud');
       };
       
@@ -113,13 +139,24 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
         loading={feedbackLoading === 'thumbs_down'}
         active={feedbackSent === 'thumbs_down'}
       />
-      <ActionTooltip icon={Copy} label="Copy to clipboard" onClick={handleCopy} />
-      <ActionTooltip icon={Volume2} label="Read aloud" onClick={handleReadAloud} />
+      <ActionTooltip 
+        icon={copySuccess ? Check : Copy} 
+        label={copySuccess ? "Copied!" : "Copy to clipboard"} 
+        onClick={handleCopy}
+        active={copySuccess}
+      />
+      <ActionTooltip 
+        icon={isSpeaking ? VolumeX : Volume2} 
+        label={isSpeaking ? "Stop reading" : "Read aloud"} 
+        onClick={handleReadAloud}
+        active={isSpeaking}
+      />
       <ActionTooltip 
         icon={Info} 
         label="Token usage info" 
         onClick={handleTokenInfo}
         disabled={!tokenInfo}
+        active={showTokenInfo}
       />
 
       {tokenInfo && (
