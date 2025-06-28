@@ -23,6 +23,7 @@ export interface WebhookSettings {
   debug_webhook_url: string;
   thumbs_up_webhook_url: string;
   thumbs_down_webhook_url: string;
+  user_signup_webhook_url: string;
 }
 
 export interface WebhookFormErrors {
@@ -31,6 +32,7 @@ export interface WebhookFormErrors {
   debug_webhook_url?: string;
   thumbs_up_webhook_url?: string;
   thumbs_down_webhook_url?: string;
+  user_signup_webhook_url?: string;
 }
 
 export const validateWebhookUrl = (name: string, value: string): string | null => {

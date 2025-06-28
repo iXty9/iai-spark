@@ -62,6 +62,7 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
       await updateAppSetting('debug_webhook_url', settings.debug_webhook_url);
       await updateAppSetting('thumbs_up_webhook_url', settings.thumbs_up_webhook_url);
       await updateAppSetting('thumbs_down_webhook_url', settings.thumbs_down_webhook_url);
+      await updateAppSetting('user_signup_webhook_url', settings.user_signup_webhook_url);
       
       toast({
         title: "Webhook settings saved",
@@ -145,6 +146,16 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
           onChange={handleChange}
           placeholder="https://your-domain.com/webhook/thumbs-down"
           error={errors.thumbs_down_webhook_url}
+        />
+        
+        <WebhookUrlFormField
+          id="user_signup_webhook_url"
+          name="user_signup_webhook_url"
+          label="User Signup Webhook URL"
+          value={settings.user_signup_webhook_url}
+          onChange={handleChange}
+          placeholder="https://your-domain.com/webhook/user-signup"
+          error={errors.user_signup_webhook_url}
         />
         
         <Button 

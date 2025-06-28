@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from "@/hooks/use-toast";
 import { logger } from '@/utils/logging';
 import { clientManager } from '@/services/supabase/client-manager';
+import { sendUserSignupWebhook } from '@/services/webhook';
 
 const API_TIMEOUT = 30000; // 30 seconds
 
@@ -80,7 +81,7 @@ export const signUp = async (
   email: string, 
   password: string, 
   username: string, 
-  options?: { phone_number?: string, full_name?: string }
+  options?: { phone_number?: string, full_name?: string, first_name?: string, last_name?: string }
 ) => {
   try {
     // Ensure client is ready before attempting signup
@@ -94,6 +95,8 @@ export const signUp = async (
           username,
           phone_number: options?.phone_number,
           full_name: options?.full_name,
+          first_name: options?.first_name,
+          last_name: options?.last_name,
         },
       },
     });
@@ -102,7 +105,7 @@ export const signUp = async (
       setTimeout(() => reject(new Error("Registration request timed out after 30 seconds")), API_TIMEOUT);
     });
     
-    const { error } = await Promise.race([authPromise, timeoutPromise]) as any;
+    const { data, error } = await Promise.race([authPromise, timeoutPromise]) as any;
 
     if (error) {
       let userMessage = "Registration failed. Please try again.";
@@ -118,6 +121,21 @@ export const signUp = async (
         description: userMessage,
       });
       throw error;
+    }
+    
+    // Send signup webhook (don't await to avoid blocking signup)
+    if (data?.user) {
+      sendUserSignupWebhook({
+        email,
+        username,
+        firstName: options?.first_name,
+        lastName: options?.last_name,
+        phoneNumber: options?.phone_number,
+        timestamp: new Date().toISOString()
+      }).catch(webhookError => {
+        // Log webhook error but don't affect signup success
+        logger.error('Signup webhook failed but user registration succeeded', webhookError, { module: 'auth-operations' });
+      });
     }
     
     toast({
