@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageList } from '../MessageList';
 import { MessageInput } from '../MessageInput';
@@ -11,6 +12,7 @@ import { Message } from '@/types/chat';
 import { useIOSSafari } from '@/hooks/use-ios-safari';
 import { cn } from '@/lib/utils';
 import { useWebSocketConnection } from '@/hooks/chat/use-websocket-connection';
+import { logger } from '@/utils/logging';
 
 interface ChatContainerProps {
   className?: string;
@@ -134,7 +136,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
         hasInteracted={hasInteracted}
         message={message}
         isAuthLoading={authLoading}
-        isAuthenticated={!!user}
+        isAuthenticed={!!user}
         isTransitioning={isTransitioning}
         setIsTransitioning={setIsTransitioning}
         setHasInteracted={setHasInteracted}

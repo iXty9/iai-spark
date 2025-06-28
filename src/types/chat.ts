@@ -1,3 +1,4 @@
+
 export interface Message {
   id: string;
   sender: 'user' | 'ai';
@@ -5,6 +6,16 @@ export interface Message {
   timestamp: string;
   source?: 'user' | 'ai' | 'proactive'; // Added source tracking
   isLoading?: boolean;
+  pending?: boolean;
+  rawRequest?: any; // Webhook request payload
+  rawResponse?: any; // Webhook response payload  
+  metadata?: Record<string, any>;
+  tokenInfo?: {
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+  };
+  threadId?: string;
   tokens?: {
     prompt: number;
     completion: number;

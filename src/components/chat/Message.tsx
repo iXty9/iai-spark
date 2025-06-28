@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Message as ChatMessage } from '@/types/chat';
 import { MessageAvatar } from './MessageAvatar';
@@ -38,7 +39,7 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
               </div>
             )}
             
-            <MessageContent content={message.content} />
+            <MessageContent content={message.content} message={message} />
           </div>
           
           <div className="mt-1 text-xs text-muted-foreground">
@@ -78,11 +79,3 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
     </div>
   );
 };
-
-function formatTimestamp(timestamp: string): string {
-  const date = new Date(timestamp);
-  return date.toLocaleTimeString(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}

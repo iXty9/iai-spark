@@ -57,6 +57,7 @@ export const useChat = () => {
     handleExportChat,
     startChat,
     setMessages,
+    addMessage, // Add the missing addMessage method
     handleAbortRequest,
     getCurrentRequestInfo,
     hasActiveRequest
