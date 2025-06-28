@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, FormEvent, KeyboardEvent } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -36,22 +37,27 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
   useTextareaResize(textareaRef, message);
 
   useEffect(() => {
-    (async () => {
+    const loadSettings = async () => {
       try {
         const settings = await fetchAppSettings();
         setTagline(settings.app_name || DEFAULT_TAGLINE);
         setAvatarUrl(settings.avatar_url || DEFAULT_AVATAR);
-        if (settings.site_title && typeof document !== 'undefined') document.title = settings.site_title;
+        if (settings.site_title && typeof document !== 'undefined') {
+          document.title = settings.site_title;
+        }
       } catch (e) {
+        logger.warn('Failed to load app settings, using defaults', e, { module: 'welcome' });
         setTagline(DEFAULT_TAGLINE);
         setAvatarUrl(DEFAULT_AVATAR);
       } finally {
         setLoading(false);
       }
-    })();
+    };
+
+    loadSettings();
     textareaRef.current?.focus();
 
-    if (process.env.NODE_ENV === 'development' || isDevMode)
+    if (process.env.NODE_ENV === 'development' || isDevMode) {
       emitDebugEvent({
         screen: 'Welcome Screen',
         lastAction: 'Welcome screen loaded',
@@ -59,12 +65,14 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
         hasInteracted: false,
         isTransitioning: false
       });
+    }
   }, [isDevMode]);
 
   const submitMessage = () => {
     if (isSubmitting || hasSubmitted.current || !message.trim()) {
-      if (!message.trim() && (process.env.NODE_ENV === 'development' || isDevMode))
+      if (!message.trim() && (process.env.NODE_ENV === 'development' || isDevMode)) {
         emitDebugEvent({ lastAction: 'Submit prevented: Empty message', isLoading: false });
+      }
       logger.warn(
         `Welcome screen: ${!message.trim() ? 'Empty message prevented' : 'Submission prevented - already submitting'}`, 
         null, 
@@ -78,25 +86,27 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
       timestamp: new Date().toISOString()
     }, { module: 'ui' });
 
-    if (process.env.NODE_ENV === 'development' || isDevMode)
+    if (process.env.NODE_ENV === 'development' || isDevMode) {
       emitDebugEvent({
         lastAction: `Welcome screen: Submit clicked with message: "${message.trim()}" (Using real webhook)`,
         isLoading: true,
         inputState: 'Submitting',
         isTransitioning: true
       });
+    }
 
     setSubmitting(true);
     hasSubmitted.current = true;
     const messageToSend = message.trim();
     setMessage('');
     setTimeout(() => {
-      if (process.env.NODE_ENV === 'development' || isDevMode)
+      if (process.env.NODE_ENV === 'development' || isDevMode) {
         emitDebugEvent({
           lastAction: 'Starting chat from welcome screen (Using real webhook)',
           isTransitioning: true,
           hasInteracted: true
         });
+      }
       onStartChat(messageToSend);
     }, 0);
   };
@@ -107,12 +117,33 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitMessage(); }
   };
 
+  const handleAvatarError = () => {
+    logger.warn('Avatar failed to load, falling back to default', { 
+      attemptedUrl: avatarUrl,
+      module: 'welcome' 
+    });
+    setAvatarError(true);
+  };
+
   // Avatar rendering logic helper
-  const renderAvatar = () =>
-    isLoading ? <Skeleton className="w-16 h-16 rounded-full" />
-      : !avatarError && avatarUrl
-        ? <AvatarImage src={avatarUrl} alt="Ixty AI Logo" onError={() => setAvatarError(true)} />
-        : null;
+  const renderAvatar = () => {
+    if (isLoading) {
+      return <Skeleton className="w-16 h-16 rounded-full" />;
+    }
+    
+    if (!avatarError && avatarUrl) {
+      return (
+        <AvatarImage 
+          src={avatarUrl} 
+          alt="Ixty AI Logo" 
+          onError={handleAvatarError}
+          onLoad={() => logger.debug('Avatar loaded successfully', { url: avatarUrl, module: 'welcome' })}
+        />
+      );
+    }
+    
+    return null;
+  };
 
   return (
     <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto px-4">
@@ -136,7 +167,11 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat }) => {
           </Avatar>
           <div className="space-y-2 text-left">
             <h1 className="text-2xl font-bold text-[#ea384c]">Ixty AI</h1>
-            {isLoading ? <Skeleton className="h-5 w-48" /> : <p className="text-muted-foreground">&quot;{tagline}&quot;</p>}
+            {isLoading ? (
+              <Skeleton className="h-5 w-48" />
+            ) : (
+              <p className="text-muted-foreground">&quot;{tagline}&quot;</p>
+            )}
           </div>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-2 w-full max-w-xl mx-auto">

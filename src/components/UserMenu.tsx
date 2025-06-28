@@ -15,20 +15,41 @@ import { useNavigate } from 'react-router-dom';
 import { User, LogOut, Settings, UserRound, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
+import { logger } from '@/utils/logging';
 
 export const UserMenu = () => {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminCheckLoading, setAdminCheckLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
       const fetchAdminStatus = async () => {
-        const adminStatus = await checkIsAdmin(user.id);
-        setIsAdmin(adminStatus);
+        setAdminCheckLoading(true);
+        try {
+          const adminStatus = await checkIsAdmin(user.id);
+          setIsAdmin(adminStatus);
+          logger.debug('Admin status checked', { 
+            userId: user.id, 
+            isAdmin: adminStatus,
+            module: 'user-menu' 
+          });
+        } catch (error) {
+          logger.error('Failed to check admin status', error, { 
+            userId: user.id,
+            module: 'user-menu' 
+          });
+          setIsAdmin(false);
+        } finally {
+          setAdminCheckLoading(false);
+        }
       };
       fetchAdminStatus();
+    } else {
+      setIsAdmin(false);
+      setAdminCheckLoading(false);
     }
   }, [user]);
 
@@ -118,7 +139,8 @@ export const UserMenu = () => {
                 <span>Settings</span>
               </DropdownMenuItem>
             )}
-            {isAdmin && (
+            {/* Show admin panel if user is admin and not currently loading */}
+            {!adminCheckLoading && isAdmin && (
               <DropdownMenuItem onClick={handleAdminClick} className="py-2">
                 <Shield className="mr-2 h-4 w-4" />
                 <span>Admin Panel</span>

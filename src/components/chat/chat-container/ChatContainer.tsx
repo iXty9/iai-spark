@@ -41,7 +41,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
 
-  // Handle proactive messages from WebSocket
+  // Handle proactive messages from WebSocket (only if enabled)
   useEffect(() => {
     if (!user) return;
 
@@ -85,10 +85,11 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
       className={className}
     >
       <div className="flex-1 overflow-hidden relative bg-transparent">
+        {/* Only show connection indicator if user is authenticated and WebSocket is enabled */}
         {user && (
           <div className="absolute top-2 right-2 z-10">
             <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-gray-400'}`} 
-                 title={isConnected ? 'Connected to real-time updates' : 'Not connected to real-time updates'} />
+                 title={isConnected ? 'Connected to real-time updates' : 'Real-time updates disabled'} />
           </div>
         )}
         
