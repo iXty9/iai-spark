@@ -13,7 +13,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/utils/logging';
 import { useEffect } from 'react';
-import { centralizedThemeService } from '@/services/centralized-theme-service';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -43,12 +42,8 @@ export default function Settings() {
     resetToDefaults
   } = useCentralizedSettingsState();
 
-  // Enter preview mode when component mounts with sync recovery
+  // Enter preview mode when component mounts
   useEffect(() => {
-    // First, check for and recover from any theme desync
-    centralizedThemeService.recoverFromDesync();
-    
-    // Then enter preview mode
     enterSettingsMode();
     
     // Cleanup: exit preview mode when component unmounts (without saving)
@@ -70,7 +65,7 @@ export default function Settings() {
     updatePreviewDarkTheme(updatedTheme);
   };
 
-  // Background image upload handler to match expected signature
+  // Fixed: Background image upload handler to match expected signature
   const handleBackgroundImageUpload = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -87,7 +82,7 @@ export default function Settings() {
     updatePreviewBackgroundImage(null);
   };
 
-  // Opacity change handler to match expected signature
+  // Fixed: Opacity change handler to match expected signature
   const handleOpacityChange = (value: number[]) => {
     const opacity = value[0];
     updatePreviewBackgroundOpacity(opacity);
