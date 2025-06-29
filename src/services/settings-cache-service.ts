@@ -1,4 +1,3 @@
-
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { logger } from '@/utils/logging';
 
@@ -105,9 +104,15 @@ class SettingsCacheService {
   }
 
   async getSettings(): Promise<Record<string, string>> {
-    // Return cached data if valid
+    // Return cached data if valid AND emit change events
     if (this.cache && this.isCacheValid(this.cache)) {
       logger.info('Using cached settings', { module: 'settings-cache' });
+      
+      // Emit change event with a small delay to ensure hooks are ready
+      setTimeout(() => {
+        this.emitChange(this.cache!.data);
+      }, 10);
+      
       return this.cache.data;
     }
 
