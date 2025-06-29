@@ -30,6 +30,18 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
       return 'AI Assistant';
     }
   };
+
+  // Construct complete TokenInfo object for the MessageActions component
+  const getTokenInfo = () => {
+    if (!message.tokenInfo && !message.threadId) return undefined;
+    
+    return {
+      threadId: message.threadId,
+      promptTokens: message.tokenInfo?.promptTokens,
+      completionTokens: message.tokenInfo?.completionTokens,
+      totalTokens: message.tokenInfo?.totalTokens,
+    };
+  };
   
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
@@ -59,7 +71,7 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
               </div>
             )}
             
-            <MessageContent content={message.content} message={message} />
+            <MessageContent message={message} isUser={isUser} />
           </div>
           
           {/* Message Actions for AI messages */}
@@ -68,7 +80,7 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
               <MessageActions
                 messageId={message.id}
                 content={message.content}
-                tokenInfo={message.tokenInfo}
+                tokenInfo={getTokenInfo()}
                 isAuthenticated={!!user}
                 userInfo={profile}
               />
