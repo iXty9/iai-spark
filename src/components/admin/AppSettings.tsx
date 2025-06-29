@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { fetchAppSettings, updateAppSetting } from '@/services/admin/settingsService';
+import { settingsCacheService } from '@/services/settings-cache-service';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,6 +59,12 @@ export function AppSettings() {
       
       // Save AI agent name
       await updateAppSetting('ai_agent_name', aiAgentName);
+      
+      // Update cache with new values for immediate effect
+      settingsCacheService.updateCache('app_name', tagline);
+      settingsCacheService.updateCache('site_title', siteTitle);
+      settingsCacheService.updateCache('default_avatar_url', defaultAvatarUrl);
+      settingsCacheService.updateCache('ai_agent_name', aiAgentName);
       
       toast({
         title: "Settings saved",
