@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -32,38 +33,23 @@ const Initialize = () => {
   const forceInit = searchParams.get('force_init') === 'true';
 
   useEffect(() => {
-    // Reset the coordinated init service when entering initialize page
-    coordinatedInitService.reset();
-    
-    // Check if we already have a valid configuration (but only if not forced init)
+    // Check if we already have a valid configuration
     const checkExistingConfig = async () => {
       if (!forceInit) {
-        try {
-          const configResult = await fastConfig.loadConfig();
-          
-          // Only redirect if config is both successful AND valid
-          if (configResult.success && configResult.config && 
-              configResult.config.url && configResult.config.anonKey) {
-            logger.info('Valid configuration found, redirecting to app', {
-              module: 'initialize'
-            });
-            navigate('/');
-            return;
-          } else {
-            logger.info('Configuration invalid or incomplete, proceeding with setup', {
-              module: 'initialize',
-              hasConfig: !!configResult.config,
-              hasUrl: !!(configResult.config?.url),
-              hasKey: !!(configResult.config?.anonKey)
-            });
-          }
-        } catch (error) {
-          logger.warn('Error checking existing config, proceeding with setup', error);
+        const configResult = await fastConfig.loadConfig();
+        
+        if (configResult.success && configResult.config) {
+          logger.info('Valid configuration found, redirecting to app', {
+            module: 'initialize'
+          });
+          navigate('/');
+          return;
         }
       }
 
       // If forced init, reset everything
       if (forceInit) {
+        coordinatedInitService.reset();
         setCurrentStep(SetupStep.CONNECTION);
         setSetupProgress(0);
       }

@@ -1,8 +1,9 @@
 
 import React, { useEffect, useState, ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Settings, Database, CheckCircle } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Loader2, Settings, Database, RefreshCcw, CheckCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { coordinatedInitService, InitializationStatus } from '@/services/initialization/coordinated-init-service';
 import { logger } from '@/utils/logging';
 
@@ -12,9 +13,7 @@ interface FastBootstrapProviderProps {
 
 export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ children }) => {
   const [status, setStatus] = useState<InitializationStatus | null>(null);
-  const [hasRedirected, setHasRedirected] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
     // Subscribe to initialization status
@@ -35,35 +34,44 @@ export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ ch
     return unsubscribe;
   }, []);
 
-  // Smart redirect logic - only redirect once and not if already on special routes
+  // Auto-redirect to setup when needed
   useEffect(() => {
-    if (status?.error && status.phase === 'error' && !hasRedirected) {
-      // Don't redirect if we're already on a special route
-      const specialRoutes = ['/initialize', '/error'];
-      const isOnSpecialRoute = specialRoutes.some(route => location.pathname.startsWith(route));
-      
-      if (!isOnSpecialRoute) {
-        logger.info('Configuration error detected, redirecting to initialize', {
-          module: 'bootstrap-provider',
-          currentPath: location.pathname
-        });
-        setHasRedirected(true);
-        navigate('/initialize');
-      }
+    if (status?.error && status.phase === 'error') {
+      navigate('/initialize');
     }
-  }, [status?.error, status?.phase, navigate, location.pathname, hasRedirected]);
+  }, [status?.error, status?.phase, navigate]);
 
   // Show app if ready
   if (status?.isComplete) {
     return <>{children}</>;
   }
 
-  // If there's an error and we've redirected, don't render anything
-  if (status?.error && status.phase === 'error' && hasRedirected) {
-    return null;
+  // Show setup needed
+  if (status?.error && status.phase === 'error') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-red-100">
+        <Card className="w-full max-w-md mx-4">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Setup Required
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              Please configure your database connection to continue.
+            </p>
+            <Button onClick={() => navigate('/initialize')} className="w-full">
+              <Settings className="mr-2 h-4 w-4" />
+              Start Setup
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
-  // Show simple loading state (like the original)
+  // Show detailed loading state with phase information
   const getPhaseInfo = (phase: string) => {
     switch (phase) {
       case 'config':
@@ -91,8 +99,31 @@ export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ ch
             <div className="text-center">
               <p className="font-medium">{phaseInfo.text}</p>
               <p className="text-sm text-muted-foreground">
-                Please wait...
+                {status?.phase === 'complete' ? 'Loading interface...' : 'Please wait...'}
               </p>
+            </div>
+            {/* Progress indicator */}
+            <div className="w-full max-w-xs">
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span>Config</span>
+                <span>Client</span>
+                <span>Theme</span>
+                <span>Ready</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="h-2 rounded-full transition-all duration-300"
+                  style={{ 
+                    backgroundColor: '#dd3333',
+                    width: `${
+                      status?.phase === 'config' ? '25%' :
+                      status?.phase === 'client' ? '50%' :
+                      status?.phase === 'theme' ? '75%' :
+                      status?.phase === 'complete' ? '100%' : '0%'
+                    }` 
+                  }}
+                />
+              </div>
             </div>
           </div>
         </CardContent>
