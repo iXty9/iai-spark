@@ -1,8 +1,7 @@
 
 import React, { useEffect, useState, ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Loader2, Settings, Database, RefreshCcw, CheckCircle } from 'lucide-react';
+import { Loader2, Settings, Database, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { coordinatedInitService, InitializationStatus } from '@/services/initialization/coordinated-init-service';
 import { logger } from '@/utils/logging';
@@ -34,9 +33,12 @@ export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ ch
     return unsubscribe;
   }, []);
 
-  // Auto-redirect to setup when needed
+  // Auto-redirect to setup when needed - do this immediately without showing custom UI
   useEffect(() => {
     if (status?.error && status.phase === 'error') {
+      logger.info('Configuration error detected, redirecting to initialize', {
+        module: 'bootstrap-provider'
+      });
       navigate('/initialize');
     }
   }, [status?.error, status?.phase, navigate]);
@@ -46,29 +48,10 @@ export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ ch
     return <>{children}</>;
   }
 
-  // Show setup needed
+  // If there's an error (missing config), we've already redirected above
+  // Don't render anything here to avoid showing duplicate UI
   if (status?.error && status.phase === 'error') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-red-100">
-        <Card className="w-full max-w-md mx-4">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              Setup Required
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-4">
-              Please configure your database connection to continue.
-            </p>
-            <Button onClick={() => navigate('/initialize')} className="w-full">
-              <Settings className="mr-2 h-4 w-4" />
-              Start Setup
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return null;
   }
 
   // Show detailed loading state with phase information

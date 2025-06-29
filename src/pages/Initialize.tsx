@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -33,17 +32,21 @@ const Initialize = () => {
   const forceInit = searchParams.get('force_init') === 'true';
 
   useEffect(() => {
-    // Check if we already have a valid configuration
+    // Check if we already have a valid configuration (but only if not forced init)
     const checkExistingConfig = async () => {
       if (!forceInit) {
-        const configResult = await fastConfig.loadConfig();
-        
-        if (configResult.success && configResult.config) {
-          logger.info('Valid configuration found, redirecting to app', {
-            module: 'initialize'
-          });
-          navigate('/');
-          return;
+        try {
+          const configResult = await fastConfig.loadConfig();
+          
+          if (configResult.success && configResult.config) {
+            logger.info('Valid configuration found, redirecting to app', {
+              module: 'initialize'
+            });
+            navigate('/');
+            return;
+          }
+        } catch (error) {
+          logger.warn('Error checking existing config, proceeding with setup', error);
         }
       }
 
