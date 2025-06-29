@@ -3,10 +3,11 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CardContent } from '@/components/ui/card';
-import { Info, Loader2, AlertTriangle } from 'lucide-react';
+import { Info, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { updateAppSetting } from '@/services/admin/settingsService';
 import { WebhookUrlFormField } from './WebhookUrlFormField';
+import { WebhookStatusChecker } from './WebhookStatusChecker';
 import { 
   WebhookSettings, 
   WebhookFormErrors, 
@@ -89,13 +90,7 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
         </AlertDescription>
       </Alert>
 
-      <Alert className="mb-6" variant="default">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>
-          <strong>Deployment Note:</strong> These webhook URLs are configurable per deployment. 
-          When deploying to a new environment, make sure to update these URLs to match your new domain/infrastructure.
-        </AlertDescription>
-      </Alert>
+      <WebhookStatusChecker settings={settings} />
       
       <div className="space-y-6">
         <WebhookUrlFormField
