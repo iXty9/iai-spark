@@ -65,7 +65,11 @@ export default function Settings() {
     updatePreviewDarkTheme(updatedTheme);
   };
 
-  const handleBackgroundImageUpload = async (file: File): Promise<void> => {
+  // Fixed: Background image upload handler to match expected signature
+  const handleBackgroundImageUpload = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
     // TODO: Implement actual upload logic
     const fakeUrl = URL.createObjectURL(file);
     updatePreviewBackgroundImage(fakeUrl, {
@@ -78,7 +82,9 @@ export default function Settings() {
     updatePreviewBackgroundImage(null);
   };
 
-  const handleOpacityChange = (opacity: number) => {
+  // Fixed: Opacity change handler to match expected signature
+  const handleOpacityChange = (value: number[]) => {
+    const opacity = value[0];
     updatePreviewBackgroundOpacity(opacity);
   };
 
