@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAIAgentName } from '@/hooks/use-ai-agent-name';
 import { settingsCacheService } from '@/services/settings-cache-service';
 import { avatarCacheService } from '@/services/avatar-cache-service';
 import { logger } from '@/utils/logging';
@@ -14,6 +15,7 @@ interface MessageAvatarProps {
 
 export const MessageAvatar: React.FC<MessageAvatarProps> = ({ isUser, onAiIconError }) => {
   const { user, profile } = useAuth();
+  const { aiAgentName } = useAIAgentName();
   const [aiAvatarUrl, setAiAvatarUrl] = useState<string | null>(null);
   const [defaultUserAvatar, setDefaultUserAvatar] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState<boolean>(false);
@@ -61,7 +63,7 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({ isUser, onAiIconEr
   
   // Get display name for the avatar
   const getDisplayName = (): string => {
-    if (!isUser) return 'AI';
+    if (!isUser) return aiAgentName; // Use dynamic AI agent name
     if (!user) return 'User';
     
     if (profile?.first_name && profile?.last_name) {
@@ -72,7 +74,7 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({ isUser, onAiIconEr
   };
 
   const displayName = getDisplayName();
-  const initials = displayName === 'AI' ? 'AI' : displayName.charAt(0).toUpperCase();
+  const initials = displayName === aiAgentName ? aiAgentName.substring(0, 2).toUpperCase() : displayName.charAt(0).toUpperCase();
 
   // Get the appropriate avatar URL
   const getAvatarUrl = (): string | undefined => {
