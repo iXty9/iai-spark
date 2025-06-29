@@ -6,6 +6,7 @@ export const useAIAgentName = () => {
   // Check for immediately available cached data, otherwise use default
   const getInitialValue = () => {
     const cachedName = settingsCacheService.getSetting('ai_agent_name');
+    logger.debug('Initial AI agent name from cache:', cachedName || 'AI Assistant', { module: 'ai-agent-name' });
     return cachedName || 'AI Assistant';
   };
 
@@ -17,15 +18,17 @@ export const useAIAgentName = () => {
 
     const loadAIAgentName = async () => {
       try {
+        logger.info('Loading AI agent name from settings service', { module: 'ai-agent-name' });
         const settings = await settingsCacheService.getSettings();
         const agentName = settings.ai_agent_name || 'AI Assistant';
         
         if (isMounted) {
+          logger.info('AI agent name loaded successfully:', agentName, { module: 'ai-agent-name' });
           setAIAgentName(agentName);
           setIsLoading(false);
         }
       } catch (error) {
-        logger.error('Failed to load AI agent name:', error);
+        logger.error('Failed to load AI agent name:', error, { module: 'ai-agent-name' });
         if (isMounted) {
           // Keep current value (which might be from cache) on error
           setIsLoading(false);
@@ -37,13 +40,13 @@ export const useAIAgentName = () => {
     const unsubscribe = settingsCacheService.addChangeListener((settings) => {
       if (isMounted) {
         const agentName = settings.ai_agent_name || 'AI Assistant';
+        logger.info('AI agent name updated from cache change:', agentName, { module: 'ai-agent-name' });
         setAIAgentName(agentName);
         setIsLoading(false);
-        logger.info('AI agent name updated from cache change', { agentName });
       }
     });
 
-    // Load fresh data (this will also trigger the listener if cache is updated)
+    // Immediately trigger fresh data load - don't wait for cache
     loadAIAgentName();
 
     return () => {

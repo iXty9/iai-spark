@@ -1,3 +1,4 @@
+
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { logger } from '@/utils/logging';
 
@@ -26,6 +27,21 @@ class SettingsCacheService {
 
   private constructor() {
     this.loadFromLocalStorage();
+    // Immediately start fetching fresh data if no valid cache
+    if (!this.cache || !this.isCacheValid(this.cache)) {
+      logger.info('No valid cache on initialization, starting fresh fetch', { module: 'settings-cache' });
+      this.prefetchSettings();
+    }
+  }
+
+  // Prefetch settings without waiting for a request
+  private async prefetchSettings(): Promise<void> {
+    try {
+      await this.getSettings();
+      logger.info('Settings prefetched successfully', { module: 'settings-cache' });
+    } catch (error) {
+      logger.error('Failed to prefetch settings:', error, { module: 'settings-cache' });
+    }
   }
 
   // Add listener for settings changes
@@ -37,6 +53,7 @@ class SettingsCacheService {
       setTimeout(() => {
         try {
           listener(this.cache!.data);
+          logger.debug('Immediate listener notification sent', { module: 'settings-cache' });
         } catch (error) {
           logger.warn('Error in immediate settings change listener:', error, { module: 'settings-cache' });
         }
@@ -50,6 +67,7 @@ class SettingsCacheService {
 
   // Emit settings change event
   private emitChange(settings: Record<string, string>): void {
+    logger.debug(`Emitting change event to ${this.listeners.size} listeners`, { module: 'settings-cache' });
     this.listeners.forEach(listener => {
       try {
         listener(settings);
@@ -66,14 +84,18 @@ class SettingsCacheService {
         const parsedCache: CachedSettings = JSON.parse(cached);
         if (this.isCacheValid(parsedCache)) {
           this.cache = parsedCache;
-          logger.info('Settings loaded from localStorage cache', { module: 'settings-cache' });
+          logger.info('Valid settings loaded from localStorage cache', { module: 'settings-cache' });
           
           // Emit change event for valid cached data on initial load
-          this.emitChange(parsedCache.data);
+          setTimeout(() => {
+            this.emitChange(parsedCache.data);
+          }, 0);
         } else {
           localStorage.removeItem(this.CACHE_KEY);
           logger.info('Expired cache removed from localStorage', { module: 'settings-cache' });
         }
+      } else {
+        logger.info('No cached settings found in localStorage', { module: 'settings-cache' });
       }
     } catch (error) {
       logger.warn('Failed to load settings from localStorage:', error, { module: 'settings-cache' });
@@ -104,6 +126,13 @@ class SettingsCacheService {
   }
 
   async getSettings(): Promise<Record<string, string>> {
+    logger.debug('getSettings() called', { 
+      hasCache: !!this.cache, 
+      isCacheValid: this.cache ? this.isCacheValid(this.cache) : false,
+      hasFetchPromise: !!this.fetchPromise,
+      module: 'settings-cache' 
+    });
+
     // Return cached data if valid AND emit change events
     if (this.cache && this.isCacheValid(this.cache)) {
       logger.info('Using cached settings', { module: 'settings-cache' });
@@ -123,11 +152,16 @@ class SettingsCacheService {
     }
 
     // Start new fetch
+    logger.info('Starting fresh settings fetch', { module: 'settings-cache' });
     this.fetchPromise = this.fetchAndCacheSettings();
     
     try {
       const settings = await this.fetchPromise;
+      logger.info('Fresh settings fetch completed successfully', { module: 'settings-cache' });
       return settings;
+    } catch (error) {
+      logger.error('Fresh settings fetch failed:', error, { module: 'settings-cache' });
+      throw error;
     } finally {
       this.fetchPromise = null;
     }
@@ -137,10 +171,14 @@ class SettingsCacheService {
     try {
       logger.info('Fetching fresh settings from database', { module: 'settings-cache' });
       const settings = await fetchAppSettings();
+      logger.info('Database fetch successful, caching settings', { 
+        settingsCount: Object.keys(settings).length,
+        module: 'settings-cache' 
+      });
       this.saveToLocalStorage(settings);
       return settings;
     } catch (error) {
-      logger.error('Failed to fetch settings:', error, { module: 'settings-cache' });
+      logger.error('Failed to fetch settings from database:', error, { module: 'settings-cache' });
       
       // Return cached data even if expired as fallback
       if (this.cache) {
@@ -149,14 +187,18 @@ class SettingsCacheService {
       }
       
       // Return empty object as final fallback
+      logger.warn('No cache available, returning empty settings', { module: 'settings-cache' });
       return {};
     }
   }
 
   getSetting(key: string, defaultValue: string = ''): string {
     if (this.cache && this.isCacheValid(this.cache)) {
-      return this.cache.data[key] || defaultValue;
+      const value = this.cache.data[key] || defaultValue;
+      logger.debug(`getSetting(${key}) = ${value}`, { module: 'settings-cache' });
+      return value;
     }
+    logger.debug(`getSetting(${key}) = ${defaultValue} (no cache)`, { module: 'settings-cache' });
     return defaultValue;
   }
 
