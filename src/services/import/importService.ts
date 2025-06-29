@@ -35,37 +35,78 @@ const isValidMessage = (msg: any): boolean => {
  * Converts enhanced export format message to standard Message format
  */
 const convertFromEnhancedFormat = (enhancedMsg: any): Message => {
+  console.log('Converting enhanced message:', {
+    id: enhancedMsg.id,
+    hasTokenInfo: !!enhancedMsg.tokenInfo,
+    hasThreadId: !!enhancedMsg.threadId,
+    hasRawRequest: !!enhancedMsg.rawRequest,
+    timestampType: typeof enhancedMsg.timestamp,
+    timestamp: enhancedMsg.timestamp
+  });
+
+  // Handle timestamp conversion properly
+  let timestamp: string;
+  if (enhancedMsg.timestamp && typeof enhancedMsg.timestamp === 'object' && enhancedMsg.timestamp.__type === 'Date') {
+    // Enhanced format with { __type: 'Date', iso: string }
+    timestamp = enhancedMsg.timestamp.iso;
+  } else if (typeof enhancedMsg.timestamp === 'string') {
+    // Legacy string format
+    timestamp = enhancedMsg.timestamp;
+  } else if (enhancedMsg.timestamp instanceof Date) {
+    // Date object
+    timestamp = enhancedMsg.timestamp.toISOString();
+  } else {
+    // Fallback
+    timestamp = new Date().toISOString();
+  }
+
   const message: Message = {
     id: enhancedMsg.id,
     content: enhancedMsg.content,
     sender: enhancedMsg.sender,
-    timestamp: enhancedMsg.timestamp instanceof Date ? enhancedMsg.timestamp : new Date(enhancedMsg.timestamp),
+    timestamp: timestamp,
   };
 
-  // Add optional fields if they exist
+  // Preserve ALL optional fields including enhanced data
   if (enhancedMsg.pending !== undefined) {
     message.pending = enhancedMsg.pending;
   }
   
+  if (enhancedMsg.source !== undefined) {
+    message.source = enhancedMsg.source;
+  }
+  
   if (enhancedMsg.rawRequest) {
     message.rawRequest = enhancedMsg.rawRequest;
+    console.log('Preserved rawRequest in import');
   }
   
   if (enhancedMsg.rawResponse) {
     message.rawResponse = enhancedMsg.rawResponse;
+    console.log('Preserved rawResponse in import');
   }
   
   if (enhancedMsg.tokenInfo) {
     message.tokenInfo = enhancedMsg.tokenInfo;
+    console.log('Preserved tokenInfo in import:', enhancedMsg.tokenInfo);
   }
   
   if (enhancedMsg.threadId) {
     message.threadId = enhancedMsg.threadId;
+    console.log('Preserved threadId in import:', enhancedMsg.threadId);
   }
   
   if (enhancedMsg.metadata) {
     message.metadata = enhancedMsg.metadata;
   }
+
+  console.log('Final converted message:', {
+    id: message.id,
+    hasTokenInfo: !!message.tokenInfo,
+    hasThreadId: !!message.threadId,
+    hasRawRequest: !!message.rawRequest,
+    keys: Object.keys(message)
+  });
 
   return message;
 };
@@ -93,6 +134,12 @@ export const importChat = (file: File): Promise<Message[]> => {
         const jsonContent = event.target?.result as string;
         const jsonData = JSON.parse(jsonContent, dateReviver);
         
+        console.log('Import: Raw JSON data parsed:', {
+          hasMetadata: !!jsonData.metadata,
+          format: jsonData.metadata?.format,
+          messageCount: jsonData.messages?.length || jsonData.length
+        });
+        
         // Detect and handle different formats
         const format = detectImportFormat(jsonData);
         let messages: any[];
@@ -102,14 +149,17 @@ export const importChat = (file: File): Promise<Message[]> => {
           case 'enhanced':
             messages = jsonData.messages;
             formatDescription = 'Enhanced format with complete webhook data';
+            console.log('Import: Detected enhanced format');
             break;
           case 'legacy_with_metadata':
             messages = jsonData.messages;
             formatDescription = 'Legacy format with metadata';
+            console.log('Import: Detected legacy with metadata format');
             break;
           case 'legacy_array':
             messages = jsonData;
             formatDescription = 'Legacy array format';
+            console.log('Import: Detected legacy array format');
             break;
           default:
             throw new Error('Unsupported import format');
@@ -119,6 +169,16 @@ export const importChat = (file: File): Promise<Message[]> => {
           toast.error('Invalid chat file format');
           throw new Error('Invalid chat file format');
         }
+        
+        console.log('Import: Processing messages:', {
+          count: messages.length,
+          sampleMessage: messages[0] ? {
+            id: messages[0].id,
+            hasTokenInfo: !!messages[0].tokenInfo,
+            hasThreadId: !!messages[0].threadId,
+            keys: Object.keys(messages[0])
+          } : null
+        });
         
         // Validate and convert each message
         const validMessages: Message[] = [];
@@ -131,13 +191,24 @@ export const importChat = (file: File): Promise<Message[]> => {
                 // Use enhanced conversion to preserve all fields including raw request/response
                 convertedMessage = convertFromEnhancedFormat(msg);
               } else {
-                // Legacy conversion
+                // Legacy conversion - preserve existing fields as much as possible
                 convertedMessage = {
-                  ...msg,
+                  id: msg.id,
+                  content: msg.content,
+                  sender: msg.sender,
                   timestamp: msg.timestamp instanceof Date 
-                    ? msg.timestamp 
-                    : new Date(msg.timestamp)
+                    ? msg.timestamp.toISOString() 
+                    : msg.timestamp
                 };
+                
+                // Preserve optional fields in legacy format too
+                if (msg.pending !== undefined) convertedMessage.pending = msg.pending;
+                if (msg.source !== undefined) convertedMessage.source = msg.source;
+                if (msg.rawRequest) convertedMessage.rawRequest = msg.rawRequest;
+                if (msg.rawResponse) convertedMessage.rawResponse = msg.rawResponse;
+                if (msg.tokenInfo) convertedMessage.tokenInfo = msg.tokenInfo;
+                if (msg.threadId) convertedMessage.threadId = msg.threadId;
+                if (msg.metadata) convertedMessage.metadata = msg.metadata;
               }
               
               validMessages.push(convertedMessage);
@@ -160,9 +231,10 @@ export const importChat = (file: File): Promise<Message[]> => {
         console.log('Import successful:', {
           format,
           messageCount: validMessages.length,
-          hasTokenInfo: validMessages.some(m => m.tokenInfo),
-          hasRawRequest: validMessages.some(m => m.rawRequest),
-          hasRawResponse: validMessages.some(m => m.rawResponse)
+          hasTokenInfo: validMessages.filter(m => m.tokenInfo).length,
+          hasRawRequest: validMessages.filter(m => m.rawRequest).length,
+          hasRawResponse: validMessages.filter(m => m.rawResponse).length,
+          hasThreadId: validMessages.filter(m => m.threadId).length
         });
         
         resolve(validMessages);
