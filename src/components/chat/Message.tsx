@@ -2,7 +2,7 @@
 import React from 'react';
 import { Message as ChatMessage } from '@/types/chat';
 import { MessageAvatar } from './MessageAvatar';
-import { MessageContent } from './MessageContent';
+import { MessageContent } from './message/MessageContent';
 import { MessageActions } from './message-actions/MessageActions';
 import { formatTimestamp } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
