@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Message as ChatMessage } from '@/types/chat';
 import { MessageAvatar } from './MessageAvatar';
@@ -32,16 +33,17 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
 
   // Construct complete TokenInfo object for the MessageActions component
   const getTokenInfo = () => {
-    console.log('Message.tsx getTokenInfo debug:', {
-      messageId: message.id,
-      hasTokenInfo: !!message.tokenInfo,
-      tokenInfo: message.tokenInfo,
-      hasThreadId: !!message.threadId,
-      threadId: message.threadId,
-      messageKeys: Object.keys(message)
-    });
+    console.log('=== Message.tsx getTokenInfo DEBUG ===');
+    console.log('Message ID:', message.id);
+    console.log('Message keys:', Object.keys(message));
+    console.log('Message tokenInfo:', message.tokenInfo);
+    console.log('Message threadId:', message.threadId);
+    console.log('Message rawRequest:', !!message.rawRequest);
+    console.log('Message rawResponse:', !!message.rawResponse);
+    console.log('Message source:', message.source);
+    console.log('Is proactive:', isProactive);
 
-    // More permissive check - if we have any token-related data, return it
+    // Check if we have any token-related data
     if (message.tokenInfo || message.threadId) {
       const tokenInfo = {
         threadId: message.threadId,
@@ -51,10 +53,12 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
       };
       
       console.log('Returning token info:', tokenInfo);
+      console.log('=== END Message.tsx getTokenInfo DEBUG ===');
       return tokenInfo;
     }
     
-    console.log('No token info available for message:', message.id);
+    console.log('No token info available');
+    console.log('=== END Message.tsx getTokenInfo DEBUG ===');
     return undefined;
   };
   
@@ -89,8 +93,8 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
             <MessageContent message={message} isUser={isUser} />
           </div>
           
-          {/* Message Actions for AI messages */}
-          {message.sender === 'ai' && (
+          {/* Message Actions for AI messages (but not proactive ones since they don't have token info) */}
+          {message.sender === 'ai' && !isProactive && (
             <div className="mt-2">
               <MessageActions
                 messageId={message.id}

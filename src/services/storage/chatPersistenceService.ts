@@ -1,4 +1,3 @@
-
 import { Message } from '@/types/chat';
 import { logger } from '@/utils/logging';
 
@@ -28,26 +27,37 @@ export const saveChatHistory = (messages: Message[]): void => {
     // Only store a limited number of messages to prevent storage issues
     const limitedMessages = messages.slice(-MAX_MESSAGES);
     
-    // Create enhanced storage format that preserves all fields including raw request/response
-    const enhancedMessages = limitedMessages.map(msg => ({
-      id: msg.id,
-      content: msg.content,
-      sender: msg.sender,
-      timestamp: msg.timestamp, // msg.timestamp is already a string (ISO format)
-      ...(msg.pending && { pending: msg.pending }),
-      ...(msg.rawRequest && { rawRequest: msg.rawRequest }),
-      ...(msg.rawResponse && { rawResponse: msg.rawResponse }),
-      ...(msg.tokenInfo && { tokenInfo: msg.tokenInfo }),
-      ...(msg.threadId && { threadId: msg.threadId }),
-      ...(msg.metadata && { metadata: msg.metadata })
-    }));
+    // Create enhanced storage format that preserves ALL fields including raw request/response
+    const enhancedMessages = limitedMessages.map(msg => {
+      const stored: any = {
+        id: msg.id,
+        content: msg.content,
+        sender: msg.sender,
+        timestamp: msg.timestamp
+      };
+      
+      // Preserve ALL optional fields
+      if (msg.pending !== undefined) stored.pending = msg.pending;
+      if (msg.source !== undefined) stored.source = msg.source;
+      if (msg.isLoading !== undefined) stored.isLoading = msg.isLoading;
+      if (msg.rawRequest !== undefined) stored.rawRequest = msg.rawRequest;
+      if (msg.rawResponse !== undefined) stored.rawResponse = msg.rawResponse;
+      if (msg.tokenInfo !== undefined) stored.tokenInfo = msg.tokenInfo;
+      if (msg.threadId !== undefined) stored.threadId = msg.threadId;
+      if (msg.metadata !== undefined) stored.metadata = msg.metadata;
+      if (msg.tokens !== undefined) stored.tokens = msg.tokens;
+      
+      return stored;
+    });
     
     localStorage.setItem(STORAGE_KEY, JSON.stringify(enhancedMessages));
+    
     logger.debug('Enhanced chat history saved to localStorage', { 
       messageCount: limitedMessages.length,
-      hasTokenInfo: limitedMessages.some(m => m.tokenInfo),
-      hasRawRequest: limitedMessages.some(m => m.rawRequest),
-      hasRawResponse: limitedMessages.some(m => m.rawResponse)
+      hasTokenInfo: limitedMessages.filter(m => m.tokenInfo).length,
+      hasRawRequest: limitedMessages.filter(m => m.rawRequest).length,
+      hasRawResponse: limitedMessages.filter(m => m.rawResponse).length,
+      hasThreadId: limitedMessages.filter(m => m.threadId).length
     }, { module: 'storage' });
   } catch (error) {
     logger.error('Failed to save chat history', error, { module: 'storage' });
@@ -88,30 +98,16 @@ export const loadChatHistory = (): Message[] => {
             timestamp: typeof item.timestamp === 'string' ? item.timestamp : new Date(item.timestamp).toISOString()
           };
           
-          // Restore optional enhanced fields including raw request/response
-          if (item.pending !== undefined) {
-            message.pending = item.pending;
-          }
-          
-          if (item.rawRequest) {
-            message.rawRequest = item.rawRequest;
-          }
-          
-          if (item.rawResponse) {
-            message.rawResponse = item.rawResponse;
-          }
-          
-          if (item.tokenInfo) {
-            message.tokenInfo = item.tokenInfo;
-          }
-          
-          if (item.threadId) {
-            message.threadId = item.threadId;
-          }
-          
-          if (item.metadata) {
-            message.metadata = item.metadata;
-          }
+          // Restore ALL optional enhanced fields
+          if (item.pending !== undefined) message.pending = item.pending;
+          if (item.source !== undefined) message.source = item.source;
+          if (item.isLoading !== undefined) message.isLoading = item.isLoading;
+          if (item.rawRequest !== undefined) message.rawRequest = item.rawRequest;
+          if (item.rawResponse !== undefined) message.rawResponse = item.rawResponse;
+          if (item.tokenInfo !== undefined) message.tokenInfo = item.tokenInfo;
+          if (item.threadId !== undefined) message.threadId = item.threadId;
+          if (item.metadata !== undefined) message.metadata = item.metadata;
+          if (item.tokens !== undefined) message.tokens = item.tokens;
           
           validMessages.push(message);
         } else {
@@ -124,10 +120,12 @@ export const loadChatHistory = (): Message[] => {
     
     logger.debug('Enhanced chat history loaded from localStorage', { 
       messageCount: validMessages.length,
-      hasTokenInfo: validMessages.some(m => m.tokenInfo),
-      hasRawRequest: validMessages.some(m => m.rawRequest),
-      hasRawResponse: validMessages.some(m => m.rawResponse)
+      hasTokenInfo: validMessages.filter(m => m.tokenInfo).length,
+      hasRawRequest: validMessages.filter(m => m.rawRequest).length,
+      hasRawResponse: validMessages.filter(m => m.rawResponse).length,
+      hasThreadId: validMessages.filter(m => m.threadId).length
     }, { module: 'storage' });
+    
     return validMessages;
   } catch (error) {
     logger.error('Failed to load chat history', error, { module: 'storage' });

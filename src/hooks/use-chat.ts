@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from "@/hooks/use-toast"
@@ -23,29 +22,88 @@ export const useChat = () => {
   useEffect(() => {
     const storedMessages = localStorage.getItem('chat_messages');
     if (storedMessages) {
-      setMessages(JSON.parse(storedMessages));
+      try {
+        const parsed = JSON.parse(storedMessages);
+        console.log('Loading messages from localStorage:', {
+          count: parsed.length,
+          sampleMessage: parsed[0] ? {
+            id: parsed[0].id,
+            keys: Object.keys(parsed[0]),
+            hasTokenInfo: !!parsed[0].tokenInfo,
+            hasThreadId: !!parsed[0].threadId,
+            hasRawRequest: !!parsed[0].rawRequest
+          } : null
+        });
+        setMessages(parsed);
+      } catch (error) {
+        logger.error('Failed to parse stored messages:', error);
+        setMessages([]);
+      }
     }
     setIsInitialising(false);
   }, []);
 
-  // Save chat history to local storage whenever messages change
+  // Save chat history to local storage whenever messages change with enhanced preservation
   useEffect(() => {
-    localStorage.setItem('chat_messages', JSON.stringify(messages));
+    if (messages.length > 0) {
+      console.log('Saving messages to localStorage:', {
+        count: messages.length,
+        sampleMessage: messages[0] ? {
+          id: messages[0].id,
+          keys: Object.keys(messages[0]),
+          hasTokenInfo: !!messages[0].tokenInfo,
+          hasThreadId: !!messages[0].threadId,
+          hasRawRequest: !!messages[0].rawRequest
+        } : null
+      });
+      
+      // Preserve ALL message fields in localStorage
+      const enhancedMessages = messages.map(msg => {
+        const stored: any = {
+          id: msg.id,
+          content: msg.content,
+          sender: msg.sender,
+          timestamp: msg.timestamp
+        };
+        
+        // Preserve ALL optional fields
+        if (msg.pending !== undefined) stored.pending = msg.pending;
+        if (msg.source !== undefined) stored.source = msg.source;
+        if (msg.isLoading !== undefined) stored.isLoading = msg.isLoading;
+        if (msg.rawRequest !== undefined) stored.rawRequest = msg.rawRequest;
+        if (msg.rawResponse !== undefined) stored.rawResponse = msg.rawResponse;
+        if (msg.tokenInfo !== undefined) stored.tokenInfo = msg.tokenInfo;
+        if (msg.threadId !== undefined) stored.threadId = msg.threadId;
+        if (msg.metadata !== undefined) stored.metadata = msg.metadata;
+        if (msg.tokens !== undefined) stored.tokens = msg.tokens;
+        
+        return stored;
+      });
+      
+      localStorage.setItem('chat_messages', JSON.stringify(enhancedMessages));
+    }
   }, [messages]);
 
-  // Handle proactive messages in chat
+  // Handle proactive messages in chat - create complete Message objects
   useEffect(() => {
     const unsubscribe = onProactiveMessage((proactiveMessage: ProactiveMessage) => {
       logger.info('Received proactive message in chat:', proactiveMessage);
       
-      // Convert proactive message to chat message format
+      // Convert proactive message to complete chat message format
       const chatMessage: Message = {
         id: proactiveMessage.id,
         content: proactiveMessage.content,
         sender: 'ai',
         timestamp: proactiveMessage.timestamp,
+        source: 'proactive', // Mark as proactive source
         metadata: { isProactive: true, ...proactiveMessage.metadata }
       };
+      
+      console.log('Adding proactive message to chat:', {
+        id: chatMessage.id,
+        keys: Object.keys(chatMessage),
+        source: chatMessage.source
+      });
       
       // Add the message to the chat
       setMessages(prev => [...prev, chatMessage]);
@@ -65,6 +123,14 @@ export const useChat = () => {
   };
 
   const addMessage = (message: Message) => {
+    console.log('Adding message to state:', {
+      id: message.id,
+      sender: message.sender,
+      keys: Object.keys(message),
+      hasTokenInfo: !!message.tokenInfo,
+      hasThreadId: !!message.threadId,
+      hasRawRequest: !!message.rawRequest
+    });
     setMessages(prev => [...prev, message]);
   };
 
@@ -108,7 +174,17 @@ export const useChat = () => {
         }
       });
 
-      // Convert the enhanced response to our message format, preserving all data
+      console.log('AI response from message processor:', {
+        id: aiResponse.id,
+        keys: Object.keys(aiResponse),
+        hasTokenInfo: !!aiResponse.tokenInfo,
+        hasThreadId: !!aiResponse.threadId,
+        hasRawRequest: !!aiResponse.rawRequest,
+        hasRawResponse: !!aiResponse.rawResponse,
+        tokenInfo: aiResponse.tokenInfo
+      });
+
+      // Convert the enhanced response to our message format, preserving ALL data
       const aiMessage: Message = {
         id: aiResponse.id,
         content: aiResponse.content,
@@ -120,6 +196,14 @@ export const useChat = () => {
         rawRequest: aiResponse.rawRequest,
         rawResponse: aiResponse.rawResponse
       };
+      
+      console.log('Final AI message being added:', {
+        id: aiMessage.id,
+        keys: Object.keys(aiMessage),
+        hasTokenInfo: !!aiMessage.tokenInfo,
+        hasThreadId: !!aiMessage.threadId,
+        tokenInfo: aiMessage.tokenInfo
+      });
       
       addMessage(aiMessage);
       
@@ -201,7 +285,17 @@ export const useChat = () => {
         }
       });
 
-      // Convert the enhanced response to our message format, preserving all data
+      console.log('AI response from message processor:', {
+        id: aiResponse.id,
+        keys: Object.keys(aiResponse),
+        hasTokenInfo: !!aiResponse.tokenInfo,
+        hasThreadId: !!aiResponse.threadId,
+        hasRawRequest: !!aiResponse.rawRequest,
+        hasRawResponse: !!aiResponse.rawResponse,
+        tokenInfo: aiResponse.tokenInfo
+      });
+
+      // Convert the enhanced response to our message format, preserving ALL data
       const aiMessage: Message = {
         id: aiResponse.id,
         content: aiResponse.content,
@@ -213,6 +307,14 @@ export const useChat = () => {
         rawRequest: aiResponse.rawRequest,
         rawResponse: aiResponse.rawResponse
       };
+      
+      console.log('Final AI message being added:', {
+        id: aiMessage.id,
+        keys: Object.keys(aiMessage),
+        hasTokenInfo: !!aiMessage.tokenInfo,
+        hasThreadId: !!aiMessage.threadId,
+        tokenInfo: aiMessage.tokenInfo
+      });
       
       addMessage(aiMessage);
       
