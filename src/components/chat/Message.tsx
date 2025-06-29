@@ -55,8 +55,8 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
       <div className={`flex max-w-[80%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
         <MessageAvatar sender={message.sender} />
         <div className={`mx-3 ${isUser ? 'text-right' : 'text-left'}`}>
-          {/* Display name */}
-          <div className={`text-xs text-muted-foreground mb-1 ${isUser ? 'text-right' : 'text-left'}`}>
+          {/* Display name with theme-based coloring */}
+          <div className={`text-xs mb-1 ${isUser ? 'text-right user-name-text' : 'text-left ai-name-text'}`}>
             {getDisplayName()}
           </div>
           
@@ -90,12 +90,13 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
                 tokenInfo={getTokenInfo()}
                 isAuthenticated={!!user}
                 userInfo={profile}
+                messageType="ai"
               />
             </div>
           )}
           
-          {/* Timestamp */}
-          <div className={`mt-1 text-xs text-muted-foreground ${isUser ? 'text-right' : 'text-left'}`}>
+          {/* Timestamp with theme-based coloring */}
+          <div className={`mt-1 text-xs ${isUser ? 'text-right user-timestamp' : 'text-left ai-timestamp'}`}>
             {formatTimestamp(message.timestamp)}
           </div>
         </div>

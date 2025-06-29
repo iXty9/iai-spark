@@ -56,6 +56,43 @@
   color: var(--ai-text-color, var(--text-color)) !important;
 }
 
+/* Name tag colors - NEW: Theme-based name tag styling */
+.user-name-text {
+  color: var(--user-name-color, var(--muted-foreground)) !important;
+}
+
+.ai-name-text {
+  color: var(--ai-name-color, var(--muted-foreground)) !important;
+}
+
+/* Timestamp colors - NEW: Theme-based timestamp styling */
+.user-timestamp {
+  color: var(--user-name-color, var(--muted-foreground)) !important;
+}
+
+.ai-timestamp {
+  color: var(--ai-name-color, var(--muted-foreground)) !important;
+}
+
+/* Action button colors - NEW: Theme-based action button styling */
+.user-action-buttons {
+  color: var(--user-name-color, var(--muted-foreground)) !important;
+}
+
+.user-action-buttons button,
+.user-action-buttons [role="button"] {
+  color: var(--user-name-color, var(--muted-foreground)) !important;
+}
+
+.ai-action-buttons {
+  color: var(--ai-name-color, var(--muted-foreground)) !important;
+}
+
+.ai-action-buttons button,
+.ai-action-buttons [role="button"] {
+  color: var(--ai-name-color, var(--muted-foreground)) !important;
+}
+
 /* Message actions positioning - restored to original */
 .message-actions {
   margin-top: 0.5rem;

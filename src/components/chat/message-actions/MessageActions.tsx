@@ -14,6 +14,7 @@ interface MessageActionsProps {
   tokenInfo?: TokenInfo;
   isAuthenticated: boolean;
   userInfo?: { username?: string; first_name?: string; last_name?: string } | null;
+  messageType?: 'user' | 'ai';
 }
 
 export const MessageActions: React.FC<MessageActionsProps> = ({ 
@@ -21,7 +22,8 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
   content,
   tokenInfo,
   isAuthenticated,
-  userInfo
+  userInfo,
+  messageType = 'ai'
 }) => {
   const [showTokenInfo, setShowTokenInfo] = React.useState(false);
   const [feedbackLoading, setFeedbackLoading] = useState<FeedbackType | null>(null);
@@ -135,8 +137,11 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
     return hasThreadId || hasPromptTokens || hasCompletionTokens || hasTotalTokens;
   }, [tokenInfo]);
 
+  // Apply theme-based styling based on message type
+  const actionButtonClass = messageType === 'user' ? 'user-action-buttons' : 'ai-action-buttons';
+
   return (
-    <div className="flex items-center gap-1 mt-2">
+    <div className={`flex items-center gap-1 mt-2 ${actionButtonClass}`}>
       <ActionTooltip 
         icon={ThumbsUp} 
         label="Helpful response" 

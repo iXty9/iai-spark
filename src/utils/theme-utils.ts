@@ -45,7 +45,7 @@ export const applyThemeChanges = (themeColors: any) => {
       userTextColor: '--user-text-color',
       aiTextColor: '--ai-text-color',
       
-      // Name tag colors - NEW
+      // Name tag colors - ENHANCED: Apply to all name-related elements
       userNameColor: '--user-name-color',
       aiNameColor: '--ai-name-color',
       
@@ -106,10 +106,11 @@ export const applyThemeChanges = (themeColors: any) => {
       document.body.offsetHeight;
     }
 
-    console.log('Applied comprehensive theme changes with FULL text color mapping', { 
+    console.log('Applied comprehensive theme changes with FULL text color mapping including name tag colors', { 
       themeColors,
       mappedVariables: Object.keys(colorMappings),
-      textColorApplied: !!themeColors.textColor
+      textColorApplied: !!themeColors.textColor,
+      nameTagColorsApplied: !!(themeColors.userNameColor || themeColors.aiNameColor)
     });
   }
 };
