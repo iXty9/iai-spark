@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Message as ChatMessage } from '@/types/chat';
 import { MessageAvatar } from './MessageAvatar';
@@ -33,6 +32,7 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
 
   // Construct complete TokenInfo object for the MessageActions component
   const getTokenInfo = () => {
+    // Return undefined only if BOTH tokenInfo and threadId are missing
     if (!message.tokenInfo && !message.threadId) return undefined;
     
     return {
