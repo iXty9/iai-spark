@@ -1,24 +1,22 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logging';
 
 export const fetchAppSettings = async (): Promise<Record<string, string>> => {
-  console.log('[SETTINGS-SERVICE] fetchAppSettings called');
+  logger.info('Fetching app settings', null, { module: 'settings-service' });
   
   try {
-    console.log('[SETTINGS-SERVICE] Making Supabase query to app_settings table');
     const { data, error } = await supabase
       .from('app_settings')
       .select('key, value');
 
     if (error) {
-      console.error('[SETTINGS-SERVICE] Supabase query error:', error);
+      logger.error('Supabase query error', error, { module: 'settings-service' });
       throw error;
     }
-
-    console.log('[SETTINGS-SERVICE] Raw data from Supabase:', data);
     
     if (!data) {
-      console.log('[SETTINGS-SERVICE] No data returned from Supabase, returning empty object');
+      logger.info('No settings data returned', null, { module: 'settings-service' });
       return {};
     }
 
@@ -26,15 +24,13 @@ export const fetchAppSettings = async (): Promise<Record<string, string>> => {
     const settings: Record<string, string> = {};
     data.forEach(item => {
       settings[item.key] = item.value;
-      console.log('[SETTINGS-SERVICE] Added setting:', item.key, '=', item.value);
     });
 
-    console.log('[SETTINGS-SERVICE] Final settings object:', settings);
-    console.log('[SETTINGS-SERVICE] Settings count:', Object.keys(settings).length);
+    logger.info('App settings loaded successfully', { count: Object.keys(settings).length }, { module: 'settings-service' });
     
     return settings;
   } catch (error) {
-    console.error('[SETTINGS-SERVICE] fetchAppSettings error:', error);
+    logger.error('Failed to fetch app settings', error, { module: 'settings-service' });
     throw error;
   }
 };
@@ -48,13 +44,13 @@ export const updateAppSetting = async (key: string, value: string): Promise<void
       ], { onConflict: 'key' });
 
     if (error) {
-      console.error('Error updating app setting:', error);
+      logger.error('Error updating app setting', error, { module: 'settings-service' });
       throw error;
     }
 
-    console.log('App setting updated successfully:', key, value, data);
+    logger.info('App setting updated successfully', { key }, { module: 'settings-service' });
   } catch (error) {
-    console.error('Failed to update app setting:', error);
+    logger.error('Failed to update app setting', error, { module: 'settings-service' });
     throw error;
   }
 };
