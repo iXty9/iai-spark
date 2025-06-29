@@ -38,12 +38,21 @@ const Initialize = () => {
         try {
           const configResult = await fastConfig.loadConfig();
           
-          if (configResult.success && configResult.config) {
+          // Only redirect if config is both successful AND valid
+          if (configResult.success && configResult.config && 
+              configResult.config.url && configResult.config.anonKey) {
             logger.info('Valid configuration found, redirecting to app', {
               module: 'initialize'
             });
             navigate('/');
             return;
+          } else {
+            logger.info('Configuration invalid or incomplete, proceeding with setup', {
+              module: 'initialize',
+              hasConfig: !!configResult.config,
+              hasUrl: !!(configResult.config?.url),
+              hasKey: !!(configResult.config?.anonKey)
+            });
           }
         } catch (error) {
           logger.warn('Error checking existing config, proceeding with setup', error);
