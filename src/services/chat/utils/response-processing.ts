@@ -80,15 +80,5 @@ export const createErrorResponse = (error: any, canceled: boolean, controller: A
     }
   };
 
-  if (controller) {
-    return {
-      ...errorMessage,
-      cancel: () => {
-        controller.abort();
-        logger.info('Error response canceled');
-      }
-    };
-  }
-
   return errorMessage;
 };
