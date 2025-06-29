@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { User } from 'lucide-react';
+import { User, UserRound } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAIAgentName } from '@/hooks/use-ai-agent-name';
 import { settingsCacheService } from '@/services/settings-cache-service';
@@ -64,7 +64,7 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({ isUser, onAiIconEr
   // Get display name for the avatar
   const getDisplayName = (): string => {
     if (!isUser) return aiAgentName; // Use dynamic AI agent name
-    if (!user) return 'User';
+    if (!user) return 'Guest'; // Generic name for signed-out users
     
     if (profile?.first_name && profile?.last_name) {
       return `${profile.first_name} ${profile.last_name}`;
@@ -79,7 +79,12 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({ isUser, onAiIconEr
   // Get the appropriate avatar URL
   const getAvatarUrl = (): string | undefined => {
     if (isUser) {
-      return profile?.avatar_url || defaultUserAvatar || undefined;
+      // Only use profile avatar or default avatar for authenticated users
+      if (user) {
+        return profile?.avatar_url || defaultUserAvatar || undefined;
+      }
+      // For signed-out users, return undefined to use fallback icon
+      return undefined;
     } else {
       return aiAvatarUrl || undefined;
     }
@@ -99,7 +104,11 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({ isUser, onAiIconEr
         }}
       />
       <AvatarFallback className={isUser ? "bg-primary/10 text-primary text-xs" : "bg-primary text-primary-foreground text-xs"}>
-        {initials}
+        {isUser && !user ? (
+          <UserRound className="h-3 w-3" />
+        ) : (
+          initials
+        )}
       </AvatarFallback>
     </Avatar>
   );
