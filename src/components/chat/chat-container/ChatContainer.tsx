@@ -43,24 +43,48 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
 
-  // Convert messages to the expected format for components
+  // Convert messages to the expected format for components - PRESERVE ALL DATA
   const convertedMessages: Message[] = messages.map(msg => ({
     id: msg.id,
     sender: msg.role === 'user' ? 'user' : 'ai',
     content: msg.content,
     timestamp: msg.timestamp,
-    source: msg.metadata?.isProactive ? 'proactive' : (msg.role === 'user' ? 'user' : 'ai')
+    source: msg.metadata?.isProactive ? 'proactive' : (msg.role === 'user' ? 'user' : 'ai'),
+    // Preserve all additional fields that were being lost
+    tokenInfo: msg.tokenInfo || (msg as any).tokens ? {
+      promptTokens: msg.tokenInfo?.promptTokens || (msg as any).tokens?.prompt,
+      completionTokens: msg.tokenInfo?.completionTokens || (msg as any).tokens?.completion,
+      totalTokens: msg.tokenInfo?.totalTokens || (msg as any).tokens?.total
+    } : undefined,
+    threadId: msg.threadId || (msg as any).threadId,
+    rawRequest: (msg as any).rawRequest,
+    rawResponse: (msg as any).rawResponse,
+    metadata: msg.metadata,
+    isLoading: (msg as any).isLoading,
+    pending: (msg as any).pending
   }));
+  
+  console.log('ChatContainer message conversion:', {
+    originalCount: messages.length,
+    convertedCount: convertedMessages.length,
+    sampleOriginal: messages[0],
+    sampleConverted: convertedMessages[0]
+  });
   
   const handleImportChat = (importedMessages: Message[]) => {
     if (importedMessages && importedMessages.length > 0) {
-      // Convert imported messages to internal format
+      // Convert imported messages to internal format - PRESERVE ALL DATA
       const convertedImported = importedMessages.map(msg => ({
         id: msg.id,
         content: msg.content,
         role: msg.sender === 'user' ? 'user' as const : 'assistant' as const,
         timestamp: msg.timestamp,
-        metadata: msg.source === 'proactive' ? { isProactive: true } : {}
+        metadata: msg.source === 'proactive' ? { isProactive: true, ...msg.metadata } : msg.metadata,
+        // Preserve token and webhook data
+        tokenInfo: msg.tokenInfo,
+        threadId: msg.threadId,
+        rawRequest: msg.rawRequest,
+        rawResponse: msg.rawResponse
       }));
       setMessages(convertedImported);
       setHasInteracted(true);

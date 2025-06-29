@@ -56,6 +56,14 @@ const dateReplacer = (key: string, value: any) => {
  * Converts a Message to the enhanced export format
  */
 const convertToEnhancedFormat = (message: Message): EnhancedMessageExport => {
+  console.log('Export conversion for message:', {
+    id: message.id,
+    hasTokenInfo: !!message.tokenInfo,
+    hasRawRequest: !!message.rawRequest,
+    hasRawResponse: !!message.rawResponse,
+    hasThreadId: !!message.threadId
+  });
+
   return {
     id: message.id,
     content: message.content,
@@ -75,6 +83,12 @@ const convertToEnhancedFormat = (message: Message): EnhancedMessageExport => {
 
 export const exportChat = (messages: Message[]): void => {
   try {
+    console.log('Exporting messages:', {
+      count: messages.length,
+      sampleMessage: messages[0],
+      messagesWithTokenInfo: messages.filter(m => m.tokenInfo).length
+    });
+
     // Create enhanced export data with complete message preservation
     const exportData: EnhancedExportData = {
       metadata: {
@@ -107,6 +121,8 @@ export const exportChat = (messages: Message[]): void => {
     
     // Revoke the URL to free up memory
     URL.revokeObjectURL(url);
+    
+    console.log('Export completed successfully');
   } catch (error) {
     console.error('Error exporting chat:', error);
     throw new Error('Failed to export chat');
