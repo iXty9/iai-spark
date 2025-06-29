@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Message as ChatMessage } from '@/types/chat';
 import { MessageAvatar } from './MessageAvatar';
@@ -32,15 +33,39 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
 
   // Construct complete TokenInfo object for the MessageActions component
   const getTokenInfo = () => {
-    // Return undefined only if BOTH tokenInfo and threadId are missing
-    if (!message.tokenInfo && !message.threadId) return undefined;
+    // Debug logging to see what we're working with
+    console.log('Message token debug:', {
+      messageId: message.id,
+      hasTokenInfo: !!message.tokenInfo,
+      tokenInfo: message.tokenInfo,
+      hasThreadId: !!message.threadId,
+      threadId: message.threadId,
+      rawMessage: message
+    });
+
+    // Check if we have any token-related information at all
+    const hasTokenInfo = message.tokenInfo && 
+      (message.tokenInfo.promptTokens !== undefined || 
+       message.tokenInfo.completionTokens !== undefined || 
+       message.tokenInfo.totalTokens !== undefined);
     
-    return {
+    const hasThreadId = message.threadId && message.threadId.length > 0;
+    
+    // Return undefined only if we have absolutely no token information
+    if (!hasTokenInfo && !hasThreadId) {
+      console.log('No token info available for message:', message.id);
+      return undefined;
+    }
+    
+    const tokenInfo = {
       threadId: message.threadId,
       promptTokens: message.tokenInfo?.promptTokens,
       completionTokens: message.tokenInfo?.completionTokens,
       totalTokens: message.tokenInfo?.totalTokens,
     };
+    
+    console.log('Returning token info:', tokenInfo);
+    return tokenInfo;
   };
   
   return (

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { ThumbsUp, ThumbsDown, Copy, Volume2, Info, Check, VolumeX } from 'lucide-react';
 import { toast } from 'sonner';
@@ -84,6 +85,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
   };
 
   const handleTokenInfo = () => {
+    console.log('Token info button clicked, tokenInfo:', tokenInfo);
     if (tokenInfo) {
       setShowTokenInfo(true);
     } else {
@@ -119,6 +121,21 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
       setFeedbackLoading(null);
     }
   };
+
+  // Check if we have any token-related information to show
+  const hasTokenData = tokenInfo && (
+    tokenInfo.threadId || 
+    tokenInfo.promptTokens !== undefined || 
+    tokenInfo.completionTokens !== undefined || 
+    tokenInfo.totalTokens !== undefined
+  );
+
+  console.log('MessageActions render:', {
+    messageId,
+    hasTokenData,
+    tokenInfo,
+    disabled: !hasTokenData
+  });
 
   return (
     <div className="flex items-center gap-1 mt-2">
@@ -157,7 +174,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
         icon={Info} 
         label="Token usage info" 
         onClick={handleTokenInfo}
-        disabled={!tokenInfo}
+        disabled={!hasTokenData}
         variant="none"
       />
 
