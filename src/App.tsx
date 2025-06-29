@@ -48,53 +48,60 @@ function App() {
     <ProductionErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <Router>
-          <FastBootstrapProvider>
-            <AuthProvider clientReady={true}>
-              <WebSocketProvider>
-                <ThemeProvider>
-                  <NotificationPermissionManager />
-                  <div className="min-h-screen text-foreground">
-                    <Routes>
-                      <Route path="/" element={<Index />} />
-                      <Route path="/auth" element={<Auth />} />
-                      <Route path="/supabase-auth" element={<SupabaseAuth />} />
-                      <Route path="/initialize" element={<Initialize />} />
-                      <Route path="/reconnect" element={<Reconnect />} />
-                      <Route path="/chat" element={<Index />} />
-                      <Route path="/error" element={<ErrorPage />} />
-                      <Route
-                        path="/settings"
-                        element={
-                          <ProtectedRoute>
-                            <Settings />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/profile"
-                        element={
-                          <ProtectedRoute>
-                            <Profile />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/admin"
-                        element={
-                          <ProtectedRoute>
-                            <Admin />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
+          <AuthProvider clientReady={true}>
+            <WebSocketProvider>
+              <ThemeProvider>
+                <NotificationPermissionManager />
+                <div className="min-h-screen text-foreground">
+                  <Routes>
+                    {/* Routes that don't need FastBootstrapProvider */}
+                    <Route path="/initialize" element={<Initialize />} />
+                    <Route path="/error" element={<ErrorPage />} />
+                    <Route path="*" element={<NotFound />} />
                     
-                    <Toaster />
-                  </div>
-                </ThemeProvider>
-              </WebSocketProvider>
-            </AuthProvider>
-          </FastBootstrapProvider>
+                    {/* Routes that need FastBootstrapProvider */}
+                    <Route path="/*" element={
+                      <FastBootstrapProvider>
+                        <Routes>
+                          <Route path="/" element={<Index />} />
+                          <Route path="/auth" element={<Auth />} />
+                          <Route path="/supabase-auth" element={<SupabaseAuth />} />
+                          <Route path="/reconnect" element={<Reconnect />} />
+                          <Route path="/chat" element={<Index />} />
+                          <Route
+                            path="/settings"
+                            element={
+                              <ProtectedRoute>
+                                <Settings />
+                              </ProtectedRoute>
+                            }
+                          />
+                          <Route
+                            path="/profile"
+                            element={
+                              <ProtectedRoute>
+                                <Profile />
+                              </ProtectedRoute>
+                            }
+                          />
+                          <Route
+                            path="/admin"
+                            element={
+                              <ProtectedRoute>
+                                <Admin />
+                              </ProtectedRoute>
+                            }
+                          />
+                        </Routes>
+                      </FastBootstrapProvider>
+                    } />
+                  </Routes>
+                  
+                  <Toaster />
+                </div>
+              </ThemeProvider>
+            </WebSocketProvider>
+          </AuthProvider>
         </Router>
       </QueryClientProvider>
     </ProductionErrorBoundary>
