@@ -20,94 +20,116 @@ class SettingsCacheService {
 
   static getInstance(): SettingsCacheService {
     if (!this.instance) {
+      console.log('[SETTINGS-CACHE] Creating new singleton instance');
       this.instance = new SettingsCacheService();
     }
     return this.instance;
   }
 
   private constructor() {
-    this.loadFromLocalStorage();
-    // Immediately start fetching fresh data if no valid cache
-    if (!this.cache || !this.isCacheValid(this.cache)) {
-      logger.info('No valid cache on initialization, starting fresh fetch', { module: 'settings-cache' });
-      this.prefetchSettings();
+    console.log('[SETTINGS-CACHE] Constructor called - initializing service');
+    try {
+      this.loadFromLocalStorage();
+      // Immediately start fetching fresh data if no valid cache
+      if (!this.cache || !this.isCacheValid(this.cache)) {
+        console.log('[SETTINGS-CACHE] No valid cache on initialization, starting fresh fetch');
+        this.prefetchSettings();
+      } else {
+        console.log('[SETTINGS-CACHE] Valid cache found on initialization:', this.cache.data);
+      }
+    } catch (error) {
+      console.error('[SETTINGS-CACHE] Constructor error:', error);
     }
   }
 
   // Prefetch settings without waiting for a request
   private async prefetchSettings(): Promise<void> {
+    console.log('[SETTINGS-CACHE] Starting prefetch');
     try {
       await this.getSettings();
-      logger.info('Settings prefetched successfully', { module: 'settings-cache' });
+      console.log('[SETTINGS-CACHE] Prefetch completed successfully');
     } catch (error) {
-      logger.error('Failed to prefetch settings:', error, { module: 'settings-cache' });
+      console.error('[SETTINGS-CACHE] Prefetch failed:', error);
     }
   }
 
   // Add listener for settings changes
   addChangeListener(listener: SettingsChangeListener): () => void {
+    console.log('[SETTINGS-CACHE] Adding change listener, total listeners:', this.listeners.size + 1);
     this.listeners.add(listener);
     
     // If we have valid cached data, immediately notify the new listener
     if (this.cache && this.isCacheValid(this.cache)) {
+      console.log('[SETTINGS-CACHE] Immediately notifying new listener with cached data:', this.cache.data);
       setTimeout(() => {
         try {
           listener(this.cache!.data);
-          logger.debug('Immediate listener notification sent', { module: 'settings-cache' });
+          console.log('[SETTINGS-CACHE] Immediate listener notification sent successfully');
         } catch (error) {
-          logger.warn('Error in immediate settings change listener:', error, { module: 'settings-cache' });
+          console.error('[SETTINGS-CACHE] Error in immediate listener notification:', error);
         }
       }, 0);
+    } else {
+      console.log('[SETTINGS-CACHE] No valid cache to notify listener immediately');
     }
     
     return () => {
       this.listeners.delete(listener);
+      console.log('[SETTINGS-CACHE] Listener removed, remaining listeners:', this.listeners.size);
     };
   }
 
   // Emit settings change event
   private emitChange(settings: Record<string, string>): void {
-    logger.debug(`Emitting change event to ${this.listeners.size} listeners`, { module: 'settings-cache' });
-    this.listeners.forEach(listener => {
+    console.log('[SETTINGS-CACHE] Emitting change event to', this.listeners.size, 'listeners with data:', settings);
+    this.listeners.forEach((listener, index) => {
       try {
+        console.log('[SETTINGS-CACHE] Calling listener', index + 1);
         listener(settings);
+        console.log('[SETTINGS-CACHE] Listener', index + 1, 'called successfully');
       } catch (error) {
-        logger.warn('Error in settings change listener:', error, { module: 'settings-cache' });
+        console.error('[SETTINGS-CACHE] Error in settings change listener', index + 1, ':', error);
       }
     });
   }
 
   private loadFromLocalStorage(): void {
+    console.log('[SETTINGS-CACHE] Loading from localStorage');
     try {
       const cached = localStorage.getItem(this.CACHE_KEY);
       if (cached) {
+        console.log('[SETTINGS-CACHE] Found cached data in localStorage');
         const parsedCache: CachedSettings = JSON.parse(cached);
         if (this.isCacheValid(parsedCache)) {
           this.cache = parsedCache;
-          logger.info('Valid settings loaded from localStorage cache', { module: 'settings-cache' });
+          console.log('[SETTINGS-CACHE] Valid settings loaded from localStorage cache:', parsedCache.data);
           
           // Emit change event for valid cached data on initial load
           setTimeout(() => {
+            console.log('[SETTINGS-CACHE] Emitting initial change event from localStorage');
             this.emitChange(parsedCache.data);
           }, 0);
         } else {
+          console.log('[SETTINGS-CACHE] Cached data expired, removing from localStorage');
           localStorage.removeItem(this.CACHE_KEY);
-          logger.info('Expired cache removed from localStorage', { module: 'settings-cache' });
         }
       } else {
-        logger.info('No cached settings found in localStorage', { module: 'settings-cache' });
+        console.log('[SETTINGS-CACHE] No cached settings found in localStorage');
       }
     } catch (error) {
-      logger.warn('Failed to load settings from localStorage:', error, { module: 'settings-cache' });
+      console.error('[SETTINGS-CACHE] Failed to load settings from localStorage:', error);
       localStorage.removeItem(this.CACHE_KEY);
     }
   }
 
   private isCacheValid(cache: CachedSettings): boolean {
-    return Date.now() - cache.timestamp < cache.ttl;
+    const isValid = Date.now() - cache.timestamp < cache.ttl;
+    console.log('[SETTINGS-CACHE] Cache validity check:', isValid, 'Age:', Date.now() - cache.timestamp, 'TTL:', cache.ttl);
+    return isValid;
   }
 
   private saveToLocalStorage(settings: Record<string, string>): void {
+    console.log('[SETTINGS-CACHE] Saving to localStorage:', settings);
     try {
       const cacheData: CachedSettings = {
         data: settings,
@@ -116,29 +138,30 @@ class SettingsCacheService {
       };
       localStorage.setItem(this.CACHE_KEY, JSON.stringify(cacheData));
       this.cache = cacheData;
-      logger.info('Settings saved to localStorage cache', { module: 'settings-cache' });
+      console.log('[SETTINGS-CACHE] Settings saved to localStorage cache successfully');
       
       // Emit change event when cache is updated with fresh data
+      console.log('[SETTINGS-CACHE] Emitting change event after saving to localStorage');
       this.emitChange(settings);
     } catch (error) {
-      logger.warn('Failed to save settings to localStorage:', error, { module: 'settings-cache' });
+      console.error('[SETTINGS-CACHE] Failed to save settings to localStorage:', error);
     }
   }
 
   async getSettings(): Promise<Record<string, string>> {
-    logger.debug('getSettings() called', { 
+    console.log('[SETTINGS-CACHE] getSettings() called', { 
       hasCache: !!this.cache, 
       isCacheValid: this.cache ? this.isCacheValid(this.cache) : false,
-      hasFetchPromise: !!this.fetchPromise,
-      module: 'settings-cache' 
+      hasFetchPromise: !!this.fetchPromise
     });
 
     // Return cached data if valid AND emit change events
     if (this.cache && this.isCacheValid(this.cache)) {
-      logger.info('Using cached settings', { module: 'settings-cache' });
+      console.log('[SETTINGS-CACHE] Using cached settings:', this.cache.data);
       
       // Emit change event with a small delay to ensure hooks are ready
       setTimeout(() => {
+        console.log('[SETTINGS-CACHE] Emitting change event from getSettings (cached)');
         this.emitChange(this.cache!.data);
       }, 10);
       
@@ -147,20 +170,20 @@ class SettingsCacheService {
 
     // If already fetching, return the existing promise
     if (this.fetchPromise) {
-      logger.info('Using existing fetch promise', { module: 'settings-cache' });
+      console.log('[SETTINGS-CACHE] Using existing fetch promise');
       return this.fetchPromise;
     }
 
     // Start new fetch
-    logger.info('Starting fresh settings fetch', { module: 'settings-cache' });
+    console.log('[SETTINGS-CACHE] Starting fresh settings fetch');
     this.fetchPromise = this.fetchAndCacheSettings();
     
     try {
       const settings = await this.fetchPromise;
-      logger.info('Fresh settings fetch completed successfully', { module: 'settings-cache' });
+      console.log('[SETTINGS-CACHE] Fresh settings fetch completed successfully:', settings);
       return settings;
     } catch (error) {
-      logger.error('Fresh settings fetch failed:', error, { module: 'settings-cache' });
+      console.error('[SETTINGS-CACHE] Fresh settings fetch failed:', error);
       throw error;
     } finally {
       this.fetchPromise = null;
@@ -168,56 +191,70 @@ class SettingsCacheService {
   }
 
   private async fetchAndCacheSettings(): Promise<Record<string, string>> {
+    console.log('[SETTINGS-CACHE] fetchAndCacheSettings() called');
     try {
-      logger.info('Fetching fresh settings from database', { module: 'settings-cache' });
+      console.log('[SETTINGS-CACHE] Calling fetchAppSettings() from database');
       const settings = await fetchAppSettings();
-      logger.info('Database fetch successful, caching settings', { 
-        settingsCount: Object.keys(settings).length,
-        module: 'settings-cache' 
-      });
+      console.log('[SETTINGS-CACHE] Database fetch successful, got settings:', settings, 'Count:', Object.keys(settings).length);
       this.saveToLocalStorage(settings);
       return settings;
     } catch (error) {
-      logger.error('Failed to fetch settings from database:', error, { module: 'settings-cache' });
+      console.error('[SETTINGS-CACHE] Failed to fetch settings from database:', error);
       
       // Return cached data even if expired as fallback
       if (this.cache) {
-        logger.info('Using expired cache as fallback', { module: 'settings-cache' });
+        console.log('[SETTINGS-CACHE] Using expired cache as fallback:', this.cache.data);
         return this.cache.data;
       }
       
-      // Return empty object as final fallback
-      logger.warn('No cache available, returning empty settings', { module: 'settings-cache' });
-      return {};
+      // Return empty object as final fallback with default values
+      const fallbackSettings = {
+        ai_agent_name: 'AI Assistant',
+        app_name: 'The Everywhere Intelligent Assistant'
+      };
+      console.log('[SETTINGS-CACHE] No cache available, returning fallback settings:', fallbackSettings);
+      
+      // Emit change event with fallback data to unblock hooks
+      setTimeout(() => {
+        console.log('[SETTINGS-CACHE] Emitting change event with fallback data');
+        this.emitChange(fallbackSettings);
+      }, 0);
+      
+      return fallbackSettings;
     }
   }
 
   getSetting(key: string, defaultValue: string = ''): string {
     if (this.cache && this.isCacheValid(this.cache)) {
       const value = this.cache.data[key] || defaultValue;
-      logger.debug(`getSetting(${key}) = ${value}`, { module: 'settings-cache' });
+      console.log('[SETTINGS-CACHE] getSetting(' + key + ') = ' + value + ' (from cache)');
       return value;
     }
-    logger.debug(`getSetting(${key}) = ${defaultValue} (no cache)`, { module: 'settings-cache' });
+    console.log('[SETTINGS-CACHE] getSetting(' + key + ') = ' + defaultValue + ' (no cache)');
     return defaultValue;
   }
 
   invalidateCache(): void {
+    console.log('[SETTINGS-CACHE] Cache invalidated');
     this.cache = null;
     localStorage.removeItem(this.CACHE_KEY);
-    logger.info('Settings cache invalidated', { module: 'settings-cache' });
   }
 
   // Method to update cache when settings are changed in admin panel
   updateCache(key: string, value: string): void {
+    console.log('[SETTINGS-CACHE] updateCache called:', key, '=', value);
     if (this.cache) {
       this.cache.data[key] = value;
       this.cache.timestamp = Date.now(); // Refresh timestamp
       localStorage.setItem(this.CACHE_KEY, JSON.stringify(this.cache));
-      logger.info(`Setting ${key} updated in cache`, { module: 'settings-cache' });
+      console.log('[SETTINGS-CACHE] Setting updated in cache successfully');
       
       // Emit change event when cache is manually updated
+      console.log('[SETTINGS-CACHE] Emitting change event after manual cache update');
       this.emitChange(this.cache.data);
+    } else {
+      console.log('[SETTINGS-CACHE] No cache to update, triggering fresh fetch');
+      this.getSettings();
     }
   }
 }
