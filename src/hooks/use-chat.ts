@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
 import { processMessage } from '@/services/chat/message-processor';
 import { Message } from '@/types/chat'; // Use the complete Message interface
+import { useChatActions } from './chat/use-chat-actions';
 
 export const useChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -17,6 +18,9 @@ export const useChat = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { isConnected: isWebSocketConnected, isEnabled: isWebSocketEnabled, onProactiveMessage } = useWebSocket();
+  
+  // Use the chat actions hook to get the real export functionality
+  const { handleExportChat } = useChatActions(messages);
 
   // Load chat history from local storage on mount
   useEffect(() => {
@@ -377,7 +381,7 @@ export const useChat = () => {
     sendMessage,
     clearChat,
     handleClearChat: clearChat, // alias for compatibility
-    handleExportChat: () => {}, // placeholder
+    handleExportChat, // Now using the real export functionality from useChatActions
     startChat, // Now properly implemented
     setMessages,
     addMessage,
