@@ -1,3 +1,4 @@
+
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { logger } from '@/utils/logging';
 
@@ -31,6 +32,18 @@ class SettingsCacheService {
   // Add listener for settings changes
   addChangeListener(listener: SettingsChangeListener): () => void {
     this.listeners.add(listener);
+    
+    // If we have valid cached data, immediately notify the new listener
+    if (this.cache && this.isCacheValid(this.cache)) {
+      setTimeout(() => {
+        try {
+          listener(this.cache!.data);
+        } catch (error) {
+          logger.warn('Error in immediate settings change listener:', error, { module: 'settings-cache' });
+        }
+      }, 0);
+    }
+    
     return () => {
       this.listeners.delete(listener);
     };
@@ -55,6 +68,9 @@ class SettingsCacheService {
         if (this.isCacheValid(parsedCache)) {
           this.cache = parsedCache;
           logger.info('Settings loaded from localStorage cache', { module: 'settings-cache' });
+          
+          // Emit change event for valid cached data on initial load
+          this.emitChange(parsedCache.data);
         } else {
           localStorage.removeItem(this.CACHE_KEY);
           logger.info('Expired cache removed from localStorage', { module: 'settings-cache' });

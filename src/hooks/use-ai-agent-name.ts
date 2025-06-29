@@ -3,8 +3,13 @@ import { settingsCacheService } from '@/services/settings-cache-service';
 import { logger } from '@/utils/logging';
 
 export const useAIAgentName = () => {
-  // Always start with default value, don't rely on potentially stale cache
-  const [aiAgentName, setAIAgentName] = useState<string>('AI Assistant');
+  // Check for immediately available cached data, otherwise use default
+  const getInitialValue = () => {
+    const cachedName = settingsCacheService.getSetting('ai_agent_name');
+    return cachedName || 'AI Assistant';
+  };
+
+  const [aiAgentName, setAIAgentName] = useState<string>(getInitialValue);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -22,7 +27,7 @@ export const useAIAgentName = () => {
       } catch (error) {
         logger.error('Failed to load AI agent name:', error);
         if (isMounted) {
-          // Keep default value on error
+          // Keep current value (which might be from cache) on error
           setIsLoading(false);
         }
       }
@@ -33,11 +38,12 @@ export const useAIAgentName = () => {
       if (isMounted) {
         const agentName = settings.ai_agent_name || 'AI Assistant';
         setAIAgentName(agentName);
+        setIsLoading(false);
         logger.info('AI agent name updated from cache change', { agentName });
       }
     });
 
-    // Load initial value
+    // Load fresh data (this will also trigger the listener if cache is updated)
     loadAIAgentName();
 
     return () => {
