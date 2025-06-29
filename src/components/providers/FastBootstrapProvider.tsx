@@ -2,7 +2,7 @@
 import React, { useEffect, useState, ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Settings, Database, CheckCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { coordinatedInitService, InitializationStatus } from '@/services/initialization/coordinated-init-service';
 import { logger } from '@/utils/logging';
 
@@ -12,7 +12,9 @@ interface FastBootstrapProviderProps {
 
 export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ children }) => {
   const [status, setStatus] = useState<InitializationStatus | null>(null);
+  const [hasRedirected, setHasRedirected] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     // Subscribe to initialization status
@@ -33,28 +35,35 @@ export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ ch
     return unsubscribe;
   }, []);
 
-  // Auto-redirect to setup when needed - do this immediately without showing custom UI
+  // Smart redirect logic - only redirect once and not if already on special routes
   useEffect(() => {
-    if (status?.error && status.phase === 'error') {
-      logger.info('Configuration error detected, redirecting to initialize', {
-        module: 'bootstrap-provider'
-      });
-      navigate('/initialize');
+    if (status?.error && status.phase === 'error' && !hasRedirected) {
+      // Don't redirect if we're already on a special route
+      const specialRoutes = ['/initialize', '/error'];
+      const isOnSpecialRoute = specialRoutes.some(route => location.pathname.startsWith(route));
+      
+      if (!isOnSpecialRoute) {
+        logger.info('Configuration error detected, redirecting to initialize', {
+          module: 'bootstrap-provider',
+          currentPath: location.pathname
+        });
+        setHasRedirected(true);
+        navigate('/initialize');
+      }
     }
-  }, [status?.error, status?.phase, navigate]);
+  }, [status?.error, status?.phase, navigate, location.pathname, hasRedirected]);
 
   // Show app if ready
   if (status?.isComplete) {
     return <>{children}</>;
   }
 
-  // If there's an error (missing config), we've already redirected above
-  // Don't render anything here to avoid showing duplicate UI
-  if (status?.error && status.phase === 'error') {
+  // If there's an error and we've redirected, don't render anything
+  if (status?.error && status.phase === 'error' && hasRedirected) {
     return null;
   }
 
-  // Show detailed loading state with phase information
+  // Show simple loading state (like the original)
   const getPhaseInfo = (phase: string) => {
     switch (phase) {
       case 'config':
@@ -82,31 +91,8 @@ export const FastBootstrapProvider: React.FC<FastBootstrapProviderProps> = ({ ch
             <div className="text-center">
               <p className="font-medium">{phaseInfo.text}</p>
               <p className="text-sm text-muted-foreground">
-                {status?.phase === 'complete' ? 'Loading interface...' : 'Please wait...'}
+                Please wait...
               </p>
-            </div>
-            {/* Progress indicator */}
-            <div className="w-full max-w-xs">
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>Config</span>
-                <span>Client</span>
-                <span>Theme</span>
-                <span>Ready</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="h-2 rounded-full transition-all duration-300"
-                  style={{ 
-                    backgroundColor: '#dd3333',
-                    width: `${
-                      status?.phase === 'config' ? '25%' :
-                      status?.phase === 'client' ? '50%' :
-                      status?.phase === 'theme' ? '75%' :
-                      status?.phase === 'complete' ? '100%' : '0%'
-                    }` 
-                  }}
-                />
-              </div>
             </div>
           </div>
         </CardContent>

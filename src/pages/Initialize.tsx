@@ -32,6 +32,9 @@ const Initialize = () => {
   const forceInit = searchParams.get('force_init') === 'true';
 
   useEffect(() => {
+    // Reset the coordinated init service when entering initialize page
+    coordinatedInitService.reset();
+    
     // Check if we already have a valid configuration (but only if not forced init)
     const checkExistingConfig = async () => {
       if (!forceInit) {
@@ -61,7 +64,6 @@ const Initialize = () => {
 
       // If forced init, reset everything
       if (forceInit) {
-        coordinatedInitService.reset();
         setCurrentStep(SetupStep.CONNECTION);
         setSetupProgress(0);
       }

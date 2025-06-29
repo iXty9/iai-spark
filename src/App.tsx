@@ -58,56 +58,36 @@ function App() {
                     <Route path="/initialize" element={<Initialize />} />
                     <Route path="/error" element={<ErrorPage />} />
                     
-                    {/* All other routes wrapped with FastBootstrapProvider */}
-                    <Route path="/" element={
+                    {/* All other routes wrapped with single FastBootstrapProvider */}
+                    <Route path="/*" element={
                       <FastBootstrapProvider>
-                        <Index />
+                        <Routes>
+                          <Route path="/" element={<Index />} />
+                          <Route path="/auth" element={<Auth />} />
+                          <Route path="/supabase-auth" element={<SupabaseAuth />} />
+                          <Route path="/reconnect" element={<Reconnect />} />
+                          <Route path="/chat" element={<Index />} />
+                          <Route path="/settings" element={
+                            <ProtectedRoute>
+                              <Settings />
+                            </ProtectedRoute>
+                          } />
+                          <Route path="/profile" element={
+                            <ProtectedRoute>
+                              <Profile />
+                            </ProtectedRoute>
+                          } />
+                          <Route path="/admin" element={
+                            <ProtectedRoute>
+                              <Admin />
+                            </ProtectedRoute>
+                          } />
+                          
+                          {/* 404 handler - must be last */}
+                          <Route path="*" element={<NotFound />} />
+                        </Routes>
                       </FastBootstrapProvider>
                     } />
-                    <Route path="/auth" element={
-                      <FastBootstrapProvider>
-                        <Auth />
-                      </FastBootstrapProvider>
-                    } />
-                    <Route path="/supabase-auth" element={
-                      <FastBootstrapProvider>
-                        <SupabaseAuth />
-                      </FastBootstrapProvider>
-                    } />
-                    <Route path="/reconnect" element={
-                      <FastBootstrapProvider>
-                        <Reconnect />
-                      </FastBootstrapProvider>
-                    } />
-                    <Route path="/chat" element={
-                      <FastBootstrapProvider>
-                        <Index />
-                      </FastBootstrapProvider>
-                    } />
-                    <Route path="/settings" element={
-                      <FastBootstrapProvider>
-                        <ProtectedRoute>
-                          <Settings />
-                        </ProtectedRoute>
-                      </FastBootstrapProvider>
-                    } />
-                    <Route path="/profile" element={
-                      <FastBootstrapProvider>
-                        <ProtectedRoute>
-                          <Profile />
-                        </ProtectedRoute>
-                      </FastBootstrapProvider>
-                    } />
-                    <Route path="/admin" element={
-                      <FastBootstrapProvider>
-                        <ProtectedRoute>
-                          <Admin />
-                        </ProtectedRoute>
-                      </FastBootstrapProvider>
-                    } />
-                    
-                    {/* 404 handler - must be last */}
-                    <Route path="*" element={<NotFound />} />
                   </Routes>
                   
                   <Toaster />
