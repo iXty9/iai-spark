@@ -7,15 +7,7 @@ import { useWebSocket, ProactiveMessage } from '@/contexts/WebSocketContext';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
 import { processMessage } from '@/services/chat/message-processor';
-
-interface Message {
-  id: string;
-  content: string;
-  role: 'user' | 'assistant';
-  timestamp: string;
-  sender?: string;
-  metadata?: Record<string, any>;
-}
+import { Message } from '@/types/chat'; // Use the complete Message interface
 
 export const useChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -50,9 +42,8 @@ export const useChat = () => {
       const chatMessage: Message = {
         id: proactiveMessage.id,
         content: proactiveMessage.content,
-        role: 'assistant',
+        sender: 'ai',
         timestamp: proactiveMessage.timestamp,
-        sender: proactiveMessage.sender,
         metadata: { isProactive: true, ...proactiveMessage.metadata }
       };
       
@@ -95,7 +86,7 @@ export const useChat = () => {
     const userMessage: Message = {
       id: uuidv4(),
       content: initialMessage,
-      role: 'user',
+      sender: 'user',
       timestamp: new Date().toISOString(),
     };
 
@@ -117,13 +108,17 @@ export const useChat = () => {
         }
       });
 
-      // Convert the enhanced response to our message format
+      // Convert the enhanced response to our message format, preserving all data
       const aiMessage: Message = {
         id: aiResponse.id,
         content: aiResponse.content,
-        role: 'assistant',
+        sender: 'ai',
         timestamp: aiResponse.timestamp,
-        metadata: aiResponse.metadata
+        metadata: aiResponse.metadata,
+        tokenInfo: aiResponse.tokenInfo,
+        threadId: aiResponse.threadId,
+        rawRequest: aiResponse.rawRequest,
+        rawResponse: aiResponse.rawResponse
       };
       
       addMessage(aiMessage);
@@ -158,7 +153,7 @@ export const useChat = () => {
       const errorMessage: Message = {
         id: uuidv4(),
         content: "I'm sorry, but I encountered an error processing your message. Please try again.",
-        role: 'assistant',
+        sender: 'ai',
         timestamp: new Date().toISOString(),
         metadata: { error: true }
       };
@@ -183,7 +178,7 @@ export const useChat = () => {
     const userMessage: Message = {
       id: uuidv4(),
       content: input,
-      role: 'user',
+      sender: 'user',
       timestamp: new Date().toISOString(),
     };
 
@@ -206,13 +201,17 @@ export const useChat = () => {
         }
       });
 
-      // Convert the enhanced response to our message format
+      // Convert the enhanced response to our message format, preserving all data
       const aiMessage: Message = {
         id: aiResponse.id,
         content: aiResponse.content,
-        role: 'assistant',
+        sender: 'ai',
         timestamp: aiResponse.timestamp,
-        metadata: aiResponse.metadata
+        metadata: aiResponse.metadata,
+        tokenInfo: aiResponse.tokenInfo,
+        threadId: aiResponse.threadId,
+        rawRequest: aiResponse.rawRequest,
+        rawResponse: aiResponse.rawResponse
       };
       
       addMessage(aiMessage);
@@ -247,7 +246,7 @@ export const useChat = () => {
       const errorMessage: Message = {
         id: uuidv4(),
         content: "I'm sorry, but I encountered an error processing your message. Please try again.",
-        role: 'assistant',
+        sender: 'ai',
         timestamp: new Date().toISOString(),
         metadata: { error: true }
       };
