@@ -6,6 +6,7 @@ import { MessageContent } from './message/MessageContent';
 import { MessageActions } from './message-actions/MessageActions';
 import { formatTimestamp } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAIAgentName } from '@/hooks/use-ai-agent-name';
 
 interface MessageProps {
   message: ChatMessage;
@@ -16,6 +17,7 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
   const isUser = message.sender === 'user';
   const isProactive = message.source === 'proactive';
   const { user, profile } = useAuth();
+  const { aiAgentName } = useAIAgentName();
   
   // Get display name for the message
   const getDisplayName = () => {
@@ -27,7 +29,7 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
       if (profile?.username) return profile.username;
       return user.email?.split('@')[0] || 'User';
     } else {
-      return 'AI Assistant';
+      return aiAgentName; // Use dynamic AI agent name
     }
   };
 

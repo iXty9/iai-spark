@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { TimerWithAbort } from './TimerWithAbort';
+import { useAIAgentName } from '@/hooks/use-ai-agent-name';
 
 interface TypingIndicatorProps {
   isVisible: boolean;
@@ -9,6 +10,7 @@ interface TypingIndicatorProps {
 export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ isVisible }) => {
   const [responseStatus, setResponseStatus] = useState<'thinking' | 'responding'>('thinking');
   const [requestStartTime, setRequestStartTime] = useState<number>(0);
+  const { aiAgentName } = useAIAgentName();
   
   useEffect(() => {
     const handleStatusChange = (event: CustomEvent) => {
@@ -51,8 +53,8 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ isVisible }) =
         />
         <span>
           {responseStatus === 'thinking' 
-            ? "Ixty AI is thinking..." 
-            : "Ixty AI is responding..."}
+            ? `${aiAgentName} is thinking...` 
+            : `${aiAgentName} is responding...`}
         </span>
         <div className="typing-dots">
           <div className="typing-dot" style={{ animationDelay: '0ms' }}></div>

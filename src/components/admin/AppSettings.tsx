@@ -16,6 +16,7 @@ export function AppSettings() {
   const [tagline, setTagline] = useState('');
   const [siteTitle, setSiteTitle] = useState('');
   const [defaultAvatarUrl, setDefaultAvatarUrl] = useState('');
+  const [aiAgentName, setAiAgentName] = useState('');
 
   useEffect(() => {
     loadSettings();
@@ -30,6 +31,7 @@ export function AppSettings() {
       setTagline(settings.app_name || 'The Everywhere Intelligent Assistant');
       setSiteTitle(settings.site_title || 'AI Chat Application');
       setDefaultAvatarUrl(settings.default_avatar_url || '');
+      setAiAgentName(settings.ai_agent_name || 'AI Assistant');
     } catch (error) {
       console.error('Error loading app settings:', error);
       toast({
@@ -53,6 +55,9 @@ export function AppSettings() {
       
       // Save default avatar URL
       await updateAppSetting('default_avatar_url', defaultAvatarUrl);
+      
+      // Save AI agent name
+      await updateAppSetting('ai_agent_name', aiAgentName);
       
       toast({
         title: "Settings saved",
@@ -114,6 +119,19 @@ export function AppSettings() {
                 />
                 <p className="text-sm text-muted-foreground">
                   This title appears in the browser's title bar and tabs
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="aiAgentName">AI Agent Name</Label>
+                <Input
+                  id="aiAgentName"
+                  value={aiAgentName}
+                  onChange={(e) => setAiAgentName(e.target.value)}
+                  placeholder="Enter AI agent name"
+                />
+                <p className="text-sm text-muted-foreground">
+                  This name appears in the chat interface as the AI assistant's display name
                 </p>
               </div>
               
