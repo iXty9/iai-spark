@@ -17,11 +17,30 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
   const isProactive = message.source === 'proactive';
   const { user, profile } = useAuth();
   
+  // Get display name for the message
+  const getDisplayName = () => {
+    if (isUser) {
+      if (!user) return 'Guest';
+      if (profile?.first_name && profile?.last_name) {
+        return `${profile.first_name} ${profile.last_name}`;
+      }
+      if (profile?.username) return profile.username;
+      return user.email?.split('@')[0] || 'User';
+    } else {
+      return 'AI Assistant';
+    }
+  };
+  
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
       <div className={`flex max-w-[80%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
         <MessageAvatar sender={message.sender} />
         <div className={`mx-3 ${isUser ? 'text-right' : 'text-left'}`}>
+          {/* Display name */}
+          <div className={`text-xs text-muted-foreground mb-1 ${isUser ? 'text-right' : 'text-left'}`}>
+            {getDisplayName()}
+          </div>
+          
           <div
             className={`inline-block p-3 rounded-lg ${
               isUser
@@ -43,18 +62,21 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
             <MessageContent content={message.content} message={message} />
           </div>
           
-          {/* Message Actions - restored to original location */}
+          {/* Message Actions for AI messages */}
           {message.sender === 'ai' && (
-            <MessageActions
-              messageId={message.id}
-              content={message.content}
-              tokenInfo={message.tokenInfo}
-              isAuthenticated={!!user}
-              userInfo={profile}
-            />
+            <div className="mt-2">
+              <MessageActions
+                messageId={message.id}
+                content={message.content}
+                tokenInfo={message.tokenInfo}
+                isAuthenticated={!!user}
+                userInfo={profile}
+              />
+            </div>
           )}
           
-          <div className="mt-1 text-xs text-muted-foreground">
+          {/* Timestamp */}
+          <div className={`mt-1 text-xs text-muted-foreground ${isUser ? 'text-right' : 'text-left'}`}>
             {formatTimestamp(message.timestamp)}
           </div>
         </div>

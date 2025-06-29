@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -27,18 +26,20 @@ export const UserMenu = () => {
   const [defaultAvatar, setDefaultAvatar] = useState<string | null>(null);
 
   useEffect(() => {
-    // Load default avatar setting
-    const loadDefaultAvatar = async () => {
-      try {
-        const settings = await fetchAppSettings();
-        setDefaultAvatar(settings?.default_avatar_url || null);
-      } catch (error) {
-        logger.warn('Failed to load default avatar setting', error, { module: 'user-menu' });
-      }
-    };
+    // Load default avatar setting only for authenticated users
+    if (user) {
+      const loadDefaultAvatar = async () => {
+        try {
+          const settings = await fetchAppSettings();
+          setDefaultAvatar(settings?.default_avatar_url || null);
+        } catch (error) {
+          logger.warn('Failed to load default avatar setting', error, { module: 'user-menu' });
+        }
+      };
 
-    loadDefaultAvatar();
-  }, []);
+      loadDefaultAvatar();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -114,10 +115,15 @@ export const UserMenu = () => {
   };
 
   const getAvatarUrl = () => {
+    // Only use profile avatar or default avatar for authenticated users
     if (user && profile?.avatar_url) {
       return profile.avatar_url;
     }
-    return defaultAvatar || undefined;
+    if (user && defaultAvatar) {
+      return defaultAvatar;
+    }
+    // For signed-out users, return undefined to use fallback icon
+    return undefined;
   };
 
   return (
