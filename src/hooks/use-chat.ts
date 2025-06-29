@@ -1,146 +1,57 @@
-import { useState, useEffect, useCallback } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import { useState, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from '@/contexts/AuthContext';
-import { useWebSocket, ProactiveMessage } from '@/contexts/WebSocketContext';
-import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
-import { processMessage } from '@/services/chat/message-processor';
-import { Message } from '@/types/chat'; // Use the complete Message interface
+import { Message } from '@/types/chat';
 import { useChatActions } from './chat/use-chat-actions';
+import { useChatMessages } from './chat/use-chat-messages';
+import { useChatPersistence } from './chat/use-chat-persistence';
+import { useChatApi } from './chat/use-chat-api';
+import { useChatWebSocket } from './chat/use-chat-websocket';
 
 export const useChat = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialising, setIsInitialising] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
-  const { isConnected: isWebSocketConnected, isEnabled: isWebSocketEnabled, onProactiveMessage } = useWebSocket();
+  
+  // Use decomposed hooks
+  const { 
+    messages, 
+    setMessages, 
+    addMessage, 
+    clearMessages, 
+    createUserMessage, 
+    createErrorMessage 
+  } = useChatMessages();
+  
+  const { clearStorage } = useChatPersistence(messages, setMessages);
+  
+  const { sendMessageToApi } = useChatApi({ 
+    user, 
+    addMessage, 
+    onError: (errorMsg) => setError(errorMsg) 
+  });
+  
+  const { isWebSocketConnected, isWebSocketEnabled } = useChatWebSocket({ addMessage });
   
   // Use the chat actions hook to get the real export functionality
   const { handleExportChat } = useChatActions(messages);
 
-  // Load chat history from local storage on mount
-  useEffect(() => {
-    const storedMessages = localStorage.getItem('chat_messages');
-    if (storedMessages) {
-      try {
-        const parsed = JSON.parse(storedMessages);
-        console.log('Loading messages from localStorage:', {
-          count: parsed.length,
-          sampleMessage: parsed[0] ? {
-            id: parsed[0].id,
-            keys: Object.keys(parsed[0]),
-            hasTokenInfo: !!parsed[0].tokenInfo,
-            hasThreadId: !!parsed[0].threadId,
-            hasRawRequest: !!parsed[0].rawRequest
-          } : null
-        });
-        setMessages(parsed);
-      } catch (error) {
-        logger.error('Failed to parse stored messages:', error);
-        setMessages([]);
-      }
-    }
+  // Set initializing to false after first render
+  useState(() => {
     setIsInitialising(false);
-  }, []);
-
-  // Save chat history to local storage whenever messages change with enhanced preservation
-  useEffect(() => {
-    if (messages.length > 0) {
-      console.log('Saving messages to localStorage:', {
-        count: messages.length,
-        sampleMessage: messages[0] ? {
-          id: messages[0].id,
-          keys: Object.keys(messages[0]),
-          hasTokenInfo: !!messages[0].tokenInfo,
-          hasThreadId: !!messages[0].threadId,
-          hasRawRequest: !!messages[0].rawRequest
-        } : null
-      });
-      
-      // Preserve ALL message fields in localStorage
-      const enhancedMessages = messages.map(msg => {
-        const stored: any = {
-          id: msg.id,
-          content: msg.content,
-          sender: msg.sender,
-          timestamp: msg.timestamp
-        };
-        
-        // Preserve ALL optional fields
-        if (msg.pending !== undefined) stored.pending = msg.pending;
-        if (msg.source !== undefined) stored.source = msg.source;
-        if (msg.isLoading !== undefined) stored.isLoading = msg.isLoading;
-        if (msg.rawRequest !== undefined) stored.rawRequest = msg.rawRequest;
-        if (msg.rawResponse !== undefined) stored.rawResponse = msg.rawResponse;
-        if (msg.tokenInfo !== undefined) stored.tokenInfo = msg.tokenInfo;
-        if (msg.threadId !== undefined) stored.threadId = msg.threadId;
-        if (msg.metadata !== undefined) stored.metadata = msg.metadata;
-        if (msg.tokens !== undefined) stored.tokens = msg.tokens;
-        
-        return stored;
-      });
-      
-      localStorage.setItem('chat_messages', JSON.stringify(enhancedMessages));
-    }
-  }, [messages]);
-
-  // Handle proactive messages in chat - create complete Message objects
-  useEffect(() => {
-    const unsubscribe = onProactiveMessage((proactiveMessage: ProactiveMessage) => {
-      logger.info('Received proactive message in chat:', proactiveMessage);
-      
-      // Convert proactive message to complete chat message format
-      const chatMessage: Message = {
-        id: proactiveMessage.id,
-        content: proactiveMessage.content,
-        sender: 'ai',
-        timestamp: proactiveMessage.timestamp,
-        source: 'proactive', // Mark as proactive source
-        metadata: { isProactive: true, ...proactiveMessage.metadata }
-      };
-      
-      console.log('Adding proactive message to chat:', {
-        id: chatMessage.id,
-        keys: Object.keys(chatMessage),
-        source: chatMessage.source
-      });
-      
-      // Add the message to the chat
-      setMessages(prev => [...prev, chatMessage]);
-      
-      // Show a toast notification for proactive messages
-      toast({
-        title: `New message from ${proactiveMessage.sender}`,
-        description: proactiveMessage.content.substring(0, 100) + (proactiveMessage.content.length > 100 ? '...' : ''),
-      });
-    });
-
-    return unsubscribe;
-  }, [onProactiveMessage, toast]);
+  });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
   };
 
-  const addMessage = (message: Message) => {
-    console.log('Adding message to state:', {
-      id: message.id,
-      sender: message.sender,
-      keys: Object.keys(message),
-      hasTokenInfo: !!message.tokenInfo,
-      hasThreadId: !!message.threadId,
-      hasRawRequest: !!message.rawRequest
-    });
-    setMessages(prev => [...prev, message]);
-  };
-
   const clearChat = () => {
-    setMessages([]);
-    localStorage.removeItem('chat_messages');
+    clearMessages();
+    clearStorage();
     toast({
       title: "Chat cleared!",
       description: "All messages have been deleted.",
@@ -153,98 +64,17 @@ export const useChat = () => {
     setIsLoading(true);
     setError(null);
 
-    const userMessage: Message = {
-      id: uuidv4(),
-      content: initialMessage,
-      sender: 'user',
-      timestamp: new Date().toISOString(),
-    };
-
+    const userMessage = createUserMessage(initialMessage);
     addMessage(userMessage);
 
     try {
-      // Use the real message processor instead of echo
-      const aiResponse = await processMessage({
-        message: initialMessage,
-        isAuthenticated: !!user,
-        userProfile: user ? {
-          username: user.user_metadata?.username,
-          first_name: user.user_metadata?.first_name,
-          last_name: user.user_metadata?.last_name
-        } : null,
-        onError: (error) => {
-          logger.error('Error in AI response:', error);
-          setError(error.message || 'Failed to get AI response');
-        }
-      });
-
-      console.log('AI response from message processor:', {
-        id: aiResponse.id,
-        keys: Object.keys(aiResponse),
-        hasTokenInfo: !!aiResponse.tokenInfo,
-        hasThreadId: !!aiResponse.threadId,
-        hasRawRequest: !!aiResponse.rawRequest,
-        hasRawResponse: !!aiResponse.rawResponse,
-        tokenInfo: aiResponse.tokenInfo
-      });
-
-      // Convert the enhanced response to our message format, preserving ALL data
-      const aiMessage: Message = {
-        id: aiResponse.id,
-        content: aiResponse.content,
-        sender: 'ai',
-        timestamp: aiResponse.timestamp,
-        metadata: aiResponse.metadata,
-        tokenInfo: aiResponse.tokenInfo,
-        threadId: aiResponse.threadId,
-        rawRequest: aiResponse.rawRequest,
-        rawResponse: aiResponse.rawResponse
-      };
-      
-      console.log('Final AI message being added:', {
-        id: aiMessage.id,
-        keys: Object.keys(aiMessage),
-        hasTokenInfo: !!aiMessage.tokenInfo,
-        hasThreadId: !!aiMessage.threadId,
-        tokenInfo: aiMessage.tokenInfo
-      });
-      
-      addMessage(aiMessage);
-      
-      // Log the interaction to Supabase
-      if (user) {
-        try {
-          const { error } = await supabase
-            .from('chat_logs')
-            .insert([
-              {
-                user_id: user.id,
-                user_message: userMessage.content,
-                ai_response: aiMessage.content,
-                timestamp: new Date().toISOString(),
-                metadata: {}
-              },
-            ]);
-          
-          if (error) {
-            logger.error('Error logging chat interaction to Supabase:', error);
-          }
-        } catch (supabaseError: any) {
-          logger.error('Unexpected error logging chat interaction to Supabase:', supabaseError);
-        }
-      }
+      await sendMessageToApi(userMessage);
     } catch (err: any) {
       logger.error('Error in startChat:', err);
       setError(err.message || 'Failed to start chat');
       
       // Add error message to chat
-      const errorMessage: Message = {
-        id: uuidv4(),
-        content: "I'm sorry, but I encountered an error processing your message. Please try again.",
-        sender: 'ai',
-        timestamp: new Date().toISOString(),
-        metadata: { error: true }
-      };
+      const errorMessage = createErrorMessage("I'm sorry, but I encountered an error processing your message. Please try again.");
       addMessage(errorMessage);
       
       toast({
@@ -255,7 +85,7 @@ export const useChat = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [user, addMessage, toast]);
+  }, [createUserMessage, addMessage, sendMessageToApi, createErrorMessage, toast]);
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -263,99 +93,18 @@ export const useChat = () => {
     setIsLoading(true);
     setError(null);
 
-    const userMessage: Message = {
-      id: uuidv4(),
-      content: input,
-      sender: 'user',
-      timestamp: new Date().toISOString(),
-    };
-
+    const userMessage = createUserMessage(input);
     addMessage(userMessage);
     setInput('');
 
     try {
-      // Use the real message processor instead of echo
-      const aiResponse = await processMessage({
-        message: userMessage.content,
-        isAuthenticated: !!user,
-        userProfile: user ? {
-          username: user.user_metadata?.username,
-          first_name: user.user_metadata?.first_name,
-          last_name: user.user_metadata?.last_name
-        } : null,
-        onError: (error) => {
-          logger.error('Error in AI response:', error);
-          setError(error.message || 'Failed to get AI response');
-        }
-      });
-
-      console.log('AI response from message processor:', {
-        id: aiResponse.id,
-        keys: Object.keys(aiResponse),
-        hasTokenInfo: !!aiResponse.tokenInfo,
-        hasThreadId: !!aiResponse.threadId,
-        hasRawRequest: !!aiResponse.rawRequest,
-        hasRawResponse: !!aiResponse.rawResponse,
-        tokenInfo: aiResponse.tokenInfo
-      });
-
-      // Convert the enhanced response to our message format, preserving ALL data
-      const aiMessage: Message = {
-        id: aiResponse.id,
-        content: aiResponse.content,
-        sender: 'ai',
-        timestamp: aiResponse.timestamp,
-        metadata: aiResponse.metadata,
-        tokenInfo: aiResponse.tokenInfo,
-        threadId: aiResponse.threadId,
-        rawRequest: aiResponse.rawRequest,
-        rawResponse: aiResponse.rawResponse
-      };
-      
-      console.log('Final AI message being added:', {
-        id: aiMessage.id,
-        keys: Object.keys(aiMessage),
-        hasTokenInfo: !!aiMessage.tokenInfo,
-        hasThreadId: !!aiMessage.threadId,
-        tokenInfo: aiMessage.tokenInfo
-      });
-      
-      addMessage(aiMessage);
-      
-      // Log the interaction to Supabase
-      if (user) {
-        try {
-          const { error } = await supabase
-            .from('chat_logs')
-            .insert([
-              {
-                user_id: user.id,
-                user_message: userMessage.content,
-                ai_response: aiMessage.content,
-                timestamp: new Date().toISOString(),
-                metadata: {}
-              },
-            ]);
-          
-          if (error) {
-            logger.error('Error logging chat interaction to Supabase:', error);
-          }
-        } catch (supabaseError: any) {
-          logger.error('Unexpected error logging chat interaction to Supabase:', supabaseError);
-        }
-      }
+      await sendMessageToApi(userMessage);
     } catch (err: any) {
       logger.error('Error in sendMessage:', err);
       setError(err.message || 'Failed to send message');
       
       // Add error message to chat
-      const errorMessage: Message = {
-        id: uuidv4(),
-        content: "I'm sorry, but I encountered an error processing your message. Please try again.",
-        sender: 'ai',
-        timestamp: new Date().toISOString(),
-        metadata: { error: true }
-      };
+      const errorMessage = createErrorMessage("I'm sorry, but I encountered an error processing your message. Please try again.");
       addMessage(errorMessage);
       
       toast({
