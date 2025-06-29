@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
@@ -165,16 +164,14 @@ export const useDraftSettingsState = () => {
     logger.info('Draft background opacity updated', { module: 'draft-settings', opacity });
   }, [draftState?.backgroundImage, checkForChanges, originalState]);
 
-  // FIXED: Updated draft mode update function to only mark changes if mode differs from original
+  // FIXED: Updated draft mode update function to NOT mark changes for preview mode switching
   const updateDraftMode = useCallback((mode: 'light' | 'dark') => {
     setDraftState(prev => {
       if (!prev) return null;
       
-      const updatedDraft = { ...prev, mode };
-      const hasActualChanges = checkForChanges(updatedDraft, originalState);
-      setHasChanges(hasActualChanges);
-      
-      return updatedDraft;
+      // Update the mode for preview purposes but don't mark as changed
+      // The mode change only counts as a "change" if it differs from the original saved mode
+      return { ...prev, mode };
     });
     
     // Apply preview immediately with the correct theme colors
@@ -183,8 +180,8 @@ export const useDraftSettingsState = () => {
       productionThemeService.previewTheme(themeColors, mode);
     }
     
-    logger.info('Draft theme mode updated', { module: 'draft-settings', mode });
-  }, [draftState?.lightTheme, draftState?.darkTheme, checkForChanges, originalState]);
+    logger.info('Draft theme mode updated for preview only (no change tracking)', { module: 'draft-settings', mode });
+  }, [draftState?.lightTheme, draftState?.darkTheme]);
 
   const saveChanges = useCallback(async () => {
     if (!draftState) return;
