@@ -1,4 +1,3 @@
-
 import { ThemeColors, ThemeSettings } from '@/types/theme';
 import { applyThemeChanges, applyBackgroundImage } from '@/utils/theme-utils';
 import { logger } from '@/utils/logging';
@@ -96,13 +95,19 @@ class CentralizedThemeService {
         hasUserSettings: !!userSettings
       });
 
+      // Detect current visual theme from DOM to sync with actual state
+      const currentVisualMode = this.detectCurrentVisualTheme();
+      
       if (userSettings && this.validateThemeSettings(userSettings)) {
-        this.state.mode = userSettings.mode || 'light';
+        this.state.mode = userSettings.mode || currentVisualMode;
         this.state.lightTheme = userSettings.lightTheme || this.getDefaultLightTheme();
         this.state.darkTheme = userSettings.darkTheme || this.getDefaultDarkTheme();
         this.state.backgroundImage = userSettings.backgroundImage || null;
         this.state.backgroundOpacity = this.normalizeOpacity(userSettings.backgroundOpacity || 0.5);
       } else {
+        // Use detected visual mode if no user settings
+        this.state.mode = currentVisualMode;
+        
         // Try to load default theme from database
         try {
           const appSettings = await fetchAppSettings();
@@ -130,7 +135,8 @@ class CentralizedThemeService {
       
       logger.info('Centralized theme service initialized', { 
         module: 'centralized-theme',
-        mode: this.state.mode
+        mode: this.state.mode,
+        detectedMode: currentVisualMode
       });
     } catch (error) {
       logger.error('Failed to initialize centralized theme service:', error);
@@ -138,6 +144,63 @@ class CentralizedThemeService {
       this.isInitialized = true;
       this.notifyListeners();
     }
+  }
+
+  // NEW: Detect current visual theme from DOM
+  private detectCurrentVisualTheme(): 'light' | 'dark' {
+    if (typeof window === 'undefined') return 'light';
+    
+    const htmlElement = document.documentElement;
+    
+    // Check for explicit theme classes
+    if (htmlElement.classList.contains('dark')) return 'dark';
+    if (htmlElement.classList.contains('light')) return 'light';
+    
+    // Check system preference as fallback
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+    
+    return 'light';
+  }
+
+  // NEW: Public method to sync with external theme changes
+  syncWithExternalThemeChange(mode: 'light' | 'dark'): void {
+    if (this.state.isInPreview) {
+      // If in preview mode, update preview state instead
+      this.state.previewMode = mode;
+    } else {
+      // Update actual state
+      this.state.mode = mode;
+      this.applyCurrentTheme();
+    }
+    
+    logger.info('Synced with external theme change', { 
+      module: 'centralized-theme', 
+      mode, 
+      wasInPreview: this.state.isInPreview 
+    });
+    
+    this.notifyListeners();
+  }
+
+  // MODIFIED: Allow direct theme changes even outside preview mode
+  setThemeMode(mode: 'light' | 'dark'): void {
+    if (this.state.isInPreview) {
+      // If in preview mode, update preview
+      this.previewThemeMode(mode);
+    } else {
+      // Direct theme change - update actual state
+      this.state.mode = mode;
+      this.applyCurrentTheme();
+      this.notifyListeners();
+    }
+    
+    logger.info('Theme mode changed', { 
+      module: 'centralized-theme', 
+      mode, 
+      wasInPreview: this.state.isInPreview 
+    });
   }
 
   // State access
@@ -380,6 +443,21 @@ class CentralizedThemeService {
     } catch (error) {
       logger.error('Error loading default theme:', error);
       return false;
+    }
+  }
+
+  // NEW: Recovery method for state synchronization issues
+  recoverFromDesync(): void {
+    const visualMode = this.detectCurrentVisualTheme();
+    
+    if (visualMode !== this.state.mode && !this.state.isInPreview) {
+      logger.warn('Detected theme desync, recovering', { 
+        visualMode, 
+        stateMode: this.state.mode 
+      });
+      
+      this.state.mode = visualMode;
+      this.notifyListeners();
     }
   }
 }

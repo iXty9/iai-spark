@@ -14,7 +14,7 @@ export const useCentralizedTheme = () => {
     return unsubscribe;
   }, []);
 
-  // Return simplified interface for general app usage (non-preview values)
+  // Return interface for general app usage (non-preview values)
   return {
     theme: themeState.mode,
     lightTheme: themeState.lightTheme,
@@ -22,12 +22,20 @@ export const useCentralizedTheme = () => {
     backgroundImage: themeState.backgroundImage,
     backgroundOpacity: themeState.backgroundOpacity,
     isReady: themeState.isReady,
+    isInPreview: themeState.isInPreview,
+    
+    // Theme control methods
     setTheme: (mode: 'light' | 'dark') => {
-      // Only allow direct theme changes outside of preview mode
-      if (!themeState.isInPreview) {
-        centralizedThemeService.previewThemeMode(mode);
-        centralizedThemeService.exitPreviewMode(true);
-      }
+      centralizedThemeService.setThemeMode(mode);
+    },
+    
+    // NEW: Synchronization methods
+    syncWithExternalChange: (mode: 'light' | 'dark') => {
+      centralizedThemeService.syncWithExternalThemeChange(mode);
+    },
+    
+    recoverFromDesync: () => {
+      centralizedThemeService.recoverFromDesync();
     }
   };
 };

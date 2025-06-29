@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useTheme } from '@/hooks/use-theme';
+import { useCentralizedTheme } from '@/hooks/use-centralized-theme';
 import { useDevMode } from '@/store/use-dev-mode';
 import { toast } from "@/hooks/use-toast";
 import { fetchAppSettings } from '@/services/admin/settingsService';
@@ -40,8 +40,13 @@ export const HeaderActions = ({
   dynamicPadding = { right: 0 },
   isMobile = false
 }: HeaderActionsProps) => {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme } = useCentralizedTheme();
   const { isDevMode, toggleDevMode } = useDevMode();
+  
+  const handleThemeToggle = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+  };
   
   const handleDevModeToggle = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -142,7 +147,7 @@ export const HeaderActions = ({
         <Button 
           variant="ghost" 
           size="icon"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          onClick={handleThemeToggle}
           aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           className="h-9 w-9 shadow-sm"
         >
@@ -193,7 +198,7 @@ export const HeaderActions = ({
           </DropdownMenuItem>
           
           {isMobile && (
-            <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="py-2.5">
+            <DropdownMenuItem onClick={handleThemeToggle} className="py-2.5">
               {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
               <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
             </DropdownMenuItem>
