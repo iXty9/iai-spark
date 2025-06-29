@@ -1,6 +1,5 @@
 
 import { fetchAppSettings } from '@/services/admin/settingsService';
-import { logger } from '@/utils/logging';
 
 interface CachedSettings {
   data: Record<string, string>;
@@ -82,13 +81,15 @@ class SettingsCacheService {
   // Emit settings change event
   private emitChange(settings: Record<string, string>): void {
     console.log('[SETTINGS-CACHE] Emitting change event to', this.listeners.size, 'listeners with data:', settings);
-    this.listeners.forEach((listener, index) => {
+    let listenerIndex = 0;
+    this.listeners.forEach((listener) => {
+      listenerIndex++;
       try {
-        console.log('[SETTINGS-CACHE] Calling listener', index + 1);
+        console.log('[SETTINGS-CACHE] Calling listener', listenerIndex);
         listener(settings);
-        console.log('[SETTINGS-CACHE] Listener', index + 1, 'called successfully');
+        console.log('[SETTINGS-CACHE] Listener', listenerIndex, 'called successfully');
       } catch (error) {
-        console.error('[SETTINGS-CACHE] Error in settings change listener', index + 1, ':', error);
+        console.error('[SETTINGS-CACHE] Error in settings change listener', listenerIndex, ':', error);
       }
     });
   }

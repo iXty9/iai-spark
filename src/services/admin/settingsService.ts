@@ -1,4 +1,5 @@
-import { supabase } from '@/lib/supabase';
+
+import { supabase } from '@/integrations/supabase/client';
 
 export const fetchAppSettings = async (): Promise<Record<string, string>> => {
   console.log('[SETTINGS-SERVICE] fetchAppSettings called');
@@ -57,3 +58,7 @@ export const updateAppSetting = async (key: string, value: string): Promise<void
     throw error;
   }
 };
+
+// Export functions from the settings modules
+export { saveConnectionConfig, fetchConnectionConfig } from './settings/connectionSettings';
+export { getAppSettingsMap, setDefaultThemeSettings } from './settings/generalSettings';
