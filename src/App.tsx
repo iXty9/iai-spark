@@ -20,7 +20,7 @@ import Initialize from "./pages/Initialize";
 import Reconnect from "./pages/Reconnect";
 import SupabaseAuth from "./pages/SupabaseAuth";
 import NotFound from "./pages/NotFound";
-import ErrorPage from "./pages/ErrorPage";
+import { ErrorPage } from "./pages/ErrorPage";
 
 const queryClient = new QueryClient();
 
@@ -35,7 +35,7 @@ function App() {
               <BrowserRouter>
                 <FastBootstrapProvider>
                   <ComponentErrorBoundary>
-                    <AuthProvider>
+                    <AuthProvider clientReady={true}>
                       <WebSocketProvider>
                         <FastHealthMonitor />
                         <Routes>
