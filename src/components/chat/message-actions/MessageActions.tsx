@@ -122,13 +122,40 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
     }
   };
 
-  // Check if we have any token-related information to show
-  const hasTokenData = tokenInfo && (
-    tokenInfo.threadId || 
-    tokenInfo.promptTokens !== undefined || 
-    tokenInfo.completionTokens !== undefined || 
-    tokenInfo.totalTokens !== undefined
-  );
+  // Enhanced check for token data with detailed logging
+  const hasTokenData = React.useMemo(() => {
+    console.log('=== MessageActions Token Data Check ===');
+    console.log('Raw tokenInfo received:', tokenInfo);
+    console.log('tokenInfo type:', typeof tokenInfo);
+    console.log('tokenInfo is truthy:', !!tokenInfo);
+    
+    if (!tokenInfo) {
+      console.log('No tokenInfo object provided');
+      return false;
+    }
+    
+    const hasThreadId = tokenInfo.threadId && tokenInfo.threadId.length > 0;
+    const hasPromptTokens = tokenInfo.promptTokens !== undefined && tokenInfo.promptTokens !== null;
+    const hasCompletionTokens = tokenInfo.completionTokens !== undefined && tokenInfo.completionTokens !== null;
+    const hasTotalTokens = tokenInfo.totalTokens !== undefined && tokenInfo.totalTokens !== null;
+    
+    console.log('Token data breakdown:', {
+      hasThreadId,
+      threadIdValue: tokenInfo.threadId,
+      hasPromptTokens,
+      promptTokensValue: tokenInfo.promptTokens,
+      hasCompletionTokens,
+      completionTokensValue: tokenInfo.completionTokens,
+      hasTotalTokens,
+      totalTokensValue: tokenInfo.totalTokens
+    });
+    
+    const result = hasThreadId || hasPromptTokens || hasCompletionTokens || hasTotalTokens;
+    console.log('Final hasTokenData result:', result);
+    console.log('=== End Token Data Check ===');
+    
+    return result;
+  }, [tokenInfo]);
 
   console.log('MessageActions render:', {
     messageId,
