@@ -85,7 +85,6 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
   };
 
   const handleTokenInfo = () => {
-    console.log('Token info button clicked, tokenInfo:', tokenInfo);
     if (tokenInfo) {
       setShowTokenInfo(true);
     } else {
@@ -122,15 +121,9 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
     }
   };
 
-  // Enhanced check for token data with detailed logging
+  // Check for token data
   const hasTokenData = React.useMemo(() => {
-    console.log('=== MessageActions Token Data Check ===');
-    console.log('Raw tokenInfo received:', tokenInfo);
-    console.log('tokenInfo type:', typeof tokenInfo);
-    console.log('tokenInfo is truthy:', !!tokenInfo);
-    
     if (!tokenInfo) {
-      console.log('No tokenInfo object provided');
       return false;
     }
     
@@ -139,30 +132,8 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
     const hasCompletionTokens = tokenInfo.completionTokens !== undefined && tokenInfo.completionTokens !== null;
     const hasTotalTokens = tokenInfo.totalTokens !== undefined && tokenInfo.totalTokens !== null;
     
-    console.log('Token data breakdown:', {
-      hasThreadId,
-      threadIdValue: tokenInfo.threadId,
-      hasPromptTokens,
-      promptTokensValue: tokenInfo.promptTokens,
-      hasCompletionTokens,
-      completionTokensValue: tokenInfo.completionTokens,
-      hasTotalTokens,
-      totalTokensValue: tokenInfo.totalTokens
-    });
-    
-    const result = hasThreadId || hasPromptTokens || hasCompletionTokens || hasTotalTokens;
-    console.log('Final hasTokenData result:', result);
-    console.log('=== End Token Data Check ===');
-    
-    return result;
+    return hasThreadId || hasPromptTokens || hasCompletionTokens || hasTotalTokens;
   }, [tokenInfo]);
-
-  console.log('MessageActions render:', {
-    messageId,
-    hasTokenData,
-    tokenInfo,
-    disabled: !hasTokenData
-  });
 
   return (
     <div className="flex items-center gap-1 mt-2">

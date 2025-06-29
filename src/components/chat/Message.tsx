@@ -35,16 +35,6 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
 
   // Construct complete TokenInfo object for the MessageActions component
   const getTokenInfo = () => {
-    console.log('=== Message.tsx getTokenInfo DEBUG ===');
-    console.log('Message ID:', message.id);
-    console.log('Message keys:', Object.keys(message));
-    console.log('Message tokenInfo:', message.tokenInfo);
-    console.log('Message threadId:', message.threadId);
-    console.log('Message rawRequest:', !!message.rawRequest);
-    console.log('Message rawResponse:', !!message.rawResponse);
-    console.log('Message source:', message.source);
-    console.log('Is proactive:', isProactive);
-
     // Check if we have any token-related data
     if (message.tokenInfo || message.threadId) {
       const tokenInfo = {
@@ -54,13 +44,9 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
         totalTokens: message.tokenInfo?.totalTokens,
       };
       
-      console.log('Returning token info:', tokenInfo);
-      console.log('=== END Message.tsx getTokenInfo DEBUG ===');
       return tokenInfo;
     }
     
-    console.log('No token info available');
-    console.log('=== END Message.tsx getTokenInfo DEBUG ===');
     return undefined;
   };
   
