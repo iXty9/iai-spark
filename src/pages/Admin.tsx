@@ -12,7 +12,6 @@ import { UserManagement } from '@/components/admin/UserManagement';
 import Environment from '@/components/admin/Environment';
 import { ArrowLeft } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { SeoSettings } from '@/components/admin/SeoSettings';
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -27,7 +26,7 @@ export default function Admin() {
   useEffect(() => {
     const queryParams = new URLSearchParams(window.location.search);
     const tabParam = queryParams.get('tab');
-    if (tabParam === 'users' || tabParam === 'webhooks' || tabParam === 'app-settings' || tabParam === 'environment' || tabParam === 'seo') {
+    if (tabParam === 'users' || tabParam === 'webhooks' || tabParam === 'app-settings' || tabParam === 'environment') {
       setActiveTab(tabParam);
     }
   }, []);
@@ -178,7 +177,6 @@ export default function Admin() {
             appSettingsContent={<AppSettings />}
             userManagementContent={<UserManagement />}
             environmentContent={<Environment />}
-            seoContent={<SeoSettings />}
             activeTab={activeTab}
             onTabChange={handleTabChange}
           />
