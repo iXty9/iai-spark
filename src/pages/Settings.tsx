@@ -1,8 +1,6 @@
 
 import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/hooks/use-theme';
-import { useDraftSettingsState } from '@/hooks/settings/use-draft-settings-state';
-import { useDraftSettingsActions } from '@/hooks/settings/use-draft-settings-actions';
+import { useCentralizedSettingsState } from '@/hooks/settings/use-centralized-settings-state';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -12,98 +10,143 @@ import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
 import { BackgroundSettings } from '@/components/settings/BackgroundSettings';
 import { SettingsFooter } from '@/components/settings/SettingsFooter';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/utils/logging';
+import { useEffect } from 'react';
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { user, profile, updateProfile } = useAuth();
-  const { theme } = useTheme();
+  const { user, updateProfile } = useAuth();
+  const { toast } = useToast();
 
   const {
-    draftState,
-    isInitialized,
-    isSubmitting,
     isLoading,
+    isSubmitting,
     hasChanges,
+    isInPreview,
     imageInfo,
-    updateDraftLightTheme,
-    updateDraftDarkTheme,
-    updateDraftBackgroundImage,
-    updateDraftBackgroundOpacity,
-    updateDraftMode,
+    mode,
+    lightTheme,
+    darkTheme,
+    backgroundImage,
+    backgroundOpacity,
+    enterSettingsMode,
+    exitSettingsMode,
+    updatePreviewMode,
+    updatePreviewLightTheme,
+    updatePreviewDarkTheme,
+    updatePreviewBackgroundImage,
+    updatePreviewBackgroundOpacity,
     saveChanges,
     discardChanges,
-    resetToDefaults,
-    refreshSettings
-  } = useDraftSettingsState();
+    resetToDefaults
+  } = useCentralizedSettingsState();
 
-  // Create wrapper functions that return boolean to match expected interface
-  const wrappedSaveChanges = async (): Promise<boolean> => {
+  // Enter preview mode when component mounts
+  useEffect(() => {
+    enterSettingsMode();
+    
+    // Cleanup: exit preview mode when component unmounts (without saving)
+    return () => {
+      if (isInPreview) {
+        exitSettingsMode(false);
+      }
+    };
+  }, []);
+
+  // Theme change handlers
+  const handleLightThemeChange = (colorKey: string, value: string | number) => {
+    const updatedTheme = { ...lightTheme, [colorKey]: value };
+    updatePreviewLightTheme(updatedTheme);
+  };
+
+  const handleDarkThemeChange = (colorKey: string, value: string | number) => {
+    const updatedTheme = { ...darkTheme, [colorKey]: value };
+    updatePreviewDarkTheme(updatedTheme);
+  };
+
+  const handleBackgroundImageUpload = async (file: File): Promise<void> => {
+    // TODO: Implement actual upload logic
+    const fakeUrl = URL.createObjectURL(file);
+    updatePreviewBackgroundImage(fakeUrl, {
+      originalSize: `${file.size} bytes`,
+      optimizedSize: `${file.size} bytes`
+    });
+  };
+
+  const handleRemoveBackground = () => {
+    updatePreviewBackgroundImage(null);
+  };
+
+  const handleOpacityChange = (opacity: number) => {
+    updatePreviewBackgroundOpacity(opacity);
+  };
+
+  // Settings actions
+  const handleSaveSettings = async () => {
     try {
-      await saveChanges();
-      return true;
+      const success = await saveChanges();
+      
+      if (success && user && updateProfile) {
+        // Save to profile
+        const themeSettings = {
+          mode,
+          lightTheme,
+          darkTheme,
+          backgroundImage,
+          backgroundOpacity,
+          exportDate: new Date().toISOString(),
+          name: 'Custom Theme'
+        };
+        
+        await updateProfile({ theme_settings: JSON.stringify(themeSettings) });
+        
+        toast({
+          title: "Settings saved",
+          description: "Your theme settings have been saved successfully",
+        });
+      } else if (success) {
+        toast({
+          title: "Settings saved",
+          description: "Your theme settings have been saved locally",
+        });
+      }
     } catch (error) {
-      return false;
+      logger.error('Error saving settings:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to save settings. Please try again.",
+      });
     }
   };
 
-  const wrappedDiscardChanges = async (): Promise<boolean> => {
+  const handleCancelSettings = () => {
+    discardChanges();
+    toast({
+      title: "Changes discarded",
+      description: "Your unsaved changes have been reverted",
+    });
+  };
+
+  const handleResetSettings = async () => {
     try {
-      await discardChanges();
-      return true;
+      const success = await resetToDefaults();
+      
+      if (success) {
+        toast({
+          title: "Settings reset",
+          description: "Your theme settings have been reset to defaults",
+        });
+      }
     } catch (error) {
-      return false;
+      logger.error('Error resetting settings:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to reset settings. Please try again.",
+      });
     }
-  };
-
-  const wrappedResetToDefaults = async (): Promise<boolean> => {
-    try {
-      await resetToDefaults();
-      return true;
-    } catch (error) {
-      return false;
-    }
-  };
-
-  const {
-    handleLightThemeChange,
-    handleDarkThemeChange,
-    handleBackgroundImageUpload,
-    handleRemoveBackground,
-    handleOpacityChange,
-    handleSaveSettings,
-    handleCancelSettings,
-    handleResetSettings,
-    isBackgroundLoading
-  } = useDraftSettingsActions({
-    user,
-    theme,
-    lightTheme: draftState?.lightTheme || {} as any,
-    darkTheme: draftState?.darkTheme || {} as any,
-    backgroundImage: draftState?.backgroundImage || null,
-    backgroundOpacity: draftState?.backgroundOpacity || 0.5,
-    updateDraftLightTheme,
-    updateDraftDarkTheme,
-    updateDraftBackgroundImage,
-    updateDraftBackgroundOpacity,
-    updateDraftMode,
-    saveChanges: wrappedSaveChanges,
-    discardChanges: wrappedDiscardChanges,
-    resetToDefaults: wrappedResetToDefaults,
-    updateProfile
-  });
-
-  // Create wrapper functions to match AppearanceSettings prop types
-  const handleLightThemeChangeWrapper = (colorKey: string, value: string | number) => {
-    handleLightThemeChange({ name: colorKey, value });
-  };
-
-  const handleDarkThemeChangeWrapper = (colorKey: string, value: string | number) => {
-    handleDarkThemeChange({ name: colorKey, value });
-  };
-
-  // Handle theme mode changes through draft state system
-  const handleThemeModeChange = (mode: 'light' | 'dark') => {
-    updateDraftMode(mode);
   };
 
   const handleGoBack = () => {
@@ -112,19 +155,15 @@ export default function Settings() {
         "You have unsaved changes. Are you sure you want to leave? Your changes will be lost."
       );
       if (!confirmLeave) return;
-      
-      // Discard changes before navigating
-      discardChanges();
     }
+    
+    // Exit preview mode without saving
+    exitSettingsMode(false);
     navigate('/');
   };
 
-  const handleRefresh = async () => {
-    await refreshSettings();
-  };
-
-  // Show loading state while theme service initializes
-  if (isLoading || !isInitialized || !draftState) {
+  // Show loading state
+  if (isLoading) {
     return (
       <div className="container max-w-4xl py-10">
         <div className="animate-pulse space-y-6">
@@ -151,15 +190,6 @@ export default function Settings() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <CardTitle className="text-center flex-1">Settings</CardTitle>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleRefresh}
-              disabled={isLoading}
-              className="text-xs"
-            >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            </Button>
           </div>
         </CardHeader>
         
@@ -189,25 +219,25 @@ export default function Settings() {
             
             <TabsContent value="appearance" className="space-y-6">
               <AppearanceSettings
-                theme={draftState.mode || theme}
-                lightTheme={draftState.lightTheme}
-                darkTheme={draftState.darkTheme}
-                onLightThemeChange={handleLightThemeChangeWrapper}
-                onDarkThemeChange={handleDarkThemeChangeWrapper}
+                theme={mode}
+                lightTheme={lightTheme}
+                darkTheme={darkTheme}
+                onLightThemeChange={handleLightThemeChange}
+                onDarkThemeChange={handleDarkThemeChange}
                 onResetTheme={handleResetSettings}
-                onThemeModeChange={handleThemeModeChange}
+                onThemeModeChange={updatePreviewMode}
               />
             </TabsContent>
             
             <TabsContent value="background" className="space-y-6">
               <BackgroundSettings
-                backgroundImage={draftState.backgroundImage}
-                backgroundOpacity={draftState.backgroundOpacity}
+                backgroundImage={backgroundImage}
+                backgroundOpacity={backgroundOpacity}
                 imageInfo={imageInfo}
                 onBackgroundImageUpload={handleBackgroundImageUpload}
                 onRemoveBackground={handleRemoveBackground}
                 onOpacityChange={handleOpacityChange}
-                isLoading={isBackgroundLoading}
+                isLoading={false}
               />
             </TabsContent>
           </Tabs>
