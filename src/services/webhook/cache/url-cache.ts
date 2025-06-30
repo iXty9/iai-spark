@@ -1,4 +1,3 @@
-
 import { logger } from '@/utils/logging';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 
@@ -8,16 +7,13 @@ let lastCacheUpdate = 0;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 /**
- * Get default webhook URLs from environment or fallback defaults
+ * Get default webhook URLs from hardcoded defaults
  */
 export const getDefaultUrls = () => {
-  // Check for environment variables first (for deployment flexibility)
-  const DEFAULT_AUTHENTICATED_WEBHOOK = process.env.AUTHENTICATED_WEBHOOK_URL || 
-    'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7';
-  const DEFAULT_ANONYMOUS_WEBHOOK = process.env.ANONYMOUS_WEBHOOK_URL || 
-    'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574';
-  const DEFAULT_DEBUG_WEBHOOK = process.env.DEBUG_WEBHOOK_URL || 
-    'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d8534';
+  // Use hardcoded defaults since custom environment variables aren't available in browser builds
+  const DEFAULT_AUTHENTICATED_WEBHOOK = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7';
+  const DEFAULT_ANONYMOUS_WEBHOOK = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574';
+  const DEFAULT_DEBUG_WEBHOOK = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d8534';
 
   return {
     DEFAULT_AUTHENTICATED_WEBHOOK,
