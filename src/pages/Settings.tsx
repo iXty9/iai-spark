@@ -1,13 +1,13 @@
-
 import { useAuth } from '@/contexts/AuthContext';
 import { useCentralizedSettingsState } from '@/hooks/settings/use-centralized-settings-state';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Palette, Image, AlertCircle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Palette, Image, AlertCircle, RefreshCw, Code } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
 import { BackgroundSettings } from '@/components/settings/BackgroundSettings';
+import { MarkupSettings } from '@/components/settings/MarkupSettings';
 import { SettingsFooter } from '@/components/settings/SettingsFooter';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
@@ -212,7 +212,7 @@ export default function Settings() {
           
           {/* Main Settings Tabs */}
           <Tabs defaultValue="appearance" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsList className="grid w-full grid-cols-3 mb-6">
               <TabsTrigger value="appearance" className="flex items-center gap-2">
                 <Palette className="h-4 w-4" />
                 <span>Appearance</span>
@@ -220,6 +220,10 @@ export default function Settings() {
               <TabsTrigger value="background" className="flex items-center gap-2">
                 <Image className="h-4 w-4" />
                 <span>Background</span>
+              </TabsTrigger>
+              <TabsTrigger value="markup" className="flex items-center gap-2">
+                <Code className="h-4 w-4" />
+                <span>Markup</span>
               </TabsTrigger>
             </TabsList>
             
@@ -244,6 +248,14 @@ export default function Settings() {
                 onRemoveBackground={handleRemoveBackground}
                 onOpacityChange={handleOpacityChange}
                 isLoading={false}
+              />
+            </TabsContent>
+            
+            <TabsContent value="markup" className="space-y-6">
+              <MarkupSettings
+                colors={mode === 'light' ? lightTheme : darkTheme}
+                onColorChange={mode === 'light' ? handleLightThemeChange : handleDarkThemeChange}
+                onReset={handleResetSettings}
               />
             </TabsContent>
           </Tabs>

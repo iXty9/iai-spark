@@ -11,6 +11,12 @@ export interface ThemeColors {
   aiTextColor: string;
   userNameColor: string;
   aiNameColor: string;
+  
+  // Optional markup styling fields - NEW
+  codeBlockBackground?: string;
+  linkColor?: string;
+  blockquoteColor?: string;
+  tableHeaderBackground?: string;
 }
 
 export interface ThemeSettings {

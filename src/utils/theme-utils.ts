@@ -1,4 +1,3 @@
-
 /**
  * Theme utility functions
  * Enhanced utilities for theme operations with complete CSS variable mapping
@@ -14,7 +13,7 @@ export const reloadTheme = () => {
 
 export const handleReloadTheme = reloadTheme;
 
-// Apply theme changes to CSS variables - COMPLETE MAPPING WITH COMPREHENSIVE TEXT COLOR FIX
+// Apply theme changes to CSS variables - COMPLETE MAPPING WITH COMPREHENSIVE TEXT COLOR FIX AND MARKUP SUPPORT
 export const applyThemeChanges = (themeColors: any) => {
   if (typeof window === 'undefined') return;
   
@@ -51,7 +50,13 @@ export const applyThemeChanges = (themeColors: any) => {
       
       // Opacity values
       userBubbleOpacity: '--user-bubble-opacity',
-      aiBubbleOpacity: '--ai-bubble-opacity'
+      aiBubbleOpacity: '--ai-bubble-opacity',
+      
+      // NEW: Markup element colors
+      codeBlockBackground: '--markup-code-bg',
+      linkColor: '--markup-link',
+      blockquoteColor: '--markup-blockquote',
+      tableHeaderBackground: '--markup-table-header'
     };
 
     Object.entries(themeColors).forEach(([key, value]) => {
@@ -64,7 +69,7 @@ export const applyThemeChanges = (themeColors: any) => {
         const mappings = Array.isArray(colorMappings[key]) ? colorMappings[key] : [colorMappings[key]];
         
         mappings.forEach(cssVar => {
-          if (key.includes('Color')) {
+          if (key.includes('Color') || key.includes('Background')) {
             // Convert hex color to HSL for standard CSS variable compatibility
             const hslValue = hexToHsl(String(value));
             root.style.setProperty(cssVar, hslValue);
@@ -106,11 +111,11 @@ export const applyThemeChanges = (themeColors: any) => {
       document.body.offsetHeight;
     }
 
-    console.log('Applied comprehensive theme changes with FULL text color mapping including name tag colors', { 
+    console.log('Applied comprehensive theme changes with FULL text color mapping including markup colors', { 
       themeColors,
       mappedVariables: Object.keys(colorMappings),
       textColorApplied: !!themeColors.textColor,
-      nameTagColorsApplied: !!(themeColors.userNameColor || themeColors.aiNameColor)
+      markupColorsApplied: !!(themeColors.codeBlockBackground || themeColors.linkColor || themeColors.blockquoteColor || themeColors.tableHeaderBackground)
     });
   }
 };

@@ -1,4 +1,4 @@
-/* Enhanced theme styles with comprehensive text color mapping and glass effect support */
+/* Enhanced theme styles with comprehensive text color mapping, glass effect support, and markup customization */
 
 :root {
   /* Base theme variables */
@@ -49,9 +49,15 @@
   --user-bubble-opacity: 0.3;
   --ai-bubble-opacity: 0.3;
   
-  /* Name tag color variables - NEW */
+  /* Name tag color variables */
   --user-name-color: #666666;
   --ai-name-color: #666666;
+  
+  /* NEW: Markup element color variables */
+  --markup-code-bg: #f3f4f6;
+  --markup-link: #2563eb;
+  --markup-blockquote: #d1d5db;
+  --markup-table-header: #f9fafb;
 }
 
 .dark {
@@ -95,9 +101,15 @@
   --user-bubble-opacity: 0.3;
   --ai-bubble-opacity: 0.3;
   
-  /* Name tag color variables for dark mode - NEW */
+  /* Name tag color variables for dark mode */
   --user-name-color: #cccccc;
   --ai-name-color: #cccccc;
+  
+  /* NEW: Markup element color variables for dark mode */
+  --markup-code-bg: #374151;
+  --markup-link: #60a5fa;
+  --markup-blockquote: #6b7280;
+  --markup-table-header: #374151;
 }
 
 /* COMPREHENSIVE TEXT COLOR INHERITANCE - CRITICAL FOR TEXT COLOR SETTING */
