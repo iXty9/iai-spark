@@ -7,16 +7,26 @@ import { useToast } from '@/hooks/use-toast';
 import { notificationService } from '@/services/notification-service';
 import { clientManager } from '@/services/supabase/client-manager';
 
+export interface ProactiveMessage {
+  id: string;
+  content: string;
+  sender: string;
+  timestamp: string;
+  metadata?: Record<string, any>;
+}
+
 interface WebSocketContextType {
   isConnected: boolean;
   isEnabled: boolean;
   connectionId: string | null;
+  onProactiveMessage: (handler: (message: ProactiveMessage) => void) => () => void;
 }
 
 const WebSocketContext = createContext<WebSocketContextType>({
   isConnected: false,
   isEnabled: false,
   connectionId: null,
+  onProactiveMessage: () => () => {},
 });
 
 export const useWebSocket = () => useContext(WebSocketContext);
@@ -53,8 +63,18 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
   const [isConnected, setIsConnected] = useState(false);
   const [isEnabled, setIsEnabled] = useState(false);
   const [connectionId, setConnectionId] = useState<string | null>(null);
+  const [proactiveMessageHandlers, setProactiveMessageHandlers] = useState<((message: ProactiveMessage) => void)[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
+
+  // Method to subscribe to proactive messages
+  const onProactiveMessage = (handler: (message: ProactiveMessage) => void) => {
+    setProactiveMessageHandlers(prev => [...prev, handler]);
+    
+    return () => {
+      setProactiveMessageHandlers(prev => prev.filter(h => h !== handler));
+    };
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -106,15 +126,27 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
 
           logger.info('Received proactive message via WebSocket', messageData, { module: 'websocket' });
 
-          // Dispatch custom event for chat components to handle
-          window.dispatchEvent(new CustomEvent('proactiveMessage', {
-            detail: {
-              id: messageData.data.id,
-              content: messageData.data.content,
-              sender: messageData.data.sender || 'AI Assistant',
-              timestamp: messageData.data.timestamp,
-              metadata: messageData.data.metadata
+          // Create ProactiveMessage object
+          const proactiveMessage: ProactiveMessage = {
+            id: messageData.data.id,
+            content: messageData.data.content,
+            sender: messageData.data.sender || 'AI Assistant',
+            timestamp: messageData.data.timestamp,
+            metadata: messageData.data.metadata
+          };
+
+          // Notify all registered handlers
+          proactiveMessageHandlers.forEach(handler => {
+            try {
+              handler(proactiveMessage);
+            } catch (error) {
+              logger.error('Error in proactive message handler:', error, { module: 'websocket' });
             }
+          });
+
+          // Also dispatch custom event for backwards compatibility
+          window.dispatchEvent(new CustomEvent('proactiveMessage', {
+            detail: proactiveMessage
           }));
         });
 
@@ -141,13 +173,12 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
           });
 
           // Also trigger browser notification if permission granted
-          notificationService.showNotification(
-            notificationData.data.title,
-            {
-              body: notificationData.data.message,
-              icon: '/favicon.ico'
-            }
-          );
+          notificationService.showNotification({
+            title: notificationData.data.title,
+            message: notificationData.data.message,
+            type: notificationData.data.type,
+            showBrowserNotification: true
+          });
         });
 
         // Subscribe to both channels
@@ -200,12 +231,13 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
       setIsEnabled(false);
       setConnectionId(null);
     };
-  }, [user?.id, toast]);
+  }, [user?.id, toast, proactiveMessageHandlers]);
 
   const value: WebSocketContextType = {
     isConnected,
     isEnabled,
     connectionId,
+    onProactiveMessage,
   };
 
   return (
