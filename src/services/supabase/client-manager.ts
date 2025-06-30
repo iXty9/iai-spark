@@ -1,3 +1,4 @@
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { logger } from '@/utils/logging';
 import { SupabaseConfig } from '@/config/supabase/types';
@@ -81,8 +82,7 @@ export class ClientManager {
           },
           heartbeatIntervalMs: 30000,
           reconnectAfterMs: (tries) => Math.min(tries * 1000, 10000),
-          timeout: 20000,
-          transport: 'websocket'
+          timeout: 20000
         },
         global: {
           headers: {
