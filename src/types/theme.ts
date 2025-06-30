@@ -1,3 +1,4 @@
+
 export interface ThemeColors {
   backgroundColor: string;
   primaryColor: string;
@@ -12,11 +13,17 @@ export interface ThemeColors {
   userNameColor: string;
   aiNameColor: string;
   
-  // Optional markup styling fields - NEW
+  // ENHANCED: Complete markup styling fields with text color support
   codeBlockBackground?: string;
   linkColor?: string;
   blockquoteColor?: string;
   tableHeaderBackground?: string;
+  
+  // NEW: Text color properties for markup elements
+  codeBlockTextColor?: string;
+  linkTextColor?: string;
+  blockquoteTextColor?: string;
+  tableHeaderTextColor?: string;
 }
 
 export interface ThemeSettings {
@@ -28,7 +35,7 @@ export interface ThemeSettings {
   lightTheme?: ThemeColors;
   darkTheme?: ThemeColors;
   backgroundImage?: string | null;
-  backgroundOpacity?: number; // FIXED: Always number, not string
+  backgroundOpacity?: number;
   backgroundConfig?: {
     image?: string | null;
     opacity?: number;

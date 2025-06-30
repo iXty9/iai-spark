@@ -1,4 +1,3 @@
-
 import { ThemeColors, ThemeSettings } from '@/types/theme';
 import { applyThemeChanges, applyBackgroundImage } from '@/utils/theme-utils';
 import { logger } from '@/utils/logging';
@@ -66,7 +65,15 @@ class CentralizedThemeService {
       userTextColor: '#000000',
       aiTextColor: '#000000',
       userNameColor: '#666666',
-      aiNameColor: '#666666'
+      aiNameColor: '#666666',
+      codeBlockBackground: '#f3f4f6',
+      linkColor: '#2563eb',
+      blockquoteColor: '#d1d5db',
+      tableHeaderBackground: '#f9fafb',
+      codeBlockTextColor: '#1f2937',
+      linkTextColor: '#2563eb',
+      blockquoteTextColor: '#4b5563',
+      tableHeaderTextColor: '#111827'
     };
   }
 
@@ -83,7 +90,22 @@ class CentralizedThemeService {
       userTextColor: '#ffffff',
       aiTextColor: '#ffffff',
       userNameColor: '#cccccc',
-      aiNameColor: '#cccccc'
+      aiNameColor: '#cccccc',
+      codeBlockBackground: '#374151',
+      linkColor: '#60a5fa',
+      blockquoteColor: '#6b7280',
+      tableHeaderBackground: '#374151',
+      codeBlockTextColor: '#f9fafb',
+      linkTextColor: '#60a5fa',
+      blockquoteTextColor: '#d1d5db',
+      tableHeaderTextColor: '#f3f4f6'
+    };
+  }
+
+  private mergeWithDefaults(userTheme: Partial<ThemeColors>, defaultTheme: ThemeColors): ThemeColors {
+    return {
+      ...defaultTheme,
+      ...userTheme
     };
   }
 
@@ -91,15 +113,19 @@ class CentralizedThemeService {
     if (this.isInitialized) return;
 
     try {
-      logger.info('Initializing centralized theme service', { 
+      logger.info('Initializing centralized theme service with COMPLETE markup support', { 
         module: 'centralized-theme',
         hasUserSettings: !!userSettings
       });
 
       if (userSettings && this.validateThemeSettings(userSettings)) {
         this.state.mode = userSettings.mode || 'light';
-        this.state.lightTheme = userSettings.lightTheme || this.getDefaultLightTheme();
-        this.state.darkTheme = userSettings.darkTheme || this.getDefaultDarkTheme();
+        this.state.lightTheme = userSettings.lightTheme 
+          ? this.mergeWithDefaults(userSettings.lightTheme, this.getDefaultLightTheme())
+          : this.getDefaultLightTheme();
+        this.state.darkTheme = userSettings.darkTheme 
+          ? this.mergeWithDefaults(userSettings.darkTheme, this.getDefaultDarkTheme())
+          : this.getDefaultDarkTheme();
         this.state.backgroundImage = userSettings.backgroundImage || null;
         this.state.backgroundOpacity = this.normalizeOpacity(userSettings.backgroundOpacity || 0.5);
       } else {
@@ -110,8 +136,12 @@ class CentralizedThemeService {
             const defaultSettings = JSON.parse(appSettings.default_theme_settings);
             
             if (this.validateThemeSettings(defaultSettings)) {
-              this.state.lightTheme = defaultSettings.lightTheme || this.getDefaultLightTheme();
-              this.state.darkTheme = defaultSettings.darkTheme || this.getDefaultDarkTheme();
+              this.state.lightTheme = defaultSettings.lightTheme 
+                ? this.mergeWithDefaults(defaultSettings.lightTheme, this.getDefaultLightTheme())
+                : this.getDefaultLightTheme();
+              this.state.darkTheme = defaultSettings.darkTheme 
+                ? this.mergeWithDefaults(defaultSettings.darkTheme, this.getDefaultDarkTheme())
+                : this.getDefaultDarkTheme();
               this.state.backgroundImage = defaultSettings.backgroundImage || null;
               this.state.backgroundOpacity = this.normalizeOpacity(defaultSettings.backgroundOpacity || 0.5);
             }
@@ -128,9 +158,10 @@ class CentralizedThemeService {
       this.applyCurrentTheme();
       this.notifyListeners();
       
-      logger.info('Centralized theme service initialized', { 
+      logger.info('Centralized theme service initialized with COMPLETE markup support', { 
         module: 'centralized-theme',
-        mode: this.state.mode
+        mode: this.state.mode,
+        markupColorsIncluded: !!(this.state.lightTheme.codeBlockBackground && this.state.darkTheme.codeBlockBackground)
       });
     } catch (error) {
       logger.error('Failed to initialize centralized theme service:', error);
@@ -355,8 +386,12 @@ class CentralizedThemeService {
         const defaultSettings = JSON.parse(appSettings.default_theme_settings);
         
         if (this.validateThemeSettings(defaultSettings)) {
-          this.state.lightTheme = defaultSettings.lightTheme || this.getDefaultLightTheme();
-          this.state.darkTheme = defaultSettings.darkTheme || this.getDefaultDarkTheme();
+          this.state.lightTheme = defaultSettings.lightTheme 
+            ? this.mergeWithDefaults(defaultSettings.lightTheme, this.getDefaultLightTheme())
+            : this.getDefaultLightTheme();
+          this.state.darkTheme = defaultSettings.darkTheme 
+            ? this.mergeWithDefaults(defaultSettings.darkTheme, this.getDefaultDarkTheme())
+            : this.getDefaultDarkTheme();
           this.state.backgroundImage = defaultSettings.backgroundImage || null;
           this.state.backgroundOpacity = this.normalizeOpacity(defaultSettings.backgroundOpacity || 0.5);
           
@@ -367,7 +402,6 @@ class CentralizedThemeService {
         }
       }
       
-      // Fallback to hardcoded defaults
       this.state.lightTheme = this.getDefaultLightTheme();
       this.state.darkTheme = this.getDefaultDarkTheme();
       this.state.backgroundImage = null;

@@ -8,7 +8,7 @@ import { RotateCcw, Code, Link, Quote, Table } from 'lucide-react';
 
 interface MarkupSettingsProps {
   colors: ThemeColors;
-  onColorChange: (colorKey: string, value: string | number) => void; // FIXED: Correct signature
+  onColorChange: (colorKey: string, value: string | number) => void;
   onReset: () => void;
 }
 
@@ -18,37 +18,45 @@ export const MarkupSettings: React.FC<MarkupSettingsProps> = ({
   onReset
 }) => {
   const handleChange = (colorKey: string, value: string) => {
-    onColorChange(colorKey, value); // FIXED: Call with correct signature
+    onColorChange(colorKey, value);
   };
 
   const markupElements = [
     {
       key: 'codeBlockBackground',
-      label: 'Code Block Background',
-      value: colors.codeBlockBackground || '#f3f4f6',
+      textKey: 'codeBlockTextColor',
+      label: 'Code Block',
+      backgroundValue: colors.codeBlockBackground || '#f3f4f6',
+      textValue: colors.codeBlockTextColor || '#1f2937',
       icon: Code,
-      description: 'Background color for code blocks and inline code'
+      description: 'Background and text colors for code blocks and inline code'
     },
     {
       key: 'linkColor',
-      label: 'Link Color',
-      value: colors.linkColor || '#2563eb',
+      textKey: 'linkTextColor',
+      label: 'Links',
+      backgroundValue: colors.linkColor || '#2563eb',
+      textValue: colors.linkTextColor || '#2563eb',
       icon: Link,
       description: 'Color for clickable links in messages'
     },
     {
       key: 'blockquoteColor',
-      label: 'Blockquote Border',
-      value: colors.blockquoteColor || '#d1d5db',
+      textKey: 'blockquoteTextColor',
+      label: 'Blockquote',
+      backgroundValue: colors.blockquoteColor || '#d1d5db',
+      textValue: colors.blockquoteTextColor || '#4b5563',
       icon: Quote,
-      description: 'Border color for quoted text blocks'
+      description: 'Border and text colors for quoted text blocks'
     },
     {
       key: 'tableHeaderBackground',
-      label: 'Table Header Background',
-      value: colors.tableHeaderBackground || '#f9fafb',
+      textKey: 'tableHeaderTextColor',
+      label: 'Table Header',
+      backgroundValue: colors.tableHeaderBackground || '#f9fafb',
+      textValue: colors.tableHeaderTextColor || '#111827',
       icon: Table,
-      description: 'Background color for table headers'
+      description: 'Background and text colors for table headers'
     }
   ];
 
@@ -80,19 +88,41 @@ export const MarkupSettings: React.FC<MarkupSettingsProps> = ({
                 <element.icon className="h-4 w-4" />
               </div>
               
-              <div className="flex-1 space-y-2">
+              <div className="flex-1 space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor={element.key} className="font-medium">
+                  <Label className="font-medium">
                     {element.label}
                   </Label>
-                  <input
-                    id={element.key}
-                    type="color"
-                    value={element.value}
-                    onChange={(e) => handleChange(element.key, e.target.value)}
-                    className="w-12 h-8 rounded border cursor-pointer"
-                  />
                 </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor={`${element.key}-bg`} className="text-xs text-muted-foreground">
+                      Background Color
+                    </Label>
+                    <input
+                      id={`${element.key}-bg`}
+                      type="color"
+                      value={element.backgroundValue}
+                      onChange={(e) => handleChange(element.key, e.target.value)}
+                      className="w-full h-8 rounded border cursor-pointer"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor={`${element.textKey}-text`} className="text-xs text-muted-foreground">
+                      Text Color
+                    </Label>
+                    <input
+                      id={`${element.textKey}-text`}
+                      type="color"
+                      value={element.textValue}
+                      onChange={(e) => handleChange(element.textKey, e.target.value)}
+                      className="w-full h-8 rounded border cursor-pointer"
+                    />
+                  </div>
+                </div>
+                
                 <p className="text-xs text-muted-foreground">
                   {element.description}
                 </p>
@@ -107,31 +137,44 @@ export const MarkupSettings: React.FC<MarkupSettingsProps> = ({
           <Code className="h-4 w-4" />
           Preview
         </h4>
-        <div className="space-y-2 text-sm">
+        <div className="space-y-3 text-sm">
           <p>Here's how your markup elements will look:</p>
+          
           <div 
             className="inline-block px-2 py-1 rounded text-xs font-mono border"
-            style={{ backgroundColor: colors.codeBlockBackground || '#f3f4f6' }}
+            style={{ 
+              backgroundColor: colors.codeBlockBackground || '#f3f4f6',
+              color: colors.codeBlockTextColor || '#1f2937'
+            }}
           >
             code block
           </div>
+          
           <div>
             <span 
               className="underline"
-              style={{ color: colors.linkColor || '#2563eb' }}
+              style={{ color: colors.linkTextColor || colors.linkColor || '#2563eb' }}
             >
               example link
             </span>
           </div>
+          
           <div 
             className="border-l-4 pl-2 italic text-xs"
-            style={{ borderLeftColor: colors.blockquoteColor || '#d1d5db' }}
+            style={{ 
+              borderLeftColor: colors.blockquoteColor || '#d1d5db',
+              color: colors.blockquoteTextColor || '#4b5563'
+            }}
           >
             blockquote text
           </div>
+          
           <div 
             className="inline-block px-2 py-1 text-xs font-semibold rounded"
-            style={{ backgroundColor: colors.tableHeaderBackground || '#f9fafb' }}
+            style={{ 
+              backgroundColor: colors.tableHeaderBackground || '#f9fafb',
+              color: colors.tableHeaderTextColor || '#111827'
+            }}
           >
             table header
           </div>
