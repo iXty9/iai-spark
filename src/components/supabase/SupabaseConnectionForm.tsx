@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { testSupabaseConnection } from '@/services/supabase/connection-service';
+import { connectionService } from '@/services/supabase/connection-service';
 import { Loader2, Save, Cloud, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { saveConnectionConfig } from '@/services/admin/settingsService';
@@ -38,9 +38,13 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
     setError(null);
     
     try {
-      const connectionValid = await testSupabaseConnection(url, anonKey);
+      // Initialize the connection service with the provided config
+      await connectionService.initialize({ url, anonKey });
       
-      if (connectionValid) {
+      // Test the connection
+      const testResult = await connectionService.testConnection();
+      
+      if (testResult.isConnected) {
         // First save config to localStorage via the onSuccess callback
         onSuccess(url, anonKey);
         
@@ -130,7 +134,7 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
           description: "Successfully connected to Supabase.",
         });
       } else {
-        setError('Could not connect to Supabase with the provided credentials. Please check your URL and keys.');
+        setError(testResult.error || 'Could not connect to Supabase with the provided credentials. Please check your URL and keys.');
       }
     } catch (err: any) {
       setError(`Connection error: ${err.message || 'Unknown error'}`);

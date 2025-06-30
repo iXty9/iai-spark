@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { testSupabaseConnection } from '@/services/supabase/connection-service';
+import { connectionService } from '@/services/supabase/connection-service';
 import { Loader2 } from 'lucide-react';
 import { saveConnectionConfig } from '@/services/admin/settingsService';
 import { saveSiteEnvironmentConfig } from '@/services/supabase/site-config-service';
@@ -41,9 +41,13 @@ export function ConnectionForm({ onSuccess, onError, isLoading, setIsLoading }: 
     if (onError) onError('');
     
     try {
-      const connectionValid = await testSupabaseConnection(url, anonKey);
+      // Initialize the connection service with the provided config
+      await connectionService.initialize({ url, anonKey, serviceRoleKey: serviceKey });
       
-      if (connectionValid) {
+      // Test the connection
+      const testResult = await connectionService.testConnection();
+      
+      if (testResult.isConnected) {
         // First call the onSuccess callback to handle localStorage storage
         const config = { url, anonKey, serviceKey };
         onSuccess(config);
@@ -73,7 +77,7 @@ export function ConnectionForm({ onSuccess, onError, isLoading, setIsLoading }: 
           setIsSavingToDb(false);
         }
       } else {
-        const errorMsg = 'Could not connect to Supabase with the provided credentials. Please check your URL and keys.';
+        const errorMsg = testResult.error || 'Could not connect to Supabase with the provided credentials. Please check your URL and keys.';
         setError(errorMsg);
         if (onError) onError(errorMsg);
       }
