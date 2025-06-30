@@ -2,7 +2,6 @@
 import { useEffect } from 'react';
 import { Message } from '@/types/chat';
 import { useWebSocket, ProactiveMessage } from '@/contexts/WebSocketContext';
-import { useToast } from "@/hooks/use-toast";
 import { logger } from '@/utils/logging';
 
 interface UseChatWebSocketProps {
@@ -11,7 +10,6 @@ interface UseChatWebSocketProps {
 
 export const useChatWebSocket = ({ addMessage }: UseChatWebSocketProps) => {
   const { isConnected, isEnabled, onProactiveMessage } = useWebSocket();
-  const { toast } = useToast();
 
   // Handle proactive messages in chat - create complete Message objects
   useEffect(() => {
@@ -34,18 +32,12 @@ export const useChatWebSocket = ({ addMessage }: UseChatWebSocketProps) => {
         source: chatMessage.source
       });
       
-      // Add the message to the chat
+      // Add the message to the chat (no toast notification - we have dedicated toast webhook now)
       addMessage(chatMessage);
-      
-      // Show a toast notification for proactive messages
-      toast({
-        title: `New message from ${proactiveMessage.sender}`,
-        description: proactiveMessage.content.substring(0, 100) + (proactiveMessage.content.length > 100 ? '...' : ''),
-      });
     });
 
     return unsubscribe;
-  }, [onProactiveMessage, toast, addMessage]);
+  }, [onProactiveMessage, addMessage]);
 
   return { isWebSocketConnected: isConnected, isWebSocketEnabled: isEnabled };
 };
