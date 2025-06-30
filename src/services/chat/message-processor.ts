@@ -1,3 +1,4 @@
+
 import { Message } from '@/types/chat';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { parseWebhookResponse } from '@/utils/debug/webhook-debug';
@@ -43,7 +44,7 @@ export async function processMessage({
 
     let webhookData, responseText;
     try {
-      // Get both request and response from webhook - now includes user ID
+      // Get both request and response from webhook
       webhookData = await sendWebhookMessage(message, isAuthenticated, userProfile);
       responseText = parseWebhookResponse(webhookData.response);
       debug({ lastAction: 'API: Successfully parsed webhook response' });
