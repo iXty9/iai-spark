@@ -1,4 +1,3 @@
-
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { logger } from '@/utils/logging';
 import { SupabaseConfig } from '@/config/supabase/types';
@@ -17,18 +16,20 @@ export interface ClientState {
   error: string | null;
   lastUpdated: number;
   isFullyReady: boolean;
+  realtimeConnected: boolean;
 }
 
 type ClientStateListener = (state: ClientState) => void;
 
 /**
- * Enhanced client manager with proper readiness detection
+ * Enhanced client manager with proper realtime configuration
  */
 export class ClientManager {
   private static instance: ClientManager | null = null;
   private state: ClientState;
   private listeners: Set<ClientStateListener> = new Set();
   private readinessPromise: Promise<boolean> | null = null;
+  private realtimeHealthCheck: NodeJS.Timeout | null = null;
 
   private constructor() {
     this.state = {
@@ -37,7 +38,8 @@ export class ClientManager {
       config: null,
       error: null,
       lastUpdated: Date.now(),
-      isFullyReady: false
+      isFullyReady: false,
+      realtimeConnected: false
     };
   }
 
@@ -49,7 +51,7 @@ export class ClientManager {
   }
 
   /**
-   * Initialize client with config and ensure full readiness
+   * Initialize client with proper realtime configuration
    */
   async initialize(config: SupabaseConfig): Promise<boolean> {
     try {
@@ -57,10 +59,11 @@ export class ClientManager {
         status: ClientStatus.INITIALIZING,
         config,
         error: null,
-        isFullyReady: false
+        isFullyReady: false,
+        realtimeConnected: false
       });
 
-      logger.info('Initializing Supabase client', { 
+      logger.info('Initializing Supabase client with realtime config', { 
         module: 'client-manager',
         url: config.url.split('//')[1]
       });
@@ -71,6 +74,20 @@ export class ClientManager {
           persistSession: true,
           autoRefreshToken: true,
           detectSessionInUrl: true
+        },
+        realtime: {
+          params: {
+            eventsPerSecond: 10
+          },
+          heartbeatIntervalMs: 30000,
+          reconnectAfterMs: (tries) => Math.min(tries * 1000, 10000),
+          timeout: 20000,
+          transport: 'websocket'
+        },
+        global: {
+          headers: {
+            'x-client-info': 'supabase-js-web'
+          }
         }
       });
 
@@ -80,14 +97,20 @@ export class ClientManager {
         error: null
       });
 
-      // Ensure client is fully functional
-      await this.ensureClientReadiness(client);
+      // Test realtime connectivity with proper error handling
+      await this.testRealtimeConnection(client);
 
       this.updateState({
         isFullyReady: true
       });
 
-      logger.info('Supabase client initialized and ready', { module: 'client-manager' });
+      // Start realtime health monitoring
+      this.startRealtimeHealthCheck();
+
+      logger.info('Supabase client initialized successfully', { 
+        module: 'client-manager',
+        realtimeConnected: this.state.realtimeConnected
+      });
       return true;
 
     } catch (error) {
@@ -98,7 +121,8 @@ export class ClientManager {
         status: ClientStatus.ERROR,
         client: null,
         error: errorMessage,
-        isFullyReady: false
+        isFullyReady: false,
+        realtimeConnected: false
       });
       
       return false;
@@ -106,41 +130,90 @@ export class ClientManager {
   }
 
   /**
-   * Ensure client is fully ready for operations
+   * Test realtime connection independently
    */
-  private async ensureClientReadiness(client: SupabaseClient): Promise<void> {
-    let attempts = 0;
-    const maxAttempts = 30;
-    
-    while (attempts < maxAttempts) {
-      try {
-        // Test auth functionality
-        const { error } = await client.auth.getSession();
-        
-        if (error && error.message.includes('not available')) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-          attempts++;
-          continue;
-        }
+  private async testRealtimeConnection(client: SupabaseClient): Promise<void> {
+    return new Promise((resolve) => {
+      logger.info('Testing realtime connection...', { module: 'client-manager' });
+      
+      const testChannel = client.channel('connection-test', {
+        config: { broadcast: { self: true } }
+      });
 
-        // Test database functionality
-        const { error: dbError } = await client.from('profiles').select('count').limit(0);
-        if (dbError && dbError.message.includes('not available')) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-          attempts++;
-          continue;
-        }
-        
-        // Client is ready
-        logger.info('Client readiness verified', { module: 'client-manager' });
-        return;
-      } catch (error) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        attempts++;
-      }
+      const timeout = setTimeout(() => {
+        logger.warn('Realtime connection test timed out', { module: 'client-manager' });
+        client.removeChannel(testChannel);
+        this.updateState({ realtimeConnected: false });
+        resolve(); // Don't fail initialization, just mark realtime as disconnected
+      }, 15000);
+
+      testChannel
+        .on('broadcast', { event: 'test' }, () => {
+          logger.info('Realtime connection test successful', { module: 'client-manager' });
+          clearTimeout(timeout);
+          client.removeChannel(testChannel);
+          this.updateState({ realtimeConnected: true });
+          resolve();
+        })
+        .subscribe((status) => {
+          logger.info('Test channel subscription status:', status, { module: 'client-manager' });
+          
+          if (status === 'SUBSCRIBED') {
+            // Send test message
+            testChannel.send({
+              type: 'broadcast',
+              event: 'test',
+              payload: { test: true }
+            });
+          } else if (status === 'CHANNEL_ERROR') {
+            logger.error('Test channel subscription failed', null, { module: 'client-manager' });
+            clearTimeout(timeout);
+            client.removeChannel(testChannel);
+            this.updateState({ realtimeConnected: false });
+            resolve();
+          }
+        });
+    });
+  }
+
+  /**
+   * Start periodic realtime health checks
+   */
+  private startRealtimeHealthCheck(): void {
+    if (this.realtimeHealthCheck) {
+      clearInterval(this.realtimeHealthCheck);
     }
+
+    this.realtimeHealthCheck = setInterval(async () => {
+      if (this.state.client && this.state.isFullyReady) {
+        try {
+          await this.testRealtimeConnection(this.state.client);
+        } catch (error) {
+          logger.warn('Realtime health check failed', error, { module: 'client-manager' });
+          this.updateState({ realtimeConnected: false });
+        }
+      }
+    }, 60000); // Check every minute
+  }
+
+  /**
+   * Force reconnect realtime
+   */
+  async forceReconnectRealtime(): Promise<boolean> {
+    if (!this.state.client) {
+      logger.warn('Cannot reconnect: no client available', { module: 'client-manager' });
+      return false;
+    }
+
+    logger.info('Force reconnecting realtime...', { module: 'client-manager' });
     
-    throw new Error('Client readiness verification failed after maximum attempts');
+    try {
+      await this.testRealtimeConnection(this.state.client);
+      return this.state.realtimeConnected;
+    } catch (error) {
+      logger.error('Force reconnect failed', error, { module: 'client-manager' });
+      return false;
+    }
   }
 
   /**
@@ -221,16 +294,29 @@ export class ClientManager {
   }
 
   /**
+   * Check if realtime is connected
+   */
+  isRealtimeConnected(): boolean {
+    return this.state.realtimeConnected;
+  }
+
+  /**
    * Destroy client and reset state
    */
   destroy(): void {
+    if (this.realtimeHealthCheck) {
+      clearInterval(this.realtimeHealthCheck);
+      this.realtimeHealthCheck = null;
+    }
+
     this.state = {
       status: ClientStatus.NOT_INITIALIZED,
       client: null,
       config: null,
       error: null,
       lastUpdated: Date.now(),
-      isFullyReady: false
+      isFullyReady: false,
+      realtimeConnected: false
     };
     this.readinessPromise = null;
     this.notifyListeners();

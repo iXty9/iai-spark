@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { TestTube, Loader2, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { TestTube, Loader2, CheckCircle, XCircle, RefreshCw, Wifi } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useWebSocket } from '@/contexts/WebSocketContext';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 
 interface TestResult {
@@ -18,6 +19,7 @@ interface TestResult {
 
 export function WebhookTester() {
   const { toast } = useToast();
+  const { isConnected, realtimeStatus, forceReconnect } = useWebSocket();
   const [isTestingProactive, setIsTestingProactive] = useState(false);
   const [isTestingToast, setIsTestingToast] = useState(false);
   const [isLoadingUrls, setIsLoadingUrls] = useState(true);
@@ -68,7 +70,17 @@ export function WebhookTester() {
   const testProactiveWebhook = async () => {
     setIsTestingProactive(true);
     try {
+      // Add connection status check
+      if (!isConnected) {
+        toast({
+          variant: "destructive",
+          title: "WebSocket Not Connected",
+          description: "WebSocket connection is required to receive test messages. Check the connection status indicator.",
+        });
+      }
+
       console.log('Testing proactive webhook:', webhookUrls.proactive);
+      console.log('WebSocket status:', { isConnected, realtimeStatus });
       
       const response = await fetch(webhookUrls.proactive, {
         method: 'POST',
@@ -76,9 +88,9 @@ export function WebhookTester() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: 'Test proactive message from admin panel',
+          message: `Test proactive message from admin panel - ${new Date().toISOString()}`,
           sender: 'Admin Test',
-          user_id: undefined, // Broadcast to all
+          user_id: undefined,
           username: undefined
         })
       });
@@ -90,14 +102,14 @@ export function WebhookTester() {
         setTestResults(prev => [...prev, {
           type: 'proactive',
           status: 'success',
-          message: 'Proactive message webhook test successful',
+          message: `Proactive message webhook test successful. ${!isConnected ? '(Note: WebSocket not connected for real-time delivery)' : ''}`,
           timestamp: new Date(),
           details: result
         }]);
         
         toast({
           title: "Test Successful",
-          description: "Proactive message webhook is working correctly. Check for the message!",
+          description: `Proactive message webhook is working correctly. ${!isConnected ? 'WebSocket connection needed for real-time delivery.' : 'Check for the message!'}`,
         });
       } else {
         throw new Error(result.error || `HTTP ${response.status}`);
@@ -126,7 +138,17 @@ export function WebhookTester() {
   const testToastWebhook = async () => {
     setIsTestingToast(true);
     try {
+      // Add connection status check
+      if (!isConnected) {
+        toast({
+          variant: "destructive",
+          title: "WebSocket Not Connected",
+          description: "WebSocket connection is required to receive test notifications. Check the connection status indicator.",
+        });
+      }
+
       console.log('Testing toast webhook:', webhookUrls.toast);
+      console.log('WebSocket status:', { isConnected, realtimeStatus });
       
       const response = await fetch(webhookUrls.toast, {
         method: 'POST',
@@ -135,7 +157,7 @@ export function WebhookTester() {
         },
         body: JSON.stringify({
           title: 'Test Notification',
-          message: 'This is a test toast notification from the admin panel',
+          message: `This is a test toast notification from the admin panel - ${new Date().toISOString()}`,
           type: 'info'
         })
       });
@@ -147,14 +169,14 @@ export function WebhookTester() {
         setTestResults(prev => [...prev, {
           type: 'toast',
           status: 'success',
-          message: 'Toast notification webhook test successful',
+          message: `Toast notification webhook test successful. ${!isConnected ? '(Note: WebSocket not connected for real-time delivery)' : ''}`,
           timestamp: new Date(),
           details: result
         }]);
         
         toast({
           title: "Test Successful",
-          description: "Toast notification webhook is working correctly. You should see the notification!",
+          description: `Toast notification webhook is working correctly. ${!isConnected ? 'WebSocket connection needed for real-time delivery.' : 'You should see the notification!'}`,
         });
       } else {
         throw new Error(result.error || `HTTP ${response.status}`);
@@ -212,10 +234,35 @@ export function WebhookTester() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* WebSocket Status Alert */}
+        <Alert className={`border ${isConnected ? 'border-green-200 bg-green-50' : 'border-yellow-200 bg-yellow-50'}`}>
+          <Wifi className={`h-4 w-4 ${isConnected ? 'text-green-600' : 'text-yellow-600'}`} />
+          <AlertDescription className={isConnected ? 'text-green-800' : 'text-yellow-800'}>
+            <div className="flex items-center justify-between">
+              <span>
+                WebSocket Status: <strong>{realtimeStatus}</strong>
+                {!isConnected && ' (Real-time delivery unavailable)'}
+              </span>
+              {!isConnected && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={forceReconnect}
+                  className="ml-2"
+                >
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  Reconnect
+                </Button>
+              )}
+            </div>
+          </AlertDescription>
+        </Alert>
+
         <Alert>
           <AlertDescription>
             Test your webhook endpoints to ensure they're working correctly. 
             These tests will send real notifications to all connected users.
+            {!isConnected && ' Note: WebSocket connection is required for real-time message delivery.'}
           </AlertDescription>
         </Alert>
 
