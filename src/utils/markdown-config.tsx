@@ -104,9 +104,17 @@ export const createMarkdownComponents = (themeColors?: ThemeColors) => {
         href={href} 
         target="_blank" 
         rel="noopener noreferrer" 
-        className="underline underline-offset-2 transition-colors"
+        className="underline underline-offset-2 transition-colors px-1 py-0.5 rounded"
         style={{
-          color: themeColors?.linkTextColor || themeColors?.linkColor || '#2563eb'
+          color: themeColors?.linkTextColor || '#2563eb'
+        }}
+        onMouseEnter={(e) => {
+          if (themeColors?.linkColor) {
+            e.currentTarget.style.backgroundColor = themeColors.linkColor;
+          }
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'transparent';
         }}
       >
         {children}

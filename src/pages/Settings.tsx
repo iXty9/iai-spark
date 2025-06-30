@@ -1,3 +1,4 @@
+
 import { useAuth } from '@/contexts/AuthContext';
 import { useCentralizedSettingsState } from '@/hooks/settings/use-centralized-settings-state';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -93,28 +94,10 @@ export default function Settings() {
     try {
       const success = await saveChanges();
       
-      if (success && user && updateProfile) {
-        // Save to profile
-        const themeSettings = {
-          mode,
-          lightTheme,
-          darkTheme,
-          backgroundImage,
-          backgroundOpacity,
-          exportDate: new Date().toISOString(),
-          name: 'Custom Theme'
-        };
-        
-        await updateProfile({ theme_settings: JSON.stringify(themeSettings) });
-        
+      if (success) {
         toast({
           title: "Settings saved",
           description: "Your theme settings have been saved successfully",
-        });
-      } else if (success) {
-        toast({
-          title: "Settings saved",
-          description: "Your theme settings have been saved locally",
         });
       }
     } catch (error) {
@@ -253,8 +236,12 @@ export default function Settings() {
             
             <TabsContent value="markup" className="space-y-6">
               <MarkupSettings
-                colors={mode === 'light' ? lightTheme : darkTheme}
-                onColorChange={mode === 'light' ? handleLightThemeChange : handleDarkThemeChange}
+                lightTheme={lightTheme}
+                darkTheme={darkTheme}
+                currentMode={mode}
+                onLightThemeChange={handleLightThemeChange}
+                onDarkThemeChange={handleDarkThemeChange}
+                onModeChange={updatePreviewMode}
                 onReset={handleResetSettings}
               />
             </TabsContent>
