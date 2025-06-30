@@ -5,7 +5,6 @@ import { Paperclip, Send, Mic, MicOff, Loader2 } from 'lucide-react';
 import { useFileUpload } from '@/hooks/chat/use-file-upload';
 import { useVoiceInput } from '@/hooks/chat/use-voice-input';
 import { useToast } from '@/hooks/use-toast';
-import { ActionTooltip } from '../message-actions/ActionTooltip';
 
 interface InputButtonsProps {
   message: string;
@@ -130,30 +129,16 @@ export const InputButtons: React.FC<InputButtonsProps> = ({
 
   const getVoiceButtonState = () => {
     if (voiceState.isProcessing) {
-      return { 
-        icon: Loader2, 
-        label: "Processing...", 
-        disabled: true, 
-        loading: true 
-      };
+      return { icon: Loader2, className: "animate-spin", disabled: true };
     }
     if (voiceState.isRecording) {
-      return { 
-        icon: MicOff, 
-        label: "Stop recording", 
-        disabled: false, 
-        loading: false 
-      };
+      return { icon: MicOff, className: "text-red-500", disabled: false };
     }
-    return { 
-      icon: Mic, 
-      label: voiceState.isSupported ? "Start voice input" : "Voice input not supported", 
-      disabled: !voiceState.isSupported, 
-      loading: false 
-    };
+    return { icon: Mic, className: "", disabled: !voiceState.isSupported };
   };
 
   const voiceButtonState = getVoiceButtonState();
+  const VoiceIcon = voiceButtonState.icon;
 
   return (
     <>
@@ -165,23 +150,44 @@ export const InputButtons: React.FC<InputButtonsProps> = ({
         accept="image/*,text/*,.pdf,.json"
       />
       
-      <ActionTooltip
-        icon={Paperclip}
-        label={uploadState.isUploading ? "Uploading..." : "Upload file"}
+      <Button 
+        type="button" 
+        variant="ghost" 
+        size="icon" 
+        className="shrink-0"
+        aria-label="Upload file"
         onClick={handleFileClick}
         disabled={uploadState.isUploading}
-        loading={uploadState.isUploading}
-        variant="none"
-      />
+      >
+        {uploadState.isUploading ? (
+          <Loader2 className="h-5 w-5 animate-spin" />
+        ) : (
+          <Paperclip className="h-5 w-5" />
+        )}
+      </Button>
       
-      <ActionTooltip
-        icon={voiceButtonState.icon}
-        label={voiceButtonState.label}
+      <Button 
+        type="button" 
+        variant="ghost" 
+        size="icon" 
+        className="shrink-0"
+        aria-label={
+          voiceState.isRecording 
+            ? "Stop recording" 
+            : voiceState.isProcessing 
+            ? "Processing..." 
+            : "Start voice input"
+        }
         onClick={handleVoiceClick}
         disabled={voiceButtonState.disabled}
-        loading={voiceButtonState.loading}
-        variant="none"
-      />
+        title={
+          !voiceState.isSupported 
+            ? "Voice input not supported in this browser" 
+            : undefined
+        }
+      >
+        <VoiceIcon className={`h-5 w-5 ${voiceButtonState.className}`} />
+      </Button>
       
       <Button 
         type="button" 
