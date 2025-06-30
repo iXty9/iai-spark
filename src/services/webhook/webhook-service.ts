@@ -34,7 +34,7 @@ webhookSessionTracker.initialize();
 export const sendWebhookMessage = async (
   message: string,
   isAuthenticated: boolean,
-  userInfo?: { username?: string; first_name?: string; last_name?: string } | null
+  userInfo?: { username?: string; first_name?: string; last_name?: string; id?: string } | null
 ): Promise<{ request: any; response: any }> => {
   // Skip or delay webhook calls if tab is inactive
   if (!webhookSessionTracker.tabActive) {
@@ -112,10 +112,11 @@ export const sendWebhookMessage = async (
       senderName = 'Anonymous';
     }
     
-    // Prepare message - keep it compact but include proper sender info
+    // Prepare message - now includes user_id for authenticated users
     const payload = {
       message: message,
       sender: senderName,
+      user_id: isAuthenticated && userInfo?.id ? userInfo.id : undefined,
       timestamp: new Date().toISOString(),
       isAuthenticated: isAuthenticated,
       sessionCall: webhookSessionTracker.callsThisSession
