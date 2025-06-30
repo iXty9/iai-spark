@@ -8,7 +8,7 @@ import { RotateCcw, Code, Link, Quote, Table } from 'lucide-react';
 
 interface MarkupSettingsProps {
   colors: ThemeColors;
-  onColorChange: (e: React.ChangeEvent<HTMLInputElement> | { name: string; value: any }) => void;
+  onColorChange: (colorKey: string, value: string | number) => void; // FIXED: Correct signature
   onReset: () => void;
 }
 
@@ -18,7 +18,7 @@ export const MarkupSettings: React.FC<MarkupSettingsProps> = ({
   onReset
 }) => {
   const handleChange = (colorKey: string, value: string) => {
-    onColorChange({ name: colorKey, value });
+    onColorChange(colorKey, value); // FIXED: Call with correct signature
   };
 
   const markupElements = [

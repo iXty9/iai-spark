@@ -18,6 +18,7 @@ interface ThemeContextType {
   backgroundImage: string | null;
   backgroundOpacity: number;
   currentThemeColors: ThemeColors;
+  currentTheme: ThemeColors; // NEW: Add this for MessageContent compatibility
   lightTheme: ThemeColors;
   darkTheme: ThemeColors;
 }
@@ -98,6 +99,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         backgroundImage: state.backgroundImage,
         backgroundOpacity: state.backgroundOpacity,
         currentThemeColors,
+        currentTheme: currentThemeColors, // NEW: Add this alias for MessageContent
         lightTheme: state.lightTheme,
         darkTheme: state.darkTheme,
       }}
@@ -124,6 +126,7 @@ export const useTheme = () => {
       backgroundImage: fallbackState.backgroundImage,
       backgroundOpacity: fallbackState.backgroundOpacity,
       currentThemeColors: fallbackState.lightTheme,
+      currentTheme: fallbackState.lightTheme, // NEW: Add this alias
       lightTheme: fallbackState.lightTheme,
       darkTheme: fallbackState.darkTheme,
     } as ThemeContextType;
