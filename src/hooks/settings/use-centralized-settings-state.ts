@@ -1,131 +1,221 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { centralizedThemeService, CentralizedThemeState } from '@/services/centralized-theme-service';
-import { ThemeColors } from '@/types/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { useSettingsPersistence } from './use-settings-persistence';
+import { productionThemeService } from '@/services/production-theme-service';
+import { ThemeColors, ThemeSettings } from '@/types/theme';
 import { logger } from '@/utils/logging';
 
 export interface ImageInfo {
-  originalSize?: string;
-  optimizedSize?: string;
-  width?: number;
-  height?: number;
+  originalSize: string;
+  optimizedSize: string;
 }
 
 export const useCentralizedSettingsState = () => {
-  const { profile } = useAuth();
-  const [themeState, setThemeState] = useState<CentralizedThemeState>(() => centralizedThemeService.getState());
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [imageInfo, setImageInfo] = useState<ImageInfo>({});
+  const { user, updateProfile } = useAuth();
+  const { 
+    mode: currentMode, 
+    lightTheme: currentLightTheme, 
+    darkTheme: currentDarkTheme,
+    backgroundImage: currentBackgroundImage,
+    backgroundOpacity: currentBackgroundOpacity
+  } = useTheme();
 
-  // Initialize theme service when profile loads
+  // Local state for preview changes
+  const [isInPreview, setIsInPreview] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [imageInfo, setImageInfo] = useState<ImageInfo | null>(null);
+
+  // Preview state - starts with current values
+  const [previewMode, setPreviewMode] = useState<'light' | 'dark'>(currentMode);
+  const [previewLightTheme, setPreviewLightTheme] = useState<ThemeColors>(currentLightTheme);
+  const [previewDarkTheme, setPreviewDarkTheme] = useState<ThemeColors>(currentDarkTheme);
+  const [previewBackgroundImage, setPreviewBackgroundImage] = useState<string | null>(currentBackgroundImage);
+  const [previewBackgroundOpacity, setPreviewBackgroundOpacity] = useState<number>(currentBackgroundOpacity);
+
+  // Update preview state when theme changes
   useEffect(() => {
-    const initializeTheme = async () => {
-      if (!themeState.isReady) {
-        let userSettings = null;
-        
-        if (profile?.theme_settings) {
-          try {
-            userSettings = JSON.parse(profile.theme_settings);
-          } catch (error) {
-            logger.error('Failed to parse theme settings:', error, { module: 'centralized-settings' });
-          }
-        }
-        
-        await centralizedThemeService.initialize(userSettings);
-      }
-    };
+    if (!isInPreview) {
+      setPreviewMode(currentMode);
+      setPreviewLightTheme(currentLightTheme);
+      setPreviewDarkTheme(currentDarkTheme);
+      setPreviewBackgroundImage(currentBackgroundImage);
+      setPreviewBackgroundOpacity(currentBackgroundOpacity);
+    }
+  }, [currentMode, currentLightTheme, currentDarkTheme, currentBackgroundImage, currentBackgroundOpacity, isInPreview]);
 
-    initializeTheme();
-  }, [profile?.theme_settings, themeState.isReady]);
+  // Settings persistence hook
+  const { isSubmitting, handleSaveSettings, handleResetSettings } = useSettingsPersistence({
+    user,
+    theme: previewMode,
+    lightTheme: previewLightTheme,
+    darkTheme: previewDarkTheme,
+    backgroundImage: previewBackgroundImage,
+    backgroundOpacity: previewBackgroundOpacity,
+    setLightTheme: setPreviewLightTheme,
+    setDarkTheme: setPreviewDarkTheme,
+    setBackgroundImage: setPreviewBackgroundImage,
+    setBackgroundOpacity: setPreviewBackgroundOpacity,
+    setHasChanges,
+    updateProfile
+  });
 
-  // Subscribe to theme service changes
-  useEffect(() => {
-    const unsubscribe = centralizedThemeService.subscribe((newState) => {
-      setThemeState(newState);
-    });
-
-    return unsubscribe;
+  const enterSettingsMode = useCallback(() => {
+    setIsInPreview(true);
+    logger.info('Entered settings preview mode', { module: 'settings' });
   }, []);
 
-  // Settings actions
-  const enterSettingsMode = () => {
-    centralizedThemeService.enterPreviewMode();
-  };
-
-  const exitSettingsMode = (save: boolean = false) => {
-    centralizedThemeService.exitPreviewMode(save);
-  };
-
-  const updatePreviewMode = (mode: 'light' | 'dark') => {
-    centralizedThemeService.previewThemeMode(mode);
-  };
-
-  const updatePreviewLightTheme = (theme: ThemeColors) => {
-    centralizedThemeService.previewLightTheme(theme);
-  };
-
-  const updatePreviewDarkTheme = (theme: ThemeColors) => {
-    centralizedThemeService.previewDarkTheme(theme);
-  };
-
-  const updatePreviewBackgroundImage = (image: string | null, info?: ImageInfo) => {
-    centralizedThemeService.previewBackgroundImage(image);
-    if (info) {
-      setImageInfo(info);
+  const exitSettingsMode = useCallback((shouldSave: boolean = false) => {
+    if (shouldSave) {
+      // Save changes to production service before exiting
+      const themeSettings: ThemeSettings = {
+        mode: previewMode,
+        lightTheme: previewLightTheme,
+        darkTheme: previewDarkTheme,
+        backgroundImage: previewBackgroundImage,
+        backgroundOpacity: previewBackgroundOpacity
+      };
+      
+      productionThemeService.initialize(themeSettings, true);
+      logger.info('Synced settings to production service on exit', { module: 'settings' });
+    } else {
+      // Restore original theme if not saving
+      productionThemeService.initialize({
+        mode: currentMode,
+        lightTheme: currentLightTheme,
+        darkTheme: currentDarkTheme,
+        backgroundImage: currentBackgroundImage,
+        backgroundOpacity: currentBackgroundOpacity
+      }, true);
+      logger.info('Restored original theme on exit without saving', { module: 'settings' });
     }
-  };
+    
+    setIsInPreview(false);
+    setHasChanges(false);
+    logger.info('Exited settings preview mode', { shouldSave, module: 'settings' });
+  }, [previewMode, previewLightTheme, previewDarkTheme, previewBackgroundImage, previewBackgroundOpacity, currentMode, currentLightTheme, currentDarkTheme, currentBackgroundImage, currentBackgroundOpacity]);
 
-  const updatePreviewBackgroundOpacity = (opacity: number) => {
-    centralizedThemeService.previewBackgroundOpacity(opacity);
-  };
+  // Preview update functions with production service sync
+  const updatePreviewMode = useCallback((mode: 'light' | 'dark') => {
+    setPreviewMode(mode);
+    setHasChanges(true);
+    
+    // Sync to production service for immediate preview
+    productionThemeService.setMode(mode);
+    logger.info('Updated preview mode and synced to production', { mode, module: 'settings' });
+  }, []);
 
-  const saveChanges = async (): Promise<boolean> => {
+  const updatePreviewLightTheme = useCallback((theme: ThemeColors) => {
+    setPreviewLightTheme(theme);
+    setHasChanges(true);
+    
+    // Sync to production service for immediate preview
+    productionThemeService.setLightTheme(theme);
+    logger.info('Updated preview light theme and synced to production', { module: 'settings' });
+  }, []);
+
+  const updatePreviewDarkTheme = useCallback((theme: ThemeColors) => {
+    setPreviewDarkTheme(theme);
+    setHasChanges(true);
+    
+    // Sync to production service for immediate preview
+    productionThemeService.setDarkTheme(theme);
+    logger.info('Updated preview dark theme and synced to production', { module: 'settings' });
+  }, []);
+
+  const updatePreviewBackgroundImage = useCallback((image: string | null, info?: ImageInfo) => {
+    setPreviewBackgroundImage(image);
+    setHasChanges(true);
+    if (info) setImageInfo(info);
+    
+    // Sync to production service for immediate preview
+    productionThemeService.setBackgroundImage(image);
+    logger.info('Updated preview background image and synced to production', { hasImage: !!image, module: 'settings' });
+  }, []);
+
+  const updatePreviewBackgroundOpacity = useCallback((opacity: number) => {
+    setPreviewBackgroundOpacity(opacity);
+    setHasChanges(true);
+    
+    // Sync to production service for immediate preview
+    productionThemeService.setBackgroundOpacity(opacity);
+    logger.info('Updated preview background opacity and synced to production', { opacity, module: 'settings' });
+  }, []);
+
+  const saveChanges = useCallback(async (): Promise<boolean> => {
     try {
-      setIsSubmitting(true);
-      centralizedThemeService.exitPreviewMode(true);
-      logger.info('Settings saved successfully', { module: 'centralized-settings' });
+      await handleSaveSettings();
+      
+      // PHASE 1: Push final changes to production service after successful save
+      const finalThemeSettings: ThemeSettings = {
+        mode: previewMode,
+        lightTheme: previewLightTheme,
+        darkTheme: previewDarkTheme,
+        backgroundImage: previewBackgroundImage,
+        backgroundOpacity: previewBackgroundOpacity
+      };
+      
+      await productionThemeService.initialize(finalThemeSettings, true);
+      logger.info('Settings saved and synced to production service', { module: 'settings' });
+      
+      setHasChanges(false);
       return true;
     } catch (error) {
-      logger.error('Failed to save settings:', error, { module: 'centralized-settings' });
+      logger.error('Failed to save settings', error, { module: 'settings' });
       return false;
-    } finally {
-      setIsSubmitting(false);
     }
-  };
+  }, [handleSaveSettings, previewMode, previewLightTheme, previewDarkTheme, previewBackgroundImage, previewBackgroundOpacity]);
 
-  const discardChanges = () => {
-    centralizedThemeService.exitPreviewMode(false);
-  };
+  const discardChanges = useCallback(() => {
+    // Restore original values
+    setPreviewMode(currentMode);
+    setPreviewLightTheme(currentLightTheme);
+    setPreviewDarkTheme(currentDarkTheme);
+    setPreviewBackgroundImage(currentBackgroundImage);
+    setPreviewBackgroundOpacity(currentBackgroundOpacity);
+    
+    // Restore production service to original state
+    productionThemeService.initialize({
+      mode: currentMode,
+      lightTheme: currentLightTheme,
+      darkTheme: currentDarkTheme,
+      backgroundImage: currentBackgroundImage,
+      backgroundOpacity: currentBackgroundOpacity
+    }, true);
+    
+    setHasChanges(false);
+    setImageInfo(null);
+    logger.info('Discarded settings changes and restored production service', { module: 'settings' });
+  }, [currentMode, currentLightTheme, currentDarkTheme, currentBackgroundImage, currentBackgroundOpacity]);
 
-  const resetToDefaults = async (): Promise<boolean> => {
-    return await centralizedThemeService.loadDefaultTheme();
-  };
-
-  // Computed values for easier access
-  const currentMode = themeState.previewMode || themeState.mode;
-  const currentLightTheme = themeState.previewLightTheme || themeState.lightTheme;
-  const currentDarkTheme = themeState.previewDarkTheme || themeState.darkTheme;
-  const currentBackgroundImage = themeState.previewBackgroundImage !== undefined 
-    ? themeState.previewBackgroundImage 
-    : themeState.backgroundImage;
-  const currentBackgroundOpacity = themeState.previewBackgroundOpacity ?? themeState.backgroundOpacity;
+  const resetToDefaults = useCallback(async (): Promise<boolean> => {
+    try {
+      await handleResetSettings();
+      setHasChanges(false);
+      return true;
+    } catch (error) {
+      logger.error('Failed to reset settings', error, { module: 'settings' });
+      return false;
+    }
+  }, [handleResetSettings]);
 
   return {
     // State
-    isLoading: !themeState.isReady,
+    isLoading,
     isSubmitting,
-    hasChanges: themeState.hasUnsavedChanges,
-    isInPreview: themeState.isInPreview,
+    hasChanges,
+    isInPreview,
     imageInfo,
-    
-    // Current values (including preview)
-    mode: currentMode,
-    lightTheme: currentLightTheme,
-    darkTheme: currentDarkTheme,
-    backgroundImage: currentBackgroundImage,
-    backgroundOpacity: currentBackgroundOpacity,
-    
+
+    // Current values (what's actually applied)
+    mode: previewMode,
+    lightTheme: previewLightTheme,
+    darkTheme: previewDarkTheme,
+    backgroundImage: previewBackgroundImage,
+    backgroundOpacity: previewBackgroundOpacity,
+
     // Actions
     enterSettingsMode,
     exitSettingsMode,
@@ -136,7 +226,6 @@ export const useCentralizedSettingsState = () => {
     updatePreviewBackgroundOpacity,
     saveChanges,
     discardChanges,
-    resetToDefaults,
-    setImageInfo
+    resetToDefaults
   };
 };
