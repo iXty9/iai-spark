@@ -29,8 +29,6 @@ describe('useMessageState', () => {
     const { result } = renderHook(() => useMessageState());
     
     expect(result.current.messages).toEqual([]);
-    expect(result.current.message).toBe('');
-    expect(result.current.isLoading).toBe(false);
   });
 
   it('should add messages correctly', () => {
@@ -49,6 +47,27 @@ describe('useMessageState', () => {
     
     expect(result.current.messages).toHaveLength(1);
     expect(result.current.messages[0]).toEqual(testMessage);
+  });
+
+  it('should update messages correctly', () => {
+    const { result } = renderHook(() => useMessageState());
+    
+    const testMessage: Message = {
+      id: '1',
+      content: 'Test message',
+      sender: 'user',
+      timestamp: new Date().toISOString()
+    };
+    
+    act(() => {
+      result.current.addMessage(testMessage);
+    });
+    
+    act(() => {
+      result.current.updateMessage('1', { content: 'Updated message' });
+    });
+    
+    expect(result.current.messages[0].content).toBe('Updated message');
   });
 
   it('should clear messages correctly', () => {
@@ -74,29 +93,29 @@ describe('useMessageState', () => {
     expect(result.current.messages).toHaveLength(0);
   });
 
-  it('should update message input', () => {
+  it('should set messages array correctly', () => {
     const { result } = renderHook(() => useMessageState());
     
+    const testMessages: Message[] = [
+      {
+        id: '1',
+        content: 'First message',
+        sender: 'user',
+        timestamp: new Date().toISOString()
+      },
+      {
+        id: '2',
+        content: 'Second message',
+        sender: 'ai',
+        timestamp: new Date().toISOString()
+      }
+    ];
+    
     act(() => {
-      result.current.setMessage('New message');
+      result.current.setMessages(testMessages);
     });
     
-    expect(result.current.message).toBe('New message');
-  });
-
-  it('should reset state correctly', () => {
-    const { result } = renderHook(() => useMessageState());
-    
-    act(() => {
-      result.current.setMessage('Test message');
-      result.current.setIsLoading(true);
-    });
-    
-    act(() => {
-      result.current.resetState();
-    });
-    
-    expect(result.current.message).toBe('');
-    expect(result.current.isLoading).toBe(false);
+    expect(result.current.messages).toHaveLength(2);
+    expect(result.current.messages).toEqual(testMessages);
   });
 });
