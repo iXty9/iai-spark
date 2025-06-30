@@ -70,7 +70,7 @@ export const useChat = () => {
     setMessage,
     handleSubmit,
     handleClearChat,
-    handleExportChat,
+    handleExportChat: () => handleExportChat(messages),
     startChat,
     setMessages,
     addMessage,
