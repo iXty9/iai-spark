@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { TestTube, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { TestTube, Loader2, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 
@@ -13,12 +13,14 @@ interface TestResult {
   status: 'success' | 'error';
   message: string;
   timestamp: Date;
+  details?: any;
 }
 
 export function WebhookTester() {
   const { toast } = useToast();
   const [isTestingProactive, setIsTestingProactive] = useState(false);
   const [isTestingToast, setIsTestingToast] = useState(false);
+  const [isLoadingUrls, setIsLoadingUrls] = useState(true);
   const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [webhookUrls, setWebhookUrls] = useState({
     proactive: '',
@@ -30,6 +32,7 @@ export function WebhookTester() {
   }, []);
 
   const loadWebhookUrls = async () => {
+    setIsLoadingUrls(true);
     try {
       const settings = await fetchAppSettings();
       
@@ -37,10 +40,15 @@ export function WebhookTester() {
         ? 'http://localhost:54321'
         : 'https://ymtdtzkskjdqlzhjuesk.supabase.co';
       
+      const proactiveUrl = settings.proactive_message_webhook_url || `${baseUrl}/functions/v1/proactive-message-webhook`;
+      const toastUrl = settings.toast_notification_webhook_url || `${baseUrl}/functions/v1/toast-notification-webhook`;
+      
       setWebhookUrls({
-        proactive: settings.proactive_message_webhook_url || `${baseUrl}/functions/v1/proactive-message-webhook`,
-        toast: settings.toast_notification_webhook_url || `${baseUrl}/functions/v1/toast-notification-webhook`
+        proactive: proactiveUrl,
+        toast: toastUrl
       });
+      
+      console.log('Loaded webhook URLs:', { proactiveUrl, toastUrl });
     } catch (error) {
       console.error('Error loading webhook URLs:', error);
       // Fallback to default URLs
@@ -52,12 +60,16 @@ export function WebhookTester() {
         proactive: `${baseUrl}/functions/v1/proactive-message-webhook`,
         toast: `${baseUrl}/functions/v1/toast-notification-webhook`
       });
+    } finally {
+      setIsLoadingUrls(false);
     }
   };
 
   const testProactiveWebhook = async () => {
     setIsTestingProactive(true);
     try {
+      console.log('Testing proactive webhook:', webhookUrls.proactive);
+      
       const response = await fetch(webhookUrls.proactive, {
         method: 'POST',
         headers: {
@@ -72,28 +84,33 @@ export function WebhookTester() {
       });
 
       const result = await response.json();
+      console.log('Proactive webhook response:', result);
       
       if (response.ok) {
         setTestResults(prev => [...prev, {
           type: 'proactive',
           status: 'success',
           message: 'Proactive message webhook test successful',
-          timestamp: new Date()
+          timestamp: new Date(),
+          details: result
         }]);
         
         toast({
           title: "Test Successful",
-          description: "Proactive message webhook is working correctly.",
+          description: "Proactive message webhook is working correctly. Check for the message!",
         });
       } else {
-        throw new Error(result.error || 'Unknown error');
+        throw new Error(result.error || `HTTP ${response.status}`);
       }
     } catch (error) {
+      console.error('Proactive webhook test error:', error);
+      
       setTestResults(prev => [...prev, {
         type: 'proactive',
         status: 'error',
         message: `Proactive webhook test failed: ${error.message}`,
-        timestamp: new Date()
+        timestamp: new Date(),
+        details: error
       }]);
       
       toast({
@@ -109,6 +126,8 @@ export function WebhookTester() {
   const testToastWebhook = async () => {
     setIsTestingToast(true);
     try {
+      console.log('Testing toast webhook:', webhookUrls.toast);
+      
       const response = await fetch(webhookUrls.toast, {
         method: 'POST',
         headers: {
@@ -122,28 +141,33 @@ export function WebhookTester() {
       });
 
       const result = await response.json();
+      console.log('Toast webhook response:', result);
       
       if (response.ok) {
         setTestResults(prev => [...prev, {
           type: 'toast',
           status: 'success',
           message: 'Toast notification webhook test successful',
-          timestamp: new Date()
+          timestamp: new Date(),
+          details: result
         }]);
         
         toast({
           title: "Test Successful",
-          description: "Toast notification webhook is working correctly. Check for the notification!",
+          description: "Toast notification webhook is working correctly. You should see the notification!",
         });
       } else {
-        throw new Error(result.error || 'Unknown error');
+        throw new Error(result.error || `HTTP ${response.status}`);
       }
     } catch (error) {
+      console.error('Toast webhook test error:', error);
+      
       setTestResults(prev => [...prev, {
         type: 'toast',
         status: 'error',
         message: `Toast webhook test failed: ${error.message}`,
-        timestamp: new Date()
+        timestamp: new Date(),
+        details: error
       }]);
       
       toast({
@@ -159,6 +183,25 @@ export function WebhookTester() {
   const clearResults = () => {
     setTestResults([]);
   };
+
+  if (isLoadingUrls) {
+    return (
+      <Card className="bg-background/80 backdrop-blur-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TestTube className="h-5 w-5" />
+            Webhook Testing
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center p-8">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span className="ml-2">Loading webhook URLs...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="bg-background/80 backdrop-blur-sm">
@@ -181,6 +224,15 @@ export function WebhookTester() {
             <p><strong>Proactive URL:</strong> {webhookUrls.proactive}</p>
             <p><strong>Toast URL:</strong> {webhookUrls.toast}</p>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadWebhookUrls}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh URLs
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -227,6 +279,12 @@ export function WebhookTester() {
                         {result.type}
                       </Badge>
                       <p className="text-sm mt-1">{result.message}</p>
+                      {result.details && (
+                        <details className="text-xs text-muted-foreground mt-1">
+                          <summary>Details</summary>
+                          <pre className="mt-1 whitespace-pre-wrap">{JSON.stringify(result.details, null, 2)}</pre>
+                        </details>
+                      )}
                     </div>
                   </div>
                   <span className="text-xs text-muted-foreground">

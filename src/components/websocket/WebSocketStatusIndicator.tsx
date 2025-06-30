@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Info, Wifi, WifiOff, Circle } from 'lucide-react';
+import { Info, Wifi, WifiOff, Circle, AlertTriangle } from 'lucide-react';
 
 interface WebSocketStatusIndicatorProps {
   className?: string;
@@ -25,21 +25,24 @@ export const WebSocketStatusIndicator: React.FC<WebSocketStatusIndicatorProps> =
         color: 'bg-red-500',
         tooltip: 'Real-time messaging is disabled',
         icon: WifiOff,
-        status: 'Disabled'
+        status: 'Disabled',
+        variant: 'destructive' as const
       };
     } else if (isConnected) {
       return {
         color: 'bg-green-500',
         tooltip: 'Connected to real-time updates',
         icon: Wifi,
-        status: 'Connected'
+        status: 'Connected',
+        variant: 'default' as const
       };
     } else {
       return {
         color: 'bg-yellow-500',
         tooltip: 'Real-time messaging enabled but connecting...',
-        icon: WifiOff,
-        status: 'Connecting'
+        icon: AlertTriangle,
+        status: 'Connecting',
+        variant: 'secondary' as const
       };
     }
   };
@@ -53,7 +56,8 @@ export const WebSocketStatusIndicator: React.FC<WebSocketStatusIndicatorProps> =
     connectionId: connectionId || 'None',
     timestamp: new Date().toLocaleString(),
     channels: isConnected ? ['proactive-messages', 'toast-notifications'] : [],
-    environment: window.location.hostname === 'localhost' ? 'Development' : 'Production'
+    environment: window.location.hostname === 'localhost' ? 'Development' : 'Production',
+    websocketStatus: isEnabled ? (isConnected ? 'Connected' : 'Connecting') : 'Disabled'
   };
 
   if (!showDetails) {
@@ -95,7 +99,7 @@ export const WebSocketStatusIndicator: React.FC<WebSocketStatusIndicatorProps> =
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Status</label>
                   <div className="flex items-center gap-2 mt-1">
-                    <Badge variant={isConnected ? 'default' : isEnabled ? 'secondary' : 'destructive'}>
+                    <Badge variant={statusIndicator.variant}>
                       {statusIndicator.status}
                     </Badge>
                   </div>
@@ -139,10 +143,11 @@ export const WebSocketStatusIndicator: React.FC<WebSocketStatusIndicatorProps> =
                 <p className="text-sm mt-1">{diagnosticInfo.timestamp}</p>
               </div>
               
-              {!isConnected && isEnabled && (
+              {isEnabled && !isConnected && (
                 <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
                   <p className="text-sm text-yellow-800">
-                    WebSocket is enabled but not connected. The system will automatically attempt to reconnect.
+                    WebSocket is enabled but not connected. The system is attempting to connect or reconnect.
+                    Check the browser console for detailed connection logs.
                   </p>
                 </div>
               )}
@@ -151,6 +156,14 @@ export const WebSocketStatusIndicator: React.FC<WebSocketStatusIndicatorProps> =
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
                   <p className="text-sm text-blue-800">
                     Real-time messaging is disabled. Enable it in the Admin Panel Real-time Messaging settings.
+                  </p>
+                </div>
+              )}
+
+              {isEnabled && isConnected && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                  <p className="text-sm text-green-800">
+                    WebSocket is connected and ready to receive real-time messages and notifications.
                   </p>
                 </div>
               )}

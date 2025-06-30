@@ -36,26 +36,20 @@ interface WebSocketProviderProps {
 }
 
 interface ToastNotificationPayload {
-  type: 'toast_notification';
-  data: {
-    id: string;
-    title: string;
-    message: string;
-    type: 'info' | 'success' | 'warning' | 'error';
-    timestamp: string;
-  };
+  id: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  timestamp: string;
   target_user?: string;
 }
 
 interface ProactiveMessagePayload {
-  type: 'proactive_message';
-  data: {
-    id: string;
-    content: string;
-    sender: string;
-    timestamp: string;
-    metadata?: Record<string, any>;
-  };
+  id: string;
+  content: string;
+  sender: string;
+  timestamp: string;
+  metadata?: Record<string, any>;
   target_user?: string;
 }
 
@@ -70,6 +64,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
   const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const channelsRef = useRef<{ proactive: any; toast: any }>({ proactive: null, toast: null });
 
   // Method to subscribe to proactive messages
   const onProactiveMessage = (handler: (message: ProactiveMessage) => void) => {
@@ -127,6 +122,16 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
       clearInterval(pingIntervalRef.current);
       pingIntervalRef.current = null;
     }
+    
+    // Clean up channels
+    if (channelsRef.current.proactive) {
+      supabase.removeChannel(channelsRef.current.proactive);
+      channelsRef.current.proactive = null;
+    }
+    if (channelsRef.current.toast) {
+      supabase.removeChannel(channelsRef.current.toast);
+      channelsRef.current.toast = null;
+    }
   };
 
   const initializeWebSocket = async () => {
@@ -162,96 +167,119 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
         }
       });
 
-      // Handle proactive chat messages
-      proactiveChannel.on('broadcast', { event: 'proactive_message' }, (payload: { payload: ProactiveMessagePayload }) => {
-        const messageData = payload.payload;
+      // Store channel references
+      channelsRef.current.proactive = proactiveChannel;
+      channelsRef.current.toast = toastChannel;
+
+      // Handle proactive chat messages - FIXED PAYLOAD STRUCTURE
+      proactiveChannel.on('broadcast', { event: 'proactive_message' }, (payload: any) => {
+        logger.info('Raw proactive message payload received:', payload, { module: 'websocket' });
+        
+        // Handle the correct payload structure from Supabase
+        const messageData = payload.payload; // Supabase wraps in payload
         
         // Check if this message is targeted to current user (or broadcast to all)
-        if (messageData.target_user && messageData.target_user !== user?.id) {
-          return; // Skip messages not meant for this user
+        if (messageData?.target_user && messageData.target_user !== user?.id) {
+          logger.debug('Skipping proactive message not for this user', { target: messageData.target_user, current: user?.id }, { module: 'websocket' });
+          return;
         }
 
-        logger.info('Received proactive message via WebSocket', messageData, { module: 'websocket' });
+        if (messageData?.data) {
+          logger.info('Processing proactive message:', messageData.data, { module: 'websocket' });
 
-        // Create ProactiveMessage object
-        const proactiveMessage: ProactiveMessage = {
-          id: messageData.data.id,
-          content: messageData.data.content,
-          sender: messageData.data.sender || 'AI Assistant',
-          timestamp: messageData.data.timestamp,
-          metadata: messageData.data.metadata
-        };
+          // Create ProactiveMessage object
+          const proactiveMessage: ProactiveMessage = {
+            id: messageData.data.id,
+            content: messageData.data.content,
+            sender: messageData.data.sender || 'AI Assistant',
+            timestamp: messageData.data.timestamp,
+            metadata: messageData.data.metadata
+          };
 
-        // Notify all registered handlers
-        proactiveMessageHandlersRef.current.forEach(handler => {
-          try {
-            handler(proactiveMessage);
-          } catch (error) {
-            logger.error('Error in proactive message handler:', error, { module: 'websocket' });
-          }
-        });
+          // Notify all registered handlers
+          proactiveMessageHandlersRef.current.forEach(handler => {
+            try {
+              handler(proactiveMessage);
+            } catch (error) {
+              logger.error('Error in proactive message handler:', error, { module: 'websocket' });
+            }
+          });
 
-        // Also dispatch custom event for backwards compatibility
-        window.dispatchEvent(new CustomEvent('proactiveMessage', {
-          detail: proactiveMessage
-        }));
+          // Also dispatch custom event for backwards compatibility
+          window.dispatchEvent(new CustomEvent('proactiveMessage', {
+            detail: proactiveMessage
+          }));
+        } else {
+          logger.warn('Received proactive message with unexpected structure:', messageData, { module: 'websocket' });
+        }
       });
 
-      // Handle toast notifications (separate from chat messages)
-      toastChannel.on('broadcast', { event: 'toast_notification' }, (payload: { payload: ToastNotificationPayload }) => {
-        const notificationData = payload.payload;
+      // Handle toast notifications - FIXED PAYLOAD STRUCTURE
+      toastChannel.on('broadcast', { event: 'toast_notification' }, (payload: any) => {
+        logger.info('Raw toast notification payload received:', payload, { module: 'websocket' });
+        
+        // Handle the correct payload structure from Supabase
+        const notificationData = payload.payload; // Supabase wraps in payload
         
         // Check if this notification is targeted to current user (or broadcast to all)
-        if (notificationData.target_user && notificationData.target_user !== user?.id) {
-          return; // Skip notifications not meant for this user
+        if (notificationData?.target_user && notificationData.target_user !== user?.id) {
+          logger.debug('Skipping toast notification not for this user', { target: notificationData.target_user, current: user?.id }, { module: 'websocket' });
+          return;
         }
 
-        logger.info('Received toast notification via WebSocket', notificationData, { module: 'websocket' });
+        if (notificationData?.data) {
+          logger.info('Processing toast notification:', notificationData.data, { module: 'websocket' });
 
-        // Show toast notification
-        const toastVariant = notificationData.data.type === 'error' ? 'destructive' : 'default';
-        
-        toast({
-          title: notificationData.data.title,
-          description: notificationData.data.message,
-          variant: toastVariant,
-        });
+          // Show toast notification
+          const toastVariant = notificationData.data.type === 'error' ? 'destructive' : 'default';
+          
+          toast({
+            title: notificationData.data.title,
+            description: notificationData.data.message,
+            variant: toastVariant,
+          });
 
-        // Also trigger browser notification if permission granted
-        notificationService.showNotification({
-          title: notificationData.data.title,
-          message: notificationData.data.message,
-          type: notificationData.data.type,
-          showBrowserNotification: true
-        });
+          // Also trigger browser notification if permission granted
+          notificationService.showNotification({
+            title: notificationData.data.title,
+            message: notificationData.data.message,
+            type: notificationData.data.type,
+            showBrowserNotification: true
+          });
+        } else {
+          logger.warn('Received toast notification with unexpected structure:', notificationData, { module: 'websocket' });
+        }
       });
 
-      // Subscribe to both channels with proper status checking
-      const proactiveResult = await proactiveChannel.subscribe();
-      const toastResult = await toastChannel.subscribe();
+      // Subscribe to both channels with proper error handling
+      try {
+        const proactiveResult = await proactiveChannel.subscribe();
+        logger.info('Proactive channel subscription result:', proactiveResult, { module: 'websocket' });
+        
+        const toastResult = await toastChannel.subscribe();
+        logger.info('Toast channel subscription result:', toastResult, { module: 'websocket' });
 
-      // Check subscription status correctly - the result is an object with status property
-      const proactiveStatus = proactiveResult.status || proactiveResult;
-      const toastStatus = toastResult.status || toastResult;
+        // Check if both subscriptions were successful
+        const proactiveSuccess = proactiveResult?.status === 'SUBSCRIBED';
+        const toastSuccess = toastResult?.status === 'SUBSCRIBED';
 
-      logger.info('Channel subscription results', { 
-        proactiveResult,
-        toastResult,
-        proactiveStatus,
-        toastStatus
-      }, { module: 'websocket' });
-
-      if (proactiveStatus === 'SUBSCRIBED' && toastStatus === 'SUBSCRIBED') {
-        setIsConnected(true);
-        reconnectAttemptsRef.current = 0; // Reset reconnect attempts on successful connection
-        startHealthMonitoring();
-        logger.info('WebSocket channels connected successfully', { 
-          connectionId: connId,
-          proactiveStatus,
-          toastStatus
-        }, { module: 'websocket' });
-      } else {
-        throw new Error(`Channel subscription failed: proactive=${proactiveStatus}, toast=${toastStatus}`);
+        if (proactiveSuccess && toastSuccess) {
+          setIsConnected(true);
+          reconnectAttemptsRef.current = 0; // Reset reconnect attempts on successful connection
+          startHealthMonitoring();
+          logger.info('WebSocket channels connected successfully', { 
+            connectionId: connId,
+            proactiveStatus: proactiveResult?.status,
+            toastStatus: toastResult?.status
+          }, { module: 'websocket' });
+        } else {
+          throw new Error(`Channel subscription failed: proactive=${proactiveResult?.status}, toast=${toastResult?.status}`);
+        }
+      } catch (subscriptionError) {
+        logger.error('Channel subscription error:', subscriptionError, { module: 'websocket' });
+        setIsConnected(false);
+        scheduleReconnect();
+        return;
       }
 
       // Cleanup function
@@ -259,6 +287,8 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
         try {
           supabase.removeChannel(proactiveChannel);
           supabase.removeChannel(toastChannel);
+          channelsRef.current.proactive = null;
+          channelsRef.current.toast = null;
           logger.info('WebSocket channels disconnected', { module: 'websocket' });
         } catch (error) {
           logger.error('Error disconnecting channels', error, { module: 'websocket' });
