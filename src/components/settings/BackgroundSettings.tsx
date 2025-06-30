@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -65,7 +64,7 @@ export function BackgroundSettings({
     }
   }, [onBackgroundImageUpload]);
 
-  const isImageTooSmall = imageInfo.width && imageInfo.height && 
+  const isImageTooSmall = imageInfo?.width && imageInfo?.height && 
     (imageInfo.width < 1920 || imageInfo.height < 1080);
 
   return (

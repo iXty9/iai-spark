@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
@@ -8,8 +7,10 @@ import { ThemeColors, ThemeSettings } from '@/types/theme';
 import { logger } from '@/utils/logging';
 
 export interface ImageInfo {
-  originalSize: string;
-  optimizedSize: string;
+  originalSize?: string;
+  optimizedSize?: string;
+  width?: number;
+  height?: number;
 }
 
 export const useCentralizedSettingsState = () => {
@@ -26,7 +27,7 @@ export const useCentralizedSettingsState = () => {
   const [isInPreview, setIsInPreview] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [imageInfo, setImageInfo] = useState<ImageInfo | null>(null);
+  const [imageInfo, setImageInfo] = useState<ImageInfo>({});
 
   // Preview state - starts with current values
   const [previewMode, setPreviewMode] = useState<'light' | 'dark'>(currentMode);
