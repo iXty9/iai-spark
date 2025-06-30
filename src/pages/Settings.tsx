@@ -1,10 +1,10 @@
 
 import { useAuth } from '@/contexts/AuthContext';
-import { useCentralizedSettingsState } from '@/hooks/settings/use-centralized-settings-state';
+import { useUnifiedTheme } from '@/hooks/use-unified-theme';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Palette, Image, AlertCircle, RefreshCw, Code } from 'lucide-react';
+import { ArrowLeft, Palette, Image, AlertCircle, Code } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
 import { BackgroundSettings } from '@/components/settings/BackgroundSettings';
@@ -17,7 +17,7 @@ import { useEffect } from 'react';
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { user, updateProfile } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   const {
@@ -40,14 +40,14 @@ export default function Settings() {
     updatePreviewBackgroundOpacity,
     saveChanges,
     discardChanges,
-    resetToDefaults
-  } = useCentralizedSettingsState();
+    resetToDefaults,
+    setImageInfo
+  } = useUnifiedTheme();
 
   // Enter preview mode when component mounts
   useEffect(() => {
     enterSettingsMode();
     
-    // Cleanup: exit preview mode when component unmounts (without saving)
     return () => {
       if (isInPreview) {
         exitSettingsMode(false);
@@ -66,24 +66,24 @@ export default function Settings() {
     updatePreviewDarkTheme(updatedTheme);
   };
 
-  // Fixed: Background image upload handler to match expected signature
   const handleBackgroundImageUpload = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // TODO: Implement actual upload logic
     const fakeUrl = URL.createObjectURL(file);
-    updatePreviewBackgroundImage(fakeUrl, {
+    const info = {
       originalSize: `${file.size} bytes`,
       optimizedSize: `${file.size} bytes`
-    });
+    };
+    
+    updatePreviewBackgroundImage(fakeUrl, info);
   };
 
   const handleRemoveBackground = () => {
     updatePreviewBackgroundImage(null);
+    setImageInfo({});
   };
 
-  // Fixed: Opacity change handler to match expected signature
   const handleOpacityChange = (value: number[]) => {
     const opacity = value[0];
     updatePreviewBackgroundOpacity(opacity);
@@ -146,12 +146,10 @@ export default function Settings() {
       if (!confirmLeave) return;
     }
     
-    // Exit preview mode without saving
     exitSettingsMode(false);
     navigate('/');
   };
 
-  // Show loading state
   if (isLoading) {
     return (
       <div className="container max-w-4xl py-10">
@@ -183,7 +181,6 @@ export default function Settings() {
         </CardHeader>
         
         <CardContent className="space-y-6">
-          {/* Unsaved Changes Alert */}
           {hasChanges && (
             <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20">
               <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
@@ -193,7 +190,6 @@ export default function Settings() {
             </Alert>
           )}
           
-          {/* Main Settings Tabs */}
           <Tabs defaultValue="appearance" className="w-full">
             <TabsList className="grid w-full grid-cols-3 mb-6">
               <TabsTrigger value="appearance" className="flex items-center gap-2">
@@ -247,7 +243,6 @@ export default function Settings() {
             </TabsContent>
           </Tabs>
           
-          {/* Footer */}
           <SettingsFooter 
             onReset={handleResetSettings}
             onCancel={handleCancelSettings}
