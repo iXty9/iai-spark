@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { DebugInfo } from '@/types/chat';
 import { logger } from '@/utils/logging';
 
@@ -41,7 +41,8 @@ export const useDebugInfo = (isDevMode: boolean, messages: any[]) => {
     }));
   }, [isDevMode]);
 
-  const updateDebugInfo = (inputContainerRef: React.RefObject<HTMLDivElement>) => {
+  // Stabilize updateDebugInfo with useCallback to prevent infinite re-renders
+  const updateDebugInfo = useCallback((inputContainerRef: React.RefObject<HTMLDivElement>) => {
     if (!isDevMode) return;
 
     setDebugInfo(di => {
@@ -67,7 +68,7 @@ export const useDebugInfo = (isDevMode: boolean, messages: any[]) => {
       }
       return update;
     });
-  };
+  }, [isDevMode, messages.length]); // Only depend on stable values
 
   return { debugInfo, updateDebugInfo };
 };

@@ -35,7 +35,7 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
   const { isDevMode } = useDevMode();
   const inputContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // Use custom hooks
+  // Use custom hooks - updateDebugInfo is now stabilized with useCallback
   const { debugInfo, updateDebugInfo } = useDebugInfo(isDevMode, messages);
   const { lastWebhookCall } = useWebhookTracking(isDevMode);
   
@@ -50,10 +50,12 @@ export const ChatDebugState: React.FC<ChatDebugStateProps> = ({
 
   useBootstrapInit(isDevMode, isAuthenticated);
 
-  // Update debug info when relevant state changes
+  // Update debug info when relevant state changes - now with stable function reference
   useEffect(() => {
-    updateDebugInfo(inputContainerRef);
-  }, [messages.length, hasInteracted, isLoading, updateDebugInfo]);
+    if (isDevMode) {
+      updateDebugInfo(inputContainerRef);
+    }
+  }, [isDevMode, messages.length, hasInteracted, isLoading, updateDebugInfo]);
 
   const setInputContainerRef = useCallback((ref: HTMLDivElement | null) => {
     inputContainerRef.current = ref;
