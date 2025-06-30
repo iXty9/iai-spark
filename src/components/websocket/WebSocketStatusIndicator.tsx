@@ -36,10 +36,10 @@ export const WebSocketStatusIndicator: React.FC<WebSocketStatusIndicatorProps> =
       };
     } else {
       return {
-        color: 'bg-gray-400',
-        tooltip: 'Real-time messaging enabled but not connected',
+        color: 'bg-yellow-500',
+        tooltip: 'Real-time messaging enabled but connecting...',
         icon: WifiOff,
-        status: 'Disconnected'
+        status: 'Connecting'
       };
     }
   };
@@ -95,7 +95,7 @@ export const WebSocketStatusIndicator: React.FC<WebSocketStatusIndicatorProps> =
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Status</label>
                   <div className="flex items-center gap-2 mt-1">
-                    <Badge variant={isConnected ? 'default' : 'destructive'}>
+                    <Badge variant={isConnected ? 'default' : isEnabled ? 'secondary' : 'destructive'}>
                       {statusIndicator.status}
                     </Badge>
                   </div>
@@ -150,7 +150,7 @@ export const WebSocketStatusIndicator: React.FC<WebSocketStatusIndicatorProps> =
               {!isEnabled && (
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
                   <p className="text-sm text-blue-800">
-                    Real-time messaging is disabled. Enable it in the Admin Panel {/* App Settings Real-time Messaging */}.
+                    Real-time messaging is disabled. Enable it in the Admin Panel Real-time Messaging settings.
                   </p>
                 </div>
               )}

@@ -1,11 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { TestTube, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { fetchAppSettings } from '@/services/admin/settingsService';
 
 interface TestResult {
   type: 'proactive' | 'toast';
@@ -19,15 +20,45 @@ export function WebhookTester() {
   const [isTestingProactive, setIsTestingProactive] = useState(false);
   const [isTestingToast, setIsTestingToast] = useState(false);
   const [testResults, setTestResults] = useState<TestResult[]>([]);
+  const [webhookUrls, setWebhookUrls] = useState({
+    proactive: '',
+    toast: ''
+  });
 
-  const testProactiveWebhook = async () => {
-    setIsTestingProactive(true);
+  useEffect(() => {
+    loadWebhookUrls();
+  }, []);
+
+  const loadWebhookUrls = async () => {
     try {
+      const settings = await fetchAppSettings();
+      
       const baseUrl = window.location.origin.includes('localhost') 
         ? 'http://localhost:54321'
         : 'https://ymtdtzkskjdqlzhjuesk.supabase.co';
       
-      const response = await fetch(`${baseUrl}/functions/v1/proactive-message-webhook`, {
+      setWebhookUrls({
+        proactive: settings.proactive_message_webhook_url || `${baseUrl}/functions/v1/proactive-message-webhook`,
+        toast: settings.toast_notification_webhook_url || `${baseUrl}/functions/v1/toast-notification-webhook`
+      });
+    } catch (error) {
+      console.error('Error loading webhook URLs:', error);
+      // Fallback to default URLs
+      const baseUrl = window.location.origin.includes('localhost') 
+        ? 'http://localhost:54321'
+        : 'https://ymtdtzkskjdqlzhjuesk.supabase.co';
+      
+      setWebhookUrls({
+        proactive: `${baseUrl}/functions/v1/proactive-message-webhook`,
+        toast: `${baseUrl}/functions/v1/toast-notification-webhook`
+      });
+    }
+  };
+
+  const testProactiveWebhook = async () => {
+    setIsTestingProactive(true);
+    try {
+      const response = await fetch(webhookUrls.proactive, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -78,11 +109,7 @@ export function WebhookTester() {
   const testToastWebhook = async () => {
     setIsTestingToast(true);
     try {
-      const baseUrl = window.location.origin.includes('localhost') 
-        ? 'http://localhost:54321'
-        : 'https://ymtdtzkskjdqlzhjuesk.supabase.co';
-      
-      const response = await fetch(`${baseUrl}/functions/v1/toast-notification-webhook`, {
+      const response = await fetch(webhookUrls.toast, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -106,7 +133,7 @@ export function WebhookTester() {
         
         toast({
           title: "Test Successful",
-          description: "Toast notification webhook is working correctly.",
+          description: "Toast notification webhook is working correctly. Check for the notification!",
         });
       } else {
         throw new Error(result.error || 'Unknown error');
@@ -148,6 +175,13 @@ export function WebhookTester() {
             These tests will send real notifications to all connected users.
           </AlertDescription>
         </Alert>
+
+        <div className="space-y-2">
+          <div className="text-sm text-muted-foreground">
+            <p><strong>Proactive URL:</strong> {webhookUrls.proactive}</p>
+            <p><strong>Toast URL:</strong> {webhookUrls.toast}</p>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Button

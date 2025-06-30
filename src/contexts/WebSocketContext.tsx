@@ -226,9 +226,20 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
         });
       });
 
-      // Subscribe to both channels
-      const proactiveStatus = await proactiveChannel.subscribe();
-      const toastStatus = await toastChannel.subscribe();
+      // Subscribe to both channels with proper status checking
+      const proactiveResult = await proactiveChannel.subscribe();
+      const toastResult = await toastChannel.subscribe();
+
+      // Check subscription status correctly - the result is an object with status property
+      const proactiveStatus = proactiveResult.status || proactiveResult;
+      const toastStatus = toastResult.status || toastResult;
+
+      logger.info('Channel subscription results', { 
+        proactiveResult,
+        toastResult,
+        proactiveStatus,
+        toastStatus
+      }, { module: 'websocket' });
 
       if (proactiveStatus === 'SUBSCRIBED' && toastStatus === 'SUBSCRIBED') {
         setIsConnected(true);
@@ -287,7 +298,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
       setIsEnabled(false);
       setConnectionId(null);
     };
-  }, [user?.id]); // Removed proactiveMessageHandlers from dependency array to prevent connection cycling
+  }, [user?.id]);
 
   const value: WebSocketContextType = {
     isConnected,

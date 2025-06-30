@@ -55,19 +55,12 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Create and subscribe to the channel first
+    // Create the channel
     const channel = supabase.channel('toast-notifications')
     
-    // Subscribe to the channel before sending
-    const subscriptionStatus = await channel.subscribe()
-    
-    if (subscriptionStatus !== 'SUBSCRIBED') {
-      throw new Error(`Failed to subscribe to channel: ${subscriptionStatus}`)
-    }
+    console.log('Created toast-notifications channel')
 
-    console.log('Successfully subscribed to toast-notifications channel')
-
-    // Now send the message
+    // Send the messages directly without subscribing (edge functions can send without subscribing)
     if (payload.user_id) {
       // Send to specific user
       const result = await channel.send({
