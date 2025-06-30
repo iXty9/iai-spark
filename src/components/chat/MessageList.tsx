@@ -4,7 +4,7 @@ import { Message as MessageType } from '@/types/chat';
 import { Message } from './Message';
 import { TypingIndicator } from './TypingIndicator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useChatStorage } from '@/hooks/chat/use-chat-storage';
+import { saveScrollPosition, loadScrollPosition } from '@/services/storage/chatPersistenceService';
 import { logger } from '@/utils/logging';
 
 interface MessageListProps {
@@ -26,15 +26,12 @@ export const MessageList: React.FC<MessageListProps> = ({
   const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
                      /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
-  // Use unified storage hook for scroll position
-  const { saveScroll, loadScroll } = useChatStorage([], () => {});
-
   // Restore scroll position whenever component mounts or messages are available
   useEffect(() => {
     const scrollableElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
     
     if (scrollableElement && messages.length > 0 && !hasRestoredScroll) {
-      const savedScrollPosition = loadScroll();
+      const savedScrollPosition = loadScrollPosition();
       
       if (savedScrollPosition !== null && savedScrollPosition > 0) {
         logger.debug('Restoring scroll position after navigation', { position: savedScrollPosition }, { module: 'chat' });
@@ -50,7 +47,7 @@ export const MessageList: React.FC<MessageListProps> = ({
         setHasRestoredScroll(true);
       }
     }
-  }, [messages.length, hasRestoredScroll, loadScroll]);
+  }, [messages.length, hasRestoredScroll]);
   
   // Save scroll position when user scrolls
   useEffect(() => {
@@ -61,9 +58,9 @@ export const MessageList: React.FC<MessageListProps> = ({
         const { scrollTop, scrollHeight, clientHeight } = e.target as HTMLElement;
         const isScrolledToBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 20;
         
-        // Save the current scroll position using unified storage
+        // Save the current scroll position using persistence service
         if (!isIOSSafari || (isIOSSafari && !isLoading)) {
-          saveScroll(scrollTop);
+          saveScrollPosition(scrollTop);
         }
         
         setUserHasScrolled(!isScrolledToBottom);
@@ -80,7 +77,7 @@ export const MessageList: React.FC<MessageListProps> = ({
           scrollableElement.addEventListener('touchend', () => {
             setTimeout(() => {
               const { scrollTop } = scrollableElement as HTMLElement;
-              saveScroll(scrollTop);
+              saveScrollPosition(scrollTop);
             }, 300); // Delay to account for momentum
           });
         }
@@ -93,7 +90,7 @@ export const MessageList: React.FC<MessageListProps> = ({
         };
       }
     }
-  }, [isIOSSafari, isLoading, saveScroll]);
+  }, [isIOSSafari, isLoading]);
 
   // Handle scrolling for new messages (but not when restoring position)
   useEffect(() => {
