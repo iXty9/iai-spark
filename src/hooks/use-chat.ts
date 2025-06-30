@@ -1,11 +1,12 @@
+
 import { useState, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from '@/contexts/AuthContext';
 import { logger } from '@/utils/logging';
 import { Message } from '@/types/chat';
+import { v4 as uuidv4 } from 'uuid';
 import { useChatActions } from './chat/use-chat-actions';
-import { useChatMessages } from './chat/use-chat-messages';
-import { useChatStorage } from './chat/use-chat-storage';
+import { useMessageState } from './chat/use-message-state';
 import { useChatApi } from './chat/use-chat-api';
 import { useChatWebSocket } from './chat/use-chat-websocket';
 
@@ -17,17 +18,17 @@ export const useChat = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   
-  // Use decomposed hooks
+  // Use the unified message state hook (useMessageState)
   const { 
     messages, 
-    setMessages, 
+    message,
+    setMessage: setMessageState,
+    setIsLoading: setMessageStateLoading,
     addMessage, 
-    clearMessages, 
-    createUserMessage, 
-    createErrorMessage 
-  } = useChatMessages();
-  
-  const { clearStorage } = useChatStorage(messages, setMessages);
+    clearMessages,
+    setMessages,
+    resetState
+  } = useMessageState();
   
   const { sendMessageToApi } = useChatApi({ 
     user, 
@@ -40,6 +41,26 @@ export const useChat = () => {
   // Use the chat actions hook to get the real export functionality
   const { handleExportChat } = useChatActions(messages);
 
+  // Helper functions to create messages
+  const createUserMessage = useCallback((content: string): Message => {
+    return {
+      id: uuidv4(),
+      content: content.trim(),
+      sender: 'user',
+      timestamp: new Date().toISOString()
+    };
+  }, []);
+
+  const createErrorMessage = useCallback((content: string): Message => {
+    return {
+      id: uuidv4(),
+      content,
+      sender: 'ai',
+      timestamp: new Date().toISOString(),
+      metadata: { isError: true }
+    };
+  }, []);
+
   // Set initializing to false after first render
   useState(() => {
     setIsInitialising(false);
@@ -51,7 +72,6 @@ export const useChat = () => {
 
   const clearChat = () => {
     clearMessages();
-    clearStorage();
     toast({
       title: "Chat cleared!",
       description: "All messages have been deleted.",
@@ -62,6 +82,7 @@ export const useChat = () => {
     if (!initialMessage.trim()) return;
 
     setIsLoading(true);
+    setMessageStateLoading(true);
     setError(null);
 
     const userMessage = createUserMessage(initialMessage);
@@ -84,13 +105,15 @@ export const useChat = () => {
       })
     } finally {
       setIsLoading(false);
+      setMessageStateLoading(false);
     }
-  }, [createUserMessage, addMessage, sendMessageToApi, createErrorMessage, toast]);
+  }, [createUserMessage, addMessage, sendMessageToApi, createErrorMessage, toast, setMessageStateLoading]);
 
   const sendMessage = async () => {
     if (!input.trim()) return;
 
     setIsLoading(true);
+    setMessageStateLoading(true);
     setError(null);
 
     const userMessage = createUserMessage(input);
@@ -114,6 +137,7 @@ export const useChat = () => {
       })
     } finally {
       setIsLoading(false);
+      setMessageStateLoading(false);
     }
   };
 
@@ -134,6 +158,8 @@ export const useChat = () => {
     startChat, // Now properly implemented
     setMessages,
     addMessage,
+    createUserMessage,
+    createErrorMessage,
     isWebSocketConnected,
     isWebSocketEnabled,
     handleAbortRequest: () => {}, // placeholder
