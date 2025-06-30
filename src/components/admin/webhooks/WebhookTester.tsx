@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { TestTube, Loader2, CheckCircle, XCircle, RefreshCw, Wifi } from 'lucide-react';
+import { TestTube, Loader2, CheckCircle, XCircle, RefreshCw, Wifi, MessageSquare, Bell } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useWebSocket } from '@/contexts/WebSocketContext';
 import { fetchAppSettings } from '@/services/admin/settingsService';
@@ -82,16 +82,20 @@ export function WebhookTester() {
       console.log('Testing proactive webhook:', webhookUrls.proactive);
       console.log('WebSocket status:', { isConnected, realtimeStatus });
       
+      const testMessage = `🧪 Test proactive message from admin panel - ${new Date().toLocaleString()}`;
+      
       const response = await fetch(webhookUrls.proactive, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: `Test proactive message from admin panel - ${new Date().toISOString()}`,
-          sender: 'Admin Test',
-          user_id: undefined,
-          username: undefined
+          message: testMessage,
+          sender: 'Admin Test Panel',
+          metadata: {
+            test: true,
+            priority: 'normal'
+          }
         })
       });
 
@@ -102,14 +106,14 @@ export function WebhookTester() {
         setTestResults(prev => [...prev, {
           type: 'proactive',
           status: 'success',
-          message: `Proactive message webhook test successful. ${!isConnected ? '(Note: WebSocket not connected for real-time delivery)' : ''}`,
+          message: `✅ Proactive message webhook test successful. ${!isConnected ? '(Note: WebSocket not connected for real-time delivery)' : 'Check for the test message in your chat!'}`,
           timestamp: new Date(),
           details: result
         }]);
         
         toast({
           title: "Test Successful",
-          description: `Proactive message webhook is working correctly. ${!isConnected ? 'WebSocket connection needed for real-time delivery.' : 'Check for the message!'}`,
+          description: `Proactive message webhook is working correctly. ${!isConnected ? 'WebSocket connection needed for real-time delivery.' : 'Check for the test message!'}`,
         });
       } else {
         throw new Error(result.error || `HTTP ${response.status}`);
@@ -120,7 +124,7 @@ export function WebhookTester() {
       setTestResults(prev => [...prev, {
         type: 'proactive',
         status: 'error',
-        message: `Proactive webhook test failed: ${error.message}`,
+        message: `❌ Proactive webhook test failed: ${error.message}`,
         timestamp: new Date(),
         details: error
       }]);
@@ -156,8 +160,8 @@ export function WebhookTester() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          title: 'Test Notification',
-          message: `This is a test toast notification from the admin panel - ${new Date().toISOString()}`,
+          title: '🧪 Test Notification',
+          message: `This is a test toast notification from the admin panel - ${new Date().toLocaleString()}`,
           type: 'info'
         })
       });
@@ -169,14 +173,14 @@ export function WebhookTester() {
         setTestResults(prev => [...prev, {
           type: 'toast',
           status: 'success',
-          message: `Toast notification webhook test successful. ${!isConnected ? '(Note: WebSocket not connected for real-time delivery)' : ''}`,
+          message: `✅ Toast notification webhook test successful. ${!isConnected ? '(Note: WebSocket not connected for real-time delivery)' : 'You should see the notification!'}`,
           timestamp: new Date(),
           details: result
         }]);
         
         toast({
           title: "Test Successful",
-          description: `Toast notification webhook is working correctly. ${!isConnected ? 'WebSocket connection needed for real-time delivery.' : 'You should see the notification!'}`,
+          description: `Toast notification webhook is working correctly. ${!isConnected ? 'WebSocket connection needed for real-time delivery.' : 'You should see the test notification!'}`,
         });
       } else {
         throw new Error(result.error || `HTTP ${response.status}`);
@@ -187,7 +191,7 @@ export function WebhookTester() {
       setTestResults(prev => [...prev, {
         type: 'toast',
         status: 'error',
-        message: `Toast webhook test failed: ${error.message}`,
+        message: `❌ Toast webhook test failed: ${error.message}`,
         timestamp: new Date(),
         details: error
       }]);
@@ -288,7 +292,11 @@ export function WebhookTester() {
             disabled={isTestingProactive}
             className="flex items-center gap-2"
           >
-            {isTestingProactive && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isTestingProactive ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <MessageSquare className="h-4 w-4" />
+            )}
             Test Proactive Message
           </Button>
 
@@ -298,7 +306,11 @@ export function WebhookTester() {
             variant="outline"
             className="flex items-center gap-2"
           >
-            {isTestingToast && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isTestingToast ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Bell className="h-4 w-4" />
+            )}
             Test Toast Notification
           </Button>
         </div>

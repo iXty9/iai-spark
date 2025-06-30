@@ -35,7 +35,7 @@ serve(async (req) => {
 
     console.log('Received toast notification:', payload)
 
-    // Create the notification data - SIMPLIFIED STRUCTURE
+    // Create the notification data with correct structure
     const notificationData = {
       id: crypto.randomUUID(),
       title: payload.title,
@@ -54,44 +54,56 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Create the channel
+    // Use consistent channel name with hyphen
     const channel = supabase.channel('toast-notifications')
     
     console.log('Created toast-notifications channel')
 
-    // Send messages directly - SIMPLIFIED PAYLOAD STRUCTURE
+    // Send with consistent payload structure
     if (payload.user_id) {
       // Send to specific user
+      const payloadStructure = {
+        data: notificationData,
+        target_user: payload.user_id
+      };
+      
+      console.log('Sending targeted toast with payload:', payloadStructure);
+      
       const result = await channel.send({
         type: 'broadcast',
         event: 'toast_notification',
-        payload: {
-          data: notificationData, // Supabase will wrap this in another payload
-          target_user: payload.user_id
-        }
+        payload: payloadStructure
       })
       console.log('Sent targeted toast notification result:', result)
     } else if (payload.target_users && payload.target_users.length > 0) {
       // Send to specific users
       for (const userId of payload.target_users) {
+        const payloadStructure = {
+          data: notificationData,
+          target_user: userId
+        };
+        
+        console.log(`Sending toast to user ${userId} with payload:`, payloadStructure);
+        
         const result = await channel.send({
           type: 'broadcast',
           event: 'toast_notification',
-          payload: {
-            data: notificationData, // Supabase will wrap this in another payload
-            target_user: userId
-          }
+          payload: payloadStructure
         })
         console.log(`Sent toast notification to user ${userId} result:`, result)
       }
     } else {
       // Broadcast to all users
+      const payloadStructure = {
+        data: notificationData
+      };
+      
+      console.log('Sending broadcast toast with payload:', payloadStructure);
+      
       const result = await channel.send({
         type: 'broadcast',
         event: 'toast_notification',
-        payload: {
-          data: notificationData // Supabase will wrap this in another payload
-        }
+        payload: payloadStructure
       })
       console.log('Sent broadcast toast notification result:', result)
     }

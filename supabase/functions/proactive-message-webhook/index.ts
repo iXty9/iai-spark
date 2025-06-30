@@ -55,13 +55,12 @@ serve(async (req) => {
       }
     }
 
-    // Create the message object
+    // Create the message object with correct field names for client
     const messageData = {
       id: crypto.randomUUID(),
-      content: body.message,
-      role: 'assistant' as const,
-      timestamp: new Date().toISOString(),
+      content: body.message, // Use 'content' not 'message'
       sender: body.sender || 'System',
+      timestamp: new Date().toISOString(),
       metadata: {
         ...body.metadata,
         isProactive: true,
@@ -69,41 +68,47 @@ serve(async (req) => {
       }
     };
 
-    // Send the message via WebSocket to the specific user or broadcast
-    const channel = supabaseClient.channel('proactive_messages');
+    console.log('Sending proactive message:', {
+      messageData,
+      targetUserId,
+      channelName: 'proactive-messages'
+    });
+
+    // Use consistent channel name with hyphen
+    const channel = supabaseClient.channel('proactive-messages');
     
-    if (targetUserId) {
-      // Send to specific user
-      await channel.send({
-        type: 'broadcast',
-        event: 'proactive_message',
-        payload: {
-          user_id: targetUserId,
-          message: messageData
-        }
-      });
-    } else {
-      // Broadcast to all connected users
-      await channel.send({
-        type: 'broadcast',
-        event: 'proactive_message_broadcast',
-        payload: {
-          message: messageData
-        }
-      });
-    }
+    // Send message with consistent payload structure
+    const payload = {
+      data: messageData,
+      target_user: targetUserId || undefined
+    };
+
+    console.log('Broadcasting with payload structure:', payload);
+
+    const result = await channel.send({
+      type: 'broadcast',
+      event: 'proactive_message', // Consistent event name
+      payload: payload
+    });
+
+    console.log('Broadcast result:', result);
+
+    // Clean up the channel
+    await supabaseClient.removeChannel(channel);
 
     console.log('Proactive message sent successfully', {
       user_id: targetUserId,
       username: body.username,
-      message_id: messageData.id
+      message_id: messageData.id,
+      broadcast_result: result
     });
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         message_id: messageData.id,
-        target_user_id: targetUserId
+        target_user_id: targetUserId,
+        broadcast_result: result
       }),
       { 
         status: 200, 

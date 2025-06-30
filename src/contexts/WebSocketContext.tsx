@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -48,24 +49,6 @@ export const useWebSocket = () => useContext(WebSocketContext);
 
 interface WebSocketProviderProps {
   children: React.ReactNode;
-}
-
-interface ToastNotificationPayload {
-  id: string;
-  title: string;
-  message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
-  timestamp: string;
-  target_user?: string;
-}
-
-interface ProactiveMessagePayload {
-  id: string;
-  content: string;
-  sender: string;
-  timestamp: string;
-  metadata?: Record<string, any>;
-  target_user?: string;
 }
 
 export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }) => {
@@ -206,7 +189,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
       const connId = `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       setConnectionId(connId);
 
-      // Set up channels with enhanced error handling
+      // Set up channels with enhanced error handling using consistent channel names
       const proactiveChannel = supabase.channel('proactive-messages', {
         config: {
           broadcast: { self: false },
@@ -225,30 +208,32 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
       channelsRef.current.proactive = proactiveChannel;
       channelsRef.current.toast = toastChannel;
 
-      // Handle proactive chat messages - FIXED PAYLOAD STRUCTURE
+      // Handle proactive chat messages with improved payload processing
       proactiveChannel.on('broadcast', { event: 'proactive_message' }, (payload: any) => {
         logger.info('Raw proactive message payload received:', payload, { module: 'websocket' });
         
-        // Handle the correct payload structure from Supabase
-        const messageData = payload.payload; // Supabase wraps in payload
+        // Handle the payload structure from edge function
+        const messagePayload = payload.payload; // Supabase wraps in payload
         
         // Check if this message is targeted to current user (or broadcast to all)
-        if (messageData?.target_user && messageData.target_user !== user?.id) {
-          logger.debug('Skipping proactive message not for this user', { target: messageData.target_user, current: user?.id }, { module: 'websocket' });
+        if (messagePayload?.target_user && messagePayload.target_user !== user?.id) {
+          logger.debug('Skipping proactive message not for this user', { target: messagePayload.target_user, current: user?.id }, { module: 'websocket' });
           return;
         }
 
-        if (messageData?.data) {
-          logger.info('Processing proactive message:', messageData.data, { module: 'websocket' });
+        if (messagePayload?.data) {
+          logger.info('Processing proactive message:', messagePayload.data, { module: 'websocket' });
 
-          // Create ProactiveMessage object
+          // Create ProactiveMessage object from the corrected data structure
           const proactiveMessage: ProactiveMessage = {
-            id: messageData.data.id,
-            content: messageData.data.content,
-            sender: messageData.data.sender || 'AI Assistant',
-            timestamp: messageData.data.timestamp,
-            metadata: messageData.data.metadata
+            id: messagePayload.data.id,
+            content: messagePayload.data.content, // Now using 'content' field
+            sender: messagePayload.data.sender || 'AI Assistant',
+            timestamp: messagePayload.data.timestamp,
+            metadata: messagePayload.data.metadata
           };
+
+          logger.info('Created proactive message object:', proactiveMessage, { module: 'websocket' });
 
           // Notify all registered handlers
           proactiveMessageHandlersRef.current.forEach(handler => {
@@ -264,44 +249,44 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
             detail: proactiveMessage
           }));
         } else {
-          logger.warn('Received proactive message with unexpected structure:', messageData, { module: 'websocket' });
+          logger.warn('Received proactive message with unexpected structure:', messagePayload, { module: 'websocket' });
         }
       });
 
-      // Handle toast notifications - FIXED PAYLOAD STRUCTURE
+      // Handle toast notifications with improved payload processing
       toastChannel.on('broadcast', { event: 'toast_notification' }, (payload: any) => {
         logger.info('Raw toast notification payload received:', payload, { module: 'websocket' });
         
-        // Handle the correct payload structure from Supabase
-        const notificationData = payload.payload; // Supabase wraps in payload
+        // Handle the payload structure from edge function
+        const notificationPayload = payload.payload; // Supabase wraps in payload
         
         // Check if this notification is targeted to current user (or broadcast to all)
-        if (notificationData?.target_user && notificationData.target_user !== user?.id) {
-          logger.debug('Skipping toast notification not for this user', { target: notificationData.target_user, current: user?.id }, { module: 'websocket' });
+        if (notificationPayload?.target_user && notificationPayload.target_user !== user?.id) {
+          logger.debug('Skipping toast notification not for this user', { target: notificationPayload.target_user, current: user?.id }, { module: 'websocket' });
           return;
         }
 
-        if (notificationData?.data) {
-          logger.info('Processing toast notification:', notificationData.data, { module: 'websocket' });
+        if (notificationPayload?.data) {
+          logger.info('Processing toast notification:', notificationPayload.data, { module: 'websocket' });
 
           // Show toast notification
-          const toastVariant = notificationData.data.type === 'error' ? 'destructive' : 'default';
+          const toastVariant = notificationPayload.data.type === 'error' ? 'destructive' : 'default';
           
           toast({
-            title: notificationData.data.title,
-            description: notificationData.data.message,
+            title: notificationPayload.data.title,
+            description: notificationPayload.data.message,
             variant: toastVariant,
           });
 
           // Also trigger browser notification if permission granted
           notificationService.showNotification({
-            title: notificationData.data.title,
-            message: notificationData.data.message,
-            type: notificationData.data.type,
+            title: notificationPayload.data.title,
+            message: notificationPayload.data.message,
+            type: notificationPayload.data.type,
             showBrowserNotification: true
           });
         } else {
-          logger.warn('Received toast notification with unexpected structure:', notificationData, { module: 'websocket' });
+          logger.warn('Received toast notification with unexpected structure:', notificationPayload, { module: 'websocket' });
         }
       });
 
