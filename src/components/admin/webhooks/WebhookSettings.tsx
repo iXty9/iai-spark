@@ -12,7 +12,8 @@ export function WebhookSettings() {
     debug_webhook_url: '',
     thumbs_up_webhook_url: '',
     thumbs_down_webhook_url: '',
-    user_signup_webhook_url: ''
+    user_signup_webhook_url: '',
+    toast_notification_webhook_url: ''
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -31,7 +32,8 @@ export function WebhookSettings() {
         debug_webhook_url: settings.debug_webhook_url || '',
         thumbs_up_webhook_url: settings.thumbs_up_webhook_url || '',
         thumbs_down_webhook_url: settings.thumbs_down_webhook_url || '',
-        user_signup_webhook_url: settings.user_signup_webhook_url || ''
+        user_signup_webhook_url: settings.user_signup_webhook_url || '',
+        toast_notification_webhook_url: settings.toast_notification_webhook_url || ''
       });
     } catch (error) {
       console.error('Error loading webhook settings:', error);
@@ -50,8 +52,8 @@ export function WebhookSettings() {
         <CardHeader>
           <CardTitle>Webhook Configuration</CardTitle>
           <CardDescription>
-            Configure webhook URLs for different types of events. These webhooks will receive 
-            data when users interact with the chat system or register for accounts.
+            Configure webhook URLs for different types of events. Chat webhooks inject messages into user conversations, 
+            while toast webhooks send app-wide notifications that appear as toast alerts.
           </CardDescription>
         </CardHeader>
         <WebhookSettingsForm initialSettings={webhookSettings} />
