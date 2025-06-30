@@ -150,7 +150,7 @@ export const WebSocketStatusIndicator: React.FC<WebSocketStatusIndicatorProps> =
               {!isEnabled && (
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
                   <p className="text-sm text-blue-800">
-                    Real-time messaging is disabled. Enable it in the Admin Panel > App Settings > Real-time Messaging.
+                    Real-time messaging is disabled. Enable it in the Admin Panel {/* App Settings Real-time Messaging */}.
                   </p>
                 </div>
               )}
