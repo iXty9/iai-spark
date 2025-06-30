@@ -1,10 +1,9 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import { Message as MessageType } from '@/types/chat';
 import { Message } from './Message';
 import { TypingIndicator } from './TypingIndicator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { saveScrollPosition, loadScrollPosition } from '@/services/storage/chatPersistenceService';
+import { useChatStorage } from '@/hooks/chat/use-chat-storage';
 import { logger } from '@/utils/logging';
 
 interface MessageListProps {
@@ -26,11 +25,14 @@ export const MessageList: React.FC<MessageListProps> = ({
   const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
                      /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
+  // Use unified storage hook for scroll position
+  const { saveScroll, loadScroll } = useChatStorage([], () => {});
+
   // Load saved scroll position on initial mount
   useEffect(() => {
     const scrollableElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
     if (scrollableElement && messages.length > 0 && isInitialLoad) {
-      const savedScrollPosition = loadScrollPosition();
+      const savedScrollPosition = loadScroll();
       
       if (savedScrollPosition !== null) {
         logger.debug('Restoring scroll position', { position: savedScrollPosition }, { module: 'chat' });
@@ -42,7 +44,7 @@ export const MessageList: React.FC<MessageListProps> = ({
       }
       setIsInitialLoad(false);
     }
-  }, [messages, isInitialLoad]);
+  }, [messages, isInitialLoad, loadScroll]);
   
   // Save scroll position when user scrolls
   useEffect(() => {
@@ -53,9 +55,9 @@ export const MessageList: React.FC<MessageListProps> = ({
         const { scrollTop, scrollHeight, clientHeight } = e.target as HTMLElement;
         const isScrolledToBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 20;
         
-        // Save the current scroll position to localStorage
+        // Save the current scroll position using unified storage
         if (!isIOSSafari || (isIOSSafari && !isLoading)) {
-          saveScrollPosition(scrollTop);
+          saveScroll(scrollTop);
         }
         
         setUserHasScrolled(!isScrolledToBottom);
@@ -72,7 +74,7 @@ export const MessageList: React.FC<MessageListProps> = ({
           scrollableElement.addEventListener('touchend', () => {
             setTimeout(() => {
               const { scrollTop } = scrollableElement as HTMLElement;
-              saveScrollPosition(scrollTop);
+              saveScroll(scrollTop);
             }, 300); // Delay to account for momentum
           });
         }
@@ -85,7 +87,7 @@ export const MessageList: React.FC<MessageListProps> = ({
         };
       }
     }
-  }, [isIOSSafari, isLoading]);
+  }, [isIOSSafari, isLoading, saveScroll]);
 
   // Handle scrolling based on new messages or loading state
   useEffect(() => {

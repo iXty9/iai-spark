@@ -5,7 +5,7 @@ import { logger } from '@/utils/logging';
 import { Message } from '@/types/chat';
 import { useChatActions } from './chat/use-chat-actions';
 import { useChatMessages } from './chat/use-chat-messages';
-import { useChatPersistence } from './chat/use-chat-persistence';
+import { useChatStorage } from './chat/use-chat-storage';
 import { useChatApi } from './chat/use-chat-api';
 import { useChatWebSocket } from './chat/use-chat-websocket';
 
@@ -27,7 +27,7 @@ export const useChat = () => {
     createErrorMessage 
   } = useChatMessages();
   
-  const { clearStorage } = useChatPersistence(messages, setMessages);
+  const { clearStorage } = useChatStorage(messages, setMessages);
   
   const { sendMessageToApi } = useChatApi({ 
     user, 
