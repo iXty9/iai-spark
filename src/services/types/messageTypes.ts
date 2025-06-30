@@ -8,5 +8,5 @@ export interface SendMessageParams {
   onMessageComplete?: (message: Message) => void;
   onError?: (error: Error) => void;
   isAuthenticated?: boolean;
-  userProfile?: { username?: string; first_name?: string; last_name?: string } | null;
+  userProfile?: { id?: string; username?: string; first_name?: string; last_name?: string } | null;
 }

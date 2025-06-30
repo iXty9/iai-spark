@@ -18,6 +18,7 @@ export const useChatApi = ({ user, addMessage, onError }: UseChatApiProps) => {
         message: userMessage.content,
         isAuthenticated: !!user,
         userProfile: user ? {
+          id: user.id,
           username: user.user_metadata?.username,
           first_name: user.user_metadata?.first_name,
           last_name: user.user_metadata?.last_name
