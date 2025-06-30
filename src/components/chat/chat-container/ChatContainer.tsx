@@ -46,19 +46,8 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
   // Messages are already in the correct format from useChat hook
   const convertedMessages: Message[] = messages;
   
-  console.log('ChatContainer messages:', {
-    originalCount: messages.length,
-    sampleMessage: messages[0] ? {
-      id: messages[0].id,
-      hasTokenInfo: !!messages[0].tokenInfo,
-      hasThreadId: !!messages[0].threadId,
-      keys: Object.keys(messages[0])
-    } : null
-  });
-  
   const handleImportChat = (importedMessages: Message[]) => {
     if (importedMessages && importedMessages.length > 0) {
-      console.log('Importing messages with full data preservation:', importedMessages);
       setMessages(importedMessages);
       setHasInteracted(true);
     }
@@ -152,3 +141,4 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     </ChatLayout>
   );
 };
+

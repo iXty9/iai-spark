@@ -80,6 +80,11 @@ const createDevLogger = () => {
   ): void {
     const { throttle = false, once = false, module = 'app' } = options;
     
+    // Reduce theme/background noise - only show errors
+    if (module === 'theme' && level !== 'error') {
+      return;
+    }
+    
     const logKey = `${level}:${module}:${message}`;
     
     if (once && seenLogs.has(logKey)) {
@@ -137,3 +142,4 @@ const createDevLogger = () => {
 export const logger = process.env.NODE_ENV === 'production' 
   ? createNoOpLogger() 
   : createDevLogger();
+
