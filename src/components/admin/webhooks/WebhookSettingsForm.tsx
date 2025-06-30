@@ -87,7 +87,7 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
         <Info className="h-4 w-4" />
         <AlertDescription>
           Webhook URLs must use HTTPS for security. Chat webhooks inject messages into conversations.
-          Toast notifications are configured in App Settings > Real-time Messaging.
+          Toast notifications are configured in App Settings {/* Real-time Messaging */}.
         </AlertDescription>
       </Alert>
 

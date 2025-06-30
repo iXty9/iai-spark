@@ -51,7 +51,7 @@ export function WebhookSettings() {
           <CardTitle>Webhook Configuration</CardTitle>
           <CardDescription>
             Configure webhook URLs for different types of events. Chat webhooks inject messages into user conversations.
-            Toast notifications are configured in App Settings > Real-time Messaging.
+            Toast notifications are configured in App Settings {/* Real-time Messaging */}.
           </CardDescription>
         </CardHeader>
         <WebhookSettingsForm initialSettings={webhookSettings} />
