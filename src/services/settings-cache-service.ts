@@ -1,5 +1,6 @@
 
 import { fetchAppSettings } from '@/services/admin/settingsService';
+import { clientManager } from '@/services/supabase/client-manager';
 
 interface CachedSettings {
   data: Record<string, string>;
@@ -29,26 +30,10 @@ class SettingsCacheService {
     console.log('[SETTINGS-CACHE] Constructor called - initializing service');
     try {
       this.loadFromLocalStorage();
-      // Immediately start fetching fresh data if no valid cache
-      if (!this.cache || !this.isCacheValid(this.cache)) {
-        console.log('[SETTINGS-CACHE] No valid cache on initialization, starting fresh fetch');
-        this.prefetchSettings();
-      } else {
-        console.log('[SETTINGS-CACHE] Valid cache found on initialization:', this.cache.data);
-      }
+      // REMOVED: No longer prefetch immediately to avoid race condition
+      console.log('[SETTINGS-CACHE] Initialization complete - will fetch on first request');
     } catch (error) {
       console.error('[SETTINGS-CACHE] Constructor error:', error);
-    }
-  }
-
-  // Prefetch settings without waiting for a request
-  private async prefetchSettings(): Promise<void> {
-    console.log('[SETTINGS-CACHE] Starting prefetch');
-    try {
-      await this.getSettings();
-      console.log('[SETTINGS-CACHE] Prefetch completed successfully');
-    } catch (error) {
-      console.error('[SETTINGS-CACHE] Prefetch failed:', error);
     }
   }
 
@@ -149,6 +134,22 @@ class SettingsCacheService {
     }
   }
 
+  // Check if client is ready before making database calls
+  private async waitForClientReady(): Promise<boolean> {
+    try {
+      const isReady = await clientManager.waitForReadiness();
+      if (!isReady) {
+        console.warn('[SETTINGS-CACHE] Client not ready after timeout');
+        return false;
+      }
+      console.log('[SETTINGS-CACHE] Client is ready for database operations');
+      return true;
+    } catch (error) {
+      console.error('[SETTINGS-CACHE] Error waiting for client readiness:', error);
+      return false;
+    }
+  }
+
   async getSettings(): Promise<Record<string, string>> {
     console.log('[SETTINGS-CACHE] getSettings() called', { 
       hasCache: !!this.cache, 
@@ -175,8 +176,8 @@ class SettingsCacheService {
       return this.fetchPromise;
     }
 
-    // Start new fetch
-    console.log('[SETTINGS-CACHE] Starting fresh settings fetch');
+    // Start new fetch with client readiness check
+    console.log('[SETTINGS-CACHE] Starting fresh settings fetch with client readiness check');
     this.fetchPromise = this.fetchAndCacheSettings();
     
     try {
@@ -193,8 +194,16 @@ class SettingsCacheService {
 
   private async fetchAndCacheSettings(): Promise<Record<string, string>> {
     console.log('[SETTINGS-CACHE] fetchAndCacheSettings() called');
+    
+    // Step 1: Check if client is ready
+    const clientReady = await this.waitForClientReady();
+    if (!clientReady) {
+      console.warn('[SETTINGS-CACHE] Client not ready, using fallback settings');
+      return this.getFallbackSettings();
+    }
+    
     try {
-      console.log('[SETTINGS-CACHE] Calling fetchAppSettings() from database');
+      console.log('[SETTINGS-CACHE] Client ready, calling fetchAppSettings() from database');
       const settings = await fetchAppSettings();
       console.log('[SETTINGS-CACHE] Database fetch successful, got settings:', settings, 'Count:', Object.keys(settings).length);
       this.saveToLocalStorage(settings);
@@ -208,21 +217,26 @@ class SettingsCacheService {
         return this.cache.data;
       }
       
-      // Return empty object as final fallback with default values
-      const fallbackSettings = {
-        ai_agent_name: 'AI Assistant',
-        app_name: 'The Everywhere Intelligent Assistant'
-      };
-      console.log('[SETTINGS-CACHE] No cache available, returning fallback settings:', fallbackSettings);
-      
-      // Emit change event with fallback data to unblock hooks
-      setTimeout(() => {
-        console.log('[SETTINGS-CACHE] Emitting change event with fallback data');
-        this.emitChange(fallbackSettings);
-      }, 0);
-      
-      return fallbackSettings;
+      // Return fallback settings as final option
+      console.log('[SETTINGS-CACHE] No cache available, returning fallback settings');
+      return this.getFallbackSettings();
     }
+  }
+
+  private getFallbackSettings(): Record<string, string> {
+    const fallbackSettings = {
+      ai_agent_name: 'AI Assistant',
+      app_name: 'The Everywhere Intelligent Assistant'
+    };
+    console.log('[SETTINGS-CACHE] Using fallback settings:', fallbackSettings);
+    
+    // Emit change event with fallback data to unblock hooks
+    setTimeout(() => {
+      console.log('[SETTINGS-CACHE] Emitting change event with fallback data');
+      this.emitChange(fallbackSettings);
+    }, 0);
+    
+    return fallbackSettings;
   }
 
   getSetting(key: string, defaultValue: string = ''): string {
