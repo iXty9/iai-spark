@@ -2,6 +2,7 @@
 import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Paperclip, Send, Mic, MicOff, Loader2 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFileUpload } from '@/hooks/chat/use-file-upload';
 import { useVoiceInput } from '@/hooks/chat/use-voice-input';
 import { useToast } from '@/hooks/use-toast';
@@ -141,7 +142,7 @@ export const InputButtons: React.FC<InputButtonsProps> = ({
   const VoiceIcon = voiceButtonState.icon;
 
   return (
-    <>
+    <TooltipProvider>
       <input
         type="file"
         ref={fileInputRef}
@@ -150,44 +151,64 @@ export const InputButtons: React.FC<InputButtonsProps> = ({
         accept="image/*,text/*,.pdf,.json"
       />
       
-      <Button 
-        type="button" 
-        variant="ghost" 
-        size="icon" 
-        className="shrink-0"
-        aria-label="Upload file"
-        onClick={handleFileClick}
-        disabled={uploadState.isUploading}
-      >
-        {uploadState.isUploading ? (
-          <Loader2 className="h-5 w-5 animate-spin" />
-        ) : (
-          <Paperclip className="h-5 w-5" />
-        )}
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button 
+            type="button" 
+            variant="ghost" 
+            size="icon" 
+            className="shrink-0"
+            aria-label="Upload file"
+            onClick={handleFileClick}
+            disabled={uploadState.isUploading}
+          >
+            {uploadState.isUploading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Paperclip className="h-5 w-5" />
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="text-xs">Attach file</p>
+        </TooltipContent>
+      </Tooltip>
       
-      <Button 
-        type="button" 
-        variant="ghost" 
-        size="icon" 
-        className="shrink-0"
-        aria-label={
-          voiceState.isRecording 
-            ? "Stop recording" 
-            : voiceState.isProcessing 
-            ? "Processing..." 
-            : "Start voice input"
-        }
-        onClick={handleVoiceClick}
-        disabled={voiceButtonState.disabled}
-        title={
-          !voiceState.isSupported 
-            ? "Voice input not supported in this browser" 
-            : undefined
-        }
-      >
-        <VoiceIcon className={`h-5 w-5 ${voiceButtonState.className}`} />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button 
+            type="button" 
+            variant="ghost" 
+            size="icon" 
+            className="shrink-0"
+            aria-label={
+              voiceState.isRecording 
+                ? "Stop recording" 
+                : voiceState.isProcessing 
+                ? "Processing..." 
+                : "Start voice input"
+            }
+            onClick={handleVoiceClick}
+            disabled={voiceButtonState.disabled}
+            title={
+              !voiceState.isSupported 
+                ? "Voice input not supported in this browser" 
+                : undefined
+            }
+          >
+            <VoiceIcon className={`h-5 w-5 ${voiceButtonState.className}`} />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="text-xs">
+            {voiceState.isRecording 
+              ? "Stop recording" 
+              : voiceState.isProcessing 
+              ? "Processing..." 
+              : "Voice input"}
+          </p>
+        </TooltipContent>
+      </Tooltip>
       
       <Button 
         type="button" 
@@ -200,6 +221,6 @@ export const InputButtons: React.FC<InputButtonsProps> = ({
       >
         <Send className="h-5 w-5" />
       </Button>
-    </>
+    </TooltipProvider>
   );
 };
