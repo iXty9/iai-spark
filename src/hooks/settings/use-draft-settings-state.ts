@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
@@ -101,7 +102,7 @@ export const useDraftSettingsState = () => {
     
     // Apply preview if currently in light mode
     if (draftState?.mode === 'light') {
-      productionThemeService.previewTheme(newTheme, 'light');
+      productionThemeService.previewLightTheme(newTheme);
     }
     
     logger.info('Draft light theme updated', { module: 'draft-settings' });
@@ -120,7 +121,7 @@ export const useDraftSettingsState = () => {
     
     // Apply preview if currently in dark mode
     if (draftState?.mode === 'dark') {
-      productionThemeService.previewTheme(newTheme, 'dark');
+      productionThemeService.previewDarkTheme(newTheme);
     }
     
     logger.info('Draft dark theme updated', { module: 'draft-settings' });
@@ -142,10 +143,10 @@ export const useDraftSettingsState = () => {
     }
     
     // Apply preview immediately
-    productionThemeService.previewBackground(image, draftState?.backgroundOpacity || 0.5);
+    productionThemeService.previewBackgroundImage(image);
     
     logger.info('Draft background image updated', { module: 'draft-settings', hasImage: !!image });
-  }, [draftState?.backgroundOpacity, checkForChanges, originalState]);
+  }, [checkForChanges, originalState]);
 
   const updateDraftBackgroundOpacity = useCallback((opacity: number) => {
     setDraftState(prev => {
@@ -159,10 +160,10 @@ export const useDraftSettingsState = () => {
     });
     
     // Apply preview immediately
-    productionThemeService.previewBackground(draftState?.backgroundImage || null, opacity);
+    productionThemeService.previewBackgroundOpacity(opacity);
     
     logger.info('Draft background opacity updated', { module: 'draft-settings', opacity });
-  }, [draftState?.backgroundImage, checkForChanges, originalState]);
+  }, [checkForChanges, originalState]);
 
   // FIXED: Updated draft mode update function to NOT mark changes for preview mode switching
   const updateDraftMode = useCallback((mode: 'light' | 'dark') => {
@@ -177,7 +178,12 @@ export const useDraftSettingsState = () => {
     // Apply preview immediately with the correct theme colors
     const themeColors = mode === 'light' ? draftState?.lightTheme : draftState?.darkTheme;
     if (themeColors) {
-      productionThemeService.previewTheme(themeColors, mode);
+      if (mode === 'light') {
+        productionThemeService.previewLightTheme(themeColors);
+      } else {
+        productionThemeService.previewDarkTheme(themeColors);
+      }
+      productionThemeService.previewThemeMode(mode);
     }
     
     logger.info('Draft theme mode updated for preview only (no change tracking)', { module: 'draft-settings', mode });
@@ -219,8 +225,13 @@ export const useDraftSettingsState = () => {
     // Restore original theme
     productionThemeService.setMode(originalState.mode);
     const currentColors = originalState.mode === 'light' ? originalState.lightTheme : originalState.darkTheme;
-    productionThemeService.previewTheme(currentColors, originalState.mode);
-    productionThemeService.previewBackground(originalState.backgroundImage, originalState.backgroundOpacity);
+    if (originalState.mode === 'light') {
+      productionThemeService.previewLightTheme(currentColors);
+    } else {
+      productionThemeService.previewDarkTheme(currentColors);
+    }
+    productionThemeService.previewBackgroundImage(originalState.backgroundImage);
+    productionThemeService.previewBackgroundOpacity(originalState.backgroundOpacity);
     
     logger.info('Draft changes discarded', { module: 'draft-settings' });
   }, [originalState]);
