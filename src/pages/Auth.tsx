@@ -6,8 +6,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AuthCard } from '@/components/auth/AuthCard';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { RegisterForm } from '@/components/auth/RegisterForm';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield } from 'lucide-react';
 import { getStoredConfig } from '@/config/supabase-config';
 
 // Brute force protection - track failed login attempts
@@ -85,13 +83,6 @@ const Auth = () => {
 
   return (
     <AuthCard>
-      <Alert className="mb-4 border-primary/20 bg-primary/10">
-        <Shield className="h-4 w-4 text-primary" />
-        <AlertDescription className="text-sm">
-          This site uses secure authentication. Make sure you're on the correct domain.
-        </AlertDescription>
-      </Alert>
-      
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="grid w-full grid-cols-2 mb-4">
           <TabsTrigger value="login">Login</TabsTrigger>
