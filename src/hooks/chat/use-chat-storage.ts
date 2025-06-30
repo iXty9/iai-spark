@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Message } from '@/types/chat';
 import { 
   saveChatHistory, 
@@ -12,38 +12,32 @@ import {
 import { logger } from '@/utils/logging';
 
 export const useChatStorage = (messages: Message[], setMessages: (msgs: Message[]) => void) => {
-  // Load messages on mount
+  const hasLoadedRef = useRef(false);
+
+  // Load messages on mount - only once
   useEffect(() => {
-    const storedMessages = loadChatHistory();
-    if (storedMessages.length > 0) {
-      console.log('Loading messages from unified storage:', {
-        count: storedMessages.length,
-        sampleMessage: storedMessages[0] ? {
-          id: storedMessages[0].id,
-          keys: Object.keys(storedMessages[0]),
-          hasTokenInfo: !!storedMessages[0].tokenInfo,
-          hasThreadId: !!storedMessages[0].threadId,
-          hasRawRequest: !!storedMessages[0].rawRequest
-        } : null
-      });
-      setMessages(storedMessages);
+    if (hasLoadedRef.current) return;
+    
+    try {
+      const storedMessages = loadChatHistory();
+      if (storedMessages.length > 0) {
+        setMessages(storedMessages);
+        logger.debug('Messages loaded from storage', { count: storedMessages.length }, { module: 'storage' });
+      }
+      hasLoadedRef.current = true;
+    } catch (error) {
+      logger.error('Failed to load messages from storage:', error, { module: 'storage' });
     }
   }, [setMessages]);
 
   // Save messages when they change
   useEffect(() => {
-    if (messages.length > 0) {
-      console.log('Saving messages to unified storage:', {
-        count: messages.length,
-        sampleMessage: messages[0] ? {
-          id: messages[0].id,
-          keys: Object.keys(messages[0]),
-          hasTokenInfo: !!messages[0].tokenInfo,
-          hasThreadId: !!messages[0].threadId,
-          hasRawRequest: !!messages[0].rawRequest
-        } : null
-      });
-      saveChatHistory(messages);
+    if (messages.length > 0 && hasLoadedRef.current) {
+      try {
+        saveChatHistory(messages);
+      } catch (error) {
+        logger.error('Failed to save messages to storage:', error, { module: 'storage' });
+      }
     }
   }, [messages]);
 
@@ -53,11 +47,10 @@ export const useChatStorage = (messages: Message[], setMessages: (msgs: Message[
     const oldData = localStorage.getItem(oldStorageKey);
     if (oldData) {
       try {
-        logger.info('Migrating old chat storage to unified system');
         localStorage.removeItem(oldStorageKey);
-        logger.info('Old chat storage cleaned up');
+        logger.debug('Old chat storage cleaned up', null, { module: 'storage' });
       } catch (error) {
-        logger.error('Failed to clean up old storage:', error);
+        logger.error('Failed to clean up old storage:', error, { module: 'storage' });
       }
     }
   }, []);
