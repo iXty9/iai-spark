@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { logger } from '@/utils/logging';
 import { globalStateService } from '@/services/debug/global-state-service';
 
@@ -11,6 +11,7 @@ export const useDebugEvents = (
   consoleLogs: any[]
 ) => {
   const nowISO = () => new Date().toISOString();
+  const isProcessingConsole = useRef(false);
 
   const events: Array<[string, (e: any) => void]> = [
     ['chatDebug', (e: any) => { 
@@ -72,7 +73,7 @@ export const useDebugEvents = (
   useEffect(() => {
     if (!isDevMode) return;
 
-    // Enhanced console logging without patching original methods
+    // Enhanced console logging with deferred state updates and recursion prevention
     const logTypes = ['log', 'warn', 'info', 'error'] as const;
     const originalMethods = new Map();
     
@@ -84,9 +85,20 @@ export const useDebugEvents = (
         // Call original method first
         originalMethod.apply(console, args);
         
-        // Add to debug console if dev mode is active
-        if (isDevMode) {
-          addConsole(type, args);
+        // Add to debug console if dev mode is active - with deferred processing
+        if (isDevMode && !isProcessingConsole.current) {
+          // Step 1: Defer console log processing using setTimeout
+          setTimeout(() => {
+            // Step 2: Recursion prevention
+            if (!isProcessingConsole.current) {
+              isProcessingConsole.current = true;
+              try {
+                addConsole(type, args);
+              } finally {
+                isProcessingConsole.current = false;
+              }
+            }
+          }, 0);
         }
       };
     });
@@ -107,6 +119,9 @@ export const useDebugEvents = (
           (console as any)[type] = originalMethod;
         }
       });
+      
+      // Reset recursion prevention flag
+      isProcessingConsole.current = false;
     };
     // eslint-disable-next-line
   }, [isDevMode, addLog, addConsole]);
