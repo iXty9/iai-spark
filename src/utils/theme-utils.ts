@@ -48,7 +48,10 @@ export const applyThemeChanges = (themeColors: any) => {
       codeBlockTextColor: '--markup-code-text',
       linkTextColor: '--markup-link-text',
       blockquoteTextColor: '--markup-blockquote-text',
-      tableHeaderTextColor: '--markup-table-header-text'
+      tableHeaderTextColor: '--markup-table-header-text',
+      
+      // NEW: Proactive highlight color mapping
+      proactiveHighlightColor: '--proactive-highlight-color'
     };
 
     Object.entries(themeColors).forEach(([key, value]) => {
@@ -68,7 +71,7 @@ export const applyThemeChanges = (themeColors: any) => {
             }
             
             // ENHANCED: Set raw hex values for all markup colors for direct inline style usage
-            if (key.startsWith('codeBlock') || key.startsWith('link') || key.startsWith('blockquote') || key.startsWith('tableHeader')) {
+            if (key.startsWith('codeBlock') || key.startsWith('link') || key.startsWith('blockquote') || key.startsWith('tableHeader') || key === 'proactiveHighlightColor') {
               root.style.setProperty(`--${kebabCase(key)}-hex`, String(value));
             }
           } else {
@@ -106,14 +109,16 @@ export const applyThemeChanges = (themeColors: any) => {
       themeColors.codeBlockTextColor ||
       themeColors.linkTextColor ||
       themeColors.blockquoteTextColor ||
-      themeColors.tableHeaderTextColor
+      themeColors.tableHeaderTextColor ||
+      themeColors.proactiveHighlightColor
     );
 
-    console.log('Applied comprehensive theme changes with FULL text color mapping including ENHANCED markup colors', { 
+    console.log('Applied comprehensive theme changes with FULL text color mapping including ENHANCED markup colors and proactive highlight', { 
       themeColors,
       mappedVariables: Object.keys(colorMappings),
       textColorApplied: !!themeColors.textColor,
-      markupColorsApplied
+      markupColorsApplied,
+      proactiveColorApplied: !!themeColors.proactiveHighlightColor
     });
   }
 };

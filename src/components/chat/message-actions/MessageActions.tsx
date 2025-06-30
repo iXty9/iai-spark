@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ThumbsUp, ThumbsDown, Copy, Volume2, Info, Check, VolumeX } from 'lucide-react';
 import { toast } from 'sonner';
@@ -90,7 +89,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
     if (tokenInfo) {
       setShowTokenInfo(true);
     } else {
-      toast.error('No token usage information available');
+      toast.error('No token usage information available for this message');
     }
   };
 
@@ -123,7 +122,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
     }
   };
 
-  // Check for token data
+  // Check for token data - Updated to be more lenient for proactive messages
   const hasTokenData = React.useMemo(() => {
     if (!tokenInfo) {
       return false;
@@ -181,7 +180,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
         variant="none"
       />
 
-      {tokenInfo && (
+      {tokenInfo && hasTokenData && (
         <TokenInfoDialog 
           open={showTokenInfo}
           onOpenChange={setShowTokenInfo}

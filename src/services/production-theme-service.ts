@@ -67,7 +67,8 @@ class ProductionThemeService {
       codeBlockTextColor: '#1f2937',
       linkTextColor: '#2563eb',
       blockquoteTextColor: '#4b5563',
-      tableHeaderTextColor: '#111827'
+      tableHeaderTextColor: '#111827',
+      proactiveHighlightColor: '#3b82f6'
     };
   }
 
@@ -92,7 +93,8 @@ class ProductionThemeService {
       codeBlockTextColor: '#f9fafb',
       linkTextColor: '#60a5fa',
       blockquoteTextColor: '#d1d5db',
-      tableHeaderTextColor: '#f3f4f6'
+      tableHeaderTextColor: '#f3f4f6',
+      proactiveHighlightColor: '#60a5fa'
     };
   }
 

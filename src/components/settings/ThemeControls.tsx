@@ -29,6 +29,7 @@ const defaultColors = {
   aiTextColor: '#000000',
   userNameColor: '#666666',
   aiNameColor: '#666666',
+  proactiveHighlightColor: '#3b82f6',
 };
 
 const contrastLabels = [
@@ -272,6 +273,26 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
                 </div>
               ))}
             </div>
+            {/* Proactive message preview */}
+            <div className="mt-4">
+              <div className="text-xs font-medium mb-2" style={{ color: c.aiNameColor }}>
+                Proactive Message Preview
+              </div>
+              <div
+                className="p-4 rounded-xl flex items-center justify-center text-center transition-all duration-300 hover:scale-105 shadow-md border-l-4"
+                style={{ 
+                  backgroundColor: c.aiBubbleColor, 
+                  opacity: c.aiBubbleOpacity, 
+                  color: c.aiTextColor,
+                  borderLeftColor: c.proactiveHighlightColor
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="font-medium">Proactive AI Message</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -327,6 +348,22 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
               icon={<div className="w-3 h-3 rounded-full bg-foreground"></div>}
             />
           </div>
+        </div>
+
+        {/* NEW: Proactive Message Settings Section */}
+        <div className="bg-card/60 rounded-xl p-6 border border-border/20 space-y-6">
+          <h4 className="font-semibold text-lg border-b border-border/30 pb-3 flex items-center gap-2">
+            <MessageSquare className="h-5 w-5 text-primary" />
+            Proactive Message Settings
+          </h4>
+          <ColorInputRow
+            label="Proactive Highlight Color"
+            name="proactiveHighlightColor"
+            value={c.proactiveHighlightColor}
+            onColorChange={onColorChange}
+            isActive={isActive}
+            icon={<div className="w-3 h-3 rounded-full border border-border" style={{ backgroundColor: c.proactiveHighlightColor }}></div>}
+          />
         </div>
 
         {/* NEW: Name Tag Colors Section */}

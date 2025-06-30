@@ -1,4 +1,3 @@
-
 export interface ThemeColors {
   backgroundColor: string;
   primaryColor: string;
@@ -24,6 +23,9 @@ export interface ThemeColors {
   linkTextColor?: string;
   blockquoteTextColor?: string;
   tableHeaderTextColor?: string;
+  
+  // NEW: Proactive message highlight color
+  proactiveHighlightColor?: string;
 }
 
 export interface ThemeSettings {

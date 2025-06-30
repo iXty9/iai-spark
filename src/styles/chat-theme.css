@@ -12,6 +12,11 @@
   opacity: var(--ai-bubble-opacity, 1);
 }
 
+/* Proactive message highlight border */
+.proactive-message-highlight {
+  border-left: 2px solid var(--proactive-highlight-color, #3b82f6) !important;
+}
+
 /* Ensure ALL text within message bubbles inherits the correct colors */
 .user-message-bubble *,
 .user-message-bubble p,
