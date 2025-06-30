@@ -1,3 +1,4 @@
+
 /**
  * Theme utility functions
  * Enhanced utilities for theme operations with complete CSS variable mapping
@@ -52,7 +53,7 @@ export const applyThemeChanges = (themeColors: any) => {
       userBubbleOpacity: '--user-bubble-opacity',
       aiBubbleOpacity: '--ai-bubble-opacity',
       
-      // NEW: Markup element colors
+      // FIXED: Markup element colors with proper CSS variable mapping
       codeBlockBackground: '--markup-code-bg',
       linkColor: '--markup-link',
       blockquoteColor: '--markup-blockquote',
@@ -77,6 +78,11 @@ export const applyThemeChanges = (themeColors: any) => {
             // For textColor, also set the raw hex value for direct usage
             if (key === 'textColor') {
               root.style.setProperty('--text-color-hex', String(value));
+            }
+            
+            // FIXED: For markup colors, also set raw hex values for direct inline style usage
+            if (key === 'codeBlockBackground' || key === 'linkColor' || key === 'blockquoteColor' || key === 'tableHeaderBackground') {
+              root.style.setProperty(`--${kebabCase(key)}-hex`, String(value));
             }
           } else {
             // Set the raw value for non-color properties
@@ -111,7 +117,7 @@ export const applyThemeChanges = (themeColors: any) => {
       document.body.offsetHeight;
     }
 
-    console.log('Applied comprehensive theme changes with FULL text color mapping including markup colors', { 
+    console.log('Applied comprehensive theme changes with FULL text color mapping including FIXED markup colors', { 
       themeColors,
       mappedVariables: Object.keys(colorMappings),
       textColorApplied: !!themeColors.textColor,

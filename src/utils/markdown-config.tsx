@@ -1,3 +1,4 @@
+
 import React from 'react';
 import DOMPurify from 'dompurify';
 import { ThemeColors } from '@/types/theme';
@@ -37,12 +38,6 @@ const sanitizerConfig = {
 
 // Factory function to create markdown components with theme support
 export const createMarkdownComponents = (themeColors?: ThemeColors) => {
-  // Get theme-aware colors with fallbacks
-  const getCodeBg = () => themeColors?.codeBlockBackground || 'bg-gray-100 dark:bg-gray-800';
-  const getLinkColor = () => themeColors?.linkColor || 'text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300';
-  const getBlockquoteBorder = () => themeColors?.blockquoteColor || 'border-gray-300 dark:border-gray-600';
-  const getTableHeaderBg = () => themeColors?.tableHeaderBackground || 'bg-gray-50 dark:bg-gray-700';
-
   return {
     p: ({ children }: any) => <p className="mb-4 last:mb-0 leading-relaxed">{children}</p>,
     h1: ({ children }: any) => <h1 className="text-2xl font-bold mb-4 mt-6 first:mt-0 leading-tight">{children}</h1>,
@@ -56,8 +51,11 @@ export const createMarkdownComponents = (themeColors?: ThemeColors) => {
     li: ({ children }: any) => <li className="ml-2 leading-relaxed">{children}</li>,
     blockquote: ({ children }: any) => (
       <blockquote 
-        className={`border-l-4 ${getBlockquoteBorder()} pl-4 italic mb-4 py-2 bg-gray-50 dark:bg-gray-800/50 rounded-r-md`}
-        style={themeColors?.blockquoteColor ? { borderLeftColor: themeColors.blockquoteColor } : {}}
+        className="pl-4 italic mb-4 py-2 rounded-r-md"
+        style={{
+          borderLeft: `4px solid ${themeColors?.blockquoteColor || '#d1d5db'}`,
+          backgroundColor: themeColors?.blockquoteColor ? `${themeColors.blockquoteColor}10` : '#f9fafb'
+        }}
       >
         {children}
       </blockquote>
@@ -65,23 +63,29 @@ export const createMarkdownComponents = (themeColors?: ThemeColors) => {
     code: ({ inline, children }: any) => 
       inline ? (
         <code 
-          className={`${getCodeBg()} px-1.5 py-0.5 rounded text-sm font-mono border`}
-          style={themeColors?.codeBlockBackground ? { backgroundColor: themeColors.codeBlockBackground } : {}}
+          className="px-1.5 py-0.5 rounded text-sm font-mono border"
+          style={{
+            backgroundColor: themeColors?.codeBlockBackground || '#f3f4f6'
+          }}
         >
           {children}
         </code>
       ) : (
         <pre 
-          className={`${getCodeBg()} p-4 rounded-lg overflow-x-auto mb-4 border`}
-          style={themeColors?.codeBlockBackground ? { backgroundColor: themeColors.codeBlockBackground } : {}}
+          className="p-4 rounded-lg overflow-x-auto mb-4 border"
+          style={{
+            backgroundColor: themeColors?.codeBlockBackground || '#f3f4f6'
+          }}
         >
           <code className="text-sm font-mono">{children}</code>
         </pre>
       ),
     pre: ({ children }: any) => (
       <pre 
-        className={`${getCodeBg()} p-4 rounded-lg overflow-x-auto mb-4 border`}
-        style={themeColors?.codeBlockBackground ? { backgroundColor: themeColors.codeBlockBackground } : {}}
+        className="p-4 rounded-lg overflow-x-auto mb-4 border"
+        style={{
+          backgroundColor: themeColors?.codeBlockBackground || '#f3f4f6'
+        }}
       >
         {children}
       </pre>
@@ -91,8 +95,10 @@ export const createMarkdownComponents = (themeColors?: ThemeColors) => {
         href={href} 
         target="_blank" 
         rel="noopener noreferrer" 
-        className={`${getLinkColor()} underline underline-offset-2 transition-colors`}
-        style={themeColors?.linkColor ? { color: themeColors.linkColor } : {}}
+        className="underline underline-offset-2 transition-colors"
+        style={{
+          color: themeColors?.linkColor || '#2563eb'
+        }}
       >
         {children}
       </a>
@@ -111,8 +117,9 @@ export const createMarkdownComponents = (themeColors?: ThemeColors) => {
     ),
     thead: ({ children }: any) => (
       <thead 
-        className={getTableHeaderBg()}
-        style={themeColors?.tableHeaderBackground ? { backgroundColor: themeColors.tableHeaderBackground } : {}}
+        style={{
+          backgroundColor: themeColors?.tableHeaderBackground || '#f9fafb'
+        }}
       >
         {children}
       </thead>

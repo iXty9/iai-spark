@@ -42,7 +42,11 @@ class ProductionThemeService {
       userTextColor: '#000000',
       aiTextColor: '#000000',
       userNameColor: '#666666',
-      aiNameColor: '#666666'
+      aiNameColor: '#666666',
+      codeBlockBackground: '#f3f4f6',
+      linkColor: '#2563eb',
+      blockquoteColor: '#d1d5db',
+      tableHeaderBackground: '#f9fafb'
     };
   }
 
@@ -59,7 +63,11 @@ class ProductionThemeService {
       userTextColor: '#ffffff',
       aiTextColor: '#ffffff',
       userNameColor: '#cccccc',
-      aiNameColor: '#cccccc'
+      aiNameColor: '#cccccc',
+      codeBlockBackground: '#374151',
+      linkColor: '#60a5fa',
+      blockquoteColor: '#6b7280',
+      tableHeaderBackground: '#374151'
     };
   }
 
