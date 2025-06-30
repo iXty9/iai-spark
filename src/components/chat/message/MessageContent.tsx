@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message } from '@/types/chat';
 import { createMarkdownComponents } from '@/utils/markdown-config';
-import { useUnifiedTheme } from '@/hooks/use-unified-theme';
+import { useTheme } from '@/hooks/use-theme';
 
 interface MessageContentProps {
   message: Message;
@@ -12,7 +12,7 @@ interface MessageContentProps {
 }
 
 export const MessageContent: React.FC<MessageContentProps> = ({ message, isUser }) => {
-  const { currentTheme } = useUnifiedTheme();
+  const { currentTheme } = useTheme();
   
   // Get themed markdown components
   const markdownComponents = createMarkdownComponents(currentTheme);
