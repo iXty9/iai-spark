@@ -2,7 +2,6 @@
 import { useCallback } from 'react';
 import { Message } from '@/types/chat';
 import { processMessage } from '@/services/chat/message-processor';
-import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
 
 interface UseChatApiProps {
@@ -61,29 +60,6 @@ export const useChatApi = ({ user, addMessage, onError }: UseChatApiProps) => {
       });
       
       addMessage(aiMessage);
-      
-      // Log the interaction to Supabase
-      if (user) {
-        try {
-          const { error } = await supabase
-            .from('chat_logs')
-            .insert([
-              {
-                user_id: user.id,
-                user_message: userMessage.content,
-                ai_response: aiMessage.content,
-                timestamp: new Date().toISOString(),
-                metadata: {}
-              },
-            ]);
-          
-          if (error) {
-            logger.error('Error logging chat interaction to Supabase:', error);
-          }
-        } catch (supabaseError: any) {
-          logger.error('Unexpected error logging chat interaction to Supabase:', supabaseError);
-        }
-      }
 
       return aiMessage;
     } catch (err: any) {
