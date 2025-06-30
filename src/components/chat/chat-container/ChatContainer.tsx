@@ -31,8 +31,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     startChat,
     setMessages,
     addMessage,
-    isWebSocketConnected,
-    isWebSocketEnabled
+    // Remove the WebSocket returns from useChat since we'll handle them separately
   } = useChat();
   
   const { isIOSSafari } = useIOSSafari();
@@ -141,4 +140,3 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     </ChatLayout>
   );
 };
-
