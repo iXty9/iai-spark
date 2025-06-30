@@ -82,22 +82,30 @@ const Auth = () => {
   };
 
   return (
-    <AuthCard>
-      <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="grid w-full grid-cols-2 mb-4">
-          <TabsTrigger value="login">Login</TabsTrigger>
-          <TabsTrigger value="register">Register</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="login">
-          <LoginForm />
-        </TabsContent>
-        
-        <TabsContent value="register">
-          <RegisterForm />
-        </TabsContent>
-      </Tabs>
-    </AuthCard>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 relative">
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-center">
+          <div className="w-full max-w-md">
+            <AuthCard>
+              <Tabs value={activeTab} onValueChange={handleTabChange}>
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="login">Login</TabsTrigger>
+                  <TabsTrigger value="register">Register</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="login">
+                  <LoginForm />
+                </TabsContent>
+                
+                <TabsContent value="register">
+                  <RegisterForm />
+                </TabsContent>
+              </Tabs>
+            </AuthCard>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
