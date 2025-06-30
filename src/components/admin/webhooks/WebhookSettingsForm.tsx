@@ -64,7 +64,6 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
       await updateAppSetting('thumbs_up_webhook_url', settings.thumbs_up_webhook_url);
       await updateAppSetting('thumbs_down_webhook_url', settings.thumbs_down_webhook_url);
       await updateAppSetting('user_signup_webhook_url', settings.user_signup_webhook_url);
-      await updateAppSetting('toast_notification_webhook_url', settings.toast_notification_webhook_url);
       
       toast({
         title: "Webhook settings saved",
@@ -87,8 +86,8 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
       <Alert className="mb-6">
         <Info className="h-4 w-4" />
         <AlertDescription>
-          Webhook URLs must use HTTPS for security. Chat webhooks inject messages into conversations, 
-          while toast webhooks send app-wide notifications.
+          Webhook URLs must use HTTPS for security. Chat webhooks inject messages into conversations.
+          Toast notifications are configured in App Settings > Real-time Messaging.
         </AlertDescription>
       </Alert>
 
@@ -119,23 +118,6 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
             onChange={handleChange}
             placeholder="https://your-domain.com/webhook/anonymous"
             error={errors.anonymous_webhook_url}
-          />
-        </div>
-        
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">App Notification Webhooks</h3>
-          <p className="text-sm text-muted-foreground">
-            These webhooks send app-wide notifications that appear as toast alerts.
-          </p>
-          
-          <WebhookUrlFormField
-            id="toast_notification_webhook_url"
-            name="toast_notification_webhook_url"
-            label="Toast Notification Webhook URL"
-            value={settings.toast_notification_webhook_url}
-            onChange={handleChange}
-            placeholder="https://your-domain.com/webhook/toast-notification"
-            error={errors.toast_notification_webhook_url}
           />
         </div>
         

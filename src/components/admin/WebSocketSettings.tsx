@@ -15,6 +15,7 @@ export function WebSocketSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [websocketEnabled, setWebsocketEnabled] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState('');
+  const [toastWebhookUrl, setToastWebhookUrl] = useState('');
 
   // Generate the webhook URL based on current environment
   const generateWebhookUrl = () => {
@@ -22,6 +23,14 @@ export function WebSocketSettings() {
       ? 'http://localhost:54321'
       : 'https://ymtdtzkskjdqlzhjuesk.supabase.co';
     return `${baseUrl}/functions/v1/proactive-message-webhook`;
+  };
+
+  // Generate the toast webhook URL
+  const generateToastWebhookUrl = () => {
+    const baseUrl = window.location.origin.includes('localhost') 
+      ? 'http://localhost:54321'
+      : 'https://ymtdtzkskjdqlzhjuesk.supabase.co';
+    return `${baseUrl}/functions/v1/toast-notification-webhook`;
   };
 
   useEffect(() => {
@@ -35,6 +44,7 @@ export function WebSocketSettings() {
       
       setWebsocketEnabled(settings.websocket_enabled === 'true');
       setWebhookUrl(settings.proactive_message_webhook_url || generateWebhookUrl());
+      setToastWebhookUrl(settings.toast_notification_webhook_url || generateToastWebhookUrl());
     } catch (error) {
       console.error('Error loading WebSocket settings:', error);
       toast({
@@ -52,6 +62,7 @@ export function WebSocketSettings() {
     try {
       await updateAppSetting('websocket_enabled', websocketEnabled.toString());
       await updateAppSetting('proactive_message_webhook_url', webhookUrl);
+      await updateAppSetting('toast_notification_webhook_url', toastWebhookUrl);
       
       toast({
         title: "WebSocket settings saved",
@@ -69,11 +80,11 @@ export function WebSocketSettings() {
     }
   };
 
-  const copyWebhookUrl = () => {
-    navigator.clipboard.writeText(webhookUrl);
+  const copyWebhookUrl = (url: string, type: 'chat' | 'toast') => {
+    navigator.clipboard.writeText(url);
     toast({
       title: "Copied to clipboard",
-      description: "Webhook URL has been copied to your clipboard.",
+      description: `${type === 'chat' ? 'Chat' : 'Toast notification'} webhook URL has been copied to your clipboard.`,
     });
   };
 
@@ -103,30 +114,30 @@ export function WebSocketSettings() {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="webhook-url">Incoming Message Webhook URL</Label>
+            <Label htmlFor="webhook-url">Chat Message Webhook URL</Label>
             <div className="flex gap-2">
               <Input
                 id="webhook-url"
                 value={webhookUrl}
                 onChange={(e) => setWebhookUrl(e.target.value)}
-                placeholder="Enter webhook URL for incoming messages"
+                placeholder="Enter webhook URL for chat messages"
                 className="flex-1"
               />
               <Button
                 variant="outline"
                 size="icon"
-                onClick={copyWebhookUrl}
+                onClick={() => copyWebhookUrl(webhookUrl, 'chat')}
                 title="Copy webhook URL"
               >
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
             <p className="text-sm text-muted-foreground">
-              Use this URL in your n8n workflows or external systems to send proactive messages to users. 
+              Use this URL to send proactive chat messages to users. 
               The webhook accepts POST requests with a JSON payload containing the message content.
             </p>
             <div className="p-3 bg-muted rounded-lg">
-              <p className="text-sm font-medium mb-2">Example payload:</p>
+              <p className="text-sm font-medium mb-2">Example chat message payload:</p>
               <pre className="text-xs bg-background p-2 rounded overflow-x-auto">
 {`{
   "user_id": "uuid-here",
@@ -136,6 +147,43 @@ export function WebSocketSettings() {
   "metadata": {
     "priority": "normal"
   }
+}`}
+              </pre>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="toast-webhook-url">Toast Notification Webhook URL</Label>
+            <div className="flex gap-2">
+              <Input
+                id="toast-webhook-url"
+                value={toastWebhookUrl}
+                onChange={(e) => setToastWebhookUrl(e.target.value)}
+                placeholder="Enter webhook URL for toast notifications"
+                className="flex-1"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => copyWebhookUrl(toastWebhookUrl, 'toast')}
+                title="Copy toast webhook URL"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Use this URL to send app-wide toast notifications that appear as alerts. 
+              These are separate from chat messages and appear as temporary notifications.
+            </p>
+            <div className="p-3 bg-muted rounded-lg">
+              <p className="text-sm font-medium mb-2">Example toast notification payload:</p>
+              <pre className="text-xs bg-background p-2 rounded overflow-x-auto">
+{`{
+  "title": "System Alert",
+  "message": "Maintenance scheduled for tonight",
+  "type": "info",
+  "user_id": "optional-specific-user",
+  "target_users": ["optional", "array", "of", "user-ids"]
 }`}
               </pre>
             </div>
