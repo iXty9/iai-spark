@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { WebhookSettingsForm } from './WebhookSettingsForm';
+import { WebhookTester } from './WebhookTester';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { WebhookSettings as WebhookSettingsType } from './WebhookValidation';
 
@@ -56,6 +57,8 @@ export function WebhookSettings() {
         </CardHeader>
         <WebhookSettingsForm initialSettings={webhookSettings} />
       </Card>
+      
+      <WebhookTester />
     </div>
   );
 }

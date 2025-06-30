@@ -39,11 +39,11 @@ serve(async (req) => {
     const notificationEvent = {
       type: 'toast_notification',
       data: {
+        id: crypto.randomUUID(),
         title: payload.title,
         message: payload.message,
         type: payload.type || 'info',
-        timestamp: new Date().toISOString(),
-        id: crypto.randomUUID()
+        timestamp: new Date().toISOString()
       }
     }
 
@@ -55,12 +55,22 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Broadcast to all connected clients or specific users
+    // Create and subscribe to the channel first
     const channel = supabase.channel('toast-notifications')
     
+    // Subscribe to the channel before sending
+    const subscriptionStatus = await channel.subscribe()
+    
+    if (subscriptionStatus !== 'SUBSCRIBED') {
+      throw new Error(`Failed to subscribe to channel: ${subscriptionStatus}`)
+    }
+
+    console.log('Successfully subscribed to toast-notifications channel')
+
+    // Now send the message
     if (payload.user_id) {
       // Send to specific user
-      await channel.send({
+      const result = await channel.send({
         type: 'broadcast',
         event: 'toast_notification',
         payload: {
@@ -68,10 +78,11 @@ serve(async (req) => {
           target_user: payload.user_id
         }
       })
+      console.log('Sent targeted toast notification:', result)
     } else if (payload.target_users && payload.target_users.length > 0) {
       // Send to specific users
       for (const userId of payload.target_users) {
-        await channel.send({
+        const result = await channel.send({
           type: 'broadcast',
           event: 'toast_notification',
           payload: {
@@ -79,15 +90,20 @@ serve(async (req) => {
             target_user: userId
           }
         })
+        console.log(`Sent toast notification to user ${userId}:`, result)
       }
     } else {
       // Broadcast to all users
-      await channel.send({
+      const result = await channel.send({
         type: 'broadcast',
         event: 'toast_notification',
         payload: notificationEvent
       })
+      console.log('Sent broadcast toast notification:', result)
     }
+
+    // Clean up the channel
+    await supabase.removeChannel(channel)
 
     console.log('Toast notification sent successfully')
 
