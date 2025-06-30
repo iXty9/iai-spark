@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import { Message as MessageType } from '@/types/chat';
 import { Message } from './Message';
@@ -20,7 +21,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [userHasScrolled, setUserHasScrolled] = useState(false);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [hasRestoredScroll, setHasRestoredScroll] = useState(false);
   const prevMessagesLengthRef = useRef(messages.length);
   const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
                      /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
@@ -28,23 +29,28 @@ export const MessageList: React.FC<MessageListProps> = ({
   // Use unified storage hook for scroll position
   const { saveScroll, loadScroll } = useChatStorage([], () => {});
 
-  // Load saved scroll position on initial mount
+  // Restore scroll position whenever component mounts or messages are available
   useEffect(() => {
     const scrollableElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
-    if (scrollableElement && messages.length > 0 && isInitialLoad) {
+    
+    if (scrollableElement && messages.length > 0 && !hasRestoredScroll) {
       const savedScrollPosition = loadScroll();
       
-      if (savedScrollPosition !== null) {
-        logger.debug('Restoring scroll position', { position: savedScrollPosition }, { module: 'chat' });
-        // Use a small timeout to ensure DOM is ready
-        setTimeout(() => {
+      if (savedScrollPosition !== null && savedScrollPosition > 0) {
+        logger.debug('Restoring scroll position after navigation', { position: savedScrollPosition }, { module: 'chat' });
+        
+        // Use requestAnimationFrame to ensure DOM is fully rendered
+        requestAnimationFrame(() => {
           scrollableElement.scrollTop = savedScrollPosition;
           setUserHasScrolled(true);
-        }, 100);
+          setHasRestoredScroll(true);
+        });
+      } else {
+        // No saved position or at top, mark as restored to prevent future attempts
+        setHasRestoredScroll(true);
       }
-      setIsInitialLoad(false);
     }
-  }, [messages, isInitialLoad, loadScroll]);
+  }, [messages.length, hasRestoredScroll, loadScroll]);
   
   // Save scroll position when user scrolls
   useEffect(() => {
@@ -89,7 +95,7 @@ export const MessageList: React.FC<MessageListProps> = ({
     }
   }, [isIOSSafari, isLoading, saveScroll]);
 
-  // Handle scrolling based on new messages or loading state
+  // Handle scrolling for new messages (but not when restoring position)
   useEffect(() => {
     const scrollToBottom = () => {
       if (messagesEndRef.current) {
@@ -100,22 +106,21 @@ export const MessageList: React.FC<MessageListProps> = ({
       }
     };
 
-    // Scroll to bottom when new messages arrive (but not on initial load with saved position)
+    // Only auto-scroll for new messages if we've already restored position or there's no saved position
     const hasNewMessages = messages.length > prevMessagesLengthRef.current;
     
-    if (hasNewMessages && !isInitialLoad) {
+    if (hasRestoredScroll && hasNewMessages && !userHasScrolled) {
       scrollToBottom();
-      setUserHasScrolled(false);
     }
     
-    // Always scroll when loading starts
-    if (isLoading) {
+    // Always scroll when loading starts (new message being generated)
+    if (isLoading && hasRestoredScroll) {
       setUserHasScrolled(false);
       scrollToBottom();
     }
     
     prevMessagesLengthRef.current = messages.length;
-  }, [messages, isLoading, userHasScrolled, isInitialLoad, isIOSSafari]);
+  }, [messages.length, isLoading, userHasScrolled, hasRestoredScroll, isIOSSafari]);
 
   return (
     <ScrollArea 
