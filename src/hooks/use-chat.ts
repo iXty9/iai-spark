@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef } from 'react';
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from '@/contexts/AuthContext';
@@ -49,13 +48,15 @@ export const useChat = () => {
   const { 
     messages, 
     addMessage, 
+    updateMessage,
     clearMessages,
     setMessages,
   } = useMessageState();
   
   const { sendMessageToApi } = useChatApi({ 
     user, 
-    addMessage, 
+    addMessage,
+    updateMessage, 
     onError: (errorMsg) => setError(errorMsg) 
   });
   

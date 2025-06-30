@@ -7,10 +7,11 @@ import { logger } from '@/utils/logging';
 interface UseChatApiProps {
   user: any;
   addMessage: (message: Message) => void;
+  updateMessage: (messageId: string, updates: Partial<Message>) => void;
   onError: (error: string) => void;
 }
 
-export const useChatApi = ({ user, addMessage, onError }: UseChatApiProps) => {
+export const useChatApi = ({ user, addMessage, updateMessage, onError }: UseChatApiProps) => {
   const sendMessageToApi = useCallback(async (userMessage: Message) => {
     try {
       // Prepare user profile with ID for webhook
@@ -21,20 +22,32 @@ export const useChatApi = ({ user, addMessage, onError }: UseChatApiProps) => {
         last_name: user.user_metadata?.last_name,
       } : null;
 
+      let aiMessageId: string | null = null;
+
       await processMessage({
         message: userMessage.content,
-        onMessageStart: addMessage,
-        onMessageStream: (content: string) => {
-          // Update the last message with streaming content
-          addMessage({
-            ...userMessage,
-            id: `ai_${Date.now()}`,
-            sender: 'ai',
-            content,
-            pending: true,
-          });
+        onMessageStart: (message: Message) => {
+          aiMessageId = message.id;
+          addMessage(message);
         },
-        onMessageComplete: addMessage,
+        onMessageStream: (content: string) => {
+          // Update the existing AI message with streaming content
+          if (aiMessageId) {
+            updateMessage(aiMessageId, {
+              content,
+              pending: true,
+            });
+          }
+        },
+        onMessageComplete: (message: Message) => {
+          // Final update with complete message data
+          if (aiMessageId) {
+            updateMessage(aiMessageId, {
+              ...message,
+              pending: false,
+            });
+          }
+        },
         onError: (error: Error) => {
           logger.error('API Error:', error);
           onError(error.message);
@@ -46,7 +59,7 @@ export const useChatApi = ({ user, addMessage, onError }: UseChatApiProps) => {
       logger.error('Error in sendMessageToApi:', error);
       onError(error.message || 'Failed to send message');
     }
-  }, [user, addMessage, onError]);
+  }, [user, addMessage, updateMessage, onError]);
 
   return { sendMessageToApi };
 };
