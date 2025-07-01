@@ -65,24 +65,29 @@ export const AuthProvider = ({ children, clientReady }: AuthProviderProps) => {
         },
         async (payload) => {
           try {
-            if (payload.new?.theme_settings && payload.new.theme_settings !== profile?.theme_settings) {
+            // PHASE 4: Enhanced real-time cross-browser sync
+            if (payload.new?.theme_settings) {
               logger.info('Received real-time theme update from another browser', { 
                 module: 'auth',
-                userId: user.id 
+                userId: user.id,
+                settingsChanged: payload.new.theme_settings !== profile?.theme_settings
               });
               
-              // Update local profile state
+              // Always update local profile state
               setProfile(prev => prev ? { ...prev, ...payload.new } : null);
               
-              // Update theme service with new settings
+              // Force apply theme changes from other browsers
               const { productionThemeService } = await import('@/services/production-theme-service');
               const parsedSettings = JSON.parse(payload.new.theme_settings);
               
-              // Use a delay to ensure this doesn't conflict with any ongoing saves
+              // Force the theme update regardless of recent save timing
               setTimeout(async () => {
-                await productionThemeService.refreshFromUserData(parsedSettings);
-                logger.info('Theme synced from real-time update', { module: 'auth' });
-              }, 200);
+                await productionThemeService.initialize(parsedSettings, true, true);
+                logger.info('Theme forcibly synced from real-time update', { 
+                  module: 'auth',
+                  timestamp: Date.now()
+                });
+              }, 100);
             }
           } catch (error) {
             logger.error('Error handling real-time profile update:', error, { module: 'auth' });

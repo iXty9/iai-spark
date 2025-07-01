@@ -101,33 +101,40 @@ class ProductionThemeService {
     };
   }
 
-  async initialize(userSettings?: ThemeSettings, forceReinit = false): Promise<void> {
-    // Don't force reinit if save is in progress or just completed
-    if (forceReinit && (this.saveInProgress || (Date.now() - this.lastSaveTime < 2000))) {
+  async initialize(userSettings?: ThemeSettings, forceReinit = false, userAuthenticated = false): Promise<void> {
+    // PHASE 1: Authentication-aware initialization
+    // Only skip forced reinit if save is very recent (reduced from 2s to 1s)
+    if (forceReinit && (this.saveInProgress || (Date.now() - this.lastSaveTime < 1000))) {
       logger.info('Skipping forced reinitialization due to recent save activity', { 
         module: 'production-theme-service' 
       });
       return;
     }
 
-    if (forceReinit) {
+    // PHASE 2: Improved refresh logic - allow force reinit when user becomes authenticated
+    if (forceReinit || userAuthenticated) {
       this.isInitialized = false;
       this.initializationPromise = null;
+      logger.info('Force reinitializing theme service', { 
+        forceReinit, 
+        userAuthenticated,
+        module: 'production-theme-service' 
+      });
     }
 
     if (this.initializationPromise) {
       return this.initializationPromise;
     }
 
-    if (this.isInitialized && !forceReinit) {
+    if (this.isInitialized && !forceReinit && !userAuthenticated) {
       return Promise.resolve();
     }
 
-    this.initializationPromise = this.performInitialization(userSettings);
+    this.initializationPromise = this.performInitialization(userSettings, userAuthenticated);
     return this.initializationPromise;
   }
 
-  private async performInitialization(userSettings?: ThemeSettings): Promise<void> {
+  private async performInitialization(userSettings?: ThemeSettings, userAuthenticated = false): Promise<void> {
     try {
       logger.info('Initializing unified theme service', { 
         module: 'unified-theme',
@@ -470,39 +477,61 @@ class ProductionThemeService {
       return false;
     }
 
-    try {
-      this.saveInProgress = true;
-      const themeSettings = this.createThemeSettings();
-      const themeSettingsJson = JSON.stringify(themeSettings);
-      
-      // Save to database and wait for completion
-      await updateProfile({
-        theme_settings: themeSettingsJson
-      });
-      
-      // Wait a brief moment to ensure database write consistency
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-      // Mark successful save timestamp BEFORE committing changes
-      this.lastSaveTime = Date.now();
-      
-      // Commit preview changes to production state
-      this.exitPreviewMode(true);
-      
-      // Store the last saved settings for consistency checking
-      this.lastSavedSettings = themeSettings;
-      
-      logger.info('Theme settings saved and committed successfully', { 
-        module: 'production-theme-service',
-        timestamp: this.lastSaveTime
-      });
-      return true;
-    } catch (error) {
-      logger.error('Failed to save theme settings:', error);
-      return false;
-    } finally {
-      this.saveInProgress = false;
+    let retryCount = 0;
+    const maxRetries = 3;
+
+    while (retryCount < maxRetries) {
+      try {
+        this.saveInProgress = true;
+        const themeSettings = this.createThemeSettings();
+        const themeSettingsJson = JSON.stringify(themeSettings);
+        
+        logger.info('Attempting to save theme settings', { 
+          attempt: retryCount + 1,
+          module: 'production-theme-service' 
+        });
+        
+        // PHASE 3: Save to database and wait for completion
+        await updateProfile({
+          theme_settings: themeSettingsJson
+        });
+        
+        // PHASE 3: Verify the data was actually written by reading it back
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Mark successful save timestamp BEFORE committing changes
+        this.lastSaveTime = Date.now();
+        
+        // Commit preview changes to production state
+        this.exitPreviewMode(true);
+        
+        // Store the last saved settings for consistency checking
+        this.lastSavedSettings = themeSettings;
+        
+        logger.info('Theme settings saved and committed successfully', { 
+          module: 'production-theme-service',
+          timestamp: this.lastSaveTime,
+          attempt: retryCount + 1
+        });
+        return true;
+      } catch (error) {
+        retryCount++;
+        logger.error(`Failed to save theme settings (attempt ${retryCount}/${maxRetries}):`, error);
+        
+        if (retryCount >= maxRetries) {
+          return false;
+        }
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, 250 * retryCount));
+      } finally {
+        if (retryCount >= maxRetries || retryCount === 0) {
+          this.saveInProgress = false;
+        }
+      }
     }
+    
+    return false;
   }
 
   async resetToDefaults(user: any, updateProfile: any): Promise<boolean> {
@@ -523,20 +552,21 @@ class ProductionThemeService {
     }
   }
 
-  async refreshFromUserData(userSettings?: ThemeSettings): Promise<void> {
-    // Prevent reinitialization if a save just completed (within 3 seconds)
+  async refreshFromUserData(userSettings?: ThemeSettings, forceRefresh = false): Promise<void> {
+    // PHASE 2: Improved refresh logic - only skip if very recent save (reduced to 1 second)
     const timeSinceLastSave = Date.now() - this.lastSaveTime;
-    if (this.saveInProgress || timeSinceLastSave < 3000) {
+    if (!forceRefresh && (this.saveInProgress || timeSinceLastSave < 1000)) {
       logger.info('Skipping theme refresh - recent save detected', { 
         module: 'production-theme-service',
         timeSinceLastSave,
-        saveInProgress: this.saveInProgress
+        saveInProgress: this.saveInProgress,
+        forceRefresh
       });
       return;
     }
 
-    // If we have last saved settings, compare with incoming to avoid unnecessary refreshes
-    if (userSettings && this.lastSavedSettings) {
+    // PHASE 2: Only compare settings if not forcing refresh
+    if (!forceRefresh && userSettings && this.lastSavedSettings) {
       const currentSettingsJson = JSON.stringify(this.lastSavedSettings);
       const incomingSettingsJson = JSON.stringify(userSettings);
       
@@ -548,13 +578,19 @@ class ProductionThemeService {
       }
     }
 
-    // Perform the refresh
-    await this.initialize(userSettings, true);
+    // PHASE 2: Perform the refresh with user authentication context
+    await this.initialize(userSettings, true, true);
     
     // Update the last saved settings to match what we just loaded
     if (userSettings) {
       this.lastSavedSettings = { ...userSettings };
     }
+    
+    logger.info('Theme refreshed from user data', {
+      module: 'production-theme-service',
+      forceRefresh,
+      hasUserSettings: !!userSettings
+    });
   }
 }
 

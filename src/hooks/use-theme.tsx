@@ -58,20 +58,27 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     return unsubscribe;
   }, []);
 
-  // CRITICAL: React to profile changes and refresh theme
+  // PHASE 1: Authentication-aware theme initialization 
   useEffect(() => {
-    if (profile?.theme_settings) {
+    if (user && profile?.theme_settings) {
       try {
         const parsedSettings = JSON.parse(profile.theme_settings);
-        productionThemeService.refreshFromUserData(parsedSettings);
-        logger.info('Theme refreshed from profile data', { module: 'theme-provider' });
+        // Force reinitialize with user settings when authenticated
+        productionThemeService.initialize(parsedSettings, true, true);
+        logger.info('Theme initialized with user settings after authentication', { module: 'theme-provider' });
       } catch (error) {
         logger.error('Failed to parse profile theme settings:', error, { module: 'theme-provider' });
-        productionThemeService.refreshFromUserData();
+        // Initialize with defaults for authenticated user
+        productionThemeService.initialize(undefined, true, true);
       }
     } else if (user && !profile?.theme_settings) {
-      // User logged in but no theme settings - use defaults
-      productionThemeService.refreshFromUserData();
+      // User logged in but no theme settings - force init with defaults for authenticated user
+      logger.info('No user theme settings found, initializing with defaults for authenticated user', { module: 'theme-provider' });
+      productionThemeService.initialize(undefined, true, true);
+    } else if (!user) {
+      // User logged out - reinit with app defaults
+      logger.info('User logged out, initializing with app defaults', { module: 'theme-provider' });
+      productionThemeService.initialize(undefined, true, false);
     }
   }, [user, profile?.theme_settings]);
   
