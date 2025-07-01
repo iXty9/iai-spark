@@ -402,16 +402,30 @@ class SupaThemesCore {
   // Reset to defaults
   async resetToDefaults(): Promise<boolean> {
     try {
-      this.state.mode = 'light';
-      this.state.lightTheme = this.getDefaultLightTheme();
-      this.state.darkTheme = this.getDefaultDarkTheme();
-      this.state.backgroundImage = null;
-      this.state.backgroundOpacity = 0.5;
+      // Load admin default theme settings first
+      const adminDefaults = await this.loadAdminDefaultTheme();
+      
+      if (adminDefaults) {
+        // Apply admin defaults
+        this.state.mode = adminDefaults.mode || 'light';
+        this.state.lightTheme = adminDefaults.lightTheme || this.getDefaultLightTheme();
+        this.state.darkTheme = adminDefaults.darkTheme || this.getDefaultDarkTheme();
+        this.state.backgroundImage = adminDefaults.backgroundImage || null;
+        this.state.backgroundOpacity = adminDefaults.backgroundOpacity ?? 0.5;
+      } else {
+        // Fallback to hardcoded defaults if no admin defaults
+        this.state.mode = 'light';
+        this.state.lightTheme = this.getDefaultLightTheme();
+        this.state.darkTheme = this.getDefaultDarkTheme();
+        this.state.backgroundImage = null;
+        this.state.backgroundOpacity = 0.5;
+      }
 
       this.applyCurrentTheme();
       this.applyCurrentBackground();
       this.notifyListeners();
 
+      // Automatically save as user's theme
       if (this.userId) {
         return await this.saveTheme();
       }
@@ -420,6 +434,26 @@ class SupaThemesCore {
     } catch (error) {
       logger.error('Error resetting theme:', error);
       return false;
+    }
+  }
+
+  // Load admin default theme settings
+  private async loadAdminDefaultTheme(): Promise<ThemeSettings | null> {
+    try {
+      const { getAppSettingsMap } = await import('@/services/admin/settings/generalSettings');
+      const settings = await getAppSettingsMap();
+      
+      if (settings.default_theme_settings) {
+        const parsedSettings = JSON.parse(settings.default_theme_settings) as ThemeSettings;
+        logger.info('Admin default theme loaded for reset', { module: 'supa-themes' });
+        return parsedSettings;
+      }
+      
+      logger.info('No admin default theme found, using hardcoded defaults', { module: 'supa-themes' });
+      return null;
+    } catch (error) {
+      logger.warn('Failed to load admin default theme, using hardcoded defaults:', error);
+      return null;
     }
   }
 
