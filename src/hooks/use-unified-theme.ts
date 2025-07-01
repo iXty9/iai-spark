@@ -66,6 +66,9 @@ export const useUnifiedTheme = () => {
       
       const success = await productionThemeService.loadDefaultTheme();
       
+      // Clear any preview states and image info to prevent broken image states
+      setImageInfo({});
+      
       if (success && user) {
         const themeSettings = productionThemeService.createThemeSettings();
         await updateProfile({
@@ -107,7 +110,12 @@ export const useUnifiedTheme = () => {
     updatePreviewDarkTheme: productionThemeService.previewDarkTheme.bind(productionThemeService),
     updatePreviewBackgroundImage: (image: string | null, info?: ImageInfo) => {
       productionThemeService.previewBackgroundImage(image);
-      if (info) setImageInfo(info);
+      if (info) {
+        setImageInfo(info);
+      } else if (image === null) {
+        // Clear image info when removing background
+        setImageInfo({});
+      }
     },
     updatePreviewBackgroundOpacity: productionThemeService.previewBackgroundOpacity.bind(productionThemeService),
     saveChanges,

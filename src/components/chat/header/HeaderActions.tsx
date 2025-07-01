@@ -14,8 +14,6 @@ import {
 import { useTheme } from '@/hooks/use-theme';
 import { useDevMode } from '@/store/use-dev-mode';
 import { toast } from "@/hooks/use-toast";
-import { fetchAppSettings } from '@/services/admin/settingsService';
-import { applyThemeChanges, applyBackgroundImage } from '@/utils/theme-utils';
 
 interface HeaderActionsProps {
   onClearChat: () => void;
@@ -67,7 +65,7 @@ export const HeaderActions = ({
     }
   };
 
-  // Function to handle force reloading theme
+  // Function to handle force reloading theme using production theme service
   const handleReloadTheme = async () => {
     try {
       // Show loading toast
@@ -77,48 +75,21 @@ export const HeaderActions = ({
         duration: 1500,
       });
 
-      // Force reload settings from backend
-      const settings = await fetchAppSettings();
+      // Use production theme service to load default theme
+      const { productionThemeService } = await import('@/services/production-theme-service');
+      const success = await productionThemeService.loadDefaultTheme();
       
-      if (settings.default_theme_settings) {
-        // Parse theme settings
-        const themeSettings = JSON.parse(settings.default_theme_settings);
-        
-        // Apply theme colors based on current mode
-        const currentTheme = theme === 'light' 
-          ? themeSettings.lightTheme 
-          : themeSettings.darkTheme;
-        
-        if (currentTheme) {
-          // Apply theme colors
-          applyThemeChanges(currentTheme);
-          
-          // Apply background if available
-          if (themeSettings.backgroundImage) {
-            const opacity = parseFloat(themeSettings.backgroundOpacity || '0.5');
-            applyBackgroundImage(themeSettings.backgroundImage, opacity);
-          } else {
-            applyBackgroundImage(null, 0.5);
-          }
-          
-          // Show success toast
-          toast({
-            title: "Theme Loaded",
-            description: `Default theme applied successfully (${theme} mode)`,
-            duration: 3000,
-          });
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Theme Error",
-            description: "Default theme settings are incomplete",
-          });
-        }
+      if (success) {
+        toast({
+          title: "Theme Loaded",
+          description: "Default theme applied successfully",
+          duration: 3000,
+        });
       } else {
         toast({
           variant: "destructive",
           title: "No Default Theme",
-          description: "No default theme settings found in database",
+          description: "No default theme settings found in database, using factory defaults",
         });
       }
       

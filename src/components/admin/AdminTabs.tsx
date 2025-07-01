@@ -8,6 +8,7 @@ interface AdminTabsProps {
   userManagementContent: ReactNode;
   environmentContent: ReactNode;
   seoContent: ReactNode;
+  themeContent: ReactNode;
   activeTab?: string;
   onTabChange?: (tab: string) => void;
 }
@@ -18,6 +19,7 @@ export function AdminTabs({
   userManagementContent, 
   environmentContent,
   seoContent,
+  themeContent,
   activeTab = "app-settings", 
   onTabChange 
 }: AdminTabsProps) {
@@ -29,12 +31,13 @@ export function AdminTabs({
 
   return (
     <Tabs value={activeTab} onValueChange={handleValueChange}>
-      <TabsList className="w-full">
-        <TabsTrigger value="app-settings" className="flex-1">App Settings</TabsTrigger>
-        <TabsTrigger value="seo" className="flex-1">SEO</TabsTrigger>
-        <TabsTrigger value="webhooks" className="flex-1">Webhooks</TabsTrigger>
-        <TabsTrigger value="users" className="flex-1">User Management</TabsTrigger>
-        <TabsTrigger value="environment" className="flex-1">Environment</TabsTrigger>
+      <TabsList className="w-full grid grid-cols-6">
+        <TabsTrigger value="app-settings">App Settings</TabsTrigger>
+        <TabsTrigger value="seo">SEO</TabsTrigger>
+        <TabsTrigger value="theme">Theme</TabsTrigger>
+        <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
+        <TabsTrigger value="users">Users</TabsTrigger>
+        <TabsTrigger value="environment">Environment</TabsTrigger>
       </TabsList>
       
       <TabsContent value="app-settings" className="mt-6">
@@ -43,6 +46,10 @@ export function AdminTabs({
       
       <TabsContent value="seo" className="mt-6">
         {seoContent}
+      </TabsContent>
+      
+      <TabsContent value="theme" className="mt-6">
+        {themeContent}
       </TabsContent>
       
       <TabsContent value="webhooks" className="mt-6">

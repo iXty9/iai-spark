@@ -73,41 +73,6 @@ export function SettingsFooter({
 
   return (
     <div className="space-y-4 pt-6 border-t">
-      {/* Admin Actions */}
-      {isAdmin && (
-        <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium text-amber-900 dark:text-amber-100 flex items-center gap-2">
-                <Crown className="h-4 w-4" />
-                Admin Actions
-              </h4>
-              <p className="text-sm text-amber-700 dark:text-amber-200">
-                Set your current saved theme as the default for all new users
-              </p>
-            </div>
-            <Button
-              onClick={handleSetAsDefault}
-              disabled={isSettingDefault || hasChanges}
-              variant="outline"
-              size="sm"
-              className="border-amber-300 hover:bg-amber-100 dark:border-amber-700"
-            >
-              {isSettingDefault ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Setting...
-                </>
-              ) : (
-                <>
-                  <Crown className="mr-2 h-4 w-4" />
-                  Set as Default
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* Main Action Buttons */}
       <div className="flex flex-col sm:flex-row justify-between gap-3">
