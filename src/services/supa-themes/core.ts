@@ -31,7 +31,7 @@ class SupaThemesCore {
 
   constructor() {
     this.state = {
-      mode: 'light',
+      mode: this.getSystemThemePreference(),
       lightTheme: this.getDefaultLightTheme(),
       darkTheme: this.getDefaultDarkTheme(),
       backgroundImage: null,
@@ -45,6 +45,17 @@ class SupaThemesCore {
       previewBackgroundOpacity: null,
       hasUnsavedChanges: false
     };
+  }
+
+  private getSystemThemePreference(): 'light' | 'dark' {
+    if (typeof window === 'undefined') return 'light';
+    
+    try {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    } catch (error) {
+      logger.warn('Failed to detect system theme preference', error);
+      return 'light';
+    }
   }
 
   private getDefaultLightTheme(): ThemeColors {
