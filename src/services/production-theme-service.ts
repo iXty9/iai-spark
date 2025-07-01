@@ -524,9 +524,9 @@ class ProductionThemeService {
   }
 
   async refreshFromUserData(userSettings?: ThemeSettings): Promise<void> {
-    // Prevent reinitialization if a save just completed (within 2 seconds)
+    // Prevent reinitialization if a save just completed (within 3 seconds)
     const timeSinceLastSave = Date.now() - this.lastSaveTime;
-    if (this.saveInProgress || timeSinceLastSave < 2000) {
+    if (this.saveInProgress || timeSinceLastSave < 3000) {
       logger.info('Skipping theme refresh - recent save detected', { 
         module: 'production-theme-service',
         timeSinceLastSave,
@@ -535,7 +535,26 @@ class ProductionThemeService {
       return;
     }
 
+    // If we have last saved settings, compare with incoming to avoid unnecessary refreshes
+    if (userSettings && this.lastSavedSettings) {
+      const currentSettingsJson = JSON.stringify(this.lastSavedSettings);
+      const incomingSettingsJson = JSON.stringify(userSettings);
+      
+      if (currentSettingsJson === incomingSettingsJson) {
+        logger.info('Skipping theme refresh - no changes detected', { 
+          module: 'production-theme-service' 
+        });
+        return;
+      }
+    }
+
+    // Perform the refresh
     await this.initialize(userSettings, true);
+    
+    // Update the last saved settings to match what we just loaded
+    if (userSettings) {
+      this.lastSavedSettings = { ...userSettings };
+    }
   }
 }
 
