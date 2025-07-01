@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message } from '@/types/chat';
 import { createMarkdownComponents } from '@/utils/markdown-config';
-import { useTheme } from '@/hooks/use-theme';
+import { useTheme } from '@/contexts/SupaThemeContext';
 
 interface MessageContentProps {
   message: Message;

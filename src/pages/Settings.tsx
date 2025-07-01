@@ -1,6 +1,6 @@
 
 import { useAuth } from '@/contexts/AuthContext';
-import { useUnifiedTheme } from '@/hooks/use-unified-theme';
+import { useSupaThemes } from '@/hooks/use-supa-themes';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -42,7 +42,7 @@ export default function Settings() {
     discardChanges,
     resetToDefaults,
     setImageInfo
-  } = useUnifiedTheme();
+  } = useSupaThemes();
 
   // Enter preview mode when component mounts
   useEffect(() => {

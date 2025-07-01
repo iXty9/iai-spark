@@ -1,5 +1,5 @@
 
-import { useTheme } from "@/hooks/use-theme"
+import { useTheme } from "@/contexts/SupaThemeContext"
 import { Toaster as Sonner, toast } from "sonner"
 
 type ToasterProps = React.ComponentProps<typeof Sonner>

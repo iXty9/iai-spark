@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useTheme } from '@/hooks/use-theme';
+import { useTheme } from '@/contexts/SupaThemeContext';
 import { productionThemeService } from '@/services/production-theme-service';
 import { backgroundStateManager } from '@/services/background-state-manager';
 

@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { WebSocketProvider } from '@/contexts/WebSocketContext';
-import { ThemeProvider } from '@/hooks/use-theme';
+import { SupaThemeProvider } from '@/contexts/SupaThemeContext';
 import { NotificationPermissionManager } from '@/components/notifications/NotificationPermissionManager';
 import Index from '@/pages/Index';
 import Auth from '@/pages/Auth';
@@ -99,7 +99,7 @@ function App() {
         <Router>
           <AuthProvider clientReady={clientReady}>
             <WebSocketProvider>
-              <ThemeProvider>
+              <SupaThemeProvider>
                 <NotificationPermissionManager />
                 <div className="min-h-screen text-foreground">
                   <Routes>
@@ -147,7 +147,7 @@ function App() {
                     </div>
                   )}
                 </div>
-              </ThemeProvider>
+              </SupaThemeProvider>
             </WebSocketProvider>
           </AuthProvider>
         </Router>

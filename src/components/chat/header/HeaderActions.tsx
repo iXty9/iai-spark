@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useTheme } from '@/hooks/use-theme';
+import { useTheme } from '@/contexts/SupaThemeContext';
 import { useDevMode } from '@/store/use-dev-mode';
 import { toast } from "@/hooks/use-toast";
 
