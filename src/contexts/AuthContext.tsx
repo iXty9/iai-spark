@@ -83,7 +83,9 @@ export const AuthProvider = ({ children, clientReady }: AuthProviderProps) => {
             
             if (event === 'SIGNED_OUT') {
               logger.info('User signed out, clearing auth state', null, { module: 'auth' });
-              resetAuthState();
+              resetAuthState().catch(error => {
+                logger.error('Error during auth state reset on signout:', error, { module: 'auth' });
+              });
             } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
               const sessionChanged = JSON.stringify(newSession) !== JSON.stringify(session);
               
@@ -157,7 +159,9 @@ export const AuthProvider = ({ children, clientReady }: AuthProviderProps) => {
         authSubscriptionRef.current = null;
       }
       initialSessionCheckRef.current = false;
-      resetAuthState();
+      resetAuthState().catch(error => {
+        logger.error('Error during auth state reset on client reset:', error, { module: 'auth' });
+      });
       setIsLoading(true);
     }
   }, [clientReady, resetAuthState, setIsLoading]);
@@ -192,6 +196,18 @@ export const AuthProvider = ({ children, clientReady }: AuthProviderProps) => {
       await updateProfile(supabase, user.id, data);
       // Update local state with new profile data
       setProfile(prev => prev ? { ...prev, ...data } : null);
+      
+      // If theme_settings were updated, refresh the theme service
+      if (data.theme_settings) {
+        try {
+          const { productionThemeService } = await import('@/services/production-theme-service');
+          const parsedSettings = JSON.parse(data.theme_settings);
+          await productionThemeService.refreshFromUserData(parsedSettings);
+          logger.info('Theme service refreshed after profile update', { module: 'auth' });
+        } catch (themeError) {
+          logger.error('Failed to refresh theme after profile update:', themeError, { module: 'auth' });
+        }
+      }
     } catch (error) {
       logger.error('Profile update failed:', error);
       throw error;

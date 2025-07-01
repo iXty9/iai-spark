@@ -96,13 +96,20 @@ export const useAuthState = () => {
       if (data) {
         logger.info('Profile fetched successfully', {
           userId,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          hasThemeSettings: !!data.theme_settings
         }, { module: 'auth', throttle: true });
         
         setProfile(data as ProfileData);
         setLastError(null);
         // Reset fetch attempts on success
         fetchAttemptsRef.current = 0;
+        
+        // CRITICAL: Refresh theme service with user's theme settings
+        // Use setTimeout to avoid blocking profile fetch completion
+        setTimeout(() => {
+          refreshThemeWithUserData(data.theme_settings);
+        }, 0);
       } else {
         logger.warn('No profile data found for user', { userId }, { module: 'auth' });
       }
@@ -114,7 +121,39 @@ export const useAuthState = () => {
     }
   };
 
-  const resetAuthState = useCallback(() => {
+  // NEW: Refresh theme service with user data
+  const refreshThemeWithUserData = async (themeSettings: string | null) => {
+    const { productionThemeService } = await import('@/services/production-theme-service');
+    
+    try {
+      if (themeSettings) {
+        const parsedSettings = JSON.parse(themeSettings);
+        logger.info('Refreshing theme service with user settings', { 
+          module: 'auth',
+          hasSettings: true
+        });
+        await productionThemeService.refreshFromUserData(parsedSettings);
+      } else {
+        logger.info('No user theme settings found, using defaults', { module: 'auth' });
+        await productionThemeService.refreshFromUserData();
+      }
+    } catch (error) {
+      logger.error('Failed to refresh theme with user data:', error, { module: 'auth' });
+      // Fallback to defaults if theme parsing fails
+      await productionThemeService.refreshFromUserData();
+    }
+  };
+
+  const resetAuthState = useCallback(async () => {
+    // Reset theme service to defaults when user logs out
+    try {
+      const { productionThemeService } = await import('@/services/production-theme-service');
+      await productionThemeService.refreshFromUserData();
+      logger.info('Theme service reset to defaults on logout', { module: 'auth' });
+    } catch (error) {
+      logger.error('Failed to reset theme service on logout:', error, { module: 'auth' });
+    }
+    
     setSession(null);
     setUser(null);
     setProfile(null);

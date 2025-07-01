@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { ThemeColors } from '@/types/theme';
 import { productionThemeService, ThemeState } from '@/services/production-theme-service';
 import { logger } from '@/utils/logging';
+import { useAuth } from '@/contexts/AuthContext';
 
 type Theme = 'light' | 'dark';
 
@@ -26,6 +27,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
+  const { user, profile } = useAuth();
   const [state, setState] = useState<ThemeState>(() => productionThemeService.getState());
   const [isInitializing, setIsInitializing] = useState(true);
   
@@ -55,6 +57,23 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
     return unsubscribe;
   }, []);
+
+  // CRITICAL: React to profile changes and refresh theme
+  useEffect(() => {
+    if (profile?.theme_settings) {
+      try {
+        const parsedSettings = JSON.parse(profile.theme_settings);
+        productionThemeService.refreshFromUserData(parsedSettings);
+        logger.info('Theme refreshed from profile data', { module: 'theme-provider' });
+      } catch (error) {
+        logger.error('Failed to parse profile theme settings:', error, { module: 'theme-provider' });
+        productionThemeService.refreshFromUserData();
+      }
+    } else if (user && !profile?.theme_settings) {
+      // User logged in but no theme settings - use defaults
+      productionThemeService.refreshFromUserData();
+    }
+  }, [user, profile?.theme_settings]);
   
   const resetTheme = () => {
     logger.info('Resetting theme to defaults', { module: 'theme-provider' });
