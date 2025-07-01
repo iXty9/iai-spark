@@ -31,8 +31,11 @@ class SupaThemesCore {
   private systemThemeListener: ((e: MediaQueryListEvent) => void) | null = null;
 
   constructor() {
+    const systemTheme = this.getSystemThemePreference();
+    logger.info('SupaThemes constructor initializing', { systemTheme }, { module: 'supa-themes' });
+    
     this.state = {
-      mode: this.getSystemThemePreference(),
+      mode: systemTheme,
       lightTheme: this.getDefaultLightTheme(),
       darkTheme: this.getDefaultDarkTheme(),
       backgroundImage: null,
@@ -46,6 +49,8 @@ class SupaThemesCore {
       previewBackgroundOpacity: null,
       hasUnsavedChanges: false
     };
+    
+    logger.info('SupaThemes constructor complete', { initialMode: this.state.mode }, { module: 'supa-themes' });
   }
 
   private getSystemThemePreference(): 'light' | 'dark' {
@@ -198,7 +203,9 @@ class SupaThemesCore {
         .single();
 
       if (error) {
-        logger.warn('Could not load user theme, using defaults', error);
+        logger.warn('Could not load user theme, using system preference', error);
+        // If we can't load user settings, use system preference
+        this.state.mode = this.getSystemThemePreference();
         return;
       }
 
@@ -206,9 +213,15 @@ class SupaThemesCore {
         const settings = JSON.parse(profile.theme_settings) as ThemeSettings;
         this.applyThemeSettings(settings);
         logger.info('User theme loaded from Supabase', { module: 'supa-themes' });
+      } else {
+        // No saved theme settings, use system preference
+        logger.info('No saved theme settings found, using system preference', { module: 'supa-themes' });
+        this.state.mode = this.getSystemThemePreference();
       }
     } catch (error) {
       logger.error('Error loading user theme:', error);
+      // On error, fall back to system preference
+      this.state.mode = this.getSystemThemePreference();
     }
   }
 
