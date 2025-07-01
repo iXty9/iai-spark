@@ -49,6 +49,56 @@ export const AuthProvider = ({ children, clientReady }: AuthProviderProps) => {
     initializeAuth();
   }, [clientReady]);
 
+  // Set up real-time subscription for profile changes (cross-browser sync)
+  useEffect(() => {
+    if (!clientReady || !user?.id) return;
+
+    const channel = supabase
+      .channel(`profile_changes_${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`
+        },
+        async (payload) => {
+          try {
+            if (payload.new?.theme_settings && payload.new.theme_settings !== profile?.theme_settings) {
+              logger.info('Received real-time theme update from another browser', { 
+                module: 'auth',
+                userId: user.id 
+              });
+              
+              // Update local profile state
+              setProfile(prev => prev ? { ...prev, ...payload.new } : null);
+              
+              // Update theme service with new settings
+              const { productionThemeService } = await import('@/services/production-theme-service');
+              const parsedSettings = JSON.parse(payload.new.theme_settings);
+              
+              // Use a delay to ensure this doesn't conflict with any ongoing saves
+              setTimeout(async () => {
+                await productionThemeService.refreshFromUserData(parsedSettings);
+                logger.info('Theme synced from real-time update', { module: 'auth' });
+              }, 200);
+            }
+          } catch (error) {
+            logger.error('Error handling real-time profile update:', error, { module: 'auth' });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (shouldLog) {
+        logger.info('Cleaning up real-time profile subscription', null, { module: 'auth' });
+      }
+      supabase.removeChannel(channel);
+    };
+  }, [clientReady, user?.id, profile?.theme_settings]);
+
   // Initialize auth when client is ready
   const initializeAuth = async () => {
     try {

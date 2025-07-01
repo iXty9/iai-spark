@@ -29,6 +29,7 @@ class ProductionThemeService {
   private initializationPromise: Promise<void> | null = null;
   private saveInProgress = false;
   private lastSaveTime = 0;
+  private lastSavedSettings: ThemeSettings | null = null;
 
   constructor() {
     this.state = {
@@ -472,18 +473,29 @@ class ProductionThemeService {
     try {
       this.saveInProgress = true;
       const themeSettings = this.createThemeSettings();
+      const themeSettingsJson = JSON.stringify(themeSettings);
       
-      // Save to database first, then commit preview changes
+      // Save to database and wait for completion
       await updateProfile({
-        theme_settings: JSON.stringify(themeSettings)
+        theme_settings: themeSettingsJson
       });
       
-      // Mark successful save timestamp
+      // Wait a brief moment to ensure database write consistency
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Mark successful save timestamp BEFORE committing changes
       this.lastSaveTime = Date.now();
       
-      // Only exit preview mode after successful database save
+      // Commit preview changes to production state
       this.exitPreviewMode(true);
-      logger.info('Theme settings saved successfully', { module: 'production-theme-service' });
+      
+      // Store the last saved settings for consistency checking
+      this.lastSavedSettings = themeSettings;
+      
+      logger.info('Theme settings saved and committed successfully', { 
+        module: 'production-theme-service',
+        timestamp: this.lastSaveTime
+      });
       return true;
     } catch (error) {
       logger.error('Failed to save theme settings:', error);
