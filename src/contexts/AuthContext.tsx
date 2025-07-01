@@ -76,17 +76,13 @@ export const AuthProvider = ({ children, clientReady }: AuthProviderProps) => {
               // Always update local profile state
               setProfile(prev => prev ? { ...prev, ...payload.new } : null);
               
-              // Force apply theme changes from other browsers
+              // Apply theme changes from other browsers
               const { productionThemeService } = await import('@/services/production-theme-service');
               const parsedSettings = JSON.parse(payload.new.theme_settings);
               
-              // Force the theme update regardless of recent save timing
               setTimeout(async () => {
-                await productionThemeService.initialize(parsedSettings, true, true);
-                logger.info('Theme forcibly synced from real-time update', { 
-                  module: 'auth',
-                  timestamp: Date.now()
-                });
+                await productionThemeService.initialize(parsedSettings);
+                logger.info('Theme synced from real-time update', { module: 'auth' });
               }, 100);
             }
           } catch (error) {
@@ -262,8 +258,6 @@ export const AuthProvider = ({ children, clientReady }: AuthProviderProps) => {
           const { productionThemeService } = await import('@/services/production-theme-service');
           const parsedSettings = JSON.parse(data.theme_settings);
           
-          // Only refresh if this update didn't originate from our own save operation
-          // This prevents the save->refresh cycle that causes settings to revert
           setTimeout(async () => {
             await productionThemeService.refreshFromUserData(parsedSettings);
             logger.info('Theme service refreshed after profile update', { module: 'auth' });
