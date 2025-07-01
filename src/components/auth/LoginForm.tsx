@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CardContent, CardFooter } from '@/components/ui/card';
-import { Mail, Lock, ArrowLeft, AlertCircle, RefreshCw } from 'lucide-react';
+import { Mail, Lock, ArrowLeft, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Form, FormField, FormItem, FormMessage, FormControl } from '@/components/ui/form';
@@ -12,7 +12,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import DOMPurify from 'dompurify';
-import { getConnectionInfo } from '@/services/supabase/connection-service';
+import { useDevMode } from '@/store/use-dev-mode';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -30,10 +30,10 @@ const FIELD_CONFIG = [
 export const LoginForm = () => {
   const navigate = useNavigate();
   const { signIn } = useAuth();
+  const { isDevMode } = useDevMode();
   const [isLoading, setIsLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [showDebug, setShowDebug] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -47,36 +47,23 @@ export const LoginForm = () => {
       await signIn(DOMPurify.sanitize(email), password);
       navigate('/');
     } catch (error: any) {
-      let message = 'Authentication failed';
-      if (error?.message?.includes('Invalid login credentials')) message = 'Invalid email or password';
-      else if (error?.message?.includes('network')) message = 'Network error - cannot connect to authentication service';
-      else if (error?.message?.includes('timeout')) message = 'Connection timed out - check your network and try again';
-      else if (error?.message) message = error.message;
+      // Clean, user-friendly error messages for production
+      let message = 'Authentication failed. Please check your credentials and try again.';
+      if (error?.message?.includes('Invalid login credentials')) {
+        message = 'Invalid email or password.';
+      } else if (error?.message?.includes('network') || error?.message?.includes('fetch')) {
+        message = 'Network error. Please check your connection and try again.';
+      } else if (error?.message?.includes('timeout')) {
+        message = 'Connection timed out. Please try again.';
+      }
       setServerError(message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleResetConfig = () => {
-    setIsResetting(true);
-    try {
-      Object.keys(localStorage)
-        .filter(k => ['spark_supabase_config', 'sb-refresh-token', 'sb-access-token', 'supabase.auth.expires_at', 'supabase.auth.token'].includes(k)
-          || k.includes('supabase') || k.startsWith('sb-'))
-        .forEach(k => {
-          try { localStorage.removeItem(k); }
-          catch (e) { /* ignore */ }
-        });
-      setTimeout(() => {
-        window.location.href = window.location.pathname + '?reset_config=true';
-      }, 500);
-    } catch (e) {
-      setIsResetting(false);
-    }
-  };
-
-  const connectionInfo = getConnectionInfo();
+  // Development mode only: Allow debug info and configuration reset
+  const isDebugAllowed = process.env.NODE_ENV === 'development' && isDevMode;
 
   return (
     <Form {...form}>
@@ -85,35 +72,28 @@ export const LoginForm = () => {
           {serverError && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Authentication Error</AlertTitle>
+              <AlertTitle>Sign In Failed</AlertTitle>
               <AlertDescription>{serverError}</AlertDescription>
-              <div className="mt-2 text-xs">
-                <button
-                  type="button"
-                  className="text-primary underline"
-                  onClick={() => setShowDebug(v => !v)}
-                >
-                  {showDebug ? 'Hide debug info' : 'Show debug info'}
-                </button>
-                {showDebug && (
-                  <div className="mt-2">
-                    <pre className="overflow-auto max-h-32 p-2 bg-slate-900 text-white rounded text-xs">
-                      {JSON.stringify(connectionInfo, null, 2)}
-                    </pre>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="mt-2 text-xs"
-                      onClick={handleResetConfig}
-                      disabled={isResetting}
-                    >
-                      <RefreshCw className={`mr-1 h-3 w-3${isResetting ? ' animate-spin' : ''}`} />
-                      {isResetting ? "Resetting..." : "Reset Connection Config"}
-                    </Button>
-                  </div>
-                )}
-              </div>
+              {isDebugAllowed && (
+                <div className="mt-2 text-xs">
+                  <button
+                    type="button"
+                    className="text-primary underline"
+                    onClick={() => setShowDebug(v => !v)}
+                  >
+                    {showDebug ? 'Hide debug info' : 'Show debug info'}
+                  </button>
+                  {showDebug && (
+                    <div className="mt-2">
+                      <div className="p-2 bg-muted rounded text-xs font-mono">
+                        <div>Environment: {process.env.NODE_ENV}</div>
+                        <div>Hostname: {window.location.hostname}</div>
+                        <div>Dev Mode: {isDevMode ? 'Enabled' : 'Disabled'}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </Alert>
           )}
           {FIELD_CONFIG.map(({ name, label, Icon, type, placeholder }) => (

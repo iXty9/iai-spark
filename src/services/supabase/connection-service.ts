@@ -95,10 +95,16 @@ export function testSupabaseConnection(url: string, anonKey: string): Promise<bo
 }
 
 export function getConnectionInfo() {
+  // Determine actual environment
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+  const isDevelopment = process.env.NODE_ENV === 'development' || hostname === 'localhost';
+  const environment = isDevelopment ? 'development' : 'production';
+  
   return {
     connectionId: 'default',
-    environment: 'development',
-    hasStoredConfig: !!connectionService.getConfig()
+    environment,
+    hasStoredConfig: !!connectionService.getConfig(),
+    hostname
   };
 }
 

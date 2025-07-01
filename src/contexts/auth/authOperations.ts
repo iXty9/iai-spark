@@ -36,44 +36,14 @@ export const signIn = async (email: string, password: string) => {
 
     if (error) {
       logger.error('Login error', error, { module: 'auth-operations' });
-      
-      let userMessage = "Login failed. Please try again.";
-      if (error.message?.includes('Invalid login credentials')) {
-        userMessage = "Invalid email or password. Please check your credentials.";
-      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
-        userMessage = "Network error. Please check your connection and try again.";
-      } else if (error.message?.includes('timeout')) {
-        userMessage = "Login timed out. Please try again.";
-      }
-      
-      toast({
-        variant: "destructive",
-        title: "Login failed",
-        description: userMessage,
-      });
-      throw error;
+      throw error; // Let the UI handle error display
     }
     
     logger.info('Login successful', { module: 'auth-operations', userId: data.user?.id });
-    
-    toast({
-      title: "Welcome back!",
-      description: "You have been successfully logged in.",
-    });
-    
     return data;
   } catch (error: any) {
     logger.error('Error during sign in', error, { module: 'auth-operations' });
-    
-    if (!error.message?.includes("Login failed")) {
-      toast({
-        variant: "destructive",
-        title: "Login error",
-        description: error.message || "An unexpected error occurred. Please try again.",
-      });
-    }
-    
-    throw error;
+    throw error; // Let the UI handle error display
   }
 };
 
@@ -108,19 +78,8 @@ export const signUp = async (
     const { data, error } = await Promise.race([authPromise, timeoutPromise]) as any;
 
     if (error) {
-      let userMessage = "Registration failed. Please try again.";
-      if (error.message?.includes('already registered')) {
-        userMessage = "An account with this email already exists. Please try logging in instead.";
-      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
-        userMessage = "Network error. Please check your connection and try again.";
-      }
-      
-      toast({
-        variant: "destructive",
-        title: "Signup failed",
-        description: userMessage,
-      });
-      throw error;
+      logger.error('Signup error', error, { module: 'auth-operations' });
+      throw error; // Let the UI handle error display
     }
     
     // Send signup webhook (don't await to avoid blocking signup)
@@ -144,16 +103,7 @@ export const signUp = async (
     });
   } catch (error: any) {
     logger.error('Error during sign up', error, { module: 'auth-operations' });
-    
-    if (!error.message?.includes("Signup failed")) {
-      toast({
-        variant: "destructive",
-        title: "Registration error",
-        description: error.message || "Registration failed. Please try again later.",
-      });
-    }
-    
-    throw error;
+    throw error; // Let the UI handle error display
   }
 };
 
