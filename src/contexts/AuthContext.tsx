@@ -201,13 +201,17 @@ export const AuthProvider = ({ children, clientReady }: AuthProviderProps) => {
       // Update local state with new profile data
       setProfile(prev => prev ? { ...prev, ...data } : null);
       
-      // If theme_settings were updated, refresh the theme service
+      // If theme_settings were updated, refresh the theme service with debouncing
       if (data.theme_settings) {
         try {
           const { productionThemeService } = await import('@/services/production-theme-service');
           const parsedSettings = JSON.parse(data.theme_settings);
-          await productionThemeService.refreshFromUserData(parsedSettings);
-          logger.info('Theme service refreshed after profile update', { module: 'auth' });
+          
+          // Debounce theme refresh to prevent rapid successive updates
+          setTimeout(async () => {
+            await productionThemeService.refreshFromUserData(parsedSettings);
+            logger.info('Theme service refreshed after profile update', { module: 'auth' });
+          }, 100);
         } catch (themeError) {
           logger.error('Failed to refresh theme after profile update:', themeError, { module: 'auth' });
         }

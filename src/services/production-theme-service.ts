@@ -27,6 +27,8 @@ class ProductionThemeService {
   private originalState: ThemeState | null = null;
   private isInitialized = false;
   private initializationPromise: Promise<void> | null = null;
+  private saveInProgress = false;
+  private lastSaveTime = 0;
 
   constructor() {
     this.state = {
@@ -99,6 +101,14 @@ class ProductionThemeService {
   }
 
   async initialize(userSettings?: ThemeSettings, forceReinit = false): Promise<void> {
+    // Don't force reinit if save is in progress or just completed
+    if (forceReinit && (this.saveInProgress || (Date.now() - this.lastSaveTime < 2000))) {
+      logger.info('Skipping forced reinitialization due to recent save activity', { 
+        module: 'production-theme-service' 
+      });
+      return;
+    }
+
     if (forceReinit) {
       this.isInitialized = false;
       this.initializationPromise = null;
@@ -454,17 +464,32 @@ class ProductionThemeService {
   }
 
   async saveUserTheme(user: any, updateProfile: any): Promise<boolean> {
+    if (this.saveInProgress) {
+      logger.warn('Save already in progress, skipping duplicate save', { module: 'production-theme-service' });
+      return false;
+    }
+
     try {
+      this.saveInProgress = true;
       const themeSettings = this.createThemeSettings();
+      
+      // Save to database first, then commit preview changes
       await updateProfile({
         theme_settings: JSON.stringify(themeSettings)
       });
+      
+      // Mark successful save timestamp
+      this.lastSaveTime = Date.now();
+      
+      // Only exit preview mode after successful database save
       this.exitPreviewMode(true);
       logger.info('Theme settings saved successfully', { module: 'production-theme-service' });
       return true;
     } catch (error) {
       logger.error('Failed to save theme settings:', error);
       return false;
+    } finally {
+      this.saveInProgress = false;
     }
   }
 
@@ -487,6 +512,17 @@ class ProductionThemeService {
   }
 
   async refreshFromUserData(userSettings?: ThemeSettings): Promise<void> {
+    // Prevent reinitialization if a save just completed (within 2 seconds)
+    const timeSinceLastSave = Date.now() - this.lastSaveTime;
+    if (this.saveInProgress || timeSinceLastSave < 2000) {
+      logger.info('Skipping theme refresh - recent save detected', { 
+        module: 'production-theme-service',
+        timeSinceLastSave,
+        saveInProgress: this.saveInProgress
+      });
+      return;
+    }
+
     await this.initialize(userSettings, true);
   }
 }
