@@ -70,13 +70,77 @@ export default function Settings() {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    const fakeUrl = URL.createObjectURL(file);
-    const info = {
-      originalSize: `${file.size} bytes`,
-      optimizedSize: `${file.size} bytes`
-    };
-    
-    updatePreviewBackgroundImage(fakeUrl, info);
+    try {
+      // Import image optimization utility
+      const { optimizeImage, formatFileSize, estimateDataUrlSize } = await import('@/utils/image-optimizer');
+      
+      // Check file size - max 10MB for original
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          variant: "destructive",
+          title: "File too large",
+          description: "Background image must be less than 10MB",
+        });
+        return;
+      }
+      
+      // Get image dimensions and optimize
+      const img = new window.Image();
+      const originalUrl = URL.createObjectURL(file);
+      
+      img.onload = async () => {
+        try {
+          const originalSize = formatFileSize(file.size);
+          const width = img.width;
+          const height = img.height;
+          
+          // Generate optimized version as data URL
+          const optimizedImageUrl = await optimizeImage(file, {
+            maxWidth: 1920,
+            maxHeight: 1080,
+            quality: 0.75,
+            format: 'image/jpeg'
+          });
+          
+          const optimizedSize = formatFileSize(estimateDataUrlSize(optimizedImageUrl));
+          
+          const info = {
+            originalSize,
+            optimizedSize,
+            width,
+            height
+          };
+          
+          updatePreviewBackgroundImage(optimizedImageUrl, info);
+          URL.revokeObjectURL(originalUrl);
+        } catch (error) {
+          logger.error('Error optimizing image:', error);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to process image. Please try another file.",
+          });
+        }
+      };
+      
+      img.onerror = () => {
+        URL.revokeObjectURL(originalUrl);
+        toast({
+          variant: "destructive",
+          title: "Invalid image",
+          description: "The selected file is not a valid image.",
+        });
+      };
+      
+      img.src = originalUrl;
+    } catch (error) {
+      logger.error('Error in background image upload:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to upload image. Please try again.",
+      });
+    }
   };
 
   const handleRemoveBackground = () => {

@@ -78,15 +78,6 @@ export function BackgroundSettings({
         )}
       </div>
 
-      {/* Upload Button (when no image) */}
-      {!backgroundImage && (
-        <BackgroundImageUpload
-          onBackgroundImageUpload={onBackgroundImageUpload}
-          isLoading={isLoading}
-          hasBackgroundImage={!!backgroundImage}
-        />
-      )}
-
       {/* Opacity Control */}
       <BackgroundOpacityControl
         backgroundOpacity={backgroundOpacity}
