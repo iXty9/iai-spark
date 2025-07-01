@@ -83,9 +83,13 @@ export const AuthProvider = ({ children, clientReady }: AuthProviderProps) => {
             
             if (event === 'SIGNED_OUT') {
               logger.info('User signed out, clearing auth state', null, { module: 'auth' });
-              resetAuthState().catch(error => {
-                logger.error('Error during auth state reset on signout:', error, { module: 'auth' });
-              });
+              
+              // Use setTimeout to prevent auth state thrashing and theme re-applications
+              setTimeout(() => {
+                resetAuthState().catch(error => {
+                  logger.error('Error during auth state reset on signout:', error, { module: 'auth' });
+                });
+              }, 0);
             } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
               const sessionChanged = JSON.stringify(newSession) !== JSON.stringify(session);
               

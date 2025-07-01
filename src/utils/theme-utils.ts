@@ -7,7 +7,34 @@ export const reloadTheme = () => {
 
 export const handleReloadTheme = reloadTheme;
 
+// Debounce theme applications to prevent rapid successive calls
+let themeApplicationTimeout: NodeJS.Timeout | null = null;
+let pendingThemeColors: any = null;
+
+const debouncedApplyTheme = (themeColors: any, delay: number = 16) => {
+  pendingThemeColors = themeColors;
+  
+  if (themeApplicationTimeout) {
+    clearTimeout(themeApplicationTimeout);
+  }
+  
+  themeApplicationTimeout = setTimeout(() => {
+    if (pendingThemeColors) {
+      performThemeApplication(pendingThemeColors);
+      pendingThemeColors = null;
+    }
+    themeApplicationTimeout = null;
+  }, delay);
+};
+
 export const applyThemeChanges = (themeColors: any) => {
+  if (typeof window === 'undefined') return;
+  
+  // Use debounced application to prevent theme thrashing
+  debouncedApplyTheme(themeColors);
+};
+
+const performThemeApplication = (themeColors: any) => {
   if (typeof window === 'undefined') return;
   
   const root = document.documentElement;
@@ -113,13 +140,14 @@ export const applyThemeChanges = (themeColors: any) => {
       themeColors.proactiveHighlightColor
     );
 
-    console.log('Applied comprehensive theme changes with FULL text color mapping including ENHANCED markup colors and proactive highlight', { 
-      themeColors,
-      mappedVariables: Object.keys(colorMappings),
-      textColorApplied: !!themeColors.textColor,
-      markupColorsApplied,
-      proactiveColorApplied: !!themeColors.proactiveHighlightColor
-    });
+    // Reduce console noise - only log in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Applied theme changes', { 
+        textColorApplied: !!themeColors.textColor,
+        markupColorsApplied,
+        proactiveColorApplied: !!themeColors.proactiveHighlightColor
+      });
+    }
   }
 };
 
@@ -149,11 +177,9 @@ export const applyBackgroundImage = (imageUrl: string | null, opacity: number) =
     root.style.setProperty('--card-bg-opacity', '0.8');
     root.style.setProperty('--card-backdrop-blur', '12px');
     
-    console.log('Background image applied with glass effect', { 
-      imageUrl, 
-      opacity: normalizedOpacity,
-      hasClass: body.classList.contains('with-bg-image')
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Background image applied', { hasImage: true, opacity: normalizedOpacity });
+    }
   } else {
     body.style.backgroundImage = '';
     body.style.backgroundSize = '';
@@ -168,7 +194,9 @@ export const applyBackgroundImage = (imageUrl: string | null, opacity: number) =
     root.style.setProperty('--card-bg-opacity', '1');
     root.style.setProperty('--card-backdrop-blur', '0px');
     
-    console.log('Background image removed');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Background image removed');
+    }
   }
 };
 
