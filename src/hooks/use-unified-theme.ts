@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { productionThemeService, ThemeState } from '@/services/production-theme-service';
-import { ThemeColors, ThemeSettings } from '@/types/theme';
 import { logger } from '@/utils/logging';
 
 export interface ImageInfo {
@@ -40,18 +39,8 @@ export const useUnifiedTheme = () => {
     
     try {
       setIsSubmitting(true);
-      
-      const themeSettings = productionThemeService.createThemeSettings();
-      
-      await updateProfile({
-        theme_settings: JSON.stringify(themeSettings)
-      });
-      
-      // Exit preview mode with save
-      productionThemeService.exitPreviewMode(true);
-      
-      logger.info('Theme settings saved successfully', { module: 'unified-theme-hook' });
-      return true;
+      const success = await productionThemeService.saveUserTheme(user, updateProfile);
+      return success;
     } catch (error) {
       logger.error('Failed to save theme settings:', error);
       return false;
@@ -63,19 +52,8 @@ export const useUnifiedTheme = () => {
   const resetToDefaults = useCallback(async (): Promise<boolean> => {
     try {
       setIsSubmitting(true);
-      
-      const success = await productionThemeService.loadDefaultTheme();
-      
-      // Clear any preview states and image info to prevent broken image states
+      const success = await productionThemeService.resetToDefaults(user, updateProfile);
       setImageInfo({});
-      
-      if (success && user) {
-        const themeSettings = productionThemeService.createThemeSettings();
-        await updateProfile({
-          theme_settings: JSON.stringify(themeSettings)
-        });
-      }
-      
       return success;
     } catch (error) {
       logger.error('Failed to reset theme settings:', error);

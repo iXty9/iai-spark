@@ -453,6 +453,39 @@ class ProductionThemeService {
     };
   }
 
+  async saveUserTheme(user: any, updateProfile: any): Promise<boolean> {
+    try {
+      const themeSettings = this.createThemeSettings();
+      await updateProfile({
+        theme_settings: JSON.stringify(themeSettings)
+      });
+      this.exitPreviewMode(true);
+      logger.info('Theme settings saved successfully', { module: 'production-theme-service' });
+      return true;
+    } catch (error) {
+      logger.error('Failed to save theme settings:', error);
+      return false;
+    }
+  }
+
+  async resetToDefaults(user: any, updateProfile: any): Promise<boolean> {
+    try {
+      const success = await this.loadDefaultTheme();
+      
+      if (success && user) {
+        const themeSettings = this.createThemeSettings();
+        await updateProfile({
+          theme_settings: JSON.stringify(themeSettings)
+        });
+      }
+      
+      return success;
+    } catch (error) {
+      logger.error('Failed to reset theme settings:', error);
+      return false;
+    }
+  }
+
   async refreshFromUserData(userSettings?: ThemeSettings): Promise<void> {
     await this.initialize(userSettings, true);
   }
