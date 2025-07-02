@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
 import { useToast } from '@/hooks/use-toast';
 import { setDefaultThemeSettings } from '@/services/admin/settingsService';
-import { useTheme } from '@/contexts/SupaThemeContext';
+import { productionThemeService } from '@/services/production-theme-service';
 
 interface SettingsFooterProps {
   onReset: () => void;
@@ -25,7 +25,6 @@ export function SettingsFooter({
 }: SettingsFooterProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { currentTheme, mode, lightTheme, darkTheme, backgroundImage, backgroundOpacity } = useTheme();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSettingDefault, setIsSettingDefault] = useState(false);
   
@@ -49,15 +48,7 @@ export function SettingsFooter({
     setIsSettingDefault(true);
     
     try {
-      const currentThemeSettings = {
-        mode,
-        lightTheme,
-        darkTheme,
-        backgroundImage,
-        backgroundOpacity,
-        exportDate: new Date().toISOString(),
-        name: 'Admin Default Theme'
-      };
+      const currentThemeSettings = productionThemeService.createThemeSettings();
       
       const success = await setDefaultThemeSettings(currentThemeSettings);
       

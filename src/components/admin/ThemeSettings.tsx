@@ -6,13 +6,12 @@ import { Crown, Save, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
 import { setDefaultThemeSettings } from '@/services/admin/settingsService';
-import { useTheme } from '@/contexts/SupaThemeContext';
+import { productionThemeService } from '@/services/production-theme-service';
 import { useToast } from '@/hooks/use-toast';
 
 export function ThemeSettings() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { currentTheme, mode, lightTheme, darkTheme, backgroundImage, backgroundOpacity } = useTheme();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSettingDefault, setIsSettingDefault] = useState(false);
   const [hasPersonalTheme, setHasPersonalTheme] = useState(false);
@@ -30,6 +29,7 @@ export function ThemeSettings() {
     
     const checkPersonalTheme = () => {
       // Check if user has personal theme settings
+      const themeState = productionThemeService.getState();
       setHasPersonalTheme(!!user); // Simple check for now
     };
     
@@ -43,15 +43,7 @@ export function ThemeSettings() {
     setIsSettingDefault(true);
     
     try {
-      const currentThemeSettings = {
-        mode,
-        lightTheme,
-        darkTheme,
-        backgroundImage,
-        backgroundOpacity,
-        exportDate: new Date().toISOString(),
-        name: 'Admin Default Theme'
-      };
+      const currentThemeSettings = productionThemeService.createThemeSettings();
       
       const success = await setDefaultThemeSettings(currentThemeSettings);
       

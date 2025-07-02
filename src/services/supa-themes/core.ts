@@ -28,14 +28,10 @@ class SupaThemesCore {
   private listeners: Set<StateListener> = new Set();
   private userId: string | null = null;
   private realtimeChannel: any = null;
-  private systemThemeListener: ((e: MediaQueryListEvent) => void) | null = null;
 
   constructor() {
-    const systemTheme = this.getSystemThemePreference();
-    logger.info('SupaThemes constructor initializing', { systemTheme }, { module: 'supa-themes' });
-    
     this.state = {
-      mode: systemTheme,
+      mode: 'light',
       lightTheme: this.getDefaultLightTheme(),
       darkTheme: this.getDefaultDarkTheme(),
       backgroundImage: null,
@@ -49,75 +45,6 @@ class SupaThemesCore {
       previewBackgroundOpacity: null,
       hasUnsavedChanges: false
     };
-    
-    logger.info('SupaThemes constructor complete', { initialMode: this.state.mode }, { module: 'supa-themes' });
-  }
-
-  private getSystemThemePreference(): 'light' | 'dark' {
-    if (typeof window === 'undefined') return 'light';
-    
-    try {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const isDark = mediaQuery.matches;
-      logger.info('System theme detected', { isDark, mode: isDark ? 'dark' : 'light' }, { module: 'supa-themes' });
-      return isDark ? 'dark' : 'light';
-    } catch (error) {
-      logger.warn('Failed to detect system theme preference', error);
-      return 'light';
-    }
-  }
-
-  private setupSystemThemeListener(): void {
-    if (typeof window === 'undefined') return;
-
-    try {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      
-      // Create listener function
-      this.systemThemeListener = (e: MediaQueryListEvent) => {
-        // Only respond to system theme changes if user hasn't saved custom theme
-        if (!this.userId) {
-          const newMode = e.matches ? 'dark' : 'light';
-          logger.info('System theme changed', { newMode }, { module: 'supa-themes' });
-          this.state.mode = newMode;
-          this.applyCurrentTheme();
-          this.notifyListeners();
-        }
-      };
-
-      // Add listener (use modern method with fallback)
-      if (mediaQuery.addEventListener) {
-        mediaQuery.addEventListener('change', this.systemThemeListener);
-      } else if (mediaQuery.addListener) {
-        // Fallback for older browsers
-        mediaQuery.addListener(this.systemThemeListener);
-      }
-
-      logger.info('System theme listener setup complete', { module: 'supa-themes' });
-    } catch (error) {
-      logger.warn('Failed to setup system theme listener', error);
-    }
-  }
-
-  private removeSystemThemeListener(): void {
-    if (!this.systemThemeListener || typeof window === 'undefined') return;
-
-    try {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      
-      // Remove listener (use modern method with fallback)
-      if (mediaQuery.removeEventListener) {
-        mediaQuery.removeEventListener('change', this.systemThemeListener);
-      } else if (mediaQuery.removeListener) {
-        // Fallback for older browsers
-        mediaQuery.removeListener(this.systemThemeListener);
-      }
-
-      this.systemThemeListener = null;
-      logger.info('System theme listener removed', { module: 'supa-themes' });
-    } catch (error) {
-      logger.warn('Failed to remove system theme listener', error);
-    }
   }
 
   private getDefaultLightTheme(): ThemeColors {
@@ -178,9 +105,6 @@ class SupaThemesCore {
       this.userId = userId;
       await this.loadUserTheme();
       this.setupRealtimeSync();
-    } else if (!userId) {
-      // For non-authenticated users, set up system theme listening
-      this.setupSystemThemeListener();
     }
     
     this.state.isReady = true;
@@ -203,9 +127,7 @@ class SupaThemesCore {
         .single();
 
       if (error) {
-        logger.warn('Could not load user theme, using system preference', error);
-        // If we can't load user settings, use system preference
-        this.state.mode = this.getSystemThemePreference();
+        logger.warn('Could not load user theme, using defaults', error);
         return;
       }
 
@@ -213,15 +135,9 @@ class SupaThemesCore {
         const settings = JSON.parse(profile.theme_settings) as ThemeSettings;
         this.applyThemeSettings(settings);
         logger.info('User theme loaded from Supabase', { module: 'supa-themes' });
-      } else {
-        // No saved theme settings, use system preference
-        logger.info('No saved theme settings found, using system preference', { module: 'supa-themes' });
-        this.state.mode = this.getSystemThemePreference();
       }
     } catch (error) {
       logger.error('Error loading user theme:', error);
-      // On error, fall back to system preference
-      this.state.mode = this.getSystemThemePreference();
     }
   }
 
@@ -547,7 +463,6 @@ class SupaThemesCore {
       supabase.removeChannel(this.realtimeChannel);
       this.realtimeChannel = null;
     }
-    this.removeSystemThemeListener();
     this.listeners.clear();
     this.userId = null;
   }

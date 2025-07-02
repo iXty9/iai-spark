@@ -25,10 +25,11 @@ export const useSupaThemes = () => {
 
   // Initialize when user changes
   useEffect(() => {
-    // Always initialize the theme system
-    supaThemes.initialize(user?.id).catch(error => {
-      logger.error('Failed to initialize SupaThemes', error, { module: 'use-supa-themes' });
-    });
+    if (user?.id) {
+      supaThemes.initialize(user.id).catch(error => {
+        logger.error('Failed to initialize SupaThemes', error, { module: 'use-supa-themes' });
+      });
+    }
   }, [user?.id]);
 
   // Theme operations
