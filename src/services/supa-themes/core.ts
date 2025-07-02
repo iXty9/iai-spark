@@ -107,6 +107,9 @@ class SupaThemesCore {
       this.userId = userId;
       await this.loadUserTheme();
       this.setupRealtimeSync();
+    } else if (!userId) {
+      // Load admin defaults for unauthenticated users
+      await this.loadAdminDefaults();
     }
     
     this.state.isReady = true;
@@ -115,6 +118,28 @@ class SupaThemesCore {
     this.notifyListeners();
     
     logger.info('SupaThemes initialized', { module: 'supa-themes', userId: this.userId });
+  }
+
+  // Load admin defaults (for unauthenticated users)
+  private async loadAdminDefaults(): Promise<void> {
+    try {
+      const adminDefaults = await this.loadAdminDefaultTheme();
+      
+      if (adminDefaults) {
+        // Apply admin defaults
+        this.state.mode = adminDefaults.mode || 'light';
+        this.state.lightTheme = adminDefaults.lightTheme || this.getDefaultLightTheme();
+        this.state.darkTheme = adminDefaults.darkTheme || this.getDefaultDarkTheme();
+        this.state.backgroundImage = adminDefaults.backgroundImage || null;
+        this.state.backgroundOpacity = adminDefaults.backgroundOpacity ?? 0.5;
+        
+        logger.info('Admin default theme loaded for unauthenticated user', { module: 'supa-themes' });
+      } else {
+        logger.info('No admin defaults found, using hardcoded defaults', { module: 'supa-themes' });
+      }
+    } catch (error) {
+      logger.warn('Failed to load admin defaults, using hardcoded defaults:', error);
+    }
   }
 
   // Load user theme from Supabase
