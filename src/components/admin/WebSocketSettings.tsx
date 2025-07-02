@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { useToast } from '@/hooks/use-toast';
+import { supaToast } from '@/services/supa-toast';
 import { fetchAppSettings, updateAppSetting } from '@/services/admin/settingsService';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,6 @@ import { Copy, ExternalLink } from 'lucide-react';
 import { WebhookTester } from './webhooks/WebhookTester';
 
 export function WebSocketSettings() {
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [websocketEnabled, setWebsocketEnabled] = useState(false);
@@ -48,10 +47,8 @@ export function WebSocketSettings() {
       setToastWebhookUrl(settings.toast_notification_webhook_url || generateToastWebhookUrl());
     } catch (error) {
       console.error('Error loading WebSocket settings:', error);
-      toast({
-        variant: "destructive",
-        title: "Failed to load settings",
-        description: "There was an error loading the WebSocket settings.",
+      supaToast.error("There was an error loading the WebSocket settings.", {
+        title: "Failed to load settings"
       });
     } finally {
       setIsLoading(false);
@@ -65,16 +62,13 @@ export function WebSocketSettings() {
       await updateAppSetting('proactive_message_webhook_url', webhookUrl);
       await updateAppSetting('toast_notification_webhook_url', toastWebhookUrl);
       
-      toast({
-        title: "WebSocket settings saved",
-        description: "Real-time messaging settings have been updated successfully.",
+      supaToast.success("Real-time messaging settings have been updated successfully.", {
+        title: "WebSocket settings saved"
       });
     } catch (error) {
       console.error('Error saving WebSocket settings:', error);
-      toast({
-        variant: "destructive",
-        title: "Failed to save settings",
-        description: "There was an error saving the WebSocket settings.",
+      supaToast.error("There was an error saving the WebSocket settings.", {
+        title: "Failed to save settings"
       });
     } finally {
       setIsSaving(false);
@@ -83,9 +77,8 @@ export function WebSocketSettings() {
 
   const copyWebhookUrl = (url: string, type: 'chat' | 'toast') => {
     navigator.clipboard.writeText(url);
-    toast({
-      title: "Copied to clipboard",
-      description: `${type === 'chat' ? 'Chat' : 'Toast notification'} webhook URL has been copied to your clipboard.`,
+    supaToast.success(`${type === 'chat' ? 'Chat' : 'Toast notification'} webhook URL has been copied to your clipboard.`, {
+      title: "Copied to clipboard"
     });
   };
 

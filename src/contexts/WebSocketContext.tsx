@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useState, useRef } from 'r
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { logger } from '@/utils/logging';
-import { useToast } from '@/hooks/use-toast';
+import { supaToast } from '@/services/supa-toast';
 import { notificationService } from '@/services/notification-service';
 import { clientManager } from '@/services/supabase/client-manager';
 
@@ -65,7 +65,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
   
   const proactiveMessageHandlersRef = useRef<((message: ProactiveMessage) => void)[]>([]);
   const { user } = useAuth();
-  const { toast } = useToast();
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
@@ -269,21 +268,15 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
         if (notificationPayload?.data) {
           logger.info('Processing toast notification:', notificationPayload.data, { module: 'websocket' });
 
-          // Show toast notification
-          const toastVariant = notificationPayload.data.type === 'error' ? 'destructive' : 'default';
-          
-          toast({
-            title: notificationPayload.data.title,
-            description: notificationPayload.data.message,
-            variant: toastVariant,
-          });
-
-          // Also trigger browser notification if permission granted
-          notificationService.showNotification({
+          // Use supa-toast service for unified toast handling
+          supaToast.handleWebSocketToast({
             title: notificationPayload.data.title,
             message: notificationPayload.data.message,
             type: notificationPayload.data.type,
-            showBrowserNotification: true
+            metadata: {
+              source: 'websocket',
+              timestamp: new Date().toISOString()
+            }
           });
         } else {
           logger.warn('Received toast notification with unexpected structure:', notificationPayload, { module: 'websocket' });

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { TestTube, Loader2, CheckCircle, XCircle, RefreshCw, Wifi, MessageSquare, Bell } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { supaToast } from '@/services/supa-toast';
 import { useWebSocket } from '@/contexts/WebSocketContext';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,7 +19,6 @@ interface TestResult {
 }
 
 export function WebhookTester() {
-  const { toast } = useToast();
   const { isConnected, realtimeStatus, forceReconnect } = useWebSocket();
   const [isTestingProactive, setIsTestingProactive] = useState(false);
   const [isTestingToast, setIsTestingToast] = useState(false);
@@ -73,10 +72,8 @@ export function WebhookTester() {
     try {
       // Add connection status check
       if (!isConnected) {
-        toast({
-          variant: "destructive",
-          title: "WebSocket Not Connected",
-          description: "WebSocket connection is required to receive test messages. Check the connection status indicator.",
+        supaToast.warning("WebSocket connection is required to receive test messages. Check the connection status indicator.", {
+          title: "WebSocket Not Connected"
         });
       }
 
@@ -114,9 +111,8 @@ export function WebhookTester() {
           details: result
         }]);
         
-        toast({
-          title: "Test Successful",
-          description: `Proactive message webhook is working correctly. ${!isConnected ? 'WebSocket connection needed for real-time delivery.' : 'Check for the test message!'}`,
+        supaToast.success(`Proactive message webhook is working correctly. ${!isConnected ? 'WebSocket connection needed for real-time delivery.' : 'Check for the test message!'}`, {
+          title: "Test Successful"
         });
       } else {
         throw new Error(result.error || `HTTP ${response.status}`);
@@ -132,10 +128,8 @@ export function WebhookTester() {
         details: error
       }]);
       
-      toast({
-        variant: "destructive",
-        title: "Test Failed",
-        description: `Proactive message webhook test failed: ${error.message}`,
+      supaToast.error(`Proactive message webhook test failed: ${error.message}`, {
+        title: "Test Failed"
       });
     } finally {
       setIsTestingProactive(false);
@@ -147,10 +141,8 @@ export function WebhookTester() {
     try {
       // Add connection status check
       if (!isConnected) {
-        toast({
-          variant: "destructive",
-          title: "WebSocket Not Connected",
-          description: "WebSocket connection is required to receive test notifications. Check the connection status indicator.",
+        supaToast.warning("WebSocket connection is required to receive test notifications. Check the connection status indicator.", {
+          title: "WebSocket Not Connected"
         });
       }
 
@@ -183,9 +175,8 @@ export function WebhookTester() {
           details: result
         }]);
         
-        toast({
-          title: "Test Successful",
-          description: `Toast notification webhook is working correctly. ${!isConnected ? 'WebSocket connection needed for real-time delivery.' : 'You should see the test notification!'}`,
+        supaToast.success(`Toast notification webhook is working correctly. ${!isConnected ? 'WebSocket connection needed for real-time delivery.' : 'You should see the test notification!'}`, {
+          title: "Test Successful"
         });
       } else {
         throw new Error(result.error || `HTTP ${response.status}`);
@@ -201,10 +192,8 @@ export function WebhookTester() {
         details: error
       }]);
       
-      toast({
-        variant: "destructive",
-        title: "Test Failed",
-        description: `Toast notification webhook test failed: ${error.message}`,
+      supaToast.error(`Toast notification webhook test failed: ${error.message}`, {
+        title: "Test Failed"
       });
     } finally {
       setIsTestingToast(false);
