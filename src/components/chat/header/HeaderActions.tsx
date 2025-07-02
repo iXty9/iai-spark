@@ -133,7 +133,7 @@ export const HeaderActions = ({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent 
-          align="end" 
+          align="center" 
           className="bg-background/95 backdrop-blur-md border border-border/30 shadow-lg rounded-xl z-50 min-w-[160px]"
         >
           {/* Load Theme option */}
