@@ -28,6 +28,8 @@ class SupaThemesCore {
   private listeners: Set<StateListener> = new Set();
   private userId: string | null = null;
   private realtimeChannel: any = null;
+  private autoSaveTimer: any = null;
+  private isSaving: boolean = false;
 
   constructor() {
     this.state = {
@@ -229,6 +231,11 @@ class SupaThemesCore {
     this.state.mode = mode;
     this.applyCurrentTheme();
     this.notifyListeners();
+    
+    // Auto-save with debouncing (only when not in preview mode)
+    if (!this.state.isInPreview && this.userId) {
+      this.scheduleAutoSave();
+    }
   }
 
   // Public API - Theme colors
@@ -457,8 +464,39 @@ class SupaThemesCore {
     }
   }
 
+  // Auto-save with debouncing
+  private scheduleAutoSave(): void {
+    // Clear existing timer
+    if (this.autoSaveTimer) {
+      clearTimeout(this.autoSaveTimer);
+    }
+    
+    // Set new timer with 1.5 second debounce
+    this.autoSaveTimer = setTimeout(async () => {
+      await this.performAutoSave();
+    }, 1500);
+  }
+
+  private async performAutoSave(): Promise<void> {
+    if (this.isSaving || !this.userId) return;
+    
+    try {
+      this.isSaving = true;
+      await this.saveTheme();
+      logger.info('Theme auto-saved successfully', { module: 'supa-themes' });
+    } catch (error) {
+      logger.error('Auto-save failed:', error, { module: 'supa-themes' });
+    } finally {
+      this.isSaving = false;
+    }
+  }
+
   // Cleanup
   destroy(): void {
+    if (this.autoSaveTimer) {
+      clearTimeout(this.autoSaveTimer);
+      this.autoSaveTimer = null;
+    }
     if (this.realtimeChannel) {
       supabase.removeChannel(this.realtimeChannel);
       this.realtimeChannel = null;
