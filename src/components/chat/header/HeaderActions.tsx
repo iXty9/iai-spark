@@ -5,12 +5,8 @@ import {
   Download, Trash2, Sun, Moon, Code, 
   Upload, RefreshCw, MoreVertical 
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { SupaMenu } from '@/components/supa-menu';
+import { MenuItem } from '@/services/supa-menu/types';
 import { useTheme } from '@/contexts/SupaThemeContext';
 import { useDevMode } from '@/store/use-dev-mode';
 import { toast } from "@/hooks/use-toast";
@@ -41,8 +37,7 @@ export const HeaderActions = ({
   const { theme, setTheme } = useTheme();
   const { isDevMode, toggleDevMode } = useDevMode();
   
-  const handleDevModeToggle = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleDevModeToggle = () => {
     try {
       // Show toast notification
       toast({
@@ -107,6 +102,53 @@ export const HeaderActions = ({
     }
   };
   
+  // Build menu items dynamically
+  const menuItems: MenuItem[] = [
+    {
+      id: 'load-theme',
+      label: isMobile ? "Load Theme" : "Load Default Theme",
+      shortLabel: "Load Theme",
+      icon: RefreshCw,
+      onClick: handleReloadTheme,
+    },
+    ...(hasMessages ? [{
+      id: 'export-chat',
+      label: isMobile ? "Export" : "Export Chat",
+      shortLabel: "Export",
+      icon: Download,
+      onClick: onExportChat,
+    }] : []),
+    {
+      id: 'import-chat',
+      label: isMobile ? "Import" : "Import Chat", 
+      shortLabel: "Import",
+      icon: Upload,
+      onClick: onImportClick,
+    },
+    {
+      id: 'clear-chat',
+      label: isMobile ? "Clear" : "Clear Chat",
+      shortLabel: "Clear", 
+      icon: Trash2,
+      onClick: onClearChat,
+      separator: true, // Add separator after this item
+    },
+    {
+      id: 'dev-mode',
+      label: isMobile ? `Dev ${isDevMode ? '(On)' : '(Off)'}` : `Dev Mode ${isDevMode ? '(On)' : '(Off)'}`,
+      shortLabel: `Dev ${isDevMode ? '(On)' : '(Off)'}`,
+      icon: Code,
+      onClick: handleDevModeToggle,
+    },
+    ...(isMobile ? [{
+      id: 'theme-toggle',
+      label: theme === 'dark' ? 'Light Mode' : 'Dark Mode',
+      shortLabel: theme === 'dark' ? 'Light' : 'Dark',
+      icon: theme === 'dark' ? Sun : Moon,
+      onClick: () => setTheme(theme === 'dark' ? 'light' : 'dark'),
+    }] : []),
+  ];
+
   return (
     <div className="flex items-center gap-3">
       {!isMobile && (
@@ -121,64 +163,11 @@ export const HeaderActions = ({
         </Button>
       )}
       
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button 
-            variant="ghost" 
-            size="icon"
-            className="relative rounded-full h-9 w-9 md:h-8 md:w-8 border border-border/40 hover:border-[#dd3333]/30 transition-all duration-200 flex-shrink-0 shadow-sm"
-            aria-label="Actions menu"
-          >
-            <MoreVertical className="h-5 w-5 md:h-4 md:w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent 
-          align="center"
-          side="bottom"
-          className="bg-background/95 backdrop-blur-md border border-border/30 shadow-lg rounded-xl z-50 min-w-[160px] max-w-[200px]"
-          style={{
-            position: 'fixed',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            right: 'auto'
-          }}
-        >
-          {/* Load Theme option */}
-          <DropdownMenuItem onClick={handleReloadTheme} className="py-2.5">
-            <RefreshCw className="mr-2 h-4 w-4" />
-            <span>{isMobile ? "Load Theme" : "Load Default Theme"}</span>
-          </DropdownMenuItem>
-          
-          {hasMessages && (
-            <DropdownMenuItem onClick={onExportChat} className="py-2.5">
-              <Download className="mr-2 h-4 w-4" />
-              <span>{isMobile ? "Export" : "Export Chat"}</span>
-            </DropdownMenuItem>
-          )}
-          
-          <DropdownMenuItem onClick={onImportClick} className="py-2.5">
-            <Upload className="mr-2 h-4 w-4" />
-            <span>{isMobile ? "Import" : "Import Chat"}</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={onClearChat} className="py-2.5">
-            <Trash2 className="mr-2 h-4 w-4" />
-            <span>{isMobile ? "Clear" : "Clear Chat"}</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={handleDevModeToggle} className="py-2.5">
-            <Code className="mr-2 h-4 w-4" />
-            <span>{isMobile ? `Dev ${isDevMode ? '(On)' : '(Off)'}` : `Dev Mode ${isDevMode ? '(On)' : '(Off)'}`}</span>
-          </DropdownMenuItem>
-          
-          {isMobile && (
-            <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="py-2.5">
-              {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
-              <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
-            </DropdownMenuItem>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <SupaMenu
+        items={menuItems}
+        trigger={<MoreVertical className="h-5 w-5 md:h-4 md:w-4" />}
+        triggerClassName="aria-label-actions-menu"
+      />
     </div>
   );
 };
