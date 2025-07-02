@@ -8,6 +8,7 @@ import { TestTube, Loader2, CheckCircle, XCircle, RefreshCw, Wifi, MessageSquare
 import { useToast } from '@/hooks/use-toast';
 import { useWebSocket } from '@/contexts/WebSocketContext';
 import { fetchAppSettings } from '@/services/admin/settingsService';
+import { supabase } from '@/integrations/supabase/client';
 
 interface TestResult {
   type: 'proactive' | 'toast';
@@ -88,6 +89,8 @@ export function WebhookTester() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'apikey': supabase.supabaseKey
         },
         body: JSON.stringify({
           message: testMessage,
@@ -158,6 +161,8 @@ export function WebhookTester() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'apikey': supabase.supabaseKey
         },
         body: JSON.stringify({
           title: '🧪 Test Notification',

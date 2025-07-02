@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Copy, ExternalLink } from 'lucide-react';
+import { WebhookTester } from './webhooks/WebhookTester';
 
 export function WebSocketSettings() {
   const { toast } = useToast();
@@ -198,6 +199,8 @@ export function WebSocketSettings() {
           </Button>
         </CardContent>
       </Card>
+      
+      <WebhookTester />
     </div>
   );
 }

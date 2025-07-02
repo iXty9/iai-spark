@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { WebhookSettingsForm } from './WebhookSettingsForm';
-import { WebhookTester } from './WebhookTester';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { WebhookSettings as WebhookSettingsType } from './WebhookValidation';
 
@@ -52,13 +51,11 @@ export function WebhookSettings() {
           <CardTitle>Webhook Configuration</CardTitle>
           <CardDescription>
             Configure webhook URLs for different types of events. Chat webhooks inject messages into user conversations.
-            Toast notifications are configured in App Settings {/* Real-time Messaging */}.
+            Toast notification webhooks are configured in App Settings &gt; Real-time Messaging.
           </CardDescription>
         </CardHeader>
         <WebhookSettingsForm initialSettings={webhookSettings} />
       </Card>
-      
-      <WebhookTester />
     </div>
   );
 }
