@@ -93,20 +93,21 @@ export function UserManagementHeader({
       )}
     
       {/* Main controls */}
-      <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-        <div className="flex items-center space-x-2 w-full sm:w-auto">
+      <div className="space-y-4">
+        {/* Search and active filters */}
+        <div className="space-y-3">
           <SearchInput
             value={searchQuery}
             onChange={setSearchQuery}
             onSearch={onSearch}
             placeholder="Search by username or email..."
             loading={loading}
-            className="flex-1 sm:max-w-xs"
+            className="w-full"
           />
           
           {/* Active filters indicator */}
           {hasActiveFilters && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {searchQuery && (
                 <Badge variant="secondary" className="text-xs">
                   Search: "{searchQuery.length > 10 ? searchQuery.slice(0, 10) + '...' : searchQuery}"
@@ -129,31 +130,35 @@ export function UserManagementHeader({
           )}
         </div>
         
-        <div className="flex items-center space-x-2">
-          <Select value={roleFilter} onValueChange={setRoleFilter} disabled={loading}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by role" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Roles</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
-              <SelectItem value="moderator">Moderator</SelectItem>
-              <SelectItem value="user">User</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Select value={pageSize.toString()} onValueChange={v => setPageSize(Number(v))} disabled={loading}>
-            <SelectTrigger className="w-[110px]">
-              <SelectValue placeholder="Page size" />
-            </SelectTrigger>
-            <SelectContent>
-              {[5, 10, 25, 50, 100].map(n => (
-                <SelectItem key={n} value={n.toString()}>
-                  {n} per page
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Control row */}
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+            <Select value={roleFilter} onValueChange={setRoleFilter} disabled={loading}>
+              <SelectTrigger className="w-full sm:w-[140px]">
+                <SelectValue placeholder="Filter by role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="moderator">Moderator</SelectItem>
+                <SelectItem value="user">User</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={pageSize.toString()} onValueChange={v => setPageSize(Number(v))} disabled={loading}>
+              <SelectTrigger className="w-full sm:w-[110px]">
+                <SelectValue placeholder="Page size" />
+              </SelectTrigger>
+              <SelectContent>
+                {[5, 10, 25, 50, 100].map(n => (
+                  <SelectItem key={n} value={n.toString()}>
+                    <span className="sm:hidden">{n}</span>
+                    <span className="hidden sm:inline">{n} per page</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           
           <TooltipProvider>
             <Tooltip>
@@ -163,7 +168,7 @@ export function UserManagementHeader({
                   size="icon" 
                   onClick={onRefresh} 
                   disabled={loading}
-                  className="transition-all duration-200 hover:scale-105"
+                  className="transition-all duration-200 hover:scale-105 self-end sm:self-auto"
                 >
                   {loading ? (
                     <Loader className="h-4 w-4 animate-spin" />

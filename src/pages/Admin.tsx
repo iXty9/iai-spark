@@ -157,21 +157,25 @@ export default function Admin() {
   }
 
   return (
-    <div className="container max-w-4xl py-10">
+    <div className="container max-w-4xl py-4 md:py-10 px-4">
       <Card className="bg-background/80 backdrop-blur-sm">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
+        <div className="p-4 md:p-6">
+          {/* Mobile-optimized header */}
+          <div className="flex items-center justify-between mb-4 md:mb-6">
             <Button 
               variant="ghost" 
               size="sm" 
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 -ml-2"
               onClick={handleGoBack}
             >
               <ArrowLeft className="h-4 w-4" />
-              <span>Back</span>
+              <span className="hidden sm:inline">Back</span>
             </Button>
-            <h1 className="text-2xl font-bold text-center">Admin Panel</h1>
-            <div className="w-[72px]"></div>
+            <h1 className="text-lg md:text-2xl font-bold text-center">
+              <span className="hidden sm:inline">Admin Panel</span>
+              <span className="sm:hidden">Admin</span>
+            </h1>
+            <div className="w-[60px] md:w-[72px]"></div>
           </div>
 
           <AdminTabs
