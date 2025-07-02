@@ -5,6 +5,7 @@ import {
   Download, Trash2, Sun, Moon, Code, 
   Upload, RefreshCw, MoreVertical 
 } from 'lucide-react';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -121,6 +122,8 @@ export const HeaderActions = ({
         </Button>
       )}
       
+      {!isMobile && <NotificationCenter />}
+      
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button 
@@ -166,10 +169,19 @@ export const HeaderActions = ({
           </DropdownMenuItem>
           
           {isMobile && (
-            <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="py-2.5">
-              {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
-              <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
-            </DropdownMenuItem>
+            <>
+              <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="py-2.5">
+                {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
+                <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem className="py-2.5">
+                <div className="flex items-center justify-between w-full">
+                  <span>Notifications</span>
+                  <NotificationCenter />
+                </div>
+              </DropdownMenuItem>
+            </>
           )}
         </DropdownMenuContent>
       </DropdownMenu>

@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { logger } from '@/utils/logging';
 import { supaToast } from '@/services/supa-toast';
 import { notificationService } from '@/services/notification-service';
+import { notificationCenterService } from '@/services/notification/notification-center-service';
 import { clientManager } from '@/services/supabase/client-manager';
 
 export interface ProactiveMessage {
@@ -265,8 +266,22 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
           return;
         }
 
-        if (notificationPayload?.data) {
+        if (notificationPayload?.data && user) {
           logger.info('Processing toast notification:', notificationPayload.data, { module: 'websocket' });
+
+          // Store notification in database for notification center
+          notificationCenterService.storeNotification({
+            title: notificationPayload.data.title,
+            message: notificationPayload.data.message,
+            type: notificationPayload.data.type || 'info',
+            sender: notificationPayload.data.sender,
+            metadata: {
+              source: 'websocket',
+              timestamp: new Date().toISOString(),
+              ...notificationPayload.data.metadata
+            },
+            source: 'websocket'
+          }, user.id);
 
           // Use supa-toast service for unified toast handling
           supaToast.handleWebSocketToast({
