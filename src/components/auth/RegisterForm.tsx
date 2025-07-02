@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useToast } from '@/hooks/use-toast';
+import { supaToast } from '@/services/supa-toast';
 import { PhoneInput } from '@/components/ui/phone-input';
 
 const formSchema = z.object({
@@ -39,7 +39,7 @@ type FormValues = z.infer<typeof formSchema>;
 export function RegisterForm() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -73,9 +73,8 @@ export function RegisterForm() {
         }
       );
       
-      toast({
-        title: "Account created",
-        description: "Please check your email to confirm your account",
+      supaToast.success("Please check your email to confirm your account", {
+        title: "Account created"
       });
       
       navigate('/');

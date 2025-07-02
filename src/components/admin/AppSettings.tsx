@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { useToast } from '@/hooks/use-toast';
+import { supaToast } from '@/services/supa-toast';
 import { fetchAppSettings, updateAppSetting } from '@/services/admin/settingsService';
 import { settingsCacheService } from '@/services/settings-cache-service';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WebSocketSettings } from './WebSocketSettings';
 
 export function AppSettings() {
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [tagline, setTagline] = useState('');
@@ -35,10 +34,8 @@ export function AppSettings() {
       setAiAgentName(settings.ai_agent_name || 'AI Assistant');
     } catch (error) {
       console.error('Error loading app settings:', error);
-      toast({
-        variant: "destructive",
-        title: "Failed to load settings",
-        description: "There was an error loading the application settings.",
+      supaToast.error("There was an error loading the application settings.", {
+        title: "Failed to load settings"
       });
     } finally {
       setIsLoading(false);
@@ -66,19 +63,16 @@ export function AppSettings() {
       settingsCacheService.updateCache('default_avatar_url', defaultAvatarUrl);
       settingsCacheService.updateCache('ai_agent_name', aiAgentName);
       
-      toast({
-        title: "Settings saved",
-        description: "Application settings have been updated successfully.",
+      supaToast.success("Application settings have been updated successfully.", {
+        title: "Settings saved"
       });
       
       // Apply site title immediately
       document.title = siteTitle;
     } catch (error) {
       console.error('Error saving settings:', error);
-      toast({
-        variant: "destructive",
-        title: "Failed to save settings",
-        description: "There was an error saving the application settings.",
+      supaToast.error("There was an error saving the application settings.", {
+        title: "Failed to save settings"
       });
     } finally {
       setIsSaving(false);

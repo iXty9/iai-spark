@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ThumbsUp, ThumbsDown, Copy, Volume2, Info, Check, VolumeX } from 'lucide-react';
-import { toast } from 'sonner';
+import { supaToast } from '@/services/supa-toast';
 import { TokenInfo } from '@/types/chat';
 import { ActionTooltip } from './ActionTooltip';
 import { TokenInfoDialog } from './TokenInfoDialog';
@@ -33,7 +33,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content);
     setCopySuccess(true);
-    toast.success('Message copied to clipboard');
+    supaToast.success('Message copied to clipboard');
     
     // Reset copy success state after 2 seconds
     setTimeout(() => {
@@ -47,7 +47,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
       if (isSpeaking) {
         window.speechSynthesis.cancel();
         setIsSpeaking(false);
-        toast.info('Speech stopped');
+        supaToast.info('Speech stopped');
         return;
       }
 
@@ -75,13 +75,13 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
       
       utterance.onerror = () => {
         setIsSpeaking(false);
-        toast.error('Could not read message aloud');
+        supaToast.error('Could not read message aloud');
       };
       
       window.speechSynthesis.speak(utterance);
-      toast.success('Reading message aloud');
+      supaToast.success('Reading message aloud');
     } else {
-      toast.error('Text-to-speech is not supported in your browser');
+      supaToast.error('Text-to-speech is not supported in your browser');
     }
   };
 
@@ -89,18 +89,18 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
     if (tokenInfo) {
       setShowTokenInfo(true);
     } else {
-      toast.error('No token usage information available for this message');
+      supaToast.error('No token usage information available for this message');
     }
   };
 
   const handleFeedback = async (feedbackType: FeedbackType) => {
     if (!isAuthenticated) {
-      toast.error('Please log in to provide feedback');
+      supaToast.error('Please log in to provide feedback');
       return;
     }
 
     if (feedbackSent === feedbackType) {
-      toast.info(`You've already provided ${feedbackType === 'thumbs_up' ? 'positive' : 'negative'} feedback for this message`);
+      supaToast.info(`You've already provided ${feedbackType === 'thumbs_up' ? 'positive' : 'negative'} feedback for this message`);
       return;
     }
 
@@ -111,12 +111,12 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
       
       if (result.success) {
         setFeedbackSent(feedbackType);
-        toast.success(`Thank you for your ${feedbackType === 'thumbs_up' ? 'positive' : 'negative'} feedback!`);
+        supaToast.success(`Thank you for your ${feedbackType === 'thumbs_up' ? 'positive' : 'negative'} feedback!`);
       } else {
-        toast.error(result.error || 'Failed to send feedback');
+        supaToast.error(result.error || 'Failed to send feedback');
       }
     } catch (error) {
-      toast.error('Failed to send feedback. Please try again.');
+      supaToast.error('Failed to send feedback. Please try again.');
     } finally {
       setFeedbackLoading(null);
     }
