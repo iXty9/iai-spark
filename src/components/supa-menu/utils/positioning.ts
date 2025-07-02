@@ -26,13 +26,13 @@ export const calculateMenuPosition = (
         break;
     }
     
-    // For centered mode, only check vertical bounds, not horizontal
+    // For centered mode, ensure the menu doesn't go off-screen vertically
     const menuHeight = 200; // Approximate menu height
     if (top + menuHeight > viewportHeight) {
-      top = viewportHeight - menuHeight - 16; // 16px margin
+      top = Math.max(16, viewportHeight - menuHeight - 16);
     }
     if (top < 16) {
-      top = 16; // 16px margin
+      top = 16;
     }
     
     return { top, left };

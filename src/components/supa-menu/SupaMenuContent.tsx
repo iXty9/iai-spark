@@ -43,14 +43,14 @@ export const SupaMenuContent = forwardRef<HTMLDivElement, SupaMenuContentProps>(
       transform: config.position.centered ? 'translateX(-50%)' : undefined,
       minWidth: '160px',
       maxWidth: '200px',
-      zIndex: 50,
+      zIndex: 1000,
       opacity: isVisible ? 1 : 0,
-      backgroundColor: `color-mix(in srgb, ${config.theme.backgroundColor} ${config.theme.backgroundOpacity * 100}%, transparent)`,
+      backgroundColor: 'hsl(var(--background))',
       backdropFilter: `blur(${config.theme.backdropBlur}px)`,
       WebkitBackdropFilter: `blur(${config.theme.backdropBlur}px)`,
-      border: `1px solid color-mix(in srgb, ${config.theme.borderColor} ${config.theme.borderOpacity * 100}%, transparent)`,
+      border: '1px solid hsl(var(--border))',
       borderRadius: `${config.theme.borderRadius}px`,
-      boxShadow: `0 8px 32px color-mix(in srgb, ${config.theme.shadowColor} ${config.theme.shadowOpacity * 100}%, transparent)`,
+      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
       padding: '4px',
       transition: `opacity ${config.animation.duration}ms ${config.animation.easing}`,
     };
@@ -72,10 +72,7 @@ export const SupaMenuContent = forwardRef<HTMLDivElement, SupaMenuContentProps>(
             />
             {item.separator && index < items.length - 1 && (
               <div 
-                className="h-px my-1 mx-1"
-                style={{
-                  backgroundColor: `color-mix(in srgb, ${config.theme.borderColor} 60%, transparent)`
-                }}
+                className="h-px my-1 mx-1 bg-border/60"
               />
             )}
           </div>
