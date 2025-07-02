@@ -115,14 +115,11 @@ export const UserMenu = () => {
   };
 
   const getAvatarUrl = () => {
-    // Only use profile avatar or default avatar for authenticated users
+    // Only use profile avatar for authenticated users
     if (user && profile?.avatar_url) {
       return profile.avatar_url;
     }
-    if (user && defaultAvatar) {
-      return defaultAvatar;
-    }
-    // For signed-out users, return undefined to use fallback icon
+    // For authenticated users without profile picture or signed-out users, return undefined to use fallback
     return undefined;
   };
 
