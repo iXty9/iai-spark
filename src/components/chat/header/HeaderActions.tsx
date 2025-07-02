@@ -3,7 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { 
   Download, Trash2, Sun, Moon, Code, 
-  Upload, RefreshCw 
+  Upload, RefreshCw, MoreVertical 
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -124,11 +124,12 @@ export const HeaderActions = ({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button 
-            variant="outline" 
-            size={isMobile ? "sm" : "default"}
-            className="shadow-sm min-h-[2.25rem] px-4"
+            variant="ghost" 
+            size="icon"
+            className="relative rounded-full h-9 w-9 md:h-8 md:w-8 border border-border/40 hover:border-[#dd3333]/30 transition-all duration-200 flex-shrink-0 shadow-sm"
+            aria-label="Actions menu"
           >
-            Actions
+            <MoreVertical className="h-5 w-5 md:h-4 md:w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent 
