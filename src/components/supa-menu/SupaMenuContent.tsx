@@ -64,7 +64,7 @@ export const SupaMenuContent = forwardRef<HTMLDivElement, SupaMenuContentProps>(
         aria-orientation="vertical"
       >
         {items.map((item, index) => (
-          <React.Fragment key={item.id}>
+          <div key={item.id}>
             <SupaMenuItem
               item={item}
               onClick={() => onItemClick(item)}
@@ -78,7 +78,7 @@ export const SupaMenuContent = forwardRef<HTMLDivElement, SupaMenuContentProps>(
                 }}
               />
             )}
-          </React.Fragment>
+          </div>
         ))}
       </div>
     );

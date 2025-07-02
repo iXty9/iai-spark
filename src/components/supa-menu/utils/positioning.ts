@@ -25,6 +25,17 @@ export const calculateMenuPosition = (
         top = triggerRect.bottom + 8; // Small gap below trigger
         break;
     }
+    
+    // For centered mode, only check vertical bounds, not horizontal
+    const menuHeight = 200; // Approximate menu height
+    if (top + menuHeight > viewportHeight) {
+      top = viewportHeight - menuHeight - 16; // 16px margin
+    }
+    if (top < 16) {
+      top = 16; // 16px margin
+    }
+    
+    return { top, left };
   } else {
     // Traditional positioning relative to trigger
     switch (position.side) {
