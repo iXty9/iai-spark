@@ -58,20 +58,6 @@
   --markup-link: #2563eb;
   --markup-blockquote: #d1d5db;
   --markup-table-header: #f9fafb;
-  
-  /* SUPA-MENU: Menu system variables */
-  --supa-menu-bg: hsl(var(--background));
-  --supa-menu-bg-opacity: 0.95;
-  --supa-menu-border: hsl(var(--border));
-  --supa-menu-border-opacity: 0.3;
-  --supa-menu-text: hsl(var(--foreground));
-  --supa-menu-hover-bg: hsl(var(--primary));
-  --supa-menu-hover-bg-opacity: 0.1;
-  --supa-menu-hover-text: hsl(var(--primary));
-  --supa-menu-backdrop-blur: 12px;
-  --supa-menu-border-radius: 12px;
-  --supa-menu-shadow: hsl(0 0% 0%);
-  --supa-menu-shadow-opacity: 0.1;
 }
 
 .dark {
