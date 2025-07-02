@@ -41,7 +41,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
       <DropdownMenuContent 
         align="center"
         side="bottom"
-        className="w-80 md:w-96 p-0"
+        className="w-[calc(100vw-2rem)] max-w-sm md:w-96 p-0"
         sideOffset={8}
       >
         <NotificationList onClose={() => setIsOpen(false)} />

@@ -95,21 +95,21 @@ const NotificationItem: React.FC<{
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 hover:bg-primary/10"
+                  className="h-7 w-7 hover:bg-primary/10"
                   onClick={handleMarkAsRead}
                   aria-label="Mark as read"
                 >
-                  <CheckCheck className="h-3 w-3" />
+                  <CheckCheck className="h-3.5 w-3.5" />
                 </Button>
               )}
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 hover:bg-destructive/10 hover:text-destructive"
+                className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive"
                 onClick={handleDelete}
                 aria-label="Delete notification"
               >
-                <Trash2 className="h-3 w-3" />
+                <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
@@ -148,7 +148,7 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
   return (
     <div className="w-full">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
+      <div className="flex items-center justify-between p-3 md:p-4 border-b">
         <h3 className="text-sm font-semibold">
           Notifications
           {unreadCount > 0 && (
@@ -157,18 +157,19 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
             </span>
           )}
         </h3>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {unreadCount > 0 && (
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 text-xs"
+              className="h-7 text-xs px-2 md:px-3"
               onClick={markAllAsRead}
             >
-              Mark all read
+              <span className="hidden sm:inline">Mark all read</span>
+              <span className="sm:hidden">Mark read</span>
             </Button>
           )}
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose}>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -181,7 +182,7 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
           <p className="text-sm">No notifications yet</p>
         </div>
       ) : (
-        <ScrollArea className="max-h-80">
+        <ScrollArea className="max-h-[60vh] md:max-h-80">
           <div className="divide-y divide-border">
             {notifications.map((notification) => (
               <NotificationItem
