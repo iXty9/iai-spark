@@ -17,8 +17,10 @@ export const SupaMenuItem: React.FC<SupaMenuItemProps> = ({ item, onClick, confi
     padding: '10px 8px',
     borderRadius: '6px',
     border: 'none',
-    background: isHovered ? 'hsl(var(--accent))' : 'transparent',
-    color: isHovered ? 'hsl(var(--accent-foreground))' : 'hsl(var(--foreground))',
+    background: isHovered 
+      ? `color-mix(in srgb, ${config.theme.hoverBackgroundColor} ${config.theme.hoverBackgroundOpacity * 100}%, transparent)`
+      : 'transparent',
+    color: isHovered ? config.theme.hoverTextColor : config.theme.textColor,
     cursor: 'pointer',
     fontSize: '14px',
     transition: `all ${config.animation.duration}ms ${config.animation.easing}`,
