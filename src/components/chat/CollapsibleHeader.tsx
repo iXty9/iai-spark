@@ -28,13 +28,14 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
 
   return (
     <div className="relative">
+      {/* Main sliding menu container */}
       <div 
         className={cn(
           "transform transition-all duration-300 ease-out overflow-hidden rounded-xl shadow-lg border border-border/20",
           "mx-4 md:mx-8 max-w-[1000px] mx-auto", // Max width constraint with centering
           "bg-background/85 backdrop-blur-xl", // Enhanced glass effect
           isExpanded 
-            ? "max-h-32 opacity-100 mt-0 pt-4 pb-2" // Reduced height since no button blocking
+            ? "max-h-20 opacity-100 mt-0 pt-4 pb-4" // Much reduced height since no internal button
             : "max-h-0 opacity-0 -mt-4 pt-0 pb-0"
         )}
         style={{
@@ -48,7 +49,7 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
         }}
       >
         {isExpanded && (
-          <div className="px-4 md:px-6 flex flex-col gap-3">
+          <div className="px-4 md:px-6">
             <ChatHeader 
               onClearChat={onClearChat} 
               onExportChat={onExportChat}
@@ -58,21 +59,23 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
               dynamicPadding={{ left: 0, right: 0 }}
               isMobile={isMobile}
             />
-            
-            {/* Hamburger button now at bottom of menu */}
-            <div className="flex justify-center pt-2 border-t border-border/20">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsExpanded(false)}
-                className="h-10 w-10 rounded-full transition-all duration-300 hover:bg-destructive/10 hover:text-destructive shadow-sm bg-background/50 backdrop-blur-sm border border-border/30"
-              >
-                <X className="h-5 w-5 transition-transform duration-300" />
-              </Button>
-            </div>
           </div>
         )}
       </div>
+
+      {/* X button positioned below the menu when expanded */}
+      {isExpanded && (
+        <div className="flex justify-center mt-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsExpanded(false)}
+            className="h-10 w-10 rounded-full transition-all duration-300 hover:bg-destructive/10 hover:text-destructive shadow-sm bg-background/80 backdrop-blur-sm border border-border/30 z-20"
+          >
+            <X className="h-5 w-5 transition-transform duration-300" />
+          </Button>
+        </div>
+      )}
 
       {/* Toggle button - only visible when menu is closed */}
       {!isExpanded && (
