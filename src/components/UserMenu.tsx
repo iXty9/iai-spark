@@ -129,7 +129,7 @@ export const UserMenu = () => {
         <Button 
           variant="ghost" 
           size="icon" 
-          className="relative rounded-full h-9 w-9 md:h-8 md:w-8 border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm"
+          className="relative rounded-full h-9 w-9 md:h-8 md:w-8 aspect-square border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm"
         >
           <Avatar className="h-7 w-7 md:h-6 md:w-6">
             <AvatarImage src={getAvatarUrl()} alt={profile?.username || "User"} />
