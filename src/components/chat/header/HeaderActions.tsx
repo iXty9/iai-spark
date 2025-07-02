@@ -65,7 +65,7 @@ export const HeaderActions = ({
     }
   };
 
-  // Function to handle force reloading theme using production theme service
+  // Function to handle force reloading theme using supa-themes
   const handleReloadTheme = async () => {
     try {
       // Show loading toast
@@ -75,9 +75,9 @@ export const HeaderActions = ({
         duration: 1500,
       });
 
-      // Use production theme service to load default theme
-      const { productionThemeService } = await import('@/services/production-theme-service');
-      const success = await productionThemeService.loadDefaultTheme();
+      // Use supa-themes service to reset to defaults
+      const { supaThemes } = await import('@/services/supa-themes/core');
+      const success = await supaThemes.resetToDefaults();
       
       if (success) {
         toast({
@@ -88,8 +88,8 @@ export const HeaderActions = ({
       } else {
         toast({
           variant: "destructive",
-          title: "No Default Theme",
-          description: "No default theme settings found in database, using factory defaults",
+          title: "Theme Load Failed",
+          description: "Could not load default theme settings",
         });
       }
       

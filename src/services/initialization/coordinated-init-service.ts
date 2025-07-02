@@ -1,7 +1,7 @@
 
 import { logger } from '@/utils/logging';
 import { clientManager } from '@/services/supabase/client-manager';
-import { productionThemeService } from '@/services/production-theme-service';
+import { supaThemes } from '@/services/supa-themes/core';
 import { fastConfig } from '@/services/config/fast-config-service';
 
 export interface InitializationStatus {
@@ -84,7 +84,7 @@ class CoordinatedInitService {
 
       // Phase 3: Initialize theme system
       this.notifySubscribers({ phase: 'theme', isComplete: false, details: 'Initializing theme system' });
-      await productionThemeService.initialize();
+      await supaThemes.initialize();
 
       // Phase 4: Complete
       this.isComplete = true;

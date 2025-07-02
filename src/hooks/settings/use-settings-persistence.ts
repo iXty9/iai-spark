@@ -3,7 +3,7 @@ import { useToast } from '@/hooks/use-toast';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { logger } from '@/utils/logging';
 import { ThemeColors } from '@/types/theme';
-import { productionThemeService } from '@/services/production-theme-service';
+import { useTheme } from '@/contexts/SupaThemeContext';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 
 export interface UseSettingsPersistenceProps {
@@ -36,6 +36,7 @@ export const useSettingsPersistence = ({
   updateProfile
 }: UseSettingsPersistenceProps) => {
   const { toast } = useToast();
+  const { saveChanges, resetToDefaults } = useTheme();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [defaultThemeSettings, setDefaultThemeSettings] = useState<any>(null);
 
@@ -97,42 +98,22 @@ export const useSettingsPersistence = ({
     setIsSubmitting(true);
     
     try {
-      // Create theme settings from production theme service
-      const themeSettings = productionThemeService.createThemeSettings();
-      
-      logger.info('Saving theme settings to database', { 
+      logger.info('Saving theme settings using supa-themes', { 
         module: 'settings',
-        backgroundOpacity: backgroundOpacity,
-        hasBackground: !!backgroundImage,
         userId: user?.id
       });
 
-      if (user && updateProfile) {
-        const result = await updateProfile({ theme_settings: JSON.stringify(themeSettings) });
-        
-        if (result?.success) {
-          logger.info('Settings saved successfully to profile', { module: 'settings' });
-
-          toast({
-            title: "Settings saved",
-            description: "Your theme settings have been saved successfully",
-          });
-          
-          // Reset changes flag after successful save
-          setHasChanges(false);
-        } else {
-          throw new Error(result?.error?.message || 'Failed to update profile');
-        }
-      } else {
-        // Fallback to localStorage
-        localStorage.setItem('theme_settings', JSON.stringify(themeSettings));
-        
+      const success = await saveChanges();
+      
+      if (success) {
+        logger.info('Settings saved successfully', { module: 'settings' });
         toast({
           title: "Settings saved",
-          description: "Your theme settings have been saved to local storage",
+          description: "Your theme settings have been saved successfully",
         });
-        
         setHasChanges(false);
+      } else {
+        throw new Error('Failed to save theme settings');
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -157,34 +138,19 @@ export const useSettingsPersistence = ({
     setIsSubmitting(true);
     
     try {
-      // Use the production theme service to load default theme
-      const success = await productionThemeService.loadDefaultTheme();
+      logger.info('Resetting theme settings using supa-themes', { module: 'settings' });
+      
+      const success = await resetToDefaults();
       
       if (success) {
-        // Update local state to match the loaded default theme
-        const newState = productionThemeService.getState();
-        setLightTheme(newState.lightTheme);
-        setDarkTheme(newState.darkTheme);
-        setBackgroundImage(newState.backgroundImage);
-        setBackgroundOpacity(newState.backgroundOpacity);
-        
         toast({
           title: "Settings reset",
           description: "Your theme settings have been reset to system defaults",
         });
+        setHasChanges(false); // Reset saves automatically
       } else {
-        // Fall back to hardcoded defaults if no database defaults found
-        logger.info('No default theme found in database, using hardcoded defaults', { module: 'settings' });
-        resetToHardcodedDefaults();
-        
-        toast({
-          title: "Settings reset",
-          description: "No default theme settings found in database. Reset to factory defaults.",
-        });
+        throw new Error('Failed to reset theme settings');
       }
-      
-      // Mark as having changes that need to be saved
-      setHasChanges(true);
     } catch (error) {
       logger.error('Error resetting theme settings:', error, { module: 'settings' });
       toast({
@@ -197,52 +163,6 @@ export const useSettingsPersistence = ({
     }
   };
   
-  // Helper function to reset to hardcoded defaults with company branding
-  const resetToHardcodedDefaults = () => {
-    logger.info('Resetting to factory defaults with company branding', { module: 'settings' });
-    
-    const defaultLightTheme = {
-      backgroundColor: '#ffffff',
-      primaryColor: '#dd3333', // Company primary color
-      textColor: '#000000',
-      accentColor: '#9b87f5',
-      userBubbleColor: '#dd3333', // Company primary color
-      aiBubbleColor: '#9b87f5',
-      userBubbleOpacity: 0.3,
-      aiBubbleOpacity: 0.3,
-      userTextColor: '#000000',
-      aiTextColor: '#000000',
-      userNameColor: '#666666',
-      aiNameColor: '#666666'
-    };
-    
-    const defaultDarkTheme = {
-      backgroundColor: '#121212',
-      primaryColor: '#dd3333', // Company primary color
-      textColor: '#ffffff',
-      accentColor: '#9b87f5',
-      userBubbleColor: '#dd3333', // Company primary color
-      aiBubbleColor: '#9b87f5',
-      userBubbleOpacity: 0.3,
-      aiBubbleOpacity: 0.3,
-      userTextColor: '#ffffff',
-      aiTextColor: '#ffffff',
-      userNameColor: '#cccccc',
-      aiNameColor: '#cccccc'
-    };
-    
-    // Update production theme service
-    productionThemeService.setLightTheme(defaultLightTheme);
-    productionThemeService.setDarkTheme(defaultDarkTheme);
-    productionThemeService.setBackgroundImage(null);
-    productionThemeService.setBackgroundOpacity(0.5);
-    
-    // Update local state
-    setLightTheme(defaultLightTheme);
-    setDarkTheme(defaultDarkTheme);
-    setBackgroundImage(null);
-    setBackgroundOpacity(0.5);
-  };
 
   return {
     isSubmitting,
