@@ -122,7 +122,7 @@ export const HeaderActions = ({
         </Button>
       )}
       
-      {!isMobile && <NotificationCenter />}
+      <NotificationCenter />
       
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -175,12 +175,6 @@ export const HeaderActions = ({
                 <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
               </DropdownMenuItem>
               
-              <DropdownMenuItem className="py-2.5">
-                <div className="flex items-center justify-between w-full">
-                  <span>Notifications</span>
-                  <NotificationCenter />
-                </div>
-              </DropdownMenuItem>
             </>
           )}
         </DropdownMenuContent>
