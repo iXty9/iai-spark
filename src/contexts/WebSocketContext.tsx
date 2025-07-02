@@ -266,22 +266,8 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
           return;
         }
 
-        if (notificationPayload?.data && user) {
+        if (notificationPayload?.data) {
           logger.info('Processing toast notification:', notificationPayload.data, { module: 'websocket' });
-
-          // Store notification in database for notification center
-          notificationCenterService.storeNotification({
-            title: notificationPayload.data.title,
-            message: notificationPayload.data.message,
-            type: notificationPayload.data.type || 'info',
-            sender: notificationPayload.data.sender,
-            metadata: {
-              source: 'websocket',
-              timestamp: new Date().toISOString(),
-              ...notificationPayload.data.metadata
-            },
-            source: 'websocket'
-          }, user.id);
 
           // Use supa-toast service for unified toast handling
           supaToast.handleWebSocketToast({
@@ -293,6 +279,22 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
               timestamp: new Date().toISOString()
             }
           });
+
+          // Store notification in database for notification center (only if user is logged in)
+          if (user) {
+            notificationCenterService.storeNotification({
+              title: notificationPayload.data.title,
+              message: notificationPayload.data.message,
+              type: notificationPayload.data.type || 'info',
+              sender: notificationPayload.data.sender,
+              metadata: {
+                source: 'websocket',
+                timestamp: new Date().toISOString(),
+                ...notificationPayload.data.metadata
+              },
+              source: 'websocket'
+            }, user.id);
+          }
         } else {
           logger.warn('Received toast notification with unexpected structure:', notificationPayload, { module: 'websocket' });
         }
