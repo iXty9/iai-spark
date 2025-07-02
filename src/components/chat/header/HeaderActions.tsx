@@ -133,8 +133,8 @@ export const HeaderActions = ({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent 
-          align="center" 
-          className="bg-background/95 backdrop-blur-md border border-border/30 shadow-lg rounded-xl z-50 min-w-[160px]"
+          align="center"
+          className="bg-background/95 backdrop-blur-md border border-border/30 shadow-lg rounded-xl z-50 min-w-[160px] max-w-[200px] !left-1/2 !transform !-translate-x-1/2 mx-4 md:mx-8"
         >
           {/* Load Theme option */}
           <DropdownMenuItem onClick={handleReloadTheme} className="py-2.5">
