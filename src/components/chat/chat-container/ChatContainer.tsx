@@ -41,6 +41,14 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Add chat-active class to body when chat container is mounted
+  useEffect(() => {
+    document.body.classList.add('chat-active');
+    return () => {
+      document.body.classList.remove('chat-active');
+    };
+  }, []);
 
   // Messages are already in the correct format from useChat hook
   const convertedMessages: Message[] = messages;

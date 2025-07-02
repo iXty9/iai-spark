@@ -123,6 +123,17 @@
   }
 }
 
+/* Toast positioning - move up when chat is active */
+.chat-active [data-radix-toast-viewport] {
+  bottom: 85px !important;
+}
+
+@media (max-width: 640px) {
+  .chat-active [data-radix-toast-viewport] {
+    bottom: 16px !important; /* Keep normal position on mobile */
+  }
+}
+
 /* Enhanced UI elements */
 .glass-panel {
   @apply bg-background/80 backdrop-blur-md border border-border/30 shadow-sm;
