@@ -32,7 +32,7 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
       <div 
         className={cn(
           "transform transition-all duration-300 ease-out overflow-hidden rounded-b-xl shadow-lg border border-border/20",
-          "mx-4 md:mx-8 max-w-[1000px] mx-auto", // Max width constraint with centering
+          "max-w-[1000px] mx-auto", // Max width constraint with centering
           "bg-background/85 backdrop-blur-xl", // Enhanced glass effect
           isExpanded 
             ? "max-h-20 opacity-100 mt-0 pt-4 pb-4" // Much reduced height since no internal button
@@ -49,7 +49,7 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
         }}
       >
         {isExpanded && (
-          <div className="px-4 md:px-6">
+          <div className="px-6 md:px-8">
             <ChatHeader 
               onClearChat={onClearChat} 
               onExportChat={onExportChat}
