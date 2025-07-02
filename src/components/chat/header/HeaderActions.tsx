@@ -115,7 +115,7 @@ export const HeaderActions = ({
           size="icon"
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          className="relative rounded-full h-9 w-9 md:h-8 md:w-8 border border-border/40 hover:border-[#dd3333]/30 transition-all duration-200 flex-shrink-0 shadow-sm"
+          className="relative rounded-full h-9 w-9 md:h-8 md:w-8 border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm"
         >
           {theme === 'dark' ? <Sun className="h-5 w-5 md:h-4 md:w-4" /> : <Moon className="h-5 w-5 md:h-4 md:w-4" />}
         </Button>
@@ -126,22 +126,16 @@ export const HeaderActions = ({
           <Button 
             variant="ghost" 
             size="icon"
-            className="relative rounded-full h-9 w-9 md:h-8 md:w-8 border border-border/40 hover:border-[#dd3333]/30 transition-all duration-200 flex-shrink-0 shadow-sm"
+            className="relative rounded-full h-9 w-9 md:h-8 md:w-8 border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm"
             aria-label="Actions menu"
           >
             <MoreVertical className="h-5 w-5 md:h-4 md:w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent 
-          align="center"
+          align="end"
           side="bottom"
-          className="bg-background/95 backdrop-blur-md border border-border/30 shadow-lg rounded-xl z-50 min-w-[160px] max-w-[200px]"
-          style={{
-            position: 'fixed',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            right: 'auto'
-          }}
+          className="w-56"
         >
           {/* Load Theme option */}
           <DropdownMenuItem onClick={handleReloadTheme} className="py-2.5">
