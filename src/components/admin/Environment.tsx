@@ -125,17 +125,21 @@ export default function Environment() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
         <div>
-          <h2 className="text-2xl font-bold">Environment Information</h2>
-          <p className="text-muted-foreground">Detailed information about the current environment and system status</p>
+          <h2 className="text-xl md:text-2xl font-bold">Environment Information</h2>
+          <p className="text-sm md:text-base text-muted-foreground">Detailed information about the current environment and system status</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={exportDiagnostics} className="flex items-center gap-2">
-            <Download className="h-4 w-4" /> Export Diagnostics
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button variant="outline" size="sm" onClick={exportDiagnostics} className="flex items-center gap-2 justify-center">
+            <Download className="h-4 w-4" /> 
+            <span className="hidden sm:inline">Export Diagnostics</span>
+            <span className="sm:hidden">Export</span>
           </Button>
-          <Button variant="outline" size="sm" onClick={refreshData} disabled={isRefreshing} className="flex items-center gap-2">
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} /> Refresh
+          <Button variant="outline" size="sm" onClick={refreshData} disabled={isRefreshing} className="flex items-center gap-2 justify-center">
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} /> 
+            <span className="hidden sm:inline">Refresh</span>
+            <span className="sm:hidden">Refresh</span>
           </Button>
         </div>
       </div>

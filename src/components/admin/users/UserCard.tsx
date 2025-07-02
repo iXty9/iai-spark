@@ -80,16 +80,16 @@ export function UserCard({
 
   return (
     <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
+      <CardContent className="p-3">
         <div className="space-y-3">
           {/* Header with avatar and role */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center border">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="h-10 w-10 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center border flex-shrink-0">
                 <User className="h-5 w-5 text-primary" />
               </div>
-              <div>
-                <p className="font-medium text-sm">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-sm truncate">
                   {user.username || 'No username'}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -97,10 +97,10 @@ export function UserCard({
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <Badge className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md border ${getRoleColor(user.role)}`}>
                 {getRoleIcon(user.role)}
-                {user.role}
+                <span className="hidden sm:inline">{user.role}</span>
               </Badge>
               <UserRowActions
                 user={user}
@@ -117,7 +117,7 @@ export function UserCard({
               variant="ghost"
               size="sm"
               onClick={onToggleExpanded}
-              className="w-full justify-between h-8 text-xs text-muted-foreground"
+              className="w-full justify-between h-8 text-xs text-muted-foreground hover:bg-muted/50"
             >
               <span>{isExpanded ? 'Hide' : 'Show'} Details</span>
               {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
@@ -126,37 +126,39 @@ export function UserCard({
 
           {/* Expanded details */}
           <div className={cn(
-            "space-y-2 transition-all duration-200",
+            "space-y-2 transition-all duration-200 overflow-hidden",
             isExpanded ? "block" : "hidden"
           )}>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">User ID:</span>
-              <div className="flex items-center gap-1">
-                <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">
-                  {user.id.slice(0, 8)}...
-                </code>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-5 w-5 p-0 hover:bg-muted"
-                        onClick={() => copyToClipboard(user.id, 'User ID')}
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Copy full user ID</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+            <div className="bg-muted/30 rounded-md p-2 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">User ID:</span>
+                <div className="flex items-center gap-1">
+                  <code className="text-xs bg-background px-1 py-0.5 rounded font-mono border">
+                    {user.id.slice(0, 8)}...
+                  </code>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 w-5 p-0 hover:bg-muted"
+                          onClick={() => copyToClipboard(user.id, 'User ID')}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Copy full user ID</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Last Login:</span>
-              <span>{formatDate(user.last_sign_in_at)}</span>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Last Login:</span>
+                <span className="text-right">{formatDate(user.last_sign_in_at)}</span>
+              </div>
             </div>
           </div>
         </div>
