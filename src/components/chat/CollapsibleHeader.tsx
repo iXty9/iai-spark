@@ -28,40 +28,27 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
 
   return (
     <div className="relative">
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => setIsExpanded(!isExpanded)}
-        className={cn(
-          "absolute left-1/2 -translate-x-1/2 z-30 rounded-full transition-all duration-300 hover:bg-[#dd3333]/10 hover:text-[#dd3333] shadow-md",
-          "h-12 w-12 md:h-10 md:w-10", // Larger touch target on mobile
-          isExpanded 
-            ? "top-3 bg-background/95 backdrop-blur-sm border border-border/30" 
-            : "top-3 bg-background/80 backdrop-blur-sm border border-border/20"
-        )}
-      >
-        {isExpanded ? (
-          <X className="h-6 w-6 md:h-5 md:w-5 transition-transform duration-300" />
-        ) : (
-          <Menu className="h-6 w-6 md:h-5 md:w-5 transition-transform duration-300" />
-        )}
-      </Button>
-
       <div 
         className={cn(
-          "transform transition-all duration-300 ease-out overflow-hidden bg-background/95 backdrop-blur-md rounded-xl shadow-lg border border-border/30",
-          "mx-4 md:mx-8", // Consistent horizontal margins
+          "transform transition-all duration-300 ease-out overflow-hidden rounded-xl shadow-lg border border-border/20",
+          "mx-4 md:mx-8 max-w-[1000px] mx-auto", // Max width constraint with centering
+          "bg-background/85 backdrop-blur-xl", // Enhanced glass effect
           isExpanded 
-            ? "max-h-40 opacity-100 mt-0 pt-16 pb-4" // Increased max height
+            ? "max-h-32 opacity-100 mt-0 pt-4 pb-2" // Reduced height since no button blocking
             : "max-h-0 opacity-0 -mt-4 pt-0 pb-0"
         )}
         style={{
-          backdropFilter: isExpanded ? 'blur(16px)' : 'blur(8px)',
-          boxShadow: isExpanded ? '0 8px 32px rgba(0, 0, 0, 0.12)' : '0 4px 16px rgba(0, 0, 0, 0.08)'
+          backdropFilter: isExpanded ? 'blur(20px)' : 'blur(12px)',
+          boxShadow: isExpanded 
+            ? '0 8px 32px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.05)' 
+            : '0 4px 16px rgba(0, 0, 0, 0.08)',
+          background: isExpanded 
+            ? 'linear-gradient(135deg, hsl(var(--background))/90, hsl(var(--background))/95)'
+            : 'hsl(var(--background))/80'
         }}
       >
         {isExpanded && (
-          <div className="px-4 md:px-6">
+          <div className="px-4 md:px-6 flex flex-col gap-3">
             <ChatHeader 
               onClearChat={onClearChat} 
               onExportChat={onExportChat}
@@ -71,9 +58,33 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
               dynamicPadding={{ left: 0, right: 0 }}
               isMobile={isMobile}
             />
+            
+            {/* Hamburger button now at bottom of menu */}
+            <div className="flex justify-center pt-2 border-t border-border/20">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsExpanded(false)}
+                className="h-10 w-10 rounded-full transition-all duration-300 hover:bg-destructive/10 hover:text-destructive shadow-sm bg-background/50 backdrop-blur-sm border border-border/30"
+              >
+                <X className="h-5 w-5 transition-transform duration-300" />
+              </Button>
+            </div>
           </div>
         )}
       </div>
+
+      {/* Toggle button - only visible when menu is closed */}
+      {!isExpanded && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsExpanded(true)}
+          className="absolute left-1/2 -translate-x-1/2 top-3 z-30 rounded-full transition-all duration-300 hover:bg-primary/10 hover:text-primary shadow-md h-12 w-12 md:h-10 md:w-10 bg-background/80 backdrop-blur-sm border border-border/20"
+        >
+          <Menu className="h-6 w-6 md:h-5 md:w-5 transition-transform duration-300" />
+        </Button>
+      )}
     </div>
   );
 };
