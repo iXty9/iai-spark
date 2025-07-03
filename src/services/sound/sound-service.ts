@@ -100,6 +100,8 @@ class SoundService {
           user_id: userId,
           ...updates,
           updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id'
         })
         .select()
         .single();
@@ -131,6 +133,15 @@ class SoundService {
 
       if (soundUrl) {
         await soundPlayer.playSound(soundUrl, settings.volume);
+      } else {
+        // Fallback to browser default notification sound
+        try {
+          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmAcBzuY5/LdczEIK2+8/dyLOAcZZLvr4pJHDAZSp+LutmMaBL...');
+          audio.volume = settings.volume;
+          await audio.play();
+        } catch {
+          // Silent fallback if browser sound fails
+        }
       }
     } catch (error) {
       logger.error('Failed to play notification sound:', error);

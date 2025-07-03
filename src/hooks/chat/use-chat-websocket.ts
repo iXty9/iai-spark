@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { Message } from '@/types/chat';
 import { useWebSocket, ProactiveMessage } from '@/contexts/WebSocketContext';
 import { logger } from '@/utils/logging';
+import { notificationService } from '@/services/notification-service';
 
 interface UseChatWebSocketProps {
   addMessage: (message: Message) => void;
@@ -43,8 +44,11 @@ export const useChatWebSocket = ({ addMessage, messages }: UseChatWebSocketProps
         source: chatMessage.source
       });
       
-      // Add the message to the chat (no toast notification - we have dedicated toast webhook now)
+      // Add the message to the chat and play sound
       addMessage(chatMessage);
+      
+      // Play chat message sound for proactive messages
+      notificationService.showChatMessage(proactiveMessage.content, 'AI Assistant');
     });
 
     return unsubscribe;
