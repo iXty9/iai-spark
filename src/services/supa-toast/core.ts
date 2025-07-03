@@ -263,6 +263,12 @@ class SupaToastService {
 
   private showBrowserNotification(options: ToastOptions): void {
     const notificationType = options.type === 'default' ? 'info' : options.type || 'info';
+    logger.debug('Showing browser notification from toast', { 
+      title: options.title,
+      type: notificationType,
+      module: 'supa-toast' 
+    });
+    
     notificationService.showNotification({
       title: options.title || 'Notification',
       message: options.message,

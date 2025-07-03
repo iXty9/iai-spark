@@ -42,6 +42,14 @@ class NotificationService {
   async showNotification(options: NotificationOptions) {
     const { title, message, sender, type = 'info', showBrowserNotification = true } = options;
     
+    logger.debug('Showing notification', { 
+      title, 
+      sender, 
+      type, 
+      hasUserId: !!this.currentUserId,
+      module: 'notification-service' 
+    });
+    
     // Always show toast notification for immediate feedback
     toast({
       title: sender ? `${sender}` : title,
@@ -51,7 +59,13 @@ class NotificationService {
 
     // Play notification sound
     if (this.currentUserId) {
+      logger.debug('Playing notification sound from service', { 
+        userId: this.currentUserId,
+        module: 'notification-service' 
+      });
       await soundService.playNotificationSound(this.currentUserId);
+    } else {
+      logger.warn('No current user ID for notification sound', { module: 'notification-service' });
     }
 
     // Show browser notification if page is not visible and we have permission
@@ -98,13 +112,26 @@ class NotificationService {
   }
 
   async showChatMessage(message: string, sender?: string) {
+    logger.debug('Processing chat message for sound', { 
+      sender, 
+      hasUserId: !!this.currentUserId,
+      module: 'notification-service' 
+    });
+    
     // Play chat message sound for regular chat messages
     if (this.currentUserId) {
+      logger.debug('Playing chat message sound from service', { 
+        userId: this.currentUserId,
+        sender,
+        module: 'notification-service' 
+      });
       await soundService.playChatMessageSound(this.currentUserId);
+    } else {
+      logger.warn('No current user ID for chat message sound', { sender, module: 'notification-service' });
     }
     
     // Don't show toast for regular chat messages, just play sound
-    logger.debug('Chat message sound played', { sender, module: 'notification-service' });
+    logger.debug('Chat message sound processing completed', { sender, module: 'notification-service' });
   }
 
   setUserId(userId: string | null) {

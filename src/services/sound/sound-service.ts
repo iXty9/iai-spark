@@ -121,49 +121,89 @@ class SoundService {
   }
 
   async playNotificationSound(userId?: string): Promise<void> {
-    if (!userId) return;
+    if (!userId) {
+      logger.debug('No userId provided for notification sound', { module: 'sound-service' });
+      return;
+    }
 
     try {
+      logger.debug('Playing notification sound', { userId, module: 'sound-service' });
       const settings = await this.getUserSettings(userId);
       
-      if (!settings.sounds_enabled) return;
+      logger.debug('Retrieved sound settings', { 
+        userId, 
+        soundsEnabled: settings.sounds_enabled,
+        hasNotificationSound: !!settings.toast_notification_sound,
+        volume: settings.volume,
+        module: 'sound-service' 
+      });
+      
+      if (!settings.sounds_enabled) {
+        logger.debug('Sounds disabled for user', { userId, module: 'sound-service' });
+        return;
+      }
 
       const soundUrl = settings.toast_notification_sound || 
         this.defaultSettings?.toast_notification_sound;
 
+      logger.debug('Using sound URL', { soundUrl, userId, module: 'sound-service' });
+
       if (soundUrl) {
-        await soundPlayer.playSound(soundUrl, settings.volume);
+        const playResult = await soundPlayer.playSound(soundUrl, settings.volume);
+        logger.debug('Sound play result', { playResult, soundUrl, userId, module: 'sound-service' });
       } else {
+        logger.debug('No custom sound, using browser fallback', { userId, module: 'sound-service' });
         // Fallback to browser default notification sound
         try {
           const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmAcBzuY5/LdczEIK2+8/dyLOAcZZLvr4pJHDAZSp+LutmMaBL...');
           audio.volume = settings.volume;
           await audio.play();
-        } catch {
-          // Silent fallback if browser sound fails
+          logger.debug('Browser fallback sound played', { userId, module: 'sound-service' });
+        } catch (fallbackError) {
+          logger.warn('Browser fallback sound failed', { fallbackError, userId, module: 'sound-service' });
         }
       }
     } catch (error) {
-      logger.error('Failed to play notification sound:', error);
+      logger.error('Failed to play notification sound:', error, { userId, module: 'sound-service' });
     }
   }
 
   async playChatMessageSound(userId?: string): Promise<void> {
-    if (!userId) return;
+    if (!userId) {
+      logger.debug('No userId provided for chat message sound', { module: 'sound-service' });
+      return;
+    }
 
     try {
+      logger.debug('Playing chat message sound', { userId, module: 'sound-service' });
       const settings = await this.getUserSettings(userId);
       
-      if (!settings.sounds_enabled) return;
+      logger.debug('Retrieved chat sound settings', { 
+        userId, 
+        soundsEnabled: settings.sounds_enabled,
+        hasChatSound: !!settings.chat_message_sound,
+        volume: settings.volume,
+        module: 'sound-service' 
+      });
+      
+      if (!settings.sounds_enabled) {
+        logger.debug('Sounds disabled for user', { userId, module: 'sound-service' });
+        return;
+      }
 
       const soundUrl = settings.chat_message_sound || 
         this.defaultSettings?.chat_message_sound;
 
+      logger.debug('Using chat sound URL', { soundUrl, userId, module: 'sound-service' });
+
       if (soundUrl) {
-        await soundPlayer.playSound(soundUrl, settings.volume);
+        const playResult = await soundPlayer.playSound(soundUrl, settings.volume);
+        logger.debug('Chat sound play result', { playResult, soundUrl, userId, module: 'sound-service' });
+      } else {
+        logger.debug('No chat message sound configured', { userId, module: 'sound-service' });
       }
     } catch (error) {
-      logger.error('Failed to play chat message sound:', error);
+      logger.error('Failed to play chat message sound:', error, { userId, module: 'sound-service' });
     }
   }
 

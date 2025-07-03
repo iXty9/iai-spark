@@ -105,16 +105,27 @@ export function useSoundSettings() {
   }, []);
 
   const playTestSound = useCallback(async (soundType: SoundType): Promise<void> => {
-    if (!user?.id || !settings) return;
+    if (!user?.id || !settings) {
+      logger.warn('Cannot play test sound: missing user or settings', { 
+        hasUser: !!user?.id, 
+        hasSettings: !!settings,
+        module: 'use-sound-settings' 
+      });
+      return;
+    }
 
     try {
+      logger.info('Playing test sound', { soundType, userId: user.id, module: 'use-sound-settings' });
+      
       if (soundType === 'toast_notification') {
         await soundService.playNotificationSound(user.id);
       } else {
         await soundService.playChatMessageSound(user.id);
       }
+      
+      logger.info('Test sound completed', { soundType, userId: user.id, module: 'use-sound-settings' });
     } catch (error) {
-      logger.error('Failed to play test sound:', error);
+      logger.error('Failed to play test sound:', error, { soundType, userId: user.id, module: 'use-sound-settings' });
     }
   }, [user?.id, settings]);
 
