@@ -72,6 +72,39 @@ export type Database = {
         }
         Relationships: []
       }
+      sound_settings: {
+        Row: {
+          chat_message_sound: string | null
+          created_at: string
+          id: string
+          sounds_enabled: boolean
+          toast_notification_sound: string | null
+          updated_at: string
+          user_id: string
+          volume: number
+        }
+        Insert: {
+          chat_message_sound?: string | null
+          created_at?: string
+          id?: string
+          sounds_enabled?: boolean
+          toast_notification_sound?: string | null
+          updated_at?: string
+          user_id: string
+          volume?: number
+        }
+        Update: {
+          chat_message_sound?: string | null
+          created_at?: string
+          id?: string
+          sounds_enabled?: boolean
+          toast_notification_sound?: string | null
+          updated_at?: string
+          user_id?: string
+          volume?: number
+        }
+        Relationships: []
+      }
       user_notifications: {
         Row: {
           created_at: string

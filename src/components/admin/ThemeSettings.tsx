@@ -8,6 +8,8 @@ import { checkIsAdmin } from '@/services/admin/userRolesService';
 import { setDefaultThemeSettings } from '@/services/admin/settingsService';
 import { useTheme } from '@/contexts/SupaThemeContext';
 import { useToast } from '@/hooks/use-toast';
+import { useSoundSettings } from '@/hooks/use-sound-settings';
+import { soundService } from '@/services/sound/sound-service';
 
 export function ThemeSettings() {
   const { user } = useAuth();
@@ -16,6 +18,8 @@ export function ThemeSettings() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSettingDefault, setIsSettingDefault] = useState(false);
   const [hasPersonalTheme, setHasPersonalTheme] = useState(false);
+  const [isSettingSoundDefault, setIsSettingSoundDefault] = useState(false);
+  const { settings: soundSettings } = useSoundSettings();
 
   useEffect(() => {
     const checkAdminStatus = async () => {
@@ -74,6 +78,40 @@ export function ThemeSettings() {
     }
   };
 
+  const handleSetSoundAsDefault = async () => {
+    if (isSettingSoundDefault || !soundSettings) return;
+    
+    setIsSettingSoundDefault(true);
+    
+    try {
+      const defaultSoundSettings = {
+        toast_notification_sound: soundSettings.toast_notification_sound,
+        chat_message_sound: soundSettings.chat_message_sound,
+        sounds_enabled: soundSettings.sounds_enabled,
+        volume: soundSettings.volume
+      };
+      
+      const success = await soundService.setDefaultSettings(defaultSoundSettings);
+      
+      if (success) {
+        toast({
+          title: "Default sounds set",
+          description: "Your current sound settings have been set as the system default for all new users.",
+        });
+      } else {
+        throw new Error('Failed to update default sound settings');
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to set default sounds. Please try again.",
+      });
+    } finally {
+      setIsSettingSoundDefault(false);
+    }
+  };
+
   if (!isAdmin) {
     return null;
   }
@@ -129,6 +167,50 @@ export function ThemeSettings() {
             <li>Existing users with personal themes keep their settings</li>
             <li>Users without personal themes will see the new default</li>
           </ul>
+        </div>
+
+        {/* Sound Management Section */}
+        <div className="border-t pt-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Crown className="h-5 w-5 text-amber-600" />
+            System Sound Management
+          </h3>
+          
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div>
+              <h4 className="font-medium text-foreground">Set Current Sounds as Default</h4>
+              <p className="text-sm text-muted-foreground">
+                Apply your current sound settings as the system default for all users
+              </p>
+            </div>
+            <Button
+              onClick={handleSetSoundAsDefault}
+              disabled={isSettingSoundDefault || !soundSettings}
+              className="flex items-center gap-2"
+            >
+              {isSettingSoundDefault ? (
+                <>
+                  <Save className="h-4 w-4 animate-pulse" />
+                  Setting...
+                </>
+              ) : (
+                <>
+                  <Crown className="h-4 w-4" />
+                  Set as Default
+                </>
+              )}
+            </Button>
+          </div>
+
+          <div className="text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg mt-4">
+            <strong>Sound defaults include:</strong>
+            <ul className="mt-2 space-y-1 list-disc list-inside">
+              <li>Custom notification and chat message sounds</li>
+              <li>Volume levels and enabled/disabled state</li>
+              <li>New users will inherit these sound preferences</li>
+              <li>Existing users with custom sounds keep their settings</li>
+            </ul>
+          </div>
         </div>
       </CardContent>
     </Card>

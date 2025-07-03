@@ -4,11 +4,12 @@ import { useSupaThemes } from '@/hooks/use-supa-themes';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Palette, Image, AlertCircle, Code } from 'lucide-react';
+import { ArrowLeft, Palette, Image, AlertCircle, Code, Volume2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
 import { BackgroundSettings } from '@/components/settings/BackgroundSettings';
 import { MarkupSettings } from '@/components/settings/MarkupSettings';
+import { SoundSettings } from '@/components/settings/SoundSettings';
 import { SettingsFooter } from '@/components/settings/SettingsFooter';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
@@ -255,14 +256,20 @@ export default function Settings() {
           )}
           
           <Tabs defaultValue="appearance" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsList className="grid w-full grid-cols-4 mb-6">
               <TabsTrigger value="appearance" className="flex items-center gap-2">
                 <Palette className="h-4 w-4" />
-                <span>Appearance</span>
+                <span className="hidden sm:inline">Appearance</span>
+                <span className="sm:hidden">Style</span>
               </TabsTrigger>
               <TabsTrigger value="background" className="flex items-center gap-2">
                 <Image className="h-4 w-4" />
-                <span>Background</span>
+                <span className="hidden sm:inline">Background</span>
+                <span className="sm:hidden">BG</span>
+              </TabsTrigger>
+              <TabsTrigger value="sounds" className="flex items-center gap-2">
+                <Volume2 className="h-4 w-4" />
+                <span>Sounds</span>
               </TabsTrigger>
               <TabsTrigger value="markup" className="flex items-center gap-2">
                 <Code className="h-4 w-4" />
@@ -292,6 +299,10 @@ export default function Settings() {
                 onOpacityChange={handleOpacityChange}
                 isLoading={false}
               />
+            </TabsContent>
+            
+            <TabsContent value="sounds" className="space-y-6">
+              <SoundSettings />
             </TabsContent>
             
             <TabsContent value="markup" className="space-y-6">

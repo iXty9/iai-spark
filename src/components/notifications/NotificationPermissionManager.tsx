@@ -11,8 +11,8 @@ export const NotificationPermissionManager: React.FC = () => {
 
   useEffect(() => {
     // Initialize the notification service
-    notificationService.initialize(showNotification, canShowNotifications);
-  }, [showNotification, canShowNotifications]);
+    notificationService.initialize(showNotification, canShowNotifications, user?.id);
+  }, [showNotification, canShowNotifications, user?.id]);
 
   useEffect(() => {
     // Only request permission if notifications are supported

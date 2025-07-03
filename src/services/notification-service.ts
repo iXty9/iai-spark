@@ -1,6 +1,7 @@
 
 import { toast } from '@/hooks/use-toast';
 import { logger } from '@/utils/logging';
+import { soundService } from '@/services/sound/sound-service';
 
 interface NotificationOptions {
   title: string;
@@ -13,15 +14,23 @@ interface NotificationOptions {
 class NotificationService {
   private showBrowserNotification: ((options: { title: string; body: string; icon?: string; tag?: string }) => Notification | null) | null = null;
   private canShowBrowserNotifications = false;
+  private currentUserId: string | null = null;
 
   initialize(
     showBrowserNotification: (options: { title: string; body: string; icon?: string; tag?: string }) => Notification | null,
-    canShow: boolean
+    canShow: boolean,
+    userId?: string
   ) {
     this.showBrowserNotification = showBrowserNotification;
     this.canShowBrowserNotifications = canShow;
+    this.currentUserId = userId || null;
+    
+    // Initialize sound service
+    soundService.initialize(this.currentUserId || undefined);
+    
     logger.info('Notification service initialized', { 
       canShowBrowserNotifications: canShow,
+      hasUserId: !!this.currentUserId,
       module: 'notification-service' 
     });
   }
@@ -30,7 +39,7 @@ class NotificationService {
     return document.visibilityState === 'visible' && document.hasFocus();
   }
 
-  showNotification(options: NotificationOptions) {
+  async showNotification(options: NotificationOptions) {
     const { title, message, sender, type = 'info', showBrowserNotification = true } = options;
     
     // Always show toast notification for immediate feedback
@@ -39,6 +48,11 @@ class NotificationService {
       description: message,
       variant: type === 'error' ? 'destructive' : 'default'
     });
+
+    // Play notification sound
+    if (this.currentUserId) {
+      await soundService.playNotificationSound(this.currentUserId);
+    }
 
     // Show browser notification if page is not visible and we have permission
     if (
@@ -68,14 +82,36 @@ class NotificationService {
     }
   }
 
-  showProactiveMessage(message: string, sender?: string) {
-    this.showNotification({
+  async showProactiveMessage(message: string, sender?: string) {
+    // Play chat message sound
+    if (this.currentUserId) {
+      await soundService.playChatMessageSound(this.currentUserId);
+    }
+    
+    await this.showNotification({
       title: 'New Message',
       message,
       sender,
       type: 'info',
       showBrowserNotification: true
     });
+  }
+
+  async showChatMessage(message: string, sender?: string) {
+    // Play chat message sound for regular chat messages
+    if (this.currentUserId) {
+      await soundService.playChatMessageSound(this.currentUserId);
+    }
+    
+    // Don't show toast for regular chat messages, just play sound
+    logger.debug('Chat message sound played', { sender, module: 'notification-service' });
+  }
+
+  setUserId(userId: string | null) {
+    this.currentUserId = userId;
+    if (userId) {
+      soundService.initialize(userId);
+    }
   }
 }
 
