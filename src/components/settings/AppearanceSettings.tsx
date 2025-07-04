@@ -4,7 +4,8 @@ import { ThemeControls } from '@/components/settings/ThemeControls';
 import { ThemeColors } from '@/types/theme';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Sun, Moon } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { RotateCcw, Sun, Moon, Palette, Sparkles } from 'lucide-react';
 
 export interface AppearanceSettingsProps {
   theme: 'light' | 'dark';
@@ -51,54 +52,88 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
   
   return (
     <div className="space-y-6">
-      {/* Section Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold">Theme Colors</h3>
-          <p className="text-sm text-muted-foreground">
-            Customize colors for light and dark modes
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onResetTheme}
-          className="flex items-center space-x-2"
-        >
-          <RotateCcw className="h-4 w-4" />
-          <span>Reset</span>
-        </Button>
-      </div>
+      {/* Modern Header with Mobile-First Design */}
+      <Card className="glass-panel border-0 shadow-sm">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                  <Palette className="h-4 w-4" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground">Theme Colors</h3>
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Customize your theme colors in real-time. Changes are previewed instantly and can be saved or discarded.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onResetTheme}
+              className="flex items-center gap-2 shrink-0 hover:bg-destructive/5 hover:text-destructive hover:border-destructive/20 transition-colors"
+            >
+              <RotateCcw className="h-4 w-4" />
+              <span className="hidden xs:inline">Reset to Defaults</span>
+              <span className="xs:hidden">Reset</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Theme Mode Tabs - FIXED: Use controlled switching through parent component */}
-      <Tabs value={theme} onValueChange={handleThemeModeChange}>
-        <TabsList className="grid grid-cols-2 mb-4">
-          <TabsTrigger value="light" className="flex items-center gap-2">
-            <Sun className="h-4 w-4" />
-            Light Mode
-          </TabsTrigger>
-          <TabsTrigger value="dark" className="flex items-center gap-2">
-            <Moon className="h-4 w-4" />
-            Dark Mode
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="light">
-          <ThemeControls 
-            colors={lightTheme}
-            onColorChange={handleLightThemeChange}
-            isActive={theme === 'light'}
-          />
-        </TabsContent>
-        
-        <TabsContent value="dark">
-          <ThemeControls 
-            colors={darkTheme}
-            onColorChange={handleDarkThemeChange}
-            isActive={theme === 'dark'}
-          />
-        </TabsContent>
-      </Tabs>
+      {/* Enhanced Theme Mode Tabs */}
+      <Card className="glass-panel border-0 shadow-sm overflow-hidden">
+        <Tabs value={theme} onValueChange={handleThemeModeChange} className="w-full">
+          <div className="border-b border-border/50 bg-muted/30">
+            <TabsList className="grid grid-cols-2 w-full h-auto p-1 bg-transparent">
+              <TabsTrigger 
+                value="light" 
+                className="flex items-center gap-2 py-3 px-4 text-sm font-medium rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground transition-all duration-200 hover:bg-background/50"
+              >
+                <Sun className="h-4 w-4" />
+                <span className="hidden xs:inline">Light Mode</span>
+                <span className="xs:hidden">Light</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="dark" 
+                className="flex items-center gap-2 py-3 px-4 text-sm font-medium rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground transition-all duration-200 hover:bg-background/50"
+              >
+                <Moon className="h-4 w-4" />
+                <span className="hidden xs:inline">Dark Mode</span>
+                <span className="xs:hidden">Dark</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          
+          <CardContent className="p-4 sm:p-6">
+            <TabsContent value="light" className="mt-0 space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles className="h-4 w-4 text-amber-500" />
+                <span className="text-sm font-medium text-foreground">Light Theme Colors</span>
+                <div className="flex-1 h-px bg-border"></div>
+              </div>
+              <ThemeControls 
+                colors={lightTheme}
+                onColorChange={handleLightThemeChange}
+                isActive={theme === 'light'}
+              />
+            </TabsContent>
+            
+            <TabsContent value="dark" className="mt-0 space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles className="h-4 w-4 text-blue-400" />
+                <span className="text-sm font-medium text-foreground">Dark Theme Colors</span>
+                <div className="flex-1 h-px bg-border"></div>
+              </div>
+              <ThemeControls 
+                colors={darkTheme}
+                onColorChange={handleDarkThemeChange}
+                isActive={theme === 'dark'}
+              />
+            </TabsContent>
+          </CardContent>
+        </Tabs>
+      </Card>
     </div>
   );
 };
