@@ -8,10 +8,12 @@ import { Switch } from '@/components/ui/switch';
 import { supaToast } from '@/services/supa-toast';
 import { fetchAppSettings, updateAppSetting } from '@/services/admin/settingsService';
 import { settingsCacheService } from '@/services/settings-cache-service';
-import { Users, MessageSquare, Shield, Settings } from 'lucide-react';
+import { Users, MessageSquare, Shield, Settings, Star, Rocket, Heart, Zap, Sparkles, Crown, Award, Trophy } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface AuthSettings {
   auth_tagline: string;
+  auth_tagline_icon: string;
   auth_welcome_description: string;
   auth_login_title: string;
   auth_login_description: string;
@@ -21,9 +23,21 @@ interface AuthSettings {
   auth_disclaimer_required: string;
 }
 
+const ICON_OPTIONS = [
+  { name: 'star', component: Star, label: 'Star' },
+  { name: 'rocket', component: Rocket, label: 'Rocket' },
+  { name: 'heart', component: Heart, label: 'Heart' },
+  { name: 'zap', component: Zap, label: 'Lightning' },
+  { name: 'sparkles', component: Sparkles, label: 'Sparkles' },
+  { name: 'crown', component: Crown, label: 'Crown' },
+  { name: 'award', component: Award, label: 'Award' },
+  { name: 'trophy', component: Trophy, label: 'Trophy' },
+];
+
 export const AuthenticationSettings = () => {
   const [settings, setSettings] = useState<AuthSettings>({
     auth_tagline: '',
+    auth_tagline_icon: 'star',
     auth_welcome_description: '',
     auth_login_title: '',
     auth_login_description: '',
@@ -45,6 +59,7 @@ export const AuthenticationSettings = () => {
       const allSettings = await fetchAppSettings();
       setSettings({
         auth_tagline: allSettings.auth_tagline || 'Intelligent Conversations',
+        auth_tagline_icon: allSettings.auth_tagline_icon || 'star',
         auth_welcome_description: allSettings.auth_welcome_description || 'Welcome back! Sign in to continue your intelligent conversations or create a new account to get started.',
         auth_login_title: allSettings.auth_login_title || 'Sign In',
         auth_login_description: allSettings.auth_login_description || 'Enter your credentials to access your account and continue your conversations.',
@@ -67,6 +82,7 @@ export const AuthenticationSettings = () => {
       // Save all settings
       await Promise.all([
         updateAppSetting('auth_tagline', settings.auth_tagline),
+        updateAppSetting('auth_tagline_icon', settings.auth_tagline_icon),
         updateAppSetting('auth_welcome_description', settings.auth_welcome_description),
         updateAppSetting('auth_login_title', settings.auth_login_title),
         updateAppSetting('auth_login_description', settings.auth_login_description),
@@ -111,13 +127,41 @@ export const AuthenticationSettings = () => {
         <CardContent className="space-y-4">
           <div>
             <Label htmlFor="auth_tagline" className="text-sm font-medium">Main Tagline</Label>
-            <Input
-              id="auth_tagline"
-              value={settings.auth_tagline}
-              onChange={(e) => handleInputChange('auth_tagline', e.target.value)}
-              placeholder="Intelligent Conversations"
-              className="h-10 bg-background/50 border-border/50"
-            />
+            <div className="flex gap-2">
+              <Input
+                id="auth_tagline"
+                value={settings.auth_tagline}
+                onChange={(e) => handleInputChange('auth_tagline', e.target.value)}
+                placeholder="Intelligent Conversations"
+                className="h-10 bg-background/50 border-border/50 flex-1"
+              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-10 w-10 p-0">
+                    {(() => {
+                      const IconComponent = ICON_OPTIONS.find(icon => icon.name === settings.auth_tagline_icon)?.component || Star;
+                      return <IconComponent className="h-4 w-4" />;
+                    })()}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-40 p-2">
+                  <div className="grid grid-cols-4 gap-1">
+                    {ICON_OPTIONS.map((icon) => (
+                      <Button
+                        key={icon.name}
+                        variant={settings.auth_tagline_icon === icon.name ? "default" : "ghost"}
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => handleInputChange('auth_tagline_icon', icon.name)}
+                        title={icon.label}
+                      >
+                        <icon.component className="h-4 w-4" />
+                      </Button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
           <div>
             <Label htmlFor="auth_welcome_description" className="text-sm font-medium">Welcome Description</Label>

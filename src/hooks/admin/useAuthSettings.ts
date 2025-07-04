@@ -3,6 +3,7 @@ import { settingsCacheService } from '@/services/settings-cache-service';
 
 interface AuthSettings {
   tagline: string;
+  taglineIcon: string;
   welcomeDescription: string;
   loginTitle: string;
   loginDescription: string;
@@ -14,6 +15,7 @@ interface AuthSettings {
 
 const DEFAULT_AUTH_SETTINGS: AuthSettings = {
   tagline: 'Intelligent Conversations',
+  taglineIcon: 'star',
   welcomeDescription: 'Welcome back! Sign in to continue your intelligent conversations or create a new account to get started.',
   loginTitle: 'Sign In',
   loginDescription: 'Enter your credentials to access your account and continue your conversations.',
@@ -34,6 +36,7 @@ export const useAuthSettings = () => {
         
         setAuthSettings({
           tagline: settings.auth_tagline || DEFAULT_AUTH_SETTINGS.tagline,
+          taglineIcon: settings.auth_tagline_icon || DEFAULT_AUTH_SETTINGS.taglineIcon,
           welcomeDescription: settings.auth_welcome_description || DEFAULT_AUTH_SETTINGS.welcomeDescription,
           loginTitle: settings.auth_login_title || DEFAULT_AUTH_SETTINGS.loginTitle,
           loginDescription: settings.auth_login_description || DEFAULT_AUTH_SETTINGS.loginDescription,
@@ -55,6 +58,7 @@ export const useAuthSettings = () => {
     const unsubscribe = settingsCacheService.addChangeListener((settings) => {
       setAuthSettings({
         tagline: settings.auth_tagline || DEFAULT_AUTH_SETTINGS.tagline,
+        taglineIcon: settings.auth_tagline_icon || DEFAULT_AUTH_SETTINGS.taglineIcon,
         welcomeDescription: settings.auth_welcome_description || DEFAULT_AUTH_SETTINGS.welcomeDescription,
         loginTitle: settings.auth_login_title || DEFAULT_AUTH_SETTINGS.loginTitle,
         loginDescription: settings.auth_login_description || DEFAULT_AUTH_SETTINGS.loginDescription,
