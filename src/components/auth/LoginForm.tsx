@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import DOMPurify from 'dompurify';
 import { useDevMode } from '@/store/use-dev-mode';
+import { useAuthSettings } from '@/hooks/admin/useAuthSettings';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -31,6 +32,7 @@ export const LoginForm = () => {
   const navigate = useNavigate();
   const { signIn } = useAuth();
   const { isDevMode } = useDevMode();
+  const { authSettings } = useAuthSettings();
   const [isLoading, setIsLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [showDebug, setShowDebug] = useState(false);
@@ -74,10 +76,10 @@ export const LoginForm = () => {
             <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
               <User className="h-4 w-4" />
             </div>
-            <h3 className="text-lg font-semibold text-foreground">Sign In</h3>
+            <h3 className="text-lg font-semibold text-foreground">{authSettings.loginTitle}</h3>
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Enter your credentials to access your account and continue your conversations.
+            {authSettings.loginDescription}
           </p>
         </CardContent>
       </Card>

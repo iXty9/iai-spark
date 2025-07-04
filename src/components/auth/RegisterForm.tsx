@@ -11,7 +11,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supaToast } from '@/services/supa-toast';
 import { PhoneInput } from '@/components/ui/phone-input';
-import { UserPlus, Mail, User, Lock, Phone, AlertCircle, Users, Shield, Sparkles } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useAuthSettings } from '@/hooks/admin/useAuthSettings';
+import { UserPlus, Mail, User, Lock, Phone, AlertCircle, Users, Shield, Sparkles, FileText } from 'lucide-react';
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -31,6 +33,7 @@ const formSchema = z.object({
   lastName: z.string().optional(),
   phoneNumber: z.string().optional(),
   phoneCountryCode: z.string().default("+1"),
+  agreeToTerms: z.boolean().default(false),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
@@ -41,6 +44,7 @@ type FormValues = z.infer<typeof formSchema>;
 export function RegisterForm() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
+  const { authSettings } = useAuthSettings();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -55,12 +59,20 @@ export function RegisterForm() {
       lastName: '',
       phoneNumber: '',
       phoneCountryCode: '+1',
+      agreeToTerms: false,
     },
   });
 
   const handleSubmit = async (values: FormValues) => {
     setIsLoading(true);
     setError('');
+    
+    // Check if disclaimer is required and user hasn't agreed
+    if (authSettings.disclaimerRequired && !values.agreeToTerms) {
+      setError('You must agree to the terms and conditions to continue.');
+      setIsLoading(false);
+      return;
+    }
     
     try {
       await signUp(
@@ -95,10 +107,10 @@ export function RegisterForm() {
             <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
               <UserPlus className="h-4 w-4" />
             </div>
-            <h3 className="text-lg font-semibold text-foreground">Create Account</h3>
+            <h3 className="text-lg font-semibold text-foreground">{authSettings.registerTitle}</h3>
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Join Ixty AI to start your intelligent conversation journey. Fill in your details below to get started.
+            {authSettings.registerDescription}
           </p>
         </CardContent>
       </Card>
@@ -288,6 +300,43 @@ export function RegisterForm() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Terms & Conditions Disclaimer */}
+          {authSettings.disclaimerRequired && (
+            <Card className="glass-panel border-0 shadow-sm">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <FileText className="h-4 w-4 text-amber-500" />
+                  <span className="text-sm font-medium text-foreground">Terms & Conditions</span>
+                  <div className="flex-1 h-px bg-border"></div>
+                </div>
+                
+                <FormField
+                  control={form.control}
+                  name="agreeToTerms"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex items-start space-x-3">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            className="mt-1"
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <label className="text-sm text-foreground leading-relaxed">
+                            {authSettings.disclaimerText}
+                          </label>
+                        </div>
+                      </div>
+                      <FormMessage className="text-xs ml-6" />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+          )}
 
           {/* Submit Section */}
           <Card className="glass-panel border-0 shadow-sm">

@@ -1,12 +1,15 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles } from 'lucide-react';
+import { useAuthSettings } from '@/hooks/admin/useAuthSettings';
 
 interface AuthCardProps {
   children: React.ReactNode;
 }
 
 export const AuthCard = ({ children }: AuthCardProps) => {
+  const { authSettings } = useAuthSettings();
+  
   return (
     <Card className="w-full max-w-md mx-auto glass-panel border-0 shadow-xl backdrop-blur-md bg-background/90">
       <CardHeader className="space-y-4 text-center pb-8">
@@ -29,13 +32,13 @@ export const AuthCard = ({ children }: AuthCardProps) => {
             </CardTitle>
             <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
               <Sparkles className="h-3 w-3" />
-              <span>Intelligent Conversations</span>
+              <span>{authSettings.tagline}</span>
             </div>
           </div>
         </div>
         
         <CardDescription className="text-center text-muted-foreground leading-relaxed px-2">
-          Welcome back! Sign in to continue your intelligent conversations or create a new account to get started.
+          {authSettings.welcomeDescription}
         </CardDescription>
       </CardHeader>
       

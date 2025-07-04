@@ -2,7 +2,7 @@
 import React, { ReactNode } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Settings, Users, Webhook, Globe, Palette, Server } from 'lucide-react';
+import { Settings, Users, Webhook, Globe, Palette, Server, Shield } from 'lucide-react';
 
 interface AdminTabsProps {
   webhookContent: ReactNode;
@@ -11,6 +11,7 @@ interface AdminTabsProps {
   environmentContent: ReactNode;
   seoContent: ReactNode;
   themeContent: ReactNode;
+  authenticationContent: ReactNode;
   activeTab?: string;
   onTabChange?: (tab: string) => void;
 }
@@ -22,6 +23,7 @@ export function AdminTabs({
   environmentContent,
   seoContent,
   themeContent,
+  authenticationContent,
   activeTab = "app-settings", 
   onTabChange 
 }: AdminTabsProps) {
@@ -35,6 +37,7 @@ export function AdminTabs({
     { value: "app-settings", label: "App Settings", icon: Settings, shortLabel: "App" },
     { value: "seo", label: "SEO", icon: Globe, shortLabel: "SEO" },
     { value: "theme", label: "Theme", icon: Palette, shortLabel: "Theme" },
+    { value: "authentication", label: "Authentication", icon: Shield, shortLabel: "Auth" },
     { value: "webhooks", label: "Webhooks", icon: Webhook, shortLabel: "Hooks" },
     { value: "users", label: "Users", icon: Users, shortLabel: "Users" },
     { value: "environment", label: "Environment", icon: Server, shortLabel: "Env" }
@@ -49,7 +52,7 @@ export function AdminTabs({
     <Tabs value={activeTab} onValueChange={handleValueChange}>
       {/* Desktop tabs */}
       <div className="hidden md:block">
-        <TabsList className="w-full grid grid-cols-6">
+        <TabsList className="w-full grid grid-cols-7">
           {tabItems.map(tab => {
             const Icon = tab.icon;
             return (
@@ -95,6 +98,10 @@ export function AdminTabs({
       
       <TabsContent value="theme" className="mt-6">
         {themeContent}
+      </TabsContent>
+      
+      <TabsContent value="authentication" className="mt-6">
+        {authenticationContent}
       </TabsContent>
       
       <TabsContent value="webhooks" className="mt-6">
