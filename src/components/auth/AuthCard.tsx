@@ -30,11 +30,11 @@ export const AuthCard = ({ children }: AuthCardProps) => {
         <div className="flex flex-col items-center space-y-4">
           <div className="relative">
             <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse"></div>
-            <div className="relative flex items-center justify-center p-3 rounded-full bg-gradient-to-br from-primary/10 to-primary/20 border border-primary/20">
+            <div className="relative flex items-center justify-center p-6 rounded-full bg-gradient-to-br from-primary/10 to-primary/20 border border-primary/20">
               <img 
                 src="https://ixty9.com/wp-content/uploads/2023/10/cropped-faviconV4.png" 
                 alt="Ixty AI Logo" 
-                className="h-8 w-8 relative z-10"
+                className="h-16 w-16 relative z-10 animate-heartbeat"
               />
             </div>
           </div>
