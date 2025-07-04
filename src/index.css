@@ -114,7 +114,7 @@
   position: sticky !important;
   bottom: 0 !important;
   z-index: 100 !important;
-  background-color: var(--background-color);
+  background-color: hsl(var(--background));
 }
 
 @media (max-width: 767px) {
