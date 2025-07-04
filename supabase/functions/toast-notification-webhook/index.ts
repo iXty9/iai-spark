@@ -55,11 +55,12 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     // Store notification in database (server-side only, once per toast)
+    // Uses UPSERT to prevent duplicates if webhook is called multiple times
     const storeNotificationInDB = async (userId: string) => {
       try {
         const { error } = await supabase
           .from('user_notifications')
-          .insert({
+          .upsert({
             user_id: userId,
             title: notificationData.title,
             message: notificationData.message,
@@ -71,12 +72,15 @@ serve(async (req) => {
               timestamp: notificationData.timestamp,
               notification_id: notificationData.id
             }
+          }, {
+            onConflict: 'user_id,notification_id_extracted',
+            ignoreDuplicates: true
           })
 
         if (error) {
           console.error('Error storing notification for user', userId, error)
         } else {
-          console.log('Notification stored successfully for user', userId)
+          console.log('Notification stored successfully for user', userId, ' (or skipped if duplicate)')
         }
       } catch (error) {
         console.error('Failed to store notification for user', userId, error)

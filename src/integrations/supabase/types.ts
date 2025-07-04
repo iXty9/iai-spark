@@ -111,6 +111,7 @@ export type Database = {
           id: string
           message: string
           metadata: Json | null
+          notification_id_extracted: string | null
           read_at: string | null
           sender: string | null
           source: string | null
@@ -123,6 +124,7 @@ export type Database = {
           id?: string
           message: string
           metadata?: Json | null
+          notification_id_extracted?: string | null
           read_at?: string | null
           sender?: string | null
           source?: string | null
@@ -135,6 +137,7 @@ export type Database = {
           id?: string
           message?: string
           metadata?: Json | null
+          notification_id_extracted?: string | null
           read_at?: string | null
           sender?: string | null
           source?: string | null
