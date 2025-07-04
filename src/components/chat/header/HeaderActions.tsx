@@ -120,7 +120,7 @@ export const HeaderActions = ({
             aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             className="relative rounded-full min-h-9 min-w-9 max-h-9 max-w-9 md:min-h-10 md:min-w-10 md:max-h-10 md:max-w-10 aspect-square border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm"
           >
-          {theme === 'dark' ? <Sun className="h-5 w-5 md:h-5 md:w-5" /> : <Moon className="h-5 w-5 md:h-5 md:w-5" />}
+          {theme === 'dark' ? <Sun className="h-6 w-6 md:h-6 md:w-6" /> : <Moon className="h-6 w-6 md:h-6 md:w-6" />}
         </Button>
       )}
       
@@ -134,7 +134,7 @@ export const HeaderActions = ({
             className="relative rounded-full min-h-9 min-w-9 max-h-9 max-w-9 md:min-h-10 md:min-w-10 md:max-h-10 md:max-w-10 aspect-square border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm"
             aria-label="Actions menu"
           >
-            <MoreVertical className="h-5 w-5 md:h-5 md:w-5" />
+            <MoreVertical className="h-6 w-6 md:h-6 md:w-6" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent 

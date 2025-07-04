@@ -158,11 +158,12 @@ export const applyBackgroundImage = (imageUrl: string | null, opacity: number) =
   const root = document.documentElement;
   
   if (imageUrl) {
-    body.style.backgroundImage = `url("${imageUrl}")`;
-    body.style.backgroundSize = 'cover';
-    body.style.backgroundPosition = 'center';
-    body.style.backgroundRepeat = 'no-repeat';
-    body.style.backgroundAttachment = 'scroll';
+    // Remove any direct background styles from body - use only pseudo-element
+    body.style.backgroundImage = '';
+    body.style.backgroundSize = '';
+    body.style.backgroundPosition = '';
+    body.style.backgroundRepeat = '';
+    body.style.backgroundAttachment = '';
     
     body.classList.add('with-bg-image');
     
@@ -175,10 +176,6 @@ export const applyBackgroundImage = (imageUrl: string | null, opacity: number) =
     
     root.style.setProperty('--bg-opacity', finalOpacity.toString());
     root.style.setProperty('--bg-image-url', `url("${imageUrl}")`);
-    
-    if (window.innerWidth >= 768) {
-      body.style.backgroundAttachment = 'fixed';
-    }
     
     root.style.setProperty('--card-bg-opacity', '0.8');
     root.style.setProperty('--card-backdrop-blur', '12px');
