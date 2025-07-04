@@ -84,12 +84,31 @@ export const TimeMachineDialog: React.FC<TimeMachineDialogProps> = ({
                 selected={selectedDate}
                 onSelect={(date) => date && setSelectedDate(date)}
                 className={cn(
-                  "pointer-events-auto border rounded-lg bg-card mx-auto w-full",
+                  "pointer-events-auto border rounded-lg bg-card shadow-lg",
+                  "mx-auto w-full max-w-md",
+                  // Google Calendar-style enhancements
+                  "[&_.rdp-table]:w-full [&_.rdp-tbody]:w-full [&_.rdp-row]:w-full [&_.rdp-cell]:flex-1",
+                  "[&_.rdp-head_cell]:border-b [&_.rdp-head_cell]:border-border/20 [&_.rdp-head_cell]:pb-2 [&_.rdp-head_cell]:mb-2",
+                  "[&_.rdp-cell]:border-r [&_.rdp-cell]:border-border/10 [&_.rdp-cell:last-child]:border-r-0",
+                  "[&_.rdp-day]:border-0 [&_.rdp-day]:hover:bg-primary/10 [&_.rdp-day]:transition-all [&_.rdp-day]:duration-200",
+                  "[&_.rdp-day_selected]:bg-[#dd3333] [&_.rdp-day_selected]:text-white [&_.rdp-day_selected]:font-semibold [&_.rdp-day_selected]:shadow-md",
+                  "[&_.rdp-day_today]:bg-primary/20 [&_.rdp-day_today]:text-primary [&_.rdp-day_today]:font-bold [&_.rdp-day_today]:ring-2 [&_.rdp-day_today]:ring-primary/30",
+                  // Weekend styling
+                  "[&_.rdp-cell:first-child_.rdp-day]:text-red-600 [&_.rdp-cell:last-child_.rdp-day]:text-red-600",
+                  "[&_.rdp-cell:first-child_.rdp-day]:bg-red-50 [&_.rdp-cell:last-child_.rdp-day]:bg-red-50",
+                  "dark:[&_.rdp-cell:first-child_.rdp-day]:bg-red-950/20 dark:[&_.rdp-cell:last-child_.rdp-day]:bg-red-950/20",
+                  // Navigation improvements
+                  "[&_.rdp-nav_button]:hover:bg-primary/10 [&_.rdp-nav_button]:hover:text-primary [&_.rdp-nav_button]:transition-all",
+                  "[&_.rdp-nav_button]:rounded-full [&_.rdp-nav_button]:shadow-sm [&_.rdp-nav_button]:border [&_.rdp-nav_button]:border-border/20",
+                  // Caption styling
+                  "[&_.rdp-caption]:border-b [&_.rdp-caption]:border-border/20 [&_.rdp-caption]:pb-3 [&_.rdp-caption]:mb-3",
                   isMobile 
-                    ? "p-2 max-w-none [&_.rdp-day]:h-12 [&_.rdp-day]:w-full [&_.rdp-day]:text-lg [&_.rdp-day]:font-medium [&_.rdp-head_cell]:h-10 [&_.rdp-head_cell]:text-base [&_.rdp-head_cell]:font-semibold [&_.rdp-caption]:text-lg [&_.rdp-caption]:font-semibold [&_.rdp-nav_button]:h-10 [&_.rdp-nav_button]:w-10 [&_.rdp-nav_button]:text-lg [&_.rdp-table]:w-full [&_.rdp-tbody]:w-full [&_.rdp-row]:w-full [&_.rdp-cell]:flex-1" 
-                    : "p-3 max-w-none [&_.rdp-day]:h-14 [&_.rdp-day]:w-full [&_.rdp-day]:text-xl [&_.rdp-day]:font-medium [&_.rdp-head_cell]:h-12 [&_.rdp-head_cell]:text-lg [&_.rdp-head_cell]:font-semibold [&_.rdp-caption]:text-xl [&_.rdp-caption]:font-semibold [&_.rdp-nav_button]:h-12 [&_.rdp-nav_button]:w-12 [&_.rdp-nav_button]:text-lg [&_.rdp-table]:w-full [&_.rdp-tbody]:w-full [&_.rdp-row]:w-full [&_.rdp-cell]:flex-1"
+                    ? "p-3 [&_.rdp-day]:h-12 [&_.rdp-day]:w-full [&_.rdp-day]:text-lg [&_.rdp-day]:font-medium [&_.rdp-head_cell]:h-10 [&_.rdp-head_cell]:text-base [&_.rdp-head_cell]:font-semibold [&_.rdp-caption]:text-lg [&_.rdp-caption]:font-semibold [&_.rdp-nav_button]:h-10 [&_.rdp-nav_button]:w-10 [&_.rdp-nav_button]:text-lg" 
+                    : "p-4 [&_.rdp-day]:h-14 [&_.rdp-day]:w-full [&_.rdp-day]:text-xl [&_.rdp-day]:font-medium [&_.rdp-head_cell]:h-12 [&_.rdp-head_cell]:text-lg [&_.rdp-head_cell]:font-semibold [&_.rdp-caption]:text-xl [&_.rdp-caption]:font-semibold [&_.rdp-nav_button]:h-12 [&_.rdp-nav_button]:w-12 [&_.rdp-nav_button]:text-lg"
                 )}
                 disabled={(date) => date > new Date()}
+                showOutsideDays={true}
+                fixedWeeks={true}
               />
             </div>
           </div>
