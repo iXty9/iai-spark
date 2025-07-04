@@ -1,6 +1,7 @@
 import { toast as shadcnToast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
 import { notificationService } from '@/services/notification-service';
+import { soundService } from '@/services/sound/sound-service';
 import { logger } from '@/utils/logging';
 import { 
   ToastOptions, 
@@ -60,10 +61,13 @@ class SupaToastService {
       this.showSonnerToast(options);
     }
 
-    // Show browser notification if requested
+    // Play toast notification sound and show browser notification if requested
     if (options.showBrowserNotification && this.config.enableBrowserNotifications) {
       this.showBrowserNotification(options);
     }
+    
+    // Always play toast notification sound for toast notifications
+    this.playToastSound();
 
     // Auto-dismiss if not persistent
     if (!options.persistent && duration > 0) {
@@ -269,12 +273,27 @@ class SupaToastService {
       module: 'supa-toast' 
     });
     
+    // Only show browser notification, don't play sound here (sound is handled separately)
     notificationService.showNotification({
       title: options.title || 'Notification',
       message: options.message,
       type: notificationType as 'success' | 'error' | 'warning' | 'info',
       showBrowserNotification: true,
     });
+  }
+
+  private async playToastSound(): Promise<void> {
+    try {
+      // Get current user ID from notification service
+      const authModule = await import('@/contexts/AuthContext');
+      if (authModule.useAuth) {
+        // We can't use hooks directly in service, so we'll use the sound service directly
+        // The sound service will get the current user from its own state
+        await soundService.playNotificationSound();
+      }
+    } catch (error) {
+      logger.debug('Could not play toast sound', { error }, { module: 'supa-toast' });
+    }
   }
 }
 
