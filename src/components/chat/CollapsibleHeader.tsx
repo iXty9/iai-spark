@@ -31,7 +31,7 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
       {/* Main sliding menu container */}
       <div 
         className={cn(
-          "transform transition-all duration-300 ease-out overflow-hidden rounded-b-xl border border-border/20",
+          "transform transition-all duration-300 ease-out overflow-hidden rounded-b-xl",
           "max-w-[1000px] mx-auto", // Max width constraint with centering
           "bg-background/85 backdrop-blur-xl", // Enhanced glass effect
           isExpanded 
