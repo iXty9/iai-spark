@@ -269,7 +269,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
         if (notificationPayload?.data) {
           logger.info('Processing toast notification:', notificationPayload.data, { module: 'websocket' });
 
-          // Use supa-toast service for unified toast handling
+          // Use supa-toast service for unified toast handling (no database storage on client-side)
           supaToast.handleWebSocketToast({
             title: notificationPayload.data.title,
             message: notificationPayload.data.message,
@@ -280,21 +280,8 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
             }
           });
 
-          // Store notification in database for notification center (only if user is logged in)
-          if (user) {
-            notificationCenterService.storeNotification({
-              title: notificationPayload.data.title,
-              message: notificationPayload.data.message,
-              type: notificationPayload.data.type || 'info',
-              sender: notificationPayload.data.sender,
-              metadata: {
-                source: 'websocket',
-                timestamp: new Date().toISOString(),
-                ...notificationPayload.data.metadata
-              },
-              source: 'websocket'
-            }, user.id);
-          }
+          // Note: Database storage is now handled server-side in the toast-notification-webhook
+          // This eliminates duplicate entries when same user has multiple browser instances
         } else {
           logger.warn('Received toast notification with unexpected structure:', notificationPayload, { module: 'websocket' });
         }

@@ -54,14 +54,45 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey)
 
+    // Store notification in database (server-side only, once per toast)
+    const storeNotificationInDB = async (userId: string) => {
+      try {
+        const { error } = await supabase
+          .from('user_notifications')
+          .insert({
+            user_id: userId,
+            title: notificationData.title,
+            message: notificationData.message,
+            type: notificationData.type,
+            sender: payload.sender || 'System',
+            source: 'websocket',
+            metadata: {
+              source: 'websocket',
+              timestamp: notificationData.timestamp,
+              notification_id: notificationData.id
+            }
+          })
+
+        if (error) {
+          console.error('Error storing notification for user', userId, error)
+        } else {
+          console.log('Notification stored successfully for user', userId)
+        }
+      } catch (error) {
+        console.error('Failed to store notification for user', userId, error)
+      }
+    }
+
     // Use consistent channel name with hyphen
     const channel = supabase.channel('toast-notifications')
     
     console.log('Created toast-notifications channel')
 
-    // Send with consistent payload structure
+    // Send with consistent payload structure and store in database
     if (payload.user_id) {
-      // Send to specific user
+      // Send to specific user and store in their notifications
+      await storeNotificationInDB(payload.user_id)
+      
       const payloadStructure = {
         data: notificationData,
         target_user: payload.user_id
@@ -76,8 +107,10 @@ serve(async (req) => {
       })
       console.log('Sent targeted toast notification result:', result)
     } else if (payload.target_users && payload.target_users.length > 0) {
-      // Send to specific users
+      // Send to specific users and store in each user's notifications
       for (const userId of payload.target_users) {
+        await storeNotificationInDB(userId)
+        
         const payloadStructure = {
           data: notificationData,
           target_user: userId
@@ -93,7 +126,25 @@ serve(async (req) => {
         console.log(`Sent toast notification to user ${userId} result:`, result)
       }
     } else {
-      // Broadcast to all users
+      // Broadcast to all users - get all authenticated users and store for each
+      try {
+        const { data: profiles, error } = await supabase
+          .from('profiles')
+          .select('id')
+
+        if (error) {
+          console.error('Error fetching profiles for broadcast notification storage:', error)
+        } else if (profiles && profiles.length > 0) {
+          // Store notification for all users
+          for (const profile of profiles) {
+            await storeNotificationInDB(profile.id)
+          }
+          console.log(`Stored broadcast notification for ${profiles.length} users`)
+        }
+      } catch (error) {
+        console.error('Failed to store broadcast notifications:', error)
+      }
+      
       const payloadStructure = {
         data: notificationData
       };
