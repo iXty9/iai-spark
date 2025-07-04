@@ -85,7 +85,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       className="border-0 shadow-none"
       style={{ paddingBottom: `var(--safe-area-inset-bottom, 0px)` }}
     >
-      <div className="flex items-end gap-2 w-full">
+      <div className="flex items-end gap-3 w-full">
         <div className="relative flex-1">
           <Textarea
             ref={textareaRef}
@@ -93,7 +93,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             placeholder="How can I help you?"
-            className="pr-10 resize-none min-h-[40px] max-h-[120px] rounded-2xl py-2.5 !scrollbar-none"
+            className="pr-10 resize-none min-h-[44px] max-h-[120px] rounded-2xl py-3 px-4 !scrollbar-none bg-background/80 backdrop-blur-sm border-border/50 focus:bg-background/90 focus:border-border transition-all duration-200 shadow-sm hover:shadow-md"
             disabled={isLoading}
             aria-label="Message input"
             rows={1}

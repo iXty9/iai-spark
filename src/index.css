@@ -123,14 +123,15 @@
   }
 }
 
-/* Toast positioning - move up when chat is active */
+/* Toast positioning - dynamic positioning above chat input with 3px spacing */
 .chat-active [data-radix-toast-viewport] {
-  bottom: 85px !important;
+  bottom: calc(var(--chat-input-height, 80px) + 3px) !important;
+  transition: bottom 0.2s ease-out;
 }
 
 @media (max-width: 640px) {
   .chat-active [data-radix-toast-viewport] {
-    bottom: 16px !important; /* Keep normal position on mobile */
+    bottom: calc(var(--chat-input-height, 90px) + 3px) !important;
   }
 }
 

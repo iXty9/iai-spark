@@ -56,8 +56,8 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
   
   return (
     <TooltipProvider>
-      <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
-        <div className={`flex max-w-[80%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+      <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 animate-fade-in`}>
+        <div className={`flex max-w-[85%] sm:max-w-[80%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
           <MessageAvatar sender={message.sender} />
           <div className={`mx-3 ${isUser ? 'text-right' : 'text-left'}`}>
             {/* Display name with theme-based coloring */}
@@ -66,7 +66,7 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
             </div>
             
             <div
-              className={`inline-block p-3 rounded-lg ${
+              className={`inline-block p-4 rounded-2xl shadow-sm transition-all duration-200 hover:shadow-md ${
                 isUser
                   ? 'user-message-bubble'
                   : 'ai-message-bubble'
@@ -77,7 +77,7 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
             
             {/* Message Actions for AI messages (including proactive ones) */}
             {message.sender === 'ai' && (
-              <div className="mt-2">
+              <div className="mt-3">
                 <MessageActions
                   messageId={message.id}
                   content={message.content}

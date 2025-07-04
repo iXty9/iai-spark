@@ -120,10 +120,11 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
             display: "block", 
             position: "relative",
             visibility: "visible",
-            minHeight: '80px',
+            minHeight: '88px',
             zIndex: 100,
-            paddingBottom: `calc(0.75rem + var(--safe-area-inset-bottom, 0px))`
-          }}
+            paddingBottom: `calc(0.75rem + var(--safe-area-inset-bottom, 0px))`,
+            '--chat-input-height': inputContainerRef.current?.offsetHeight ? `${inputContainerRef.current.offsetHeight}px` : '88px'
+          } as React.CSSProperties}
         >
           <MessageInput
             message={message}

@@ -122,11 +122,12 @@ export const MessageList: React.FC<MessageListProps> = ({
   return (
     <ScrollArea 
       ref={scrollAreaRef}
-      className="flex-1 p-4 overflow-y-auto w-full h-full bg-transparent"
+      className="flex-1 p-4 overflow-y-auto w-full h-full bg-transparent touch-pan-y"
       type="always"
+      style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
     >
       <div 
-        className="message-list space-y-4 pb-4 bg-transparent" 
+        className="message-list space-y-5 pb-6 bg-transparent" 
         role="log" 
         aria-live="polite" 
         aria-label="Chat messages"

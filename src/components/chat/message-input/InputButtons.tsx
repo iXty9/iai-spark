@@ -157,7 +157,7 @@ export const InputButtons: React.FC<InputButtonsProps> = ({
             type="button" 
             variant="ghost" 
             size="icon" 
-            className="shrink-0"
+            className="shrink-0 h-11 w-11 transition-all duration-200 hover:scale-105 active:scale-95"
             aria-label="Upload file"
             onClick={handleFileClick}
             disabled={uploadState.isUploading}
@@ -180,7 +180,7 @@ export const InputButtons: React.FC<InputButtonsProps> = ({
             type="button" 
             variant="ghost" 
             size="icon" 
-            className="shrink-0"
+            className="shrink-0 h-11 w-11 transition-all duration-200 hover:scale-105 active:scale-95"
             aria-label={
               voiceState.isRecording 
                 ? "Stop recording" 
@@ -216,10 +216,14 @@ export const InputButtons: React.FC<InputButtonsProps> = ({
         size="icon" 
         disabled={!message.trim() || isLoading}
         aria-label="Send message"
-        className="rounded-full shrink-0"
+        className="rounded-full shrink-0 h-11 w-11 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:hover:scale-100"
         onClick={onSendClick}
       >
-        <Send className="h-5 w-5" />
+        {isLoading ? (
+          <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+        ) : (
+          <Send className="h-5 w-5" />
+        )}
       </Button>
     </TooltipProvider>
   );
