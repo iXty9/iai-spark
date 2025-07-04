@@ -54,12 +54,12 @@ export const TimeMachineDialog: React.FC<TimeMachineDialogProps> = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(
-        "w-[calc(100vw-1rem)] max-w-2xl mx-auto",
-        "max-h-[95vh] overflow-y-auto",
-        "fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2",
+        "w-[calc(100vw-1rem)] max-w-2xl",
+        "max-h-[calc(100vh-8rem)] overflow-y-auto",
+        "fixed top-[45%] left-1/2 transform -translate-x-1/2 -translate-y-1/2",
         isMobile ? "px-3 py-4" : "px-6 py-6"
       )}>
-        <DialogHeader className={isMobile ? "pb-3" : "pb-4"}>
+        <DialogHeader className={isMobile ? "pb-2" : "pb-3"}>
           <DialogTitle className={cn(
             "flex items-center gap-2 text-center justify-center",
             isMobile ? "text-lg" : "text-xl"
@@ -69,8 +69,8 @@ export const TimeMachineDialog: React.FC<TimeMachineDialogProps> = ({
           </DialogTitle>
         </DialogHeader>
         
-        <div className={cn("space-y-4", isMobile ? "space-y-3" : "space-y-4")}>
-          {/* Date Selection - Larger Calendar */}
+        <div className={cn("space-y-3", isMobile ? "space-y-2" : "space-y-3")}>
+          {/* Date Selection - Much Larger Calendar */}
           <div className="space-y-2">
             <Label htmlFor="date-picker" className={cn(
               "text-sm font-medium block text-center",
@@ -86,8 +86,8 @@ export const TimeMachineDialog: React.FC<TimeMachineDialogProps> = ({
                 className={cn(
                   "pointer-events-auto border rounded-lg bg-card mx-auto",
                   isMobile 
-                    ? "p-1 w-full max-w-sm [&_.rdp-day]:h-10 [&_.rdp-day]:w-10 [&_.rdp-day]:text-base [&_.rdp-head_cell]:h-8 [&_.rdp-head_cell]:text-sm [&_.rdp-caption]:text-base [&_.rdp-nav_button]:h-8 [&_.rdp-nav_button]:w-8" 
-                    : "p-2 [&_.rdp-day]:h-12 [&_.rdp-day]:w-12 [&_.rdp-day]:text-lg [&_.rdp-head_cell]:h-10 [&_.rdp-head_cell]:text-base [&_.rdp-caption]:text-lg [&_.rdp-nav_button]:h-10 [&_.rdp-nav_button]:w-10"
+                    ? "p-2 w-full max-w-sm [&_.rdp-day]:h-12 [&_.rdp-day]:w-12 [&_.rdp-day]:text-lg [&_.rdp-day]:font-medium [&_.rdp-head_cell]:h-10 [&_.rdp-head_cell]:text-base [&_.rdp-head_cell]:font-semibold [&_.rdp-caption]:text-lg [&_.rdp-caption]:font-semibold [&_.rdp-nav_button]:h-10 [&_.rdp-nav_button]:w-10 [&_.rdp-nav_button]:text-lg" 
+                    : "p-3 [&_.rdp-day]:h-14 [&_.rdp-day]:w-14 [&_.rdp-day]:text-xl [&_.rdp-day]:font-medium [&_.rdp-head_cell]:h-12 [&_.rdp-head_cell]:text-lg [&_.rdp-head_cell]:font-semibold [&_.rdp-caption]:text-xl [&_.rdp-caption]:font-semibold [&_.rdp-nav_button]:h-12 [&_.rdp-nav_button]:w-12 [&_.rdp-nav_button]:text-lg"
                 )}
                 disabled={(date) => date > new Date()}
               />
@@ -109,10 +109,10 @@ export const TimeMachineDialog: React.FC<TimeMachineDialogProps> = ({
                 value={selectedTime}
                 onChange={(e) => setSelectedTime(e.target.value)}
                 className={cn(
-                  "text-center max-w-xs",
+                  "text-center max-w-xs font-mono",
                   isMobile 
-                    ? "h-12 text-lg w-48" 
-                    : "h-11 text-base w-40"
+                    ? "h-14 text-xl w-52 font-medium" 
+                    : "h-12 text-lg w-48 font-medium"
                 )}
               />
             </div>
@@ -120,21 +120,21 @@ export const TimeMachineDialog: React.FC<TimeMachineDialogProps> = ({
           
           {/* Original Time Display */}
           <div className={cn(
-            "text-center p-3 bg-muted/50 rounded-lg border mx-auto max-w-md",
-            isMobile ? "text-sm p-2" : "text-xs p-3"
+            "text-center p-2 bg-muted/50 rounded-lg border mx-auto max-w-md",
+            isMobile ? "text-xs p-2" : "text-xs p-2"
           )}>
             <span className="text-muted-foreground font-medium">
               Original message time:
             </span>
             <br />
-            <span className="font-mono">
+            <span className="font-mono text-foreground">
               {format(initialDate, isMobile ? 'MMM d, yyyy • h:mm a' : 'PPP p')}
             </span>
           </div>
         </div>
 
         <DialogFooter className={cn(
-          "flex gap-3 pt-4",
+          "flex gap-3 pt-3",
           isMobile 
             ? "flex-col-reverse space-y-reverse space-y-3" 
             : "flex-row justify-center space-x-4"
@@ -145,7 +145,7 @@ export const TimeMachineDialog: React.FC<TimeMachineDialogProps> = ({
             className={cn(
               isMobile 
                 ? "w-full h-12 text-base" 
-                : "min-w-[100px] h-10"
+                : "min-w-[100px] h-11"
             )}
           >
             Cancel
@@ -155,7 +155,7 @@ export const TimeMachineDialog: React.FC<TimeMachineDialogProps> = ({
             className={cn(
               isMobile 
                 ? "w-full h-12 text-base bg-[#dd3333] hover:bg-[#cc2222] border-[#dd3333]" 
-                : "min-w-[100px] h-10 bg-[#dd3333] hover:bg-[#cc2222] border-[#dd3333]"
+                : "min-w-[100px] h-11 bg-[#dd3333] hover:bg-[#cc2222] border-[#dd3333]"
             )}
           >
             Set Time
