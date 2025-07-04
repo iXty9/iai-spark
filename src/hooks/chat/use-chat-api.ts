@@ -62,6 +62,12 @@ export const useChatApi = ({ user, addMessage, onError }: UseChatApiProps) => {
       
       addMessage(aiMessage);
 
+      // Trigger chat message sound for AI responses
+      if (user?.id) {
+        const { notificationService } = await import('@/services/notification-service');
+        await notificationService.showChatMessage(aiMessage.content, 'AI Assistant');
+      }
+
       return aiMessage;
     } catch (err: any) {
       logger.error('Error in sendMessageToApi:', err);

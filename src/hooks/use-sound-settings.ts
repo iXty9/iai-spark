@@ -104,10 +104,10 @@ export function useSoundSettings() {
     return soundService.validateFile(file);
   }, []);
 
-  const playTestSound = useCallback(async (soundType: SoundType): Promise<void> => {
+  const playTestSound = useCallback(async (soundType: SoundType): Promise<boolean> => {
     if (!user?.id) {
       logger.warn('Cannot play test sound: no user ID', { module: 'use-sound-settings' });
-      return;
+      return false;
     }
 
     try {
@@ -116,15 +116,20 @@ export function useSoundSettings() {
       // Ensure sound service is initialized
       await soundService.initialize(user.id);
       
+      let success = false;
       if (soundType === 'toast_notification') {
-        const success = await soundService.playNotificationSound(user.id);
-        logger.info('Test notification sound result', { success, soundType, userId: user.id, module: 'use-sound-settings' });
+        await soundService.playNotificationSound(user.id);
+        success = true;
       } else {
-        const success = await soundService.playChatMessageSound(user.id);
-        logger.info('Test chat sound result', { success, soundType, userId: user.id, module: 'use-sound-settings' });
+        await soundService.playChatMessageSound(user.id);
+        success = true;
       }
+      
+      logger.info('Test sound completed', { success, soundType, userId: user.id, module: 'use-sound-settings' });
+      return success;
     } catch (error) {
       logger.error('Failed to play test sound:', error, { soundType, userId: user.id, module: 'use-sound-settings' });
+      return false;
     }
   }, [user?.id]);
 

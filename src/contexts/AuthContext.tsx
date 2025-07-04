@@ -134,6 +134,10 @@ export const AuthProvider = ({ children, clientReady }: AuthProviderProps) => {
                 resetAuthState().catch(error => {
                   logger.error('Error during auth state reset on signout:', error, { module: 'auth' });
                 });
+                // Clear notification service user ID
+                import('@/services/notification-service').then(({ notificationService }) => {
+                  notificationService.setUserId(null);
+                });
               }, 0);
             } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
               const sessionChanged = JSON.stringify(newSession) !== JSON.stringify(session);
@@ -148,6 +152,10 @@ export const AuthProvider = ({ children, clientReady }: AuthProviderProps) => {
                   // Use setTimeout to avoid auth recursion issues
                   setTimeout(() => {
                     fetchProfile(newSession.user.id);
+                    // Update notification service with new user ID
+                    import('@/services/notification-service').then(({ notificationService }) => {
+                      notificationService.setUserId(newSession.user.id);
+                    });
                   }, 0);
                 }
               }
@@ -185,6 +193,10 @@ export const AuthProvider = ({ children, clientReady }: AuthProviderProps) => {
           currentUserId.current = initialSession.user.id;
           setTimeout(() => {
             fetchProfile(initialSession.user.id);
+            // Initialize notification service with user ID
+            import('@/services/notification-service').then(({ notificationService }) => {
+              notificationService.setUserId(initialSession.user.id);
+            });
           }, 0);
         }
         setIsLoading(false);

@@ -104,7 +104,20 @@ export function SoundSettings() {
   };
 
   const handlePlayTest = async (soundType: SoundType) => {
-    await playTestSound(soundType);
+    const success = await playTestSound(soundType);
+    
+    if (!success) {
+      toast({
+        variant: "destructive",
+        title: "Test failed",
+        description: "Unable to play the test sound. Check your sound settings and try again.",
+      });
+    } else {
+      toast({
+        title: "Test successful",
+        description: `${soundType === 'toast_notification' ? 'Notification' : 'Chat message'} sound played successfully`,
+      });
+    }
   };
 
   const handleToggleSounds = async (enabled: boolean) => {
