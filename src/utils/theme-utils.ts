@@ -169,9 +169,9 @@ export const applyBackgroundImage = (imageUrl: string | null, opacity: number) =
     // Check if we're in dark mode
     const isDarkMode = root.classList.contains('dark');
     
-    // Severely dim the background in dark mode (reduce opacity to 15% of original)
+    // Extremely dim the background in dark mode (reduce opacity to 3% of original)
     const normalizedOpacity = Math.max(0, Math.min(1, opacity || 0.5));
-    const finalOpacity = isDarkMode ? normalizedOpacity * 0.15 : normalizedOpacity;
+    const finalOpacity = isDarkMode ? normalizedOpacity * 0.03 : normalizedOpacity;
     
     root.style.setProperty('--bg-opacity', finalOpacity.toString());
     root.style.setProperty('--bg-image-url', `url("${imageUrl}")`);
