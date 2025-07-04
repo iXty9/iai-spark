@@ -118,7 +118,7 @@ export const HeaderActions = ({
             size="icon"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            className="relative rounded-full h-9 w-9 md:h-10 md:w-10 aspect-square border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm"
+            className="relative rounded-full min-h-9 min-w-9 max-h-9 max-w-9 md:min-h-10 md:min-w-10 md:max-h-10 md:max-w-10 aspect-square border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm"
           >
           {theme === 'dark' ? <Sun className="h-5 w-5 md:h-5 md:w-5" /> : <Moon className="h-5 w-5 md:h-5 md:w-5" />}
         </Button>
@@ -131,7 +131,7 @@ export const HeaderActions = ({
           <Button 
             variant="ghost" 
             size="icon"
-            className="relative rounded-full h-9 w-9 md:h-10 md:w-10 aspect-square border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm"
+            className="relative rounded-full min-h-9 min-w-9 max-h-9 max-w-9 md:min-h-10 md:min-w-10 md:max-h-10 md:max-w-10 aspect-square border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm"
             aria-label="Actions menu"
           >
             <MoreVertical className="h-5 w-5 md:h-5 md:w-5" />

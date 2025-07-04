@@ -25,7 +25,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
           variant="ghost" 
           size="icon"
           className={cn(
-            "relative rounded-full h-9 w-9 md:h-10 md:w-10 aspect-square border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm",
+            "relative rounded-full min-h-9 min-w-9 max-h-9 max-w-9 md:min-h-10 md:min-w-10 md:max-h-10 md:max-w-10 aspect-square border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm",
             className
           )}
           aria-label="Notifications"
