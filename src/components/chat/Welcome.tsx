@@ -212,7 +212,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
   // Avatar rendering logic helper
   const renderAvatar = () => {
     if (isLoading) {
-      return <Skeleton className="w-16 h-16 rounded-full" />;
+      return <Skeleton className="w-16 h-16 rounded-full bg-muted/10 animate-pulse" />;
     }
     
     if (!avatarError && avatarUrl) {
@@ -243,11 +243,11 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
             </AvatarFallback>
           </Avatar>
           <div className="space-y-2 text-left">
-            <h1 className="text-2xl font-bold text-[#ea384c]">Ixty AI</h1>
+            <h1 className="text-2xl font-bold text-[#ea384c] animate-fade-in">Ixty AI</h1>
             {isLoading ? (
-              <Skeleton className="h-5 w-48" />
+              <Skeleton className="h-5 w-64 bg-muted/20" />
             ) : (
-              <p className="text-muted-foreground">&quot;{tagline}&quot;</p>
+              <p className="text-muted-foreground animate-fade-in">&quot;{tagline}&quot;</p>
             )}
           </div>
         </div>
@@ -268,9 +268,18 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
             <Button
               type="submit"
               disabled={!message.trim() || isSubmitting || isTransitioning.current}
-              className="rounded-full bg-[#ea384c] hover:bg-[#dd3333] h-11 px-6 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-[#ea384c]/20 sm:h-10 sm:px-4"
+              className="rounded-full bg-[#ea384c] hover:bg-[#dd3333] h-11 px-6 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-[#ea384c]/20 sm:h-10 sm:px-4 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
-              {isMobile ? <Send className="h-4 w-4" /> : <>Send <Send className="ml-2 h-4 w-4" /></>}
+              {isSubmitting ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  {!isMobile && <span>Sending...</span>}
+                </div>
+              ) : isMobile ? (
+                <Send className="h-4 w-4" />
+              ) : (
+                <>Send <Send className="ml-2 h-4 w-4" /></>
+              )}
             </Button>
           </div>
         </form>
