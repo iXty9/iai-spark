@@ -143,7 +143,7 @@ export const UserMenu = () => {
         align="center" 
         className="w-56"
         alignOffset={0}
-        collisionPadding={2}
+        collisionPadding={6}
         avoidCollisions={true}
       >
         {user ? (
