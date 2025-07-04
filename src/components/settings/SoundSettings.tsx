@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Upload, Play, Trash2, Volume2, AlertCircle } from 'lucide-react';
+import { Upload, Play, Trash2, Volume2, AlertCircle, Sparkles } from 'lucide-react';
 import { useSoundSettings } from '@/hooks/use-sound-settings';
 import { useToast } from '@/hooks/use-toast';
 import { SoundType } from '@/types/sound';
@@ -153,77 +153,82 @@ export function SoundSettings() {
       : !!settings?.chat_message_sound;
 
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
+      <Card className="glass-panel border-0 shadow-sm">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center gap-2 mb-4">
             {soundType === 'toast_notification' ? (
-              <AlertCircle className="h-5 w-5" />
+              <AlertCircle className="h-4 w-4 text-orange-500" />
             ) : (
-              <Volume2 className="h-5 w-5" />
+              <Volume2 className="h-4 w-4 text-blue-500" />
             )}
-            {title}
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">{description}</p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-3">
-            <input
-              ref={fileInputRefs[soundType]}
-              type="file"
-              accept=".mp3,.wav,audio/mpeg,audio/wav"
-              onChange={(e) => handleFileUpload(soundType, e.target.files)}
-              className="hidden"
-            />
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fileInputRefs[soundType].current?.click()}
-              disabled={isUploading}
-              className="flex items-center gap-2"
-            >
-              <Upload className="h-4 w-4" />
-              {hasSound ? 'Replace' : 'Upload'} Sound
-            </Button>
+            <span className="text-sm font-medium text-foreground">{title}</span>
+            <div className="flex-1 h-px bg-border"></div>
+          </div>
+          
+          <p className="text-sm text-muted-foreground mb-4 leading-relaxed">{description}</p>
+          
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                ref={fileInputRefs[soundType]}
+                type="file"
+                accept=".mp3,.wav,audio/mpeg,audio/wav"
+                onChange={(e) => handleFileUpload(soundType, e.target.files)}
+                className="hidden"
+              />
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRefs[soundType].current?.click()}
+                disabled={isUploading}
+                className="flex items-center gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                {hasSound ? 'Replace' : 'Upload'} Sound
+              </Button>
 
-            {hasSound && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePlayTest(soundType)}
-                  disabled={isUploading}
-                  className="flex items-center gap-2"
-                >
-                  <Play className="h-4 w-4" />
-                  Test
-                </Button>
+              {hasSound && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePlayTest(soundType)}
+                    disabled={isUploading}
+                    className="flex items-center gap-2"
+                  >
+                    <Play className="h-4 w-4" />
+                    Test
+                  </Button>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleRemoveSound(soundType)}
-                  disabled={isUploading}
-                  className="flex items-center gap-2 text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Remove
-                </Button>
-              </>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleRemoveSound(soundType)}
+                    disabled={isUploading}
+                    className="flex items-center gap-2 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Remove
+                  </Button>
+                </>
+              )}
+            </div>
+
+            {isUploading && uploadingType === soundType && (
+              <div className="text-sm text-muted-foreground flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-primary animate-pulse"></div>
+                Uploading sound file...
+              </div>
+            )}
+
+            {hasSound && !isUploading && (
+              <div className="text-sm text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+                Custom sound uploaded
+              </div>
             )}
           </div>
-
-          {isUploading && uploadingType === soundType && (
-            <div className="text-sm text-muted-foreground">
-              Uploading sound file...
-            </div>
-          )}
-
-          {hasSound && (
-            <div className="text-sm text-muted-foreground">
-              ✓ Custom sound uploaded
-            </div>
-          )}
         </CardContent>
       </Card>
     );
@@ -231,17 +236,34 @@ export function SoundSettings() {
 
   return (
     <div className="space-y-6">
-      {/* Global Sound Controls */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Volume2 className="h-5 w-5" />
-            Sound Settings
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
+      {/* Modern Header with Mobile-First Design */}
+      <Card className="glass-panel border-0 shadow-sm">
+        <CardContent className="p-4 sm:p-6">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                <Volume2 className="h-4 w-4" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground">Sound Settings</h3>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Customize audio notifications and upload your own sound files for a personalized experience.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Global Sound Toggle */}
+      <Card className="glass-panel border-0 shadow-sm">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles className="h-4 w-4 text-purple-500" />
+            <span className="text-sm font-medium text-foreground">Sound Controls</span>
+            <div className="flex-1 h-px bg-border"></div>
+          </div>
+          
           <div className="flex items-center justify-between">
-            <div>
+            <div className="space-y-1">
               <Label htmlFor="sounds-enabled" className="text-base font-medium">
                 Enable Sounds
               </Label>
@@ -255,14 +277,13 @@ export function SoundSettings() {
               onCheckedChange={handleToggleSounds}
             />
           </div>
-
         </CardContent>
       </Card>
 
       {/* File Format Info */}
-      <Alert>
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
+      <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20">
+        <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+        <AlertDescription className="text-blue-800 dark:text-blue-200">
           Upload custom sounds in .mp3 or .wav format. Maximum file size is 1MB per sound.
         </AlertDescription>
       </Alert>
