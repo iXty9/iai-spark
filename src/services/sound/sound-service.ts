@@ -152,8 +152,23 @@ class SoundService {
         return;
       }
 
-      const soundUrl = settings.toast_notification_sound || 
+      let soundUrl = settings.toast_notification_sound || 
         this.defaultSettings?.toast_notification_sound;
+
+      // If we have a stored URL but it might be expired, try to refresh it
+      if (soundUrl && soundUrl.includes('token=')) {
+        try {
+          // Try to get a fresh signed URL
+          const freshUrl = await soundStorageService.getSoundUrl(userId, 'toast_notification');
+          if (freshUrl) {
+            soundUrl = freshUrl;
+            // Update the stored URL
+            await this.updateUserSettings(userId, { toast_notification_sound: freshUrl });
+          }
+        } catch (refreshError) {
+          logger.warn('Failed to refresh signed URL, using stored URL', { refreshError, userId, module: 'sound-service' });
+        }
+      }
 
       logger.debug('Using sound URL', { soundUrl, userId, module: 'sound-service' });
 
@@ -200,8 +215,23 @@ class SoundService {
         return;
       }
 
-      const soundUrl = settings.chat_message_sound || 
+      let soundUrl = settings.chat_message_sound || 
         this.defaultSettings?.chat_message_sound;
+
+      // If we have a stored URL but it might be expired, try to refresh it
+      if (soundUrl && soundUrl.includes('token=')) {
+        try {
+          // Try to get a fresh signed URL
+          const freshUrl = await soundStorageService.getSoundUrl(userId, 'chat_message');
+          if (freshUrl) {
+            soundUrl = freshUrl;
+            // Update the stored URL
+            await this.updateUserSettings(userId, { chat_message_sound: freshUrl });
+          }
+        } catch (refreshError) {
+          logger.warn('Failed to refresh signed URL, using stored URL', { refreshError, userId, module: 'sound-service' });
+        }
+      }
 
       logger.debug('Using chat sound URL', { soundUrl, userId, module: 'sound-service' });
 

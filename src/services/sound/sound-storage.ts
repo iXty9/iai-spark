@@ -51,10 +51,15 @@ export class SoundStorageService {
         return { success: false, error: 'Failed to upload sound file' };
       }
 
-      // Get public URL
-      const { data } = supabase.storage
+      // Get signed URL (1 hour expiration for private bucket)
+      const { data, error: urlError } = await supabase.storage
         .from(SOUNDS_BUCKET)
-        .getPublicUrl(filePath);
+        .createSignedUrl(filePath, 3600); // 1 hour expiration
+
+      if (urlError || !data) {
+        logger.error('Error creating signed URL:', urlError);
+        return { success: false, error: 'Failed to create signed URL' };
+      }
 
       logger.info('Sound file uploaded successfully', { 
         userId, 
@@ -62,7 +67,7 @@ export class SoundStorageService {
         filePath 
       });
 
-      return { success: true, url: data.publicUrl };
+      return { success: true, url: data.signedUrl };
     } catch (error) {
       logger.error('Unexpected error uploading sound:', error);
       return { success: false, error: 'Failed to upload sound file' };
@@ -94,13 +99,20 @@ export class SoundStorageService {
     }
   }
 
-  getSoundUrl(userId: string, soundType: SoundType, extension = 'mp3'): string {
+  async getSoundUrl(userId: string, soundType: SoundType, extension = 'mp3'): Promise<string | null> {
     const filePath = `${userId}/${soundType}.${extension}`;
-    const { data } = supabase.storage
-      .from(SOUNDS_BUCKET)
-      .getPublicUrl(filePath);
     
-    return data.publicUrl;
+    // Create signed URL (1 hour expiration for private bucket)
+    const { data, error } = await supabase.storage
+      .from(SOUNDS_BUCKET)
+      .createSignedUrl(filePath, 3600);
+    
+    if (error || !data) {
+      logger.error('Error creating signed URL:', error);
+      return null;
+    }
+    
+    return data.signedUrl;
   }
 }
 

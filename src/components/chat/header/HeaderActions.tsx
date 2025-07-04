@@ -6,6 +6,7 @@ import {
   Upload, RefreshCw, MoreVertical 
 } from 'lucide-react';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +42,7 @@ export const HeaderActions = ({
 }: HeaderActionsProps) => {
   const { theme, setTheme } = useTheme();
   const { isDevMode, toggleDevMode } = useDevMode();
+  const { user } = useAuth();
   
   const handleDevModeToggle = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -122,7 +124,7 @@ export const HeaderActions = ({
         </Button>
       )}
       
-      <NotificationCenter />
+      {user && <NotificationCenter />}
       
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
