@@ -203,7 +203,7 @@ const ContrastCheckBlock = React.memo(({
 
 export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeControlsProps) {
   const { theme } = useTheme();
-  const [showContrastChecks, setShowContrastChecks] = useState(true);
+  const [showContrastChecks, setShowContrastChecks] = useState(false);
 
   const applySuggestion = useCallback((name: string, value: string) => {
     onColorChange({ name, value });
@@ -297,31 +297,6 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
         </div>
       </div>
 
-      {/* Enhanced Accessibility Checks */}
-      <div className="bg-muted/20 rounded-xl p-6 border border-border/20 space-y-4">
-        <div className="flex justify-between items-center">
-          <h3 className="font-semibold text-lg flex items-center gap-2">
-            <Check className="h-5 w-5 text-green-500" />
-            Accessibility Checks
-          </h3>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={toggleContrastChecks}
-            className="flex items-center space-x-2 hover:bg-muted/30 transition-all duration-200"
-          >
-            {showContrastChecks ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            <span>{showContrastChecks ? 'Hide' : 'Show'}</span>
-          </Button>
-        </div>
-        {showContrastChecks && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {contrastData.map(item =>
-              <ContrastCheckBlock key={item.title} {...item} onApplySuggestion={applySuggestion} />
-            )}
-          </div>
-        )}
-      </div>
 
       {/* Enhanced Color Sections */}
       <div className="space-y-6">
@@ -426,6 +401,32 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Enhanced Accessibility Checks - Moved to bottom */}
+      <div className="bg-muted/20 rounded-xl p-6 border border-border/20 space-y-4">
+        <div className="flex justify-between items-center">
+          <h3 className="font-semibold text-lg flex items-center gap-2">
+            <Check className="h-5 w-5 text-green-500" />
+            Accessibility Checks
+          </h3>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={toggleContrastChecks}
+            className="flex items-center space-x-2 hover:bg-muted/30 transition-all duration-200"
+          >
+            {showContrastChecks ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            <span>{showContrastChecks ? 'Hide' : 'Show'}</span>
+          </Button>
+        </div>
+        {showContrastChecks && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {contrastData.map(item =>
+              <ContrastCheckBlock key={item.title} {...item} onApplySuggestion={applySuggestion} />
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
