@@ -27,12 +27,17 @@ export async function processMessage({
     emitDebugEvent({ lastAction: 'API: Starting to process message', isLoading: true });
 
     const messageId = `msg_${Date.now()}`;
-    const assistantMessage: Message = {
+    const assistantMessage: Message & { cancel?: () => void } = {
       id: messageId,
       sender: 'ai',
       content: '',
       timestamp: new Date().toISOString(),
       pending: true,
+      cancel: () => {
+        canceled = true;
+        controller.abort();
+        debug({ lastAction: 'API: Message processing was canceled by user before completion' });
+      }
     };
 
     onMessageStart?.(assistantMessage);

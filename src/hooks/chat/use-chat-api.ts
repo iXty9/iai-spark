@@ -13,8 +13,10 @@ interface UseChatApiProps {
 
 export const useChatApi = ({ user, addMessage, onError, setCurrentRequest }: UseChatApiProps) => {
   const sendMessageToApi = useCallback(async (userMessage: Message) => {
+    let currentCancelFunction: (() => void) | null = null;
+    
     try {
-      // Use the real message processor
+      // Use the real message processor with callbacks to get cancel function immediately
       const aiResponse = await processMessage({
         message: userMessage.content,
         isAuthenticated: !!user,
@@ -24,6 +26,14 @@ export const useChatApi = ({ user, addMessage, onError, setCurrentRequest }: Use
           first_name: user.user_metadata?.first_name,
           last_name: user.user_metadata?.last_name
         } : null,
+        onMessageStart: (message) => {
+          // Set current request immediately when message processing starts
+          if (message && typeof message === 'object' && 'cancel' in message && typeof message.cancel === 'function') {
+            const cancelFn = message.cancel as () => void;
+            currentCancelFunction = cancelFn;
+            setCurrentRequest({ cancel: cancelFn });
+          }
+        },
         onError: (error) => {
           logger.error('Error in AI response:', error);
           onError(error.message || 'Failed to get AI response');
@@ -31,8 +41,8 @@ export const useChatApi = ({ user, addMessage, onError, setCurrentRequest }: Use
         }
       });
 
-      // Store the current request for cancellation
-      if (aiResponse.cancel) {
+      // Also set cancel function from final response as backup
+      if (aiResponse.cancel && !currentCancelFunction) {
         setCurrentRequest({ cancel: aiResponse.cancel });
       }
 

@@ -53,6 +53,7 @@ export const useChatActions = ({
     } catch (error) {
       console.error('Error sending message:', error);
     } finally {
+      // Always ensure loading is cleared
       setIsLoading(false);
     }
   }, [message, isLoading, addMessage, setMessage, setIsLoading, sendMessageToApi]);
@@ -82,6 +83,7 @@ export const useChatActions = ({
     } catch (error) {
       console.error('Error starting chat:', error);
     } finally {
+      // Always ensure loading is cleared
       setIsLoading(false);
     }
   }, [addMessage, setIsLoading, sendMessageToApi]);
