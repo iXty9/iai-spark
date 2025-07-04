@@ -45,7 +45,7 @@ export async function processMessage({
     let webhookData, responseText;
     try {
       // Get both request and response from webhook
-      webhookData = await sendWebhookMessage(message, isAuthenticated, userProfile);
+      webhookData = await sendWebhookMessage(message, isAuthenticated, userProfile, controller);
       responseText = parseWebhookResponse(webhookData.response);
       debug({ lastAction: 'API: Successfully parsed webhook response' });
     } catch (error) {
@@ -79,6 +79,10 @@ export async function processMessage({
       cancel: () => {
         canceled = true;
         controller.abort();
+        // Also cancel the webhook request if available
+        if (webhookData?.cancel) {
+          webhookData.cancel();
+        }
         controller = null as any;
         debug({ lastAction: 'API: Message streaming was canceled by user' });
       },

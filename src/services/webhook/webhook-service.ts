@@ -34,17 +34,9 @@ webhookSessionTracker.initialize();
 export const sendWebhookMessage = async (
   message: string,
   isAuthenticated: boolean,
-  userInfo?: { id?: string; username?: string; first_name?: string; last_name?: string } | null
-): Promise<{ request: any; response: any }> => {
-  // Skip or delay webhook calls if tab is inactive
-  if (!webhookSessionTracker.tabActive) {
-    logger.debug('Delaying webhook call as tab is inactive', {}, { module: 'webhook' });
-    // Return mock response for inactive tabs with proper structure
-    return { 
-      request: { message: "Tab inactive, delaying real API call" }, 
-      response: { inactive_tab: true, message: "Tab inactive, delaying real API call" } 
-    };
-  }
+  userInfo?: { id?: string; username?: string; first_name?: string; last_name?: string } | null,
+  externalController?: AbortController
+): Promise<{ request: any; response: any; cancel: () => void }> => {
   
   // Apply rate limiting based on authentication status
   const rateLimitKey = isAuthenticated ? 'authenticated' : 'anonymous';
@@ -86,9 +78,15 @@ export const sendWebhookMessage = async (
   logWebhookActivity(webhookUrl, 'REQUEST_SENT');
   
   try {
-    // Add request timeout
-    const controller = new AbortController();
+    // Use external controller if provided, otherwise create new one
+    const controller = externalController || new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    
+    // Cancel function to abort the request
+    const cancel = () => {
+      controller.abort();
+      clearTimeout(timeoutId);
+    };
     
     const requestStartTime = Date.now();
     const requestId = `request-${requestStartTime}`;
@@ -153,7 +151,8 @@ export const sendWebhookMessage = async (
     // Return both request and response for complete data preservation
     return {
       request: payload,
-      response: data
+      response: data,
+      cancel
     };
   } catch (error) {
     // Handle different error types
