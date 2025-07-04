@@ -82,10 +82,11 @@ export const useChatApi = ({ user, addMessage, onError, setCurrentRequest }: Use
       // Clear the current request when complete
       setCurrentRequest(null);
 
-      // Trigger chat message sound for AI responses
+      // Trigger chat message sound for AI responses (don't await to avoid blocking UI)
       if (user?.id) {
-        const { notificationService } = await import('@/services/notification-service');
-        await notificationService.showChatMessage(aiMessage.content, 'AI Assistant');
+        import('@/services/notification-service').then(({ notificationService }) => {
+          notificationService.showChatMessage(aiMessage.content, 'AI Assistant').catch(console.error);
+        }).catch(console.error);
       }
 
       return aiMessage;
