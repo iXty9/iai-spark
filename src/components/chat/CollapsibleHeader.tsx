@@ -31,7 +31,7 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
       {/* Main sliding menu container */}
       <div 
         className={cn(
-          "transform transition-all duration-300 ease-out overflow-hidden rounded-b-xl shadow-lg border border-border/20",
+          "transform transition-all duration-300 ease-out overflow-hidden rounded-b-xl border border-border/20",
           "max-w-[1000px] mx-auto", // Max width constraint with centering
           "bg-background/85 backdrop-blur-xl", // Enhanced glass effect
           isExpanded 
@@ -40,9 +40,6 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
         )}
         style={{
           backdropFilter: isExpanded ? 'blur(20px)' : 'blur(12px)',
-          boxShadow: isExpanded 
-            ? '0 8px 32px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.05)' 
-            : '0 4px 16px rgba(0, 0, 0, 0.08)',
           background: isExpanded 
             ? 'linear-gradient(135deg, hsl(var(--background))/90, hsl(var(--background))/95)'
             : 'hsl(var(--background))/80'
