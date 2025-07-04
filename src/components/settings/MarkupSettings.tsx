@@ -1,9 +1,9 @@
-
 import React from 'react';
 import { ThemeColors } from '@/types/theme';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Sun, Moon } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { RotateCcw, Sun, Moon, Code, Sparkles, Eye } from 'lucide-react';
 import { getMarkupElements } from './markup/MarkupElementConfig';
 import { MarkupControlCard } from './markup/MarkupControlCard';
 import { MarkupPreview } from './markup/MarkupPreview';
@@ -55,46 +55,104 @@ export const MarkupSettings: React.FC<MarkupSettingsProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold">Markup Styling</h3>
-          <p className="text-sm text-muted-foreground">
-            Customize colors for markdown elements in AI messages
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onReset}
-          className="flex items-center space-x-2"
-        >
-          <RotateCcw className="h-4 w-4" />
-          <span>Reset</span>
-        </Button>
-      </div>
+      {/* Modern Header with Mobile-First Design */}
+      <Card className="glass-panel border-0 shadow-sm">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                  <Code className="h-4 w-4" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground">Markup Styling</h3>
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Customize colors for markdown elements in AI messages. Changes are applied in real-time to enhance readability.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onReset}
+              className="flex items-center gap-2 shrink-0 hover:bg-destructive/5 hover:text-destructive hover:border-destructive/20 transition-colors"
+            >
+              <RotateCcw className="h-4 w-4" />
+              <span className="hidden xs:inline">Reset to Defaults</span>
+              <span className="xs:hidden">Reset</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
-      <Tabs value={currentMode} onValueChange={(value) => onModeChange(value as 'light' | 'dark')} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="light" className="flex items-center gap-2">
-            <Sun className="h-4 w-4" />
-            Light Mode
-          </TabsTrigger>
-          <TabsTrigger value="dark" className="flex items-center gap-2">
-            <Moon className="h-4 w-4" />
-            Dark Mode
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="light" className="space-y-6">
-          {renderMarkupControls(lightTheme, 'light')}
-          <MarkupPreview colors={lightTheme} />
-        </TabsContent>
-        
-        <TabsContent value="dark" className="space-y-6">
-          {renderMarkupControls(darkTheme, 'dark')}
-          <MarkupPreview colors={darkTheme} />
-        </TabsContent>
-      </Tabs>
+      {/* Enhanced Theme Mode Tabs */}
+      <Card className="glass-panel border-0 shadow-sm overflow-hidden">
+        <Tabs value={currentMode} onValueChange={(value) => onModeChange(value as 'light' | 'dark')} className="w-full">
+          <div className="border-b border-border/50 bg-muted/30">
+            <TabsList className="grid grid-cols-2 w-full h-auto p-1 bg-transparent">
+              <TabsTrigger 
+                value="light" 
+                className="flex items-center gap-2 py-3 px-4 text-sm font-medium rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground transition-all duration-200 hover:bg-background/50"
+              >
+                <Sun className="h-4 w-4" />
+                <span className="hidden xs:inline">Light Mode</span>
+                <span className="xs:hidden">Light</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="dark" 
+                className="flex items-center gap-2 py-3 px-4 text-sm font-medium rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground transition-all duration-200 hover:bg-background/50"
+              >
+                <Moon className="h-4 w-4" />
+                <span className="hidden xs:inline">Dark Mode</span>
+                <span className="xs:hidden">Dark</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          
+          <CardContent className="p-4 sm:p-6">
+            <TabsContent value="light" className="mt-0 space-y-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles className="h-4 w-4 text-amber-500" />
+                <span className="text-sm font-medium text-foreground">Light Theme Markup</span>
+                <div className="flex-1 h-px bg-border"></div>
+              </div>
+              {renderMarkupControls(lightTheme, 'light')}
+              
+              {/* Preview Section */}
+              <Card className="bg-muted/30 border-border/50">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Eye className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm font-medium text-foreground">Live Preview</span>
+                    <div className="flex-1 h-px bg-border"></div>
+                  </div>
+                  <MarkupPreview colors={lightTheme} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="dark" className="mt-0 space-y-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles className="h-4 w-4 text-blue-400" />
+                <span className="text-sm font-medium text-foreground">Dark Theme Markup</span>
+                <div className="flex-1 h-px bg-border"></div>
+              </div>
+              {renderMarkupControls(darkTheme, 'dark')}
+              
+              {/* Preview Section */}
+              <Card className="bg-muted/30 border-border/50">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Eye className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm font-medium text-foreground">Live Preview</span>
+                    <div className="flex-1 h-px bg-border"></div>
+                  </div>
+                  <MarkupPreview colors={darkTheme} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </CardContent>
+        </Tabs>
+      </Card>
     </div>
   );
 };
