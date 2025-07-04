@@ -84,10 +84,10 @@ export const TimeMachineDialog: React.FC<TimeMachineDialogProps> = ({
                 selected={selectedDate}
                 onSelect={(date) => date && setSelectedDate(date)}
                 className={cn(
-                  "pointer-events-auto border rounded-lg bg-card mx-auto",
+                  "pointer-events-auto border rounded-lg bg-card mx-auto w-full",
                   isMobile 
-                    ? "p-2 w-full max-w-sm [&_.rdp-day]:h-12 [&_.rdp-day]:w-12 [&_.rdp-day]:text-lg [&_.rdp-day]:font-medium [&_.rdp-head_cell]:h-10 [&_.rdp-head_cell]:text-base [&_.rdp-head_cell]:font-semibold [&_.rdp-caption]:text-lg [&_.rdp-caption]:font-semibold [&_.rdp-nav_button]:h-10 [&_.rdp-nav_button]:w-10 [&_.rdp-nav_button]:text-lg" 
-                    : "p-3 [&_.rdp-day]:h-14 [&_.rdp-day]:w-14 [&_.rdp-day]:text-xl [&_.rdp-day]:font-medium [&_.rdp-head_cell]:h-12 [&_.rdp-head_cell]:text-lg [&_.rdp-head_cell]:font-semibold [&_.rdp-caption]:text-xl [&_.rdp-caption]:font-semibold [&_.rdp-nav_button]:h-12 [&_.rdp-nav_button]:w-12 [&_.rdp-nav_button]:text-lg"
+                    ? "p-2 max-w-none [&_.rdp-day]:h-12 [&_.rdp-day]:w-full [&_.rdp-day]:text-lg [&_.rdp-day]:font-medium [&_.rdp-head_cell]:h-10 [&_.rdp-head_cell]:text-base [&_.rdp-head_cell]:font-semibold [&_.rdp-caption]:text-lg [&_.rdp-caption]:font-semibold [&_.rdp-nav_button]:h-10 [&_.rdp-nav_button]:w-10 [&_.rdp-nav_button]:text-lg [&_.rdp-table]:w-full [&_.rdp-tbody]:w-full [&_.rdp-row]:w-full [&_.rdp-cell]:flex-1" 
+                    : "p-3 max-w-none [&_.rdp-day]:h-14 [&_.rdp-day]:w-full [&_.rdp-day]:text-xl [&_.rdp-day]:font-medium [&_.rdp-head_cell]:h-12 [&_.rdp-head_cell]:text-lg [&_.rdp-head_cell]:font-semibold [&_.rdp-caption]:text-xl [&_.rdp-caption]:font-semibold [&_.rdp-nav_button]:h-12 [&_.rdp-nav_button]:w-12 [&_.rdp-nav_button]:text-lg [&_.rdp-table]:w-full [&_.rdp-tbody]:w-full [&_.rdp-row]:w-full [&_.rdp-cell]:flex-1"
                 )}
                 disabled={(date) => date > new Date()}
               />
