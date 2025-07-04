@@ -2,7 +2,6 @@ import React, { useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, Play, Trash2, Volume2, AlertCircle } from 'lucide-react';
@@ -47,8 +46,8 @@ export function SoundSettings() {
     }
 
     try {
-      // Test the file first
-      const canPlay = await testSound(file);
+      // Test the file first at max volume
+      const canPlay = await testSound(file, 1.0);
       if (!canPlay) {
         toast({
           variant: "destructive",
@@ -132,18 +131,6 @@ export function SoundSettings() {
     }
   };
 
-  const handleVolumeChange = async (value: number[]) => {
-    const volume = value[0];
-    const success = await updateSettings({ volume });
-    
-    if (!success) {
-      toast({
-        variant: "destructive",
-        title: "Update failed",
-        description: "Failed to update volume. Please try again.",
-      });
-    }
-  };
 
   if (isLoading) {
     return (
@@ -269,23 +256,6 @@ export function SoundSettings() {
             />
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-base font-medium">Volume</Label>
-              <span className="text-sm text-muted-foreground">
-                {Math.round((settings?.volume ?? 0.7) * 100)}%
-              </span>
-            </div>
-            <Slider
-              value={[settings?.volume ?? 0.7]}
-              onValueChange={handleVolumeChange}
-              min={0}
-              max={1}
-              step={0.1}
-              className="w-full"
-              disabled={!settings?.sounds_enabled}
-            />
-          </div>
         </CardContent>
       </Card>
 

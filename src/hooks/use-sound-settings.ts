@@ -91,14 +91,14 @@ export function useSoundSettings() {
     }
   }, [user?.id]);
 
-  const testSound = useCallback(async (file: File, volume?: number): Promise<boolean> => {
+  const testSound = useCallback(async (file: File, volume: number = 1.0): Promise<boolean> => {
     try {
-      return await soundService.testFile(file, volume || settings?.volume || 0.7);
+      return await soundService.testFile(file, volume);
     } catch (error) {
       logger.error('Failed to test sound:', error);
       return false;
     }
-  }, [settings?.volume]);
+  }, []);
 
   const validateFile = useCallback((file: File) => {
     return soundService.validateFile(file);
