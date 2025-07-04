@@ -34,7 +34,7 @@ export const AuthCard = ({ children }: AuthCardProps) => {
               <img 
                 src="https://ixty9.com/wp-content/uploads/2023/10/cropped-faviconV4.png" 
                 alt="Ixty AI Logo" 
-                className="h-[4.6rem] w-[4.6rem] relative z-10 animate-heartbeat"
+                className="h-[5.3rem] w-[5.3rem] relative z-10 animate-heartbeat"
               />
             </div>
           </div>
