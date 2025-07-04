@@ -140,6 +140,10 @@ class NotificationService {
       await soundService.reinitialize(userId);
     }
   }
+
+  getCurrentUserId(): string | null {
+    return this.currentUserId;
+  }
 }
 
 export const notificationService = new NotificationService();

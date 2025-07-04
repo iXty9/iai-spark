@@ -285,11 +285,13 @@ class SupaToastService {
   private async playToastSound(): Promise<void> {
     try {
       // Get current user ID from notification service
-      const authModule = await import('@/contexts/AuthContext');
-      if (authModule.useAuth) {
-        // We can't use hooks directly in service, so we'll use the sound service directly
-        // The sound service will get the current user from its own state
-        await soundService.playNotificationSound();
+      const currentUserId = notificationService.getCurrentUserId();
+      
+      if (currentUserId) {
+        logger.debug('Playing toast notification sound', { userId: currentUserId }, { module: 'supa-toast' });
+        await soundService.playNotificationSound(currentUserId);
+      } else {
+        logger.debug('No user ID available for toast sound', null, { module: 'supa-toast' });
       }
     } catch (error) {
       logger.debug('Could not play toast sound', { error }, { module: 'supa-toast' });
