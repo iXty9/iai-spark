@@ -1,6 +1,6 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Sparkles } from 'lucide-react';
+import { Rocket } from 'lucide-react';
 import { useAuthSettings } from '@/hooks/admin/useAuthSettings';
 
 interface AuthCardProps {
@@ -31,7 +31,7 @@ export const AuthCard = ({ children }: AuthCardProps) => {
               Ixty AI
             </CardTitle>
             <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
-              <Sparkles className="h-3 w-3" />
+              <Rocket className="h-3 w-3" />
               <span>{authSettings.tagline}</span>
             </div>
           </div>
