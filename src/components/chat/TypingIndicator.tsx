@@ -5,9 +5,10 @@ import { useAIAgentName } from '@/hooks/use-ai-agent-name';
 
 interface TypingIndicatorProps {
   isVisible: boolean;
+  onAbort?: () => void;
 }
 
-export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ isVisible }) => {
+export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ isVisible, onAbort }) => {
   const [responseStatus, setResponseStatus] = useState<'thinking' | 'responding'>('thinking');
   const [requestStartTime, setRequestStartTime] = useState<number>(0);
   const { aiAgentName } = useAIAgentName();
@@ -62,10 +63,10 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ isVisible }) =
           <div className="typing-dot" style={{ animationDelay: '400ms' }}></div>
         </div>
         
-        {/* Timer with Abort Button - simplified */}
+        {/* Timer with Abort Button */}
         <TimerWithAbort 
           startTime={requestStartTime} 
-          onAbort={() => {}} // placeholder abort function
+          onAbort={onAbort}
           isVisible={isVisible}
         />
       </div>

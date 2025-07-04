@@ -1,5 +1,5 @@
 
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { Message } from '@/types/chat';
 import { processMessage } from '@/services/chat/message-processor';
 import { logger } from '@/utils/logging';
@@ -8,9 +8,10 @@ interface UseChatApiProps {
   user: any;
   addMessage: (message: Message) => void;
   onError: (error: string) => void;
+  setCurrentRequest: (request: { cancel: () => void } | null) => void;
 }
 
-export const useChatApi = ({ user, addMessage, onError }: UseChatApiProps) => {
+export const useChatApi = ({ user, addMessage, onError, setCurrentRequest }: UseChatApiProps) => {
   const sendMessageToApi = useCallback(async (userMessage: Message) => {
     try {
       // Use the real message processor
@@ -26,8 +27,14 @@ export const useChatApi = ({ user, addMessage, onError }: UseChatApiProps) => {
         onError: (error) => {
           logger.error('Error in AI response:', error);
           onError(error.message || 'Failed to get AI response');
+          setCurrentRequest(null);
         }
       });
+
+      // Store the current request for cancellation
+      if (aiResponse.cancel) {
+        setCurrentRequest({ cancel: aiResponse.cancel });
+      }
 
       console.log('AI response from message processor:', {
         id: aiResponse.id,
@@ -62,6 +69,9 @@ export const useChatApi = ({ user, addMessage, onError }: UseChatApiProps) => {
       
       addMessage(aiMessage);
 
+      // Clear the current request when complete
+      setCurrentRequest(null);
+
       // Trigger chat message sound for AI responses
       if (user?.id) {
         const { notificationService } = await import('@/services/notification-service');
@@ -71,6 +81,7 @@ export const useChatApi = ({ user, addMessage, onError }: UseChatApiProps) => {
       return aiMessage;
     } catch (err: any) {
       logger.error('Error in sendMessageToApi:', err);
+      setCurrentRequest(null);
       throw err;
     }
   }, [user, addMessage, onError]);

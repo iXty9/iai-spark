@@ -31,6 +31,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     startChat,
     setMessages,
     addMessage,
+    handleAbortRequest,
     // Remove the WebSocket returns from useChat since we'll handle them separately
   } = useChat();
   
@@ -104,6 +105,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
               messages={convertedMessages}
               isLoading={isLoading}
               scrollRef={scrollRef}
+              onAbortRequest={handleAbortRequest}
             />
           </ScrollArea>
         )}

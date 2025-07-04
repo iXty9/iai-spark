@@ -11,12 +11,14 @@ interface MessageListProps {
   messages: MessageType[];
   isLoading: boolean;
   scrollRef?: React.RefObject<HTMLDivElement>;
+  onAbortRequest?: () => void;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({ 
   messages, 
   isLoading,
-  scrollRef
+  scrollRef,
+  onAbortRequest
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -136,7 +138,7 @@ export const MessageList: React.FC<MessageListProps> = ({
           <Message key={message.id} message={message} />
         ))}
         
-        <TypingIndicator isVisible={isLoading} />
+        <TypingIndicator isVisible={isLoading} onAbort={onAbortRequest} />
         
         <div ref={messagesEndRef} aria-hidden="true" />
         {scrollRef && <div ref={scrollRef} aria-hidden="true" />}

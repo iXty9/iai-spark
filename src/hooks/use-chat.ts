@@ -1,5 +1,5 @@
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMessageState } from '@/hooks/chat/use-message-state';
 import { useChatApi } from '@/hooks/chat/use-chat-api';
@@ -11,6 +11,7 @@ import { logger } from '@/utils/logging';
 
 export const useChat = () => {
   const { user } = useAuth();
+  const [currentRequest, setCurrentRequest] = useState<{ cancel: () => void } | null>(null);
   const {
     messages,
     message,
@@ -38,7 +39,8 @@ export const useChat = () => {
   const { sendMessageToApi } = useChatApi({
     user,
     addMessage,
-    onError: handleError
+    onError: handleError,
+    setCurrentRequest
   });
 
   // Pass messages array to WebSocket hook to prevent duplicate processing
@@ -63,6 +65,14 @@ export const useChat = () => {
     sendMessageToApi
   });
 
+  const handleAbortRequest = useCallback(() => {
+    if (currentRequest) {
+      currentRequest.cancel();
+      setCurrentRequest(null);
+      setIsLoading(false);
+    }
+  }, [currentRequest, setIsLoading]);
+
   return {
     messages,
     message,
@@ -75,6 +85,7 @@ export const useChat = () => {
     setMessages,
     addMessage,
     isWebSocketConnected,
-    isWebSocketEnabled
+    isWebSocketEnabled,
+    handleAbortRequest
   };
 };
