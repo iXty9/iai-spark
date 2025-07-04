@@ -230,8 +230,8 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto px-4">
-      <div className="w-full text-center space-y-6">
+    <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto px-4 animate-fade-in">
+      <div className="w-full text-center space-y-5">
         <div className="flex items-center justify-center gap-3">
           <Avatar className="w-16 h-16 relative">
             {renderAvatar()}
@@ -258,7 +258,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
             onChange={handleInput}
             onKeyDown={handleKeyDown}
             placeholder={isMobile ? "Ask me anything..." : "What can I assist you with today?"}
-            className="flex-1 rounded-lg shadow-sm min-h-[60px] max-h-[150px] resize-none"
+            className="flex-1 rounded-lg backdrop-blur-sm bg-background/80 border-border/50 shadow-lg min-h-[60px] max-h-[150px] resize-none focus:bg-background/90 focus:border-border transition-all duration-200"
             disabled={isSubmitting || isTransitioning.current}
             aria-label="Message input"
             spellCheck="true"
@@ -268,7 +268,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
             <Button
               type="submit"
               disabled={!message.trim() || isSubmitting || isTransitioning.current}
-              className="rounded-full bg-[#ea384c] hover:bg-[#dd3333]"
+              className="rounded-full bg-[#ea384c] hover:bg-[#dd3333] h-11 px-6 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-[#ea384c]/20 sm:h-10 sm:px-4"
             >
               {isMobile ? <Send className="h-4 w-4" /> : <>Send <Send className="ml-2 h-4 w-4" /></>}
             </Button>
