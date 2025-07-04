@@ -325,9 +325,10 @@ export function RegisterForm() {
                           />
                         </FormControl>
                         <div className="space-y-1 leading-none">
-                          <label className="text-sm text-foreground leading-relaxed">
-                            {authSettings.disclaimerText}
-                          </label>
+                          <label 
+                            className="text-sm text-foreground leading-relaxed"
+                            dangerouslySetInnerHTML={{ __html: authSettings.disclaimerText }}
+                          />
                         </div>
                       </div>
                       <FormMessage className="text-xs ml-6" />
