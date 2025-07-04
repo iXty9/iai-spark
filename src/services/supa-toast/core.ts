@@ -66,8 +66,10 @@ class SupaToastService {
       this.showBrowserNotification(options);
     }
     
-    // Always play toast notification sound for toast notifications
-    this.playToastSound();
+    // Only play toast notification sound for webhook-initiated toasts
+    if (options.metadata?.source === 'websocket') {
+      this.playToastSound();
+    }
 
     // Auto-dismiss if not persistent
     if (!options.persistent && duration > 0) {
