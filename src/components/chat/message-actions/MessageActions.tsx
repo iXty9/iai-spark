@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ThumbsUp, ThumbsDown, Copy, Volume2, Info, Check, VolumeX } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Copy, Volume2, Trees, Check, VolumeX } from 'lucide-react';
 import { supaToast } from '@/services/supa-toast';
 import { TokenInfo } from '@/types/chat';
 import { ActionTooltip } from './ActionTooltip';
@@ -173,7 +173,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
         variant="none"
       />
       <ActionTooltip 
-        icon={Info} 
+        icon={Trees} 
         label="Token usage info" 
         onClick={handleTokenInfo}
         disabled={!hasTokenData}
