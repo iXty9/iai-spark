@@ -1,24 +1,21 @@
-
 import { Message } from '@/types/chat';
 import { logger } from '@/utils/logging';
+import { WebhookResponse } from '@/types/webhook';
 
-export const processResponseMetadata = (message: Message, webhookResponse: any): void => {
-  console.log('=== processResponseMetadata DEBUG ===');
-  console.log('Input message:', {
-    id: message.id,
-    keys: Object.keys(message)
-  });
-  console.log('Webhook response:', webhookResponse);
+export const processResponseMetadata = (message: Message, webhookResponse: WebhookResponse | WebhookResponse[]): void => {
+  logger.debug('Processing response metadata', {
+    messageId: message.id,
+    responseType: Array.isArray(webhookResponse) ? 'array' : 'object'
+  }, { module: 'response-processing' });
   
   try {
     // Handle array response (your format)
     if (Array.isArray(webhookResponse) && webhookResponse.length > 0) {
       const firstResponse = webhookResponse[0];
-      console.log('Processing array response:', firstResponse);
       
       if (firstResponse.threadId) {
         message.threadId = firstResponse.threadId;
-        console.log('Set threadId:', firstResponse.threadId);
+        logger.debug('Set threadId from array response', { threadId: firstResponse.threadId }, { module: 'response-processing' });
       }
       
       if (firstResponse.usage) {
@@ -27,16 +24,14 @@ export const processResponseMetadata = (message: Message, webhookResponse: any):
           completionTokens: firstResponse.usage.completion_tokens,
           totalTokens: firstResponse.usage.total_tokens
         };
-        console.log('Set tokenInfo:', message.tokenInfo);
+        logger.debug('Set tokenInfo from array response', message.tokenInfo, { module: 'response-processing' });
       }
     }
     // Handle direct object response
-    else if (webhookResponse && typeof webhookResponse === 'object') {
-      console.log('Processing object response:', webhookResponse);
-      
+    else if (webhookResponse && typeof webhookResponse === 'object' && !Array.isArray(webhookResponse)) {
       if (webhookResponse.threadId) {
         message.threadId = webhookResponse.threadId;
-        console.log('Set threadId:', webhookResponse.threadId);
+        logger.debug('Set threadId from object response', { threadId: webhookResponse.threadId }, { module: 'response-processing' });
       }
       
       if (webhookResponse.usage) {
@@ -45,27 +40,22 @@ export const processResponseMetadata = (message: Message, webhookResponse: any):
           completionTokens: webhookResponse.usage.completion_tokens,
           totalTokens: webhookResponse.usage.total_tokens
         };
-        console.log('Set tokenInfo:', message.tokenInfo);
+        logger.debug('Set tokenInfo from object response', message.tokenInfo, { module: 'response-processing' });
       }
     }
     
-    console.log('Final message after processing:', {
-      id: message.id,
-      keys: Object.keys(message),
+    logger.debug('Response metadata processing complete', {
+      messageId: message.id,
       hasTokenInfo: !!message.tokenInfo,
-      hasThreadId: !!message.threadId,
-      tokenInfo: message.tokenInfo,
-      threadId: message.threadId
-    });
-    console.log('=== END processResponseMetadata DEBUG ===');
+      hasThreadId: !!message.threadId
+    }, { module: 'response-processing' });
     
   } catch (error) {
-    logger.error('Error processing response metadata:', error);
-    console.log('Error in processResponseMetadata:', error);
+    logger.error('Error processing response metadata', error, { module: 'response-processing' });
   }
 };
 
-export const createErrorResponse = (error: any, canceled: boolean, controller: AbortController | null): Message => {
+export const createErrorResponse = (error: unknown, canceled: boolean, controller: AbortController | null): Message => {
   const errorMessage: Message = {
     id: `error_${Date.now()}`,
     sender: 'ai',

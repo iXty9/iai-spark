@@ -1,5 +1,6 @@
 
 import { Message } from '@/types/chat';
+import { logger } from '@/utils/logging';
 
 /**
  * Enhanced export format that preserves all message data including verbatim webhook requests and responses
@@ -56,13 +57,13 @@ const dateReplacer = (key: string, value: any) => {
  * Converts a Message to the enhanced export format
  */
 const convertToEnhancedFormat = (message: Message): EnhancedMessageExport => {
-  console.log('Export conversion for message:', {
+  logger.debug('Converting message for export', {
     id: message.id,
     hasTokenInfo: !!message.tokenInfo,
     hasRawRequest: !!message.rawRequest,
     hasRawResponse: !!message.rawResponse,
     hasThreadId: !!message.threadId
-  });
+  }, { module: 'export-service' });
 
   return {
     id: message.id,
@@ -83,11 +84,10 @@ const convertToEnhancedFormat = (message: Message): EnhancedMessageExport => {
 
 export const exportChat = (messages: Message[]): void => {
   try {
-    console.log('Exporting messages:', {
+    logger.info('Exporting messages', {
       count: messages.length,
-      sampleMessage: messages[0],
       messagesWithTokenInfo: messages.filter(m => m.tokenInfo).length
-    });
+    }, { module: 'export-service' });
 
     // Create enhanced export data with complete message preservation
     const exportData: EnhancedExportData = {
@@ -122,9 +122,9 @@ export const exportChat = (messages: Message[]): void => {
     // Revoke the URL to free up memory
     URL.revokeObjectURL(url);
     
-    console.log('Export completed successfully');
+    logger.info('Export completed successfully', {}, { module: 'export-service' });
   } catch (error) {
-    console.error('Error exporting chat:', error);
+    logger.error('Error exporting chat', error, { module: 'export-service' });
     throw new Error('Failed to export chat');
   }
 };

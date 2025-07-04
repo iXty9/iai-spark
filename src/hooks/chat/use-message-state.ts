@@ -5,6 +5,7 @@ import { Message } from '@/types/chat';
 import { toast } from '@/components/ui/sonner';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { saveChatHistory, loadChatHistory, clearChatHistory } from '@/services/storage/chatPersistenceService';
+import { logger } from '@/utils/logging';
 
 export const useMessageState = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -19,7 +20,7 @@ export const useMessageState = () => {
       const savedMessages = loadChatHistory();
       if (savedMessages.length > 0) {
         setMessages(savedMessages);
-        console.log(`Loaded ${savedMessages.length} messages from localStorage`);
+        logger.debug('Loaded messages from localStorage', { count: savedMessages.length }, { module: 'message-state' });
         
         emitDebugEvent({
           lastAction: 'Restored chat history from localStorage',
@@ -42,13 +43,11 @@ export const useMessageState = () => {
   
   // Memoized functions to prevent unnecessary re-renders
   const addMessage = useCallback((newMessage: Message) => {
-    console.log('Adding message to state:', {
+    logger.debug('Adding message to state', {
       id: newMessage.id,
       sender: newMessage.sender,
-      timestamp: new Date().toISOString(),
-      initializing: initializing.current,
       currentMessageCount: messageCount
-    });
+    }, { module: 'message-state' });
     
     emitDebugEvent({
       lastAction: `Adding ${newMessage.sender} message to state`,
@@ -58,7 +57,7 @@ export const useMessageState = () => {
     
     if (messageCount === 0 && !initializing.current) {
       initializing.current = true;
-      console.log('First message - initializing chat state');
+      logger.debug('First message - initializing chat state', {}, { module: 'message-state' });
       
       emitDebugEvent({
         lastAction: 'First message - initializing chat state',
@@ -70,14 +69,14 @@ export const useMessageState = () => {
     // Use functional update for better performance
     setMessages(prev => {
       const newMessages = [...prev, newMessage];
-      console.log(`Messages updated: now have ${newMessages.length} messages`);
+      logger.debug('Messages updated', { messageCount: newMessages.length }, { module: 'message-state' });
       return newMessages;
     });
     
     // Reset initializing flag after first AI message
     if (initializing.current && newMessage.sender === 'ai') {
       initializing.current = false;
-      console.log('Initialization complete');
+      logger.debug('Message state initialization complete', {}, { module: 'message-state' });
       
       emitDebugEvent({
         lastAction: 'Chat initialization complete',
@@ -90,10 +89,7 @@ export const useMessageState = () => {
   const clearMessages = useCallback(() => {
     if (messageCount === 0) return;
     
-    console.log('Clearing chat history:', {
-      messageCount,
-      timestamp: new Date().toISOString()
-    });
+    logger.info('Clearing chat history', { messageCount }, { module: 'message-state' });
     
     emitDebugEvent({
       lastAction: 'Clearing chat history',
@@ -113,7 +109,7 @@ export const useMessageState = () => {
   }, [messageCount]);
 
   const resetState = useCallback(() => {
-    console.log('Resetting message state');
+    logger.debug('Resetting message state', {}, { module: 'message-state' });
     
     emitDebugEvent({
       lastAction: 'Resetting message state',

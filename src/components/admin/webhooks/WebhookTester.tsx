@@ -9,14 +9,8 @@ import { supaToast } from '@/services/supa-toast';
 import { useWebSocket } from '@/contexts/WebSocketContext';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { supabase } from '@/integrations/supabase/client';
-
-interface TestResult {
-  type: 'proactive' | 'toast';
-  status: 'success' | 'error';
-  message: string;
-  timestamp: Date;
-  details?: any;
-}
+import { logger } from '@/utils/logging';
+import { TestResult, WebhookUrls } from '@/types/webhook';
 
 export function WebhookTester() {
   const { isConnected, realtimeStatus, forceReconnect } = useWebSocket();
@@ -24,7 +18,7 @@ export function WebhookTester() {
   const [isTestingToast, setIsTestingToast] = useState(false);
   const [isLoadingUrls, setIsLoadingUrls] = useState(true);
   const [testResults, setTestResults] = useState<TestResult[]>([]);
-  const [webhookUrls, setWebhookUrls] = useState({
+  const [webhookUrls, setWebhookUrls] = useState<WebhookUrls>({
     proactive: '',
     toast: ''
   });
@@ -50,9 +44,9 @@ export function WebhookTester() {
         toast: toastUrl
       });
       
-      console.log('Loaded webhook URLs:', { proactiveUrl, toastUrl });
+      logger.debug('Loaded webhook URLs', { proactiveUrl, toastUrl }, { module: 'webhook-tester' });
     } catch (error) {
-      console.error('Error loading webhook URLs:', error);
+      logger.error('Error loading webhook URLs', error, { module: 'webhook-tester' });
       // Fallback to default URLs
       const baseUrl = window.location.origin.includes('localhost') 
         ? 'http://localhost:54321'
@@ -77,8 +71,11 @@ export function WebhookTester() {
         });
       }
 
-      console.log('Testing proactive webhook:', webhookUrls.proactive);
-      console.log('WebSocket status:', { isConnected, realtimeStatus });
+      logger.info('Testing proactive webhook', { 
+        url: webhookUrls.proactive, 
+        isConnected, 
+        realtimeStatus 
+      }, { module: 'webhook-tester' });
       
       const testMessage = `🧪 Test proactive message from admin panel - ${new Date().toLocaleString()}`;
       
@@ -100,7 +97,7 @@ export function WebhookTester() {
       });
 
       const result = await response.json();
-      console.log('Proactive webhook response:', result);
+      logger.info('Proactive webhook response received', result, { module: 'webhook-tester' });
       
       if (response.ok) {
         setTestResults(prev => [...prev, {
@@ -118,7 +115,7 @@ export function WebhookTester() {
         throw new Error(result.error || `HTTP ${response.status}`);
       }
     } catch (error) {
-      console.error('Proactive webhook test error:', error);
+      logger.error('Proactive webhook test failed', error, { module: 'webhook-tester' });
       
       setTestResults(prev => [...prev, {
         type: 'proactive',
@@ -146,8 +143,11 @@ export function WebhookTester() {
         });
       }
 
-      console.log('Testing toast webhook:', webhookUrls.toast);
-      console.log('WebSocket status:', { isConnected, realtimeStatus });
+      logger.info('Testing toast webhook', { 
+        url: webhookUrls.toast, 
+        isConnected, 
+        realtimeStatus 
+      }, { module: 'webhook-tester' });
       
       const response = await fetch(webhookUrls.toast, {
         method: 'POST',
@@ -164,7 +164,7 @@ export function WebhookTester() {
       });
 
       const result = await response.json();
-      console.log('Toast webhook response:', result);
+      logger.info('Toast webhook response received', result, { module: 'webhook-tester' });
       
       if (response.ok) {
         setTestResults(prev => [...prev, {
@@ -182,7 +182,7 @@ export function WebhookTester() {
         throw new Error(result.error || `HTTP ${response.status}`);
       }
     } catch (error) {
-      console.error('Toast webhook test error:', error);
+      logger.error('Toast webhook test failed', error, { module: 'webhook-tester' });
       
       setTestResults(prev => [...prev, {
         type: 'toast',

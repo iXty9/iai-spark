@@ -1,6 +1,7 @@
 
 import { Message } from '@/types/chat';
 import { toast } from 'sonner';
+import { logger } from '@/utils/logging';
 
 /**
  * Custom JSON reviver function to handle serialized Date objects
@@ -78,22 +79,22 @@ const convertFromEnhancedFormat = (enhancedMsg: any): Message => {
   
   if (enhancedMsg.rawRequest) {
     message.rawRequest = enhancedMsg.rawRequest;
-    console.log('Preserved rawRequest in import');
+    logger.debug('Preserved rawRequest in import', { messageId: message.id }, { module: 'import-service' });
   }
   
   if (enhancedMsg.rawResponse) {
     message.rawResponse = enhancedMsg.rawResponse;
-    console.log('Preserved rawResponse in import');
+    logger.debug('Preserved rawResponse in import', { messageId: message.id }, { module: 'import-service' });
   }
   
   if (enhancedMsg.tokenInfo) {
     message.tokenInfo = enhancedMsg.tokenInfo;
-    console.log('Preserved tokenInfo in import:', enhancedMsg.tokenInfo);
+    logger.debug('Preserved tokenInfo in import', { messageId: message.id, tokenInfo: enhancedMsg.tokenInfo }, { module: 'import-service' });
   }
   
   if (enhancedMsg.threadId) {
     message.threadId = enhancedMsg.threadId;
-    console.log('Preserved threadId in import:', enhancedMsg.threadId);
+    logger.debug('Preserved threadId in import', { messageId: message.id, threadId: enhancedMsg.threadId }, { module: 'import-service' });
   }
   
   if (enhancedMsg.metadata) {
