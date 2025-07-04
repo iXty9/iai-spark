@@ -166,8 +166,14 @@ export const applyBackgroundImage = (imageUrl: string | null, opacity: number) =
     
     body.classList.add('with-bg-image');
     
+    // Check if we're in dark mode
+    const isDarkMode = root.classList.contains('dark');
+    
+    // Severely dim the background in dark mode (reduce opacity to 15% of original)
     const normalizedOpacity = Math.max(0, Math.min(1, opacity || 0.5));
-    root.style.setProperty('--bg-opacity', normalizedOpacity.toString());
+    const finalOpacity = isDarkMode ? normalizedOpacity * 0.15 : normalizedOpacity;
+    
+    root.style.setProperty('--bg-opacity', finalOpacity.toString());
     root.style.setProperty('--bg-image-url', `url("${imageUrl}")`);
     
     if (window.innerWidth >= 768) {
@@ -178,7 +184,12 @@ export const applyBackgroundImage = (imageUrl: string | null, opacity: number) =
     root.style.setProperty('--card-backdrop-blur', '12px');
     
     if (process.env.NODE_ENV === 'development') {
-      console.log('Background image applied', { hasImage: true, opacity: normalizedOpacity });
+      console.log('Background image applied', { 
+        hasImage: true, 
+        originalOpacity: normalizedOpacity, 
+        finalOpacity, 
+        isDarkMode 
+      });
     }
   } else {
     body.style.backgroundImage = '';
