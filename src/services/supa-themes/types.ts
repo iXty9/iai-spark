@@ -6,6 +6,7 @@ export interface SupaThemeState {
   darkTheme: ThemeColors;
   backgroundImage: string | null;
   backgroundOpacity: number;
+  autoDimDarkMode: boolean;
   isReady: boolean;
   
   // Preview state for settings
@@ -15,6 +16,7 @@ export interface SupaThemeState {
   previewDarkTheme: ThemeColors | null;
   previewBackgroundImage: string | null | undefined;
   previewBackgroundOpacity: number | null;
+  previewAutoDimDarkMode: boolean | null;
   hasUnsavedChanges: boolean;
 }
 

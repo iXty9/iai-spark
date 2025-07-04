@@ -79,6 +79,14 @@ export const useSupaThemes = () => {
     }
   }, [state.isInPreview]);
 
+  const setAutoDimDarkMode = useCallback((enabled: boolean) => {
+    if (state.isInPreview) {
+      supaThemes.previewAutoDimDarkMode(enabled);
+    } else {
+      supaThemes.setAutoDimDarkMode(enabled);
+    }
+  }, [state.isInPreview]);
+
   // Settings mode operations
   const enterSettingsMode = useCallback(() => {
     supaThemes.enterPreviewMode();
@@ -149,6 +157,7 @@ export const useSupaThemes = () => {
     darkTheme: currentDarkTheme,
     backgroundImage: currentBackgroundImage,
     backgroundOpacity: currentBackgroundOpacity,
+    autoDimDarkMode: state.previewAutoDimDarkMode ?? state.autoDimDarkMode,
     currentTheme,
     currentThemeColors: currentTheme, // Alias for compatibility
 
@@ -159,6 +168,7 @@ export const useSupaThemes = () => {
     setDarkTheme,
     setBackgroundImage,
     setBackgroundOpacity,
+    setAutoDimDarkMode,
     applyThemeColors: (colors: ThemeColors) => {
       if (currentMode === 'light') {
         setLightTheme(colors);

@@ -34,6 +34,7 @@ export default function Settings() {
     darkTheme,
     backgroundImage,
     backgroundOpacity,
+    autoDimDarkMode,
     enterSettingsMode,
     exitSettingsMode,
     updatePreviewMode,
@@ -44,7 +45,8 @@ export default function Settings() {
     saveChanges,
     discardChanges,
     resetToDefaults,
-    setImageInfo
+    setImageInfo,
+    setAutoDimDarkMode
   } = useSupaThemes();
 
   // Enter preview mode when component mounts
@@ -363,6 +365,8 @@ export default function Settings() {
                 onBackgroundImageUpload={handleBackgroundImageUpload}
                 onRemoveBackground={handleRemoveBackground}
                 onOpacityChange={handleOpacityChange}
+                onAutoDimChange={setAutoDimDarkMode}
+                autoDimDarkMode={autoDimDarkMode}
                 isLoading={false}
               />
             </TabsContent>

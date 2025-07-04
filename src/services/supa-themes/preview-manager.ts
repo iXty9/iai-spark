@@ -29,6 +29,7 @@ export class PreviewManager {
     state.previewDarkTheme = null;
     state.previewBackgroundImage = undefined;
     state.previewBackgroundOpacity = null;
+    state.previewAutoDimDarkMode = null;
     state.hasUnsavedChanges = false;
   }
 
@@ -69,7 +70,8 @@ export class PreviewManager {
     state.hasUnsavedChanges = true;
     
     const opacity = state.previewBackgroundOpacity ?? state.backgroundOpacity;
-    applyBackgroundImage(image, opacity);
+    const autoDim = state.previewAutoDimDarkMode ?? state.autoDimDarkMode;
+    applyBackgroundImage(image, opacity, autoDim);
   }
 
   previewBackgroundOpacity(state: SupaThemeState, opacity: number): void {
@@ -81,7 +83,21 @@ export class PreviewManager {
     const image = state.previewBackgroundImage !== undefined 
       ? state.previewBackgroundImage 
       : state.backgroundImage;
-    applyBackgroundImage(image, opacity);
+    const autoDim = state.previewAutoDimDarkMode ?? state.autoDimDarkMode;
+    applyBackgroundImage(image, opacity, autoDim);
+  }
+
+  previewAutoDimDarkMode(state: SupaThemeState, enabled: boolean): void {
+    if (!state.isInPreview) this.enterPreviewMode(state);
+    
+    state.previewAutoDimDarkMode = enabled;
+    state.hasUnsavedChanges = true;
+    
+    const image = state.previewBackgroundImage !== undefined 
+      ? state.previewBackgroundImage 
+      : state.backgroundImage;
+    const opacity = state.previewBackgroundOpacity ?? state.backgroundOpacity;
+    applyBackgroundImage(image, opacity, enabled);
   }
 
   commitPreviewChanges(state: SupaThemeState): void {
@@ -92,5 +108,6 @@ export class PreviewManager {
     if (state.previewDarkTheme) state.darkTheme = state.previewDarkTheme;
     if (state.previewBackgroundImage !== undefined) state.backgroundImage = state.previewBackgroundImage;
     if (state.previewBackgroundOpacity !== null) state.backgroundOpacity = state.previewBackgroundOpacity;
+    if (state.previewAutoDimDarkMode !== null) state.autoDimDarkMode = state.previewAutoDimDarkMode;
   }
 }

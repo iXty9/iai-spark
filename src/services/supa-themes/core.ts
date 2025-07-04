@@ -27,6 +27,7 @@ class SupaThemesCore {
       darkTheme: getDefaultDarkTheme(),
       backgroundImage: null,
       backgroundOpacity: 0.5,
+      autoDimDarkMode: true,
       isReady: false,
       isInPreview: false,
       previewMode: null,
@@ -34,6 +35,7 @@ class SupaThemesCore {
       previewDarkTheme: null,
       previewBackgroundImage: undefined,
       previewBackgroundOpacity: null,
+      previewAutoDimDarkMode: null,
       hasUnsavedChanges: false
     };
 
@@ -142,6 +144,12 @@ class SupaThemesCore {
     this.notifyListeners();
   }
 
+  setAutoDimDarkMode(enabled: boolean): void {
+    this.state.autoDimDarkMode = enabled;
+    this.themeApplier.applyCurrentBackground(this.state);
+    this.notifyListeners();
+  }
+
   // Preview mode operations
   enterPreviewMode(): void {
     this.previewManager.enterPreviewMode(this.state);
@@ -175,6 +183,11 @@ class SupaThemesCore {
 
   previewBackgroundOpacity(opacity: number): void {
     this.previewManager.previewBackgroundOpacity(this.state, opacity);
+    this.notifyListeners();
+  }
+
+  previewAutoDimDarkMode(enabled: boolean): void {
+    this.previewManager.previewAutoDimDarkMode(this.state, enabled);
     this.notifyListeners();
   }
 

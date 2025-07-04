@@ -151,7 +151,7 @@ const performThemeApplication = (themeColors: any) => {
   }
 };
 
-export const applyBackgroundImage = (imageUrl: string | null, opacity: number) => {
+export const applyBackgroundImage = (imageUrl: string | null, opacity: number, autoDimDarkMode: boolean = true) => {
   if (typeof window === 'undefined') return;
   
   const body = document.body;
@@ -170,9 +170,14 @@ export const applyBackgroundImage = (imageUrl: string | null, opacity: number) =
     // Check if we're in dark mode
     const isDarkMode = root.classList.contains('dark');
     
-    // Extremely dim the background in dark mode (reduce opacity to 3% of original)
+    // Apply smart dimming based on mode and user preference
     const normalizedOpacity = Math.max(0, Math.min(1, opacity || 0.5));
-    const finalOpacity = isDarkMode ? normalizedOpacity * 0.03 : normalizedOpacity;
+    let finalOpacity = normalizedOpacity;
+    
+    // Only auto-dim in dark mode if the setting is enabled
+    if (isDarkMode && autoDimDarkMode) {
+      finalOpacity = normalizedOpacity * 0.15; // More reasonable dimming (15% of original)
+    }
     
     root.style.setProperty('--bg-opacity', finalOpacity.toString());
     root.style.setProperty('--bg-image-url', `url("${imageUrl}")`);

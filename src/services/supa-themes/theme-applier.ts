@@ -10,7 +10,12 @@ export class ThemeApplier {
   }
 
   applyCurrentBackground(state: SupaThemeState): void {
-    applyBackgroundImage(state.backgroundImage, state.backgroundOpacity);
+    const image = state.previewBackgroundImage !== undefined 
+      ? state.previewBackgroundImage 
+      : state.backgroundImage;
+    const opacity = state.previewBackgroundOpacity ?? state.backgroundOpacity;
+    const autoDim = state.previewAutoDimDarkMode ?? state.autoDimDarkMode;
+    applyBackgroundImage(image, opacity, autoDim);
   }
 
   private updateDocumentMode(state: SupaThemeState): void {

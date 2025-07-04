@@ -38,6 +38,7 @@ export interface ThemeSettings {
   darkTheme?: ThemeColors;
   backgroundImage?: string | null;
   backgroundOpacity?: number;
+  autoDimDarkMode?: boolean;
   backgroundConfig?: {
     image?: string | null;
     opacity?: number;
