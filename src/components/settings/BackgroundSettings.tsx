@@ -20,6 +20,8 @@ export interface BackgroundSettingsProps {
   onBackgroundImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onOpacityChange: (value: number[]) => void;
   onRemoveBackground: () => void;
+  autoDimDarkMode?: boolean;
+  onAutoDimChange?: (enabled: boolean) => void;
   isLoading?: boolean;
   imageInfo?: ImageInfo;
 }
@@ -30,6 +32,8 @@ export function BackgroundSettings({
   onBackgroundImageUpload,
   onOpacityChange,
   onRemoveBackground,
+  autoDimDarkMode,
+  onAutoDimChange,
   isLoading = false,
   imageInfo = {}
 }: BackgroundSettingsProps) {
@@ -110,6 +114,8 @@ export function BackgroundSettings({
           <BackgroundOpacityControl
             backgroundOpacity={backgroundOpacity}
             onOpacityChange={onOpacityChange}
+            autoDimDarkMode={autoDimDarkMode}
+            onAutoDimChange={onAutoDimChange}
             isLoading={isLoading}
           />
         </CardContent>
