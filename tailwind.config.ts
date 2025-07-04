@@ -141,10 +141,10 @@ export default {
 				},
 				'heartbeat': {
 					'0%': { transform: 'scale(1)' },
-					'14%': { transform: 'scale(1.15)' },
-					'28%': { transform: 'scale(1)' },
-					'42%': { transform: 'scale(1.15)' },
-					'70%': { transform: 'scale(1)' },
+					'4%': { transform: 'scale(1.2)' },
+					'8%': { transform: 'scale(1)' },
+					'12%': { transform: 'scale(1.2)' },
+					'16%': { transform: 'scale(1)' },
 					'100%': { transform: 'scale(1)' }
 				}
 			},
@@ -152,7 +152,7 @@ export default {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'sonar-pulse': 'sonar-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-				'heartbeat': 'heartbeat 3s ease-in-out infinite'
+				'heartbeat': 'heartbeat 4s ease-in-out infinite'
 			}
 		}
 	},
