@@ -3,8 +3,11 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TokenInfo } from '@/types/chat';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Activity, Hash, Zap, Calculator, Info } from 'lucide-react';
+import { Activity, Hash, Zap, Calculator, Info, Trees, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { checkIsAdmin } from '@/services/admin/userRolesService';
+import { fetchAppSettings } from '@/services/admin/settingsService';
 
 interface TokenInfoDialogProps {
   open: boolean;
@@ -18,6 +21,30 @@ export const TokenInfoDialog: React.FC<TokenInfoDialogProps> = ({
   tokenInfo,
 }) => {
   const isMobile = useIsMobile();
+  const { user } = useAuth();
+  const [isAdmin, setIsAdmin] = React.useState(false);
+  const [billingLink, setBillingLink] = React.useState<string>('');
+
+  React.useEffect(() => {
+    const checkAdminAndLoadSettings = async () => {
+      if (user) {
+        try {
+          const adminStatus = await checkIsAdmin(user.id);
+          setIsAdmin(adminStatus);
+          
+          // Load billing link from app settings
+          const settings = await fetchAppSettings();
+          setBillingLink(settings?.token_billing_url || '');
+        } catch (error) {
+          console.error('Failed to check admin status or load settings:', error);
+        }
+      }
+    };
+
+    if (open) {
+      checkAdminAndLoadSettings();
+    }
+  }, [user, open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -84,15 +111,15 @@ export const TokenInfoDialog: React.FC<TokenInfoDialogProps> = ({
                 )}
                 
                 {tokenInfo.completionTokens !== undefined && (
-                  <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200/50 dark:border-green-800/50">
+                  <div className="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200/50 dark:border-purple-800/50">
                     <div className="flex items-center gap-2">
-                      <Calculator className="h-4 w-4 text-green-600" />
-                      <span className={cn("font-medium text-green-800 dark:text-green-200", isMobile ? "text-base" : "text-sm")}>
+                      <Calculator className="h-4 w-4 text-purple-600" />
+                      <span className={cn("font-medium text-purple-800 dark:text-purple-200", isMobile ? "text-base" : "text-sm")}>
                         Completion Tokens
                       </span>
                     </div>
                     <span className={cn(
-                      "font-bold text-green-900 dark:text-green-100",
+                      "font-bold text-purple-900 dark:text-purple-100",
                       isMobile ? "text-lg" : "text-base"
                     )}>
                       {tokenInfo.completionTokens.toLocaleString()}
@@ -107,6 +134,17 @@ export const TokenInfoDialog: React.FC<TokenInfoDialogProps> = ({
                       <span className={cn("font-semibold text-[#dd3333]", isMobile ? "text-lg" : "text-base")}>
                         Total Tokens
                       </span>
+                      {billingLink && (
+                        <a
+                          href={billingLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ml-2 text-[#dd3333] hover:text-[#cc2222] transition-colors"
+                          title="View billing information"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      )}
                     </div>
                     <span className={cn(
                       "font-bold text-[#dd3333]",
@@ -116,6 +154,22 @@ export const TokenInfoDialog: React.FC<TokenInfoDialogProps> = ({
                     </span>
                   </div>
                 )}
+                
+                {/* Trees Planted */}
+                <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200/50 dark:border-green-800/50">
+                  <div className="flex items-center gap-2">
+                    <Trees className="h-4 w-4 text-green-600" />
+                    <span className={cn("font-medium text-green-800 dark:text-green-200", isMobile ? "text-base" : "text-sm")}>
+                      Trees Planted
+                    </span>
+                  </div>
+                  <span className={cn(
+                    "font-bold text-green-900 dark:text-green-100",
+                    isMobile ? "text-lg" : "text-base"
+                  )}>
+                    0
+                  </span>
+                </div>
               </div>
               
               {/* Info Note */}
