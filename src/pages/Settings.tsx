@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Palette, Image, AlertCircle, Code, Volume2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate } from 'react-router-dom';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
 import { BackgroundSettings } from '@/components/settings/BackgroundSettings';
@@ -14,12 +15,13 @@ import { SettingsFooter } from '@/components/settings/SettingsFooter';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/utils/logging';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function Settings() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("appearance");
 
   const {
     isLoading,
@@ -255,27 +257,92 @@ export default function Settings() {
             </Alert>
           )}
           
-          <Tabs defaultValue="appearance" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-6">
-              <TabsTrigger value="appearance" className="flex items-center gap-2">
-                <Palette className="h-4 w-4" />
-                <span className="hidden sm:inline">Appearance</span>
-                <span className="sm:hidden">Style</span>
-              </TabsTrigger>
-              <TabsTrigger value="background" className="flex items-center gap-2">
-                <Image className="h-4 w-4" />
-                <span className="hidden sm:inline">Background</span>
-                <span className="sm:hidden">BG</span>
-              </TabsTrigger>
-              <TabsTrigger value="sounds" className="flex items-center gap-2">
-                <Volume2 className="h-4 w-4" />
-                <span>Sounds</span>
-              </TabsTrigger>
-              <TabsTrigger value="markup" className="flex items-center gap-2">
-                <Code className="h-4 w-4" />
-                <span>Markup</span>
-              </TabsTrigger>
-            </TabsList>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            {/* Desktop tabs */}
+            <div className="hidden md:block">
+              <TabsList className="w-full grid grid-cols-4 mb-6">
+                <TabsTrigger value="appearance" className="flex items-center gap-2">
+                  <Palette className="h-4 w-4" />
+                  <span className="hidden lg:inline">Appearance</span>
+                  <span className="lg:hidden">Style</span>
+                </TabsTrigger>
+                <TabsTrigger value="background" className="flex items-center gap-2">
+                  <Image className="h-4 w-4" />
+                  <span className="hidden lg:inline">Background</span>
+                  <span className="lg:hidden">BG</span>
+                </TabsTrigger>
+                <TabsTrigger value="sounds" className="flex items-center gap-2">
+                  <Volume2 className="h-4 w-4" />
+                  <span>Sounds</span>
+                </TabsTrigger>
+                <TabsTrigger value="markup" className="flex items-center gap-2">
+                  <Code className="h-4 w-4" />
+                  <span>Markup</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            {/* Mobile dropdown */}
+            <div className="md:hidden mb-6">
+              <Select value={activeTab} onValueChange={setActiveTab}>
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    <div className="flex items-center gap-2">
+                      {activeTab === "appearance" && (
+                        <>
+                          <Palette className="h-4 w-4" />
+                          <span>Appearance</span>
+                        </>
+                      )}
+                      {activeTab === "background" && (
+                        <>
+                          <Image className="h-4 w-4" />
+                          <span>Background</span>
+                        </>
+                      )}
+                      {activeTab === "sounds" && (
+                        <>
+                          <Volume2 className="h-4 w-4" />
+                          <span>Sounds</span>
+                        </>
+                      )}
+                      {activeTab === "markup" && (
+                        <>
+                          <Code className="h-4 w-4" />
+                          <span>Markup</span>
+                        </>
+                      )}
+                    </div>
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="appearance">
+                    <div className="flex items-center gap-2">
+                      <Palette className="h-4 w-4" />
+                      <span>Appearance</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="background">
+                    <div className="flex items-center gap-2">
+                      <Image className="h-4 w-4" />
+                      <span>Background</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="sounds">
+                    <div className="flex items-center gap-2">
+                      <Volume2 className="h-4 w-4" />
+                      <span>Sounds</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="markup">
+                    <div className="flex items-center gap-2">
+                      <Code className="h-4 w-4" />
+                      <span>Markup</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             
             <TabsContent value="appearance" className="space-y-6">
               <AppearanceSettings
