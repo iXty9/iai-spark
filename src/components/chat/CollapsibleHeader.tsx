@@ -80,9 +80,9 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
           variant="ghost"
           size="icon"
           onClick={() => setIsExpanded(true)}
-          className="absolute left-1/2 -translate-x-1/2 top-3 z-30 rounded-full transition-all duration-300 hover:bg-primary/10 hover:text-primary shadow-md h-12 w-12 md:h-10 md:w-10 bg-background/80 backdrop-blur-sm border border-border/20"
+          className="absolute left-1/2 -translate-x-1/2 top-3 z-30 rounded-full transition-all duration-300 hover:bg-primary/10 hover:text-primary shadow-md h-12 w-12 md:h-12 md:w-12 aspect-square bg-background/80 backdrop-blur-sm border border-border/20"
         >
-          <Menu className="h-6 w-6 md:h-5 md:w-5 transition-transform duration-300" />
+          <Menu className="h-6 w-6 md:h-6 md:w-6 transition-transform duration-300" />
         </Button>
       )}
     </div>
