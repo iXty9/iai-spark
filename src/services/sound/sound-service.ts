@@ -11,8 +11,6 @@ class SoundService {
   private isInitialized = false;
 
   async initialize(userId?: string): Promise<void> {
-    if (this.isInitialized) return;
-
     try {
       // Load default settings
       await this.loadDefaultSettings();
@@ -24,12 +22,23 @@ class SoundService {
 
       this.isInitialized = true;
       logger.info('Sound service initialized', { 
+        userId,
         hasUserSettings: !!this.settings,
-        hasDefaultSettings: !!this.defaultSettings
+        hasDefaultSettings: !!this.defaultSettings,
+        module: 'sound-service'
       });
     } catch (error) {
       logger.error('Failed to initialize sound service:', error);
+      this.isInitialized = false;
     }
+  }
+
+  async reinitialize(userId?: string): Promise<void> {
+    this.isInitialized = false;
+    this.settings = null;
+    this.defaultSettings = null;
+    soundPlayer.clearCache();
+    await this.initialize(userId);
   }
 
   private async loadDefaultSettings(): Promise<void> {

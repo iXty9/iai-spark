@@ -16,7 +16,7 @@ class NotificationService {
   private canShowBrowserNotifications = false;
   private currentUserId: string | null = null;
 
-  initialize(
+  async initialize(
     showBrowserNotification: (options: { title: string; body: string; icon?: string; tag?: string }) => Notification | null,
     canShow: boolean,
     userId?: string
@@ -26,7 +26,7 @@ class NotificationService {
     this.currentUserId = userId || null;
     
     // Initialize sound service
-    soundService.initialize(this.currentUserId || undefined);
+    await soundService.initialize(this.currentUserId || undefined);
     
     logger.info('Notification service initialized', { 
       canShowBrowserNotifications: canShow,
@@ -134,10 +134,10 @@ class NotificationService {
     logger.debug('Chat message sound processing completed', { sender, module: 'notification-service' });
   }
 
-  setUserId(userId: string | null) {
+  async setUserId(userId: string | null) {
     this.currentUserId = userId;
     if (userId) {
-      soundService.initialize(userId);
+      await soundService.reinitialize(userId);
     }
   }
 }

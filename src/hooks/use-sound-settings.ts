@@ -105,29 +105,28 @@ export function useSoundSettings() {
   }, []);
 
   const playTestSound = useCallback(async (soundType: SoundType): Promise<void> => {
-    if (!user?.id || !settings) {
-      logger.warn('Cannot play test sound: missing user or settings', { 
-        hasUser: !!user?.id, 
-        hasSettings: !!settings,
-        module: 'use-sound-settings' 
-      });
+    if (!user?.id) {
+      logger.warn('Cannot play test sound: no user ID', { module: 'use-sound-settings' });
       return;
     }
 
     try {
       logger.info('Playing test sound', { soundType, userId: user.id, module: 'use-sound-settings' });
       
-      if (soundType === 'toast_notification') {
-        await soundService.playNotificationSound(user.id);
-      } else {
-        await soundService.playChatMessageSound(user.id);
-      }
+      // Ensure sound service is initialized
+      await soundService.initialize(user.id);
       
-      logger.info('Test sound completed', { soundType, userId: user.id, module: 'use-sound-settings' });
+      if (soundType === 'toast_notification') {
+        const success = await soundService.playNotificationSound(user.id);
+        logger.info('Test notification sound result', { success, soundType, userId: user.id, module: 'use-sound-settings' });
+      } else {
+        const success = await soundService.playChatMessageSound(user.id);
+        logger.info('Test chat sound result', { success, soundType, userId: user.id, module: 'use-sound-settings' });
+      }
     } catch (error) {
       logger.error('Failed to play test sound:', error, { soundType, userId: user.id, module: 'use-sound-settings' });
     }
-  }, [user?.id, settings]);
+  }, [user?.id]);
 
   return {
     settings,

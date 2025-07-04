@@ -11,7 +11,10 @@ export const NotificationPermissionManager: React.FC = () => {
 
   useEffect(() => {
     // Initialize the notification service
-    notificationService.initialize(showNotification, canShowNotifications, user?.id);
+    const initializeNotifications = async () => {
+      await notificationService.initialize(showNotification, canShowNotifications, user?.id);
+    };
+    initializeNotifications();
   }, [showNotification, canShowNotifications, user?.id]);
 
   useEffect(() => {
