@@ -1,6 +1,6 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Rocket } from 'lucide-react';
+import { Star } from 'lucide-react';
 import { useAuthSettings } from '@/hooks/admin/useAuthSettings';
 
 interface AuthCardProps {
@@ -31,7 +31,7 @@ export const AuthCard = ({ children }: AuthCardProps) => {
               Ixty AI
             </CardTitle>
             <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
-              <Rocket className="h-3 w-3" />
+              <Star className="h-4 w-4" />
               <span>{authSettings.tagline}</span>
             </div>
           </div>
