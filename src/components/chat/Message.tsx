@@ -4,7 +4,7 @@ import { MessageAvatar } from './MessageAvatar';
 import { MessageContent } from './message/MessageContent';
 import { MessageActions } from './message-actions/MessageActions';
 import { TimeMachineDialog } from './message/TimeMachineDialog';
-import { formatSmartTimestamp } from '@/lib/utils';
+import { formatSmartTimestamp } from '@/utils/text-utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAIAgentName } from '@/hooks/use-ai-agent-name';
 import { Clock } from 'lucide-react';
