@@ -140,8 +140,11 @@ export const UserMenu = () => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
-        align="end" 
+        align="center" 
         className="w-56"
+        alignOffset={0}
+        collisionPadding={2}
+        avoidCollisions={true}
       >
         {user ? (
           <>

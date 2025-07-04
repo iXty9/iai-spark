@@ -43,6 +43,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
         side="bottom"
         className="w-[calc(100vw-2rem)] max-w-sm md:w-96 p-0"
         sideOffset={8}
+        alignOffset={0}
+        collisionPadding={2}
+        avoidCollisions={true}
       >
         <NotificationList onClose={() => setIsOpen(false)} />
       </DropdownMenuContent>

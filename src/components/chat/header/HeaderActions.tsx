@@ -141,6 +141,9 @@ export const HeaderActions = ({
           align="center"
           side="bottom"
           className="w-56"
+          alignOffset={0}
+          collisionPadding={2}
+          avoidCollisions={true}
         >
           {/* Load Theme option */}
           <DropdownMenuItem onClick={handleReloadTheme} className="py-2.5">
