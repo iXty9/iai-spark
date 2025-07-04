@@ -1,5 +1,6 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Sparkles } from 'lucide-react';
 
 interface AuthCardProps {
   children: React.ReactNode;
@@ -7,21 +8,38 @@ interface AuthCardProps {
 
 export const AuthCard = ({ children }: AuthCardProps) => {
   return (
-    <Card className="w-full bg-background/80 backdrop-blur-sm border border-border/50 shadow-lg">
-      <CardHeader className="space-y-1">
-        <div className="flex items-center justify-center mb-6">
-          <img 
-            src="https://ixty9.com/wp-content/uploads/2023/10/cropped-faviconV4.png" 
-            alt="Ixty AI Logo" 
-            className="h-12 w-12 mr-3"
-          />
-          <CardTitle className="text-2xl font-bold text-[#ea384c]">Ixty AI</CardTitle>
+    <Card className="w-full max-w-md mx-auto glass-panel border-0 shadow-xl backdrop-blur-md bg-background/90">
+      <CardHeader className="space-y-4 text-center pb-8">
+        {/* Enhanced Logo Section */}
+        <div className="flex flex-col items-center space-y-4">
+          <div className="relative">
+            <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse"></div>
+            <div className="relative flex items-center justify-center p-3 rounded-full bg-gradient-to-br from-primary/10 to-primary/20 border border-primary/20">
+              <img 
+                src="https://ixty9.com/wp-content/uploads/2023/10/cropped-faviconV4.png" 
+                alt="Ixty AI Logo" 
+                className="h-8 w-8 relative z-10"
+              />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+              Ixty AI
+            </CardTitle>
+            <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
+              <Sparkles className="h-3 w-3" />
+              <span>Intelligent Conversations</span>
+            </div>
+          </div>
         </div>
-        <CardDescription className="text-center">
-          Sign in to your account or create a new one to start chatting.
+        
+        <CardDescription className="text-center text-muted-foreground leading-relaxed px-2">
+          Welcome back! Sign in to continue your intelligent conversations or create a new account to get started.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      
+      <CardContent className="px-6 pb-6">
         {children}
       </CardContent>
     </Card>

@@ -5,11 +5,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supaToast } from '@/services/supa-toast';
 import { PhoneInput } from '@/components/ui/phone-input';
+import { UserPlus, Mail, User, Lock, Phone, AlertCircle, Users, Shield, Sparkles } from 'lucide-react';
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -39,7 +41,6 @@ type FormValues = z.infer<typeof formSchema>;
 export function RegisterForm() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -87,122 +88,235 @@ export function RegisterForm() {
 
   return (
     <div className="space-y-6">
+      {/* Register Header */}
+      <Card className="glass-panel border-0 shadow-sm">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+              <UserPlus className="h-4 w-4" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground">Create Account</h3>
+          </div>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Join Ixty AI to start your intelligent conversation journey. Fill in your details below to get started.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Error Alert */}
       {error && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="border-destructive/50 bg-destructive/5">
+          <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
       
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input placeholder="email@example.com" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="username"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Username</FormLabel>
-                <FormControl>
-                  <Input placeholder="username" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="firstName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>First Name (Optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="First name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="lastName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Last Name (Optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Last name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-          
-          <FormField
-            control={form.control}
-            name="phoneNumber"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Phone Number (Optional)</FormLabel>
-                <FormControl>
-                  <PhoneInput
-                    value={field.value || ''}
-                    onChange={field.onChange}
-                    countryCode={form.watch('phoneCountryCode')}
-                    onCountryCodeChange={(code) => form.setValue('phoneCountryCode', code)}
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          {/* Account Credentials Section */}
+          <Card className="glass-panel border-0 shadow-sm">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Shield className="h-4 w-4 text-blue-500" />
+                <span className="text-sm font-medium text-foreground">Account Credentials</span>
+                <div className="flex-1 h-px bg-border"></div>
+              </div>
+              
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-foreground">Email</FormLabel>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <FormControl>
+                          <Input 
+                            placeholder="your@email.com" 
+                            className="pl-10 h-11 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all"
+                            {...field} 
+                          />
+                        </FormControl>
+                      </div>
+                      <FormMessage className="text-xs" />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-foreground">Username</FormLabel>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <FormControl>
+                          <Input 
+                            placeholder="Choose a unique username" 
+                            className="pl-10 h-11 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all"
+                            {...field} 
+                          />
+                        </FormControl>
+                      </div>
+                      <FormMessage className="text-xs" />
+                    </FormItem>
+                  )}
+                />
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium text-foreground">Password</FormLabel>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <FormControl>
+                            <Input 
+                              type="password" 
+                              placeholder="••••••••" 
+                              className="pl-10 h-11 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all"
+                              {...field} 
+                            />
+                          </FormControl>
+                        </div>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
                   />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Password</FormLabel>
-                <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="confirmPassword"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Confirm Password</FormLabel>
-                <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Creating account..." : "Create account"}
-          </Button>
+                  
+                  <FormField
+                    control={form.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium text-foreground">Confirm Password</FormLabel>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <FormControl>
+                            <Input 
+                              type="password" 
+                              placeholder="••••••••" 
+                              className="pl-10 h-11 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all"
+                              {...field} 
+                            />
+                          </FormControl>
+                        </div>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Personal Information Section */}
+          <Card className="glass-panel border-0 shadow-sm">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Users className="h-4 w-4 text-green-500" />
+                <span className="text-sm font-medium text-foreground">Personal Information</span>
+                <span className="text-xs text-muted-foreground">(Optional)</span>
+                <div className="flex-1 h-px bg-border"></div>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium text-foreground">First Name</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="First name" 
+                            className="h-11 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium text-foreground">Last Name</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Last name" 
+                            className="h-11 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <FormField
+                  control={form.control}
+                  name="phoneNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-foreground">Phone Number</FormLabel>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                        <FormControl>
+                          <PhoneInput
+                            value={field.value || ''}
+                            onChange={field.onChange}
+                            countryCode={form.watch('phoneCountryCode')}
+                            onCountryCodeChange={(code) => form.setValue('phoneCountryCode', code)}
+                            className="pl-10"
+                          />
+                        </FormControl>
+                      </div>
+                      <FormMessage className="text-xs" />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Submit Section */}
+          <Card className="glass-panel border-0 shadow-sm">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles className="h-4 w-4 text-purple-500" />
+                <span className="text-sm font-medium text-foreground">Create Your Account</span>
+                <div className="flex-1 h-px bg-border"></div>
+              </div>
+              
+              <Button 
+                type="submit" 
+                className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]" 
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin"></div>
+                    Creating account...
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <UserPlus className="h-4 w-4" />
+                    Create Account
+                  </div>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
         </form>
       </Form>
     </div>

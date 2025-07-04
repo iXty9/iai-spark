@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { CardContent, CardFooter } from '@/components/ui/card';
-import { Mail, Lock, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Mail, Lock, ArrowLeft, AlertCircle, User, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Form, FormField, FormItem, FormMessage, FormControl } from '@/components/ui/form';
@@ -24,7 +24,7 @@ const iconProps = "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-f
 
 const FIELD_CONFIG = [
   { name: 'email', label: 'Email', Icon: Mail, type: 'email', placeholder: 'your@email.com' },
-  { name: 'password', label: 'Password', Icon: Lock, type: 'password' }
+  { name: 'password', label: 'Password', Icon: Lock, type: 'password', placeholder: 'Enter your password' }
 ];
 
 export const LoginForm = () => {
@@ -66,81 +66,122 @@ export const LoginForm = () => {
   const isDebugAllowed = process.env.NODE_ENV === 'development' && isDevMode;
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)}>
-        <CardContent className="space-y-4">
-          {serverError && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Sign In Failed</AlertTitle>
-              <AlertDescription>{serverError}</AlertDescription>
-              {isDebugAllowed && (
-                <div className="mt-2 text-xs">
-                  <button
-                    type="button"
-                    className="text-primary underline"
-                    onClick={() => setShowDebug(v => !v)}
-                  >
-                    {showDebug ? 'Hide debug info' : 'Show debug info'}
-                  </button>
-                  {showDebug && (
-                    <div className="mt-2">
-                      <div className="p-2 bg-muted rounded text-xs font-mono">
-                        <div>Environment: {process.env.NODE_ENV}</div>
-                        <div>Hostname: {window.location.hostname}</div>
-                        <div>Dev Mode: {isDevMode ? 'Enabled' : 'Disabled'}</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </Alert>
-          )}
-          {FIELD_CONFIG.map(({ name, label, Icon, type, placeholder }) => (
-            <FormField
-              key={name}
-              control={form.control}
-              name={name as keyof LoginFormData}
-              render={({ field }) => (
-                <FormItem className="space-y-2">
-                  <Label htmlFor={name}>{label}</Label>
-                  <div className="relative">
-                    <Icon className={iconProps} />
-                    <FormControl>
-                      <Input
-                        id={name}
-                        type={type}
-                        placeholder={placeholder}
-                        className="pl-10"
-                        {...field}
-                      />
-                    </FormControl>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          ))}
+    <div className="space-y-6">
+      {/* Login Header */}
+      <Card className="glass-panel border-0 shadow-sm">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+              <User className="h-4 w-4" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground">Sign In</h3>
+          </div>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Enter your credentials to access your account and continue your conversations.
+          </p>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-3">
-          <Button
-            type="submit"
-            className="w-full bg-[#ea384c] hover:bg-[#dd3333]"
-            disabled={isLoading}
-          >
-            {isLoading ? 'Signing in...' : 'Sign In'}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={() => navigate('/')}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Go Back
-          </Button>
-        </CardFooter>
-      </form>
-    </Form>
+      </Card>
+
+      {/* Error Alert */}
+      {serverError && (
+        <Alert variant="destructive" className="border-destructive/50 bg-destructive/5">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Sign In Failed</AlertTitle>
+          <AlertDescription>{serverError}</AlertDescription>
+          {isDebugAllowed && (
+            <div className="mt-2 text-xs">
+              <button
+                type="button"
+                className="text-primary underline hover:no-underline transition-all"
+                onClick={() => setShowDebug(v => !v)}
+              >
+                {showDebug ? 'Hide debug info' : 'Show debug info'}
+              </button>
+              {showDebug && (
+                <Card className="mt-2 bg-muted/50">
+                  <CardContent className="p-3">
+                    <div className="text-xs font-mono space-y-1 text-muted-foreground">
+                      <div>Environment: {process.env.NODE_ENV}</div>
+                      <div>Hostname: {window.location.hostname}</div>
+                      <div>Dev Mode: {isDevMode ? 'Enabled' : 'Disabled'}</div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </Alert>
+      )}
+
+      {/* Login Form */}
+      <Card className="glass-panel border-0 shadow-sm">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Shield className="h-4 w-4 text-blue-500" />
+            <span className="text-sm font-medium text-foreground">Account Credentials</span>
+            <div className="flex-1 h-px bg-border"></div>
+          </div>
+
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+              {FIELD_CONFIG.map(({ name, label, Icon, type, placeholder }) => (
+                <FormField
+                  key={name}
+                  control={form.control}
+                  name={name as keyof LoginFormData}
+                  render={({ field }) => (
+                    <FormItem className="space-y-2">
+                      <Label htmlFor={name} className="text-sm font-medium text-foreground">
+                        {label}
+                      </Label>
+                      <div className="relative">
+                        <Icon className={iconProps} />
+                        <FormControl>
+                          <Input
+                            id={name}
+                            type={type}
+                            placeholder={placeholder}
+                            className="pl-10 h-11 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all"
+                            {...field}
+                          />
+                        </FormControl>
+                      </div>
+                      <FormMessage className="text-xs" />
+                    </FormItem>
+                  )}
+                />
+              ))}
+
+              <div className="pt-2 space-y-3">
+                <Button
+                  type="submit"
+                  className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin"></div>
+                      Signing in...
+                    </div>
+                  ) : (
+                    'Sign In'
+                  )}
+                </Button>
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-11 border-border/50 hover:bg-muted/50 transition-all duration-200"
+                  onClick={() => navigate('/')}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Go Back
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
