@@ -268,8 +268,7 @@ export default function Settings() {
                 </TabsTrigger>
                 <TabsTrigger value="background" className="flex items-center gap-2">
                   <Image className="h-4 w-4" />
-                  <span className="hidden lg:inline">Background</span>
-                  <span className="lg:hidden">BG</span>
+                  <span>Background</span>
                 </TabsTrigger>
                 <TabsTrigger value="sounds" className="flex items-center gap-2">
                   <Volume2 className="h-4 w-4" />
