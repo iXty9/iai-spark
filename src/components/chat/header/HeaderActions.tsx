@@ -46,7 +46,7 @@ export const HeaderActions = ({
   const { theme, setTheme } = useTheme();
   const { isDevMode, toggleDevMode } = useDevMode();
   const { user } = useAuth();
-  const { needsUpdate, isUpdating, updateApp } = usePWA();
+  const { needsUpdate, isUpdating, updateApp, isInstalled } = usePWA();
   
   const handleDevModeToggle = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -201,21 +201,23 @@ export const HeaderActions = ({
             <span>{isMobile ? "Load Theme" : "Load Default Theme"}</span>
           </DropdownMenuItem>
           
-          {/* Check for Updates option */}
-          <DropdownMenuItem 
-            onClick={handleCheckForUpdates} 
-            className="py-2.5" 
-            disabled={isUpdating}
-          >
-            <RefreshCw className={`mr-2 h-4 w-4 ${isUpdating ? 'animate-spin' : ''}`} />
-            <span>
-              {isUpdating 
-                ? "Checking..." 
-                : (isMobile ? "Check Updates" : "Check for Updates")
-              }
-              {needsUpdate && !isUpdating && " (Available)"}
-            </span>
-          </DropdownMenuItem>
+          {/* Check for Updates option - only show for PWA users */}
+          {isInstalled && (
+            <DropdownMenuItem 
+              onClick={handleCheckForUpdates} 
+              className="py-2.5" 
+              disabled={isUpdating}
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${isUpdating ? 'animate-spin' : ''}`} />
+              <span>
+                {isUpdating 
+                  ? "Checking..." 
+                  : (isMobile ? "Check Updates" : "Check for Updates")
+                }
+                {needsUpdate && !isUpdating && " (Available)"}
+              </span>
+            </DropdownMenuItem>
+          )}
           
           {hasMessages && (
             <DropdownMenuItem onClick={onExportChat} className="py-2.5">
