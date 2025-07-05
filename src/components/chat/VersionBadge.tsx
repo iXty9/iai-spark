@@ -21,7 +21,7 @@ export const VersionBadge: React.FC = () => {
   if (!version) return null;
 
   return (
-    <div className="text-center mt-3">
+    <div className="text-center mt-1 -mb-1">
       <span 
         className="text-xs text-muted-foreground/60 font-light tracking-wider"
         style={{ 

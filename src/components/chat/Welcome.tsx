@@ -265,6 +265,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
             spellCheck="true"
             rows={1}
           />
+          <VersionBadge />
           <div className="flex items-center justify-end mt-2">
             <Button
               type="submit"
@@ -284,7 +285,6 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
             </Button>
           </div>
         </form>
-        <VersionBadge />
       </div>
     </div>
   );
