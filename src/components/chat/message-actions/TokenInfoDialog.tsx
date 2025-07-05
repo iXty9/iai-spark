@@ -9,6 +9,43 @@ import { useAuth } from '@/contexts/AuthContext';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 
+// Custom hook for counting animation
+const useCountingAnimation = (target: number, duration: number = 2000) => {
+  const [current, setCurrent] = React.useState(0);
+  
+  React.useEffect(() => {
+    if (target === 0) {
+      setCurrent(0);
+      return;
+    }
+    
+    const startTime = Date.now();
+    const startValue = 0;
+    
+    const animate = () => {
+      const now = Date.now();
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Easing function for smooth animation
+      const easeOutCubic = 1 - Math.pow(1 - progress, 3);
+      const currentValue = Math.floor(startValue + (target - startValue) * easeOutCubic);
+      
+      setCurrent(currentValue);
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setCurrent(target);
+      }
+    };
+    
+    requestAnimationFrame(animate);
+  }, [target, duration]);
+  
+  return current;
+};
+
 interface TokenInfoDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -24,6 +61,11 @@ export const TokenInfoDialog: React.FC<TokenInfoDialogProps> = ({
   const { user } = useAuth();
   const [isAdmin, setIsAdmin] = React.useState(false);
   const [billingLink, setBillingLink] = React.useState<string>('');
+
+  // Animated counters
+  const animatedPromptTokens = useCountingAnimation(tokenInfo?.promptTokens || 0);
+  const animatedCompletionTokens = useCountingAnimation(tokenInfo?.completionTokens || 0);
+  const animatedTotalTokens = useCountingAnimation(tokenInfo?.totalTokens || 0);
 
   React.useEffect(() => {
     const checkAdminAndLoadSettings = async () => {
@@ -49,10 +91,11 @@ export const TokenInfoDialog: React.FC<TokenInfoDialogProps> = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(
-        "w-[calc(100vw-1rem)] max-w-lg",
-        "max-h-[90vh] overflow-y-auto",
-        "fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2",
-        isMobile ? "px-4 py-5" : "px-6 py-6"
+        "w-[calc(100vw-2rem)] max-w-lg mx-4",
+        "max-h-[80vh] overflow-y-auto",
+        // Better centering accounting for chat bar (approximately 60px from bottom)
+        "fixed top-[calc(50vh-30px)] left-1/2 transform -translate-x-1/2 -translate-y-1/2",
+        isMobile ? "px-6 py-5 rounded-xl" : "px-6 py-6"
       )}>
         <DialogHeader className={isMobile ? "pb-3" : "pb-4"}>
           <DialogTitle className={cn(
@@ -60,7 +103,7 @@ export const TokenInfoDialog: React.FC<TokenInfoDialogProps> = ({
             isMobile ? "text-lg" : "text-xl"
           )}>
             <Activity className={cn(
-              "text-[#dd3333]",
+              "text-[#dd3333] flex-shrink-0",
               isMobile ? "h-5 w-5" : "h-6 w-6"
             )} />
             Token Usage Information
@@ -101,12 +144,12 @@ export const TokenInfoDialog: React.FC<TokenInfoDialogProps> = ({
                         Prompt Tokens
                       </span>
                     </div>
-                    <span className={cn(
-                      "font-bold text-blue-900 dark:text-blue-100",
-                      isMobile ? "text-lg" : "text-base"
-                    )}>
-                      {tokenInfo.promptTokens.toLocaleString()}
-                    </span>
+                     <span className={cn(
+                       "font-bold text-blue-900 dark:text-blue-100",
+                       isMobile ? "text-lg" : "text-base"
+                     )}>
+                       {animatedPromptTokens.toLocaleString()}
+                     </span>
                   </div>
                 )}
                 
@@ -118,12 +161,12 @@ export const TokenInfoDialog: React.FC<TokenInfoDialogProps> = ({
                         Completion Tokens
                       </span>
                     </div>
-                    <span className={cn(
-                      "font-bold text-purple-900 dark:text-purple-100",
-                      isMobile ? "text-lg" : "text-base"
-                    )}>
-                      {tokenInfo.completionTokens.toLocaleString()}
-                    </span>
+                     <span className={cn(
+                       "font-bold text-purple-900 dark:text-purple-100",
+                       isMobile ? "text-lg" : "text-base"
+                     )}>
+                       {animatedCompletionTokens.toLocaleString()}
+                     </span>
                   </div>
                 )}
                 
@@ -146,12 +189,12 @@ export const TokenInfoDialog: React.FC<TokenInfoDialogProps> = ({
                         </a>
                       )}
                     </div>
-                    <span className={cn(
-                      "font-bold text-[#dd3333]",
-                      isMobile ? "text-xl" : "text-lg"
-                    )}>
-                      {tokenInfo.totalTokens.toLocaleString()}
-                    </span>
+                     <span className={cn(
+                       "font-bold text-[#dd3333]",
+                       isMobile ? "text-xl" : "text-lg"
+                     )}>
+                       {animatedTotalTokens.toLocaleString()}
+                     </span>
                   </div>
                 )}
                 
