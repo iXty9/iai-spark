@@ -113,10 +113,16 @@ export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
           user_id: 'test-user-' + Date.now(),
           email: 'test@example.com',
           username: 'test_user_' + Date.now(),
+          first_name: 'John',
+          last_name: 'Doe',
+          phone_number: '5551234567',
+          phone_country_code: '+1',
           signup_timestamp: baseTime,
           user_metadata: {
             source: 'admin_test',
-            test_signup: true
+            test_signup: true,
+            first_name: 'John',
+            last_name: 'Doe'
           },
           metadata: {
             test: true,
