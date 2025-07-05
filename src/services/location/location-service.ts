@@ -29,11 +29,52 @@ class LocationService {
   }
 
   /**
+   * Check if HTTPS is being used (required for iOS Safari)
+   */
+  private isSecureContext(): boolean {
+    return window.isSecureContext || location.protocol === 'https:';
+  }
+
+  /**
+   * Detect iOS Safari
+   */
+  private isIOSSafari(): boolean {
+    const userAgent = navigator.userAgent;
+    return /iPad|iPhone|iPod/.test(userAgent) && /Safari/.test(userAgent) && !/CriOS|FxiOS/.test(userAgent);
+  }
+
+  /**
+   * Check permission state (if available)
+   */
+  private async checkPermissionState(): Promise<PermissionState | null> {
+    try {
+      if ('permissions' in navigator) {
+        const result = await navigator.permissions.query({name: 'geolocation'});
+        return result.state;
+      }
+    } catch (error) {
+      logger.warn('Permission API not available:', error, { module: 'location' });
+    }
+    return null;
+  }
+
+  /**
    * Get current position
    */
   async getCurrentPosition(): Promise<GeolocationResult> {
     if (!this.isSupported()) {
       return { success: false, error: 'Geolocation is not supported' };
+    }
+
+    // Check for HTTPS requirement on iOS Safari
+    if (this.isIOSSafari() && !this.isSecureContext()) {
+      return { success: false, error: 'HTTPS is required for location services on iOS Safari' };
+    }
+
+    // Check permission state first if available
+    const permissionState = await this.checkPermissionState();
+    if (permissionState === 'denied') {
+      return { success: false, error: 'Location access denied. Please enable in browser settings.' };
     }
 
     try {
@@ -52,9 +93,17 @@ class LocationService {
    */
   async requestLocationPermission(): Promise<GeolocationResult> {
     try {
+      // For iOS Safari, try to request permission with user gesture
+      if (this.isIOSSafari()) {
+        logger.info('iOS Safari detected, requesting location with user gesture', { module: 'location' });
+      }
+
       const result = await this.getCurrentPosition();
       if (result.success && result.data) {
         await this.saveLocationToDatabase(result.data, true);
+        logger.info('Location permission granted and saved', { module: 'location' });
+      } else {
+        logger.warn('Location permission request failed:', result.error, { module: 'location' });
       }
       return result;
     } catch (error: any) {
@@ -284,14 +333,21 @@ class LocationService {
    */
   private getPositionPromise(): Promise<GeolocationPosition> {
     return new Promise((resolve, reject) => {
+      // Use different options for iOS Safari
+      const options = this.isIOSSafari() ? {
+        enableHighAccuracy: false, // Less aggressive for iOS Safari
+        timeout: 20000, // Longer timeout for iOS
+        maximumAge: 10 * 60 * 1000 // 10 minutes cache for iOS
+      } : {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 5 * 60 * 1000 // 5 minutes
+      };
+
       navigator.geolocation.getCurrentPosition(
         resolve,
         reject,
-        {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 5 * 60 * 1000 // 5 minutes
-        }
+        options
       );
     });
   }

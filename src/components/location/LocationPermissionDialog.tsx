@@ -40,26 +40,26 @@ export const LocationPermissionDialog: React.FC<LocationPermissionDialogProps> =
             <MapPin className="h-5 w-5 text-primary" />
             Enable Location Services
           </DialogTitle>
-          <DialogDescription className="text-left space-y-3">
-            <p>
-              Allow Ixty AI to access your location to provide better, more personalized assistance.
-            </p>
-            <div className="space-y-2">
-              <div className="flex items-start gap-2 text-sm">
-                <Globe className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
-                <span>Get location-aware responses and recommendations</span>
-              </div>
-              <div className="flex items-start gap-2 text-sm">
-                <Clock className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
-                <span>Automatic smart updates when you move significantly</span>
-              </div>
-              <div className="flex items-start gap-2 text-sm">
-                <Shield className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
-                <span>Your location is stored securely and privately</span>
-              </div>
-            </div>
-          </DialogDescription>
         </DialogHeader>
+        <div className="text-left space-y-3 pb-4">
+          <p className="text-sm text-muted-foreground">
+            Allow Ixty AI to access your location to provide better, more personalized assistance.
+          </p>
+          <div className="space-y-2">
+            <div className="flex items-start gap-2 text-sm">
+              <Globe className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+              <span>Get location-aware responses and recommendations</span>
+            </div>
+            <div className="flex items-start gap-2 text-sm">
+              <Clock className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+              <span>Automatic smart updates when you move significantly</span>
+            </div>
+            <div className="flex items-start gap-2 text-sm">
+              <Shield className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+              <span>Your location is stored securely and privately</span>
+            </div>
+          </div>
+        </div>
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button
             variant="outline"

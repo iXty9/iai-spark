@@ -139,6 +139,33 @@ export function useLocation() {
         lastUpdated: null
       });
       locationService.cleanup();
+    } else {
+      // Check if we can detect existing permission
+      const checkExistingPermission = async () => {
+        try {
+          if ('permissions' in navigator) {
+            const result = await navigator.permissions.query({name: 'geolocation'});
+            if (result.state === 'granted') {
+              setState(prev => ({ ...prev, hasPermission: true }));
+              // Try to get current location without triggering permission prompt
+              const locationResult = await locationService.getCurrentPosition();
+              if (locationResult.success) {
+                setState(prev => ({
+                  ...prev,
+                  currentLocation: locationResult.data || null,
+                  lastUpdated: new Date(),
+                  error: null
+                }));
+              }
+            }
+          }
+        } catch (error) {
+          // Permission API not available, that's ok
+          logger.debug('Permission check not available', null, { module: 'location-hook' });
+        }
+      };
+      
+      checkExistingPermission();
     }
   }, [user]);
 
