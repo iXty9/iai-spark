@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { WebSocketProvider } from '@/contexts/WebSocketContext';
 import { SupaThemeProvider } from '@/contexts/SupaThemeContext';
+import { LocationProvider } from '@/contexts/LocationContext';
 import { NotificationPermissionManager } from '@/components/notifications/NotificationPermissionManager';
 import Index from '@/pages/Index';
 import Auth from '@/pages/Auth';
@@ -100,6 +101,7 @@ function App() {
           <AuthProvider clientReady={clientReady}>
             <WebSocketProvider>
               <SupaThemeProvider>
+                <LocationProvider>
                 <NotificationPermissionManager />
                 <div className="min-h-screen text-foreground">
                   <Routes>
@@ -147,6 +149,7 @@ function App() {
                     </div>
                   )}
                 </div>
+                </LocationProvider>
               </SupaThemeProvider>
             </WebSocketProvider>
           </AuthProvider>

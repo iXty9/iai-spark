@@ -11,6 +11,7 @@ import { fetchAppSettings } from '@/services/admin/settingsService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWebSocket, ProactiveMessage } from '@/contexts/WebSocketContext';
 import { WelcomeMessageInput } from './WelcomeMessageInput';
+import { LocationWelcomePrompt } from '@/components/location/LocationWelcomePrompt';
 
 const DEFAULT_TAGLINE = "The Everywhere Intelligent Assistant";
 
@@ -34,6 +35,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState(false);
   const [isSubmitting, setSubmitting] = useState(false);
+  const [showLocationPrompt, setShowLocationPrompt] = useState(true);
   const isMobile = useIsMobile();
   const { isDevMode } = useDevMode();
   const { onProactiveMessage } = useWebSocket();
@@ -247,6 +249,10 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
           disabled={isTransitioning.current}
         />
       </div>
+      
+      {showLocationPrompt && (
+        <LocationWelcomePrompt onDismiss={() => setShowLocationPrompt(false)} />
+      )}
     </div>
   );
 };

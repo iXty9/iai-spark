@@ -4,13 +4,14 @@ import { useSupaThemes } from '@/hooks/use-supa-themes';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Palette, Image, AlertCircle, Code, Volume2 } from 'lucide-react';
+import { ArrowLeft, Palette, Image, AlertCircle, Code, Volume2, MapPin } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate } from 'react-router-dom';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
 import { BackgroundSettings } from '@/components/settings/BackgroundSettings';
 import { MarkupSettings } from '@/components/settings/MarkupSettings';
 import { SoundSettings } from '@/components/settings/SoundSettings';
+import { LocationSettings } from '@/components/settings/LocationSettings';
 import { SettingsFooter } from '@/components/settings/SettingsFooter';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
@@ -262,7 +263,7 @@ export default function Settings() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             {/* Desktop tabs */}
             <div className="hidden md:block">
-              <TabsList className="w-full grid grid-cols-4 mb-6">
+              <TabsList className="w-full grid grid-cols-5 mb-6">
                 <TabsTrigger value="appearance" className="flex items-center gap-2">
                   <Palette className="h-4 w-4" />
                   <span className="hidden lg:inline">Appearance</span>
@@ -275,6 +276,10 @@ export default function Settings() {
                 <TabsTrigger value="sounds" className="flex items-center gap-2">
                   <Volume2 className="h-4 w-4" />
                   <span>Sounds</span>
+                </TabsTrigger>
+                <TabsTrigger value="location" className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  <span>Location</span>
                 </TabsTrigger>
                 <TabsTrigger value="markup" className="flex items-center gap-2">
                   <Code className="h-4 w-4" />
@@ -307,6 +312,12 @@ export default function Settings() {
                           <span>Sounds</span>
                         </>
                       )}
+                      {activeTab === "location" && (
+                        <>
+                          <MapPin className="h-4 w-4" />
+                          <span>Location</span>
+                        </>
+                      )}
                       {activeTab === "markup" && (
                         <>
                           <Code className="h-4 w-4" />
@@ -333,6 +344,12 @@ export default function Settings() {
                     <div className="flex items-center gap-2">
                       <Volume2 className="h-4 w-4" />
                       <span>Sounds</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="location">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      <span>Location</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="markup">
@@ -373,6 +390,10 @@ export default function Settings() {
             
             <TabsContent value="sounds" className="space-y-6">
               <SoundSettings />
+            </TabsContent>
+            
+            <TabsContent value="location" className="space-y-6">
+              <LocationSettings />
             </TabsContent>
             
             <TabsContent value="markup" className="space-y-6">
