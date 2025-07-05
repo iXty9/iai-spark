@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { RefreshCw, Globe, AlertCircle, Clock } from 'lucide-react';
+import { RefreshCw, Globe, AlertCircle, Clock, TestTube, Loader2 } from 'lucide-react';
 import { WebhookSettings } from './WebhookValidation';
+import { supaToast } from '@/services/supa-toast';
+import { logger } from '@/utils/logging';
 
 interface WebhookStatus {
   name: string;
@@ -13,6 +15,7 @@ interface WebhookStatus {
   status: 'online' | 'offline' | 'checking' | 'not-configured' | 'unknown';
   lastChecked?: Date;
   error?: string;
+  webhookKey: string;
 }
 
 interface WebhookStatusCheckerProps {
@@ -22,6 +25,7 @@ interface WebhookStatusCheckerProps {
 export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
   const [statuses, setStatuses] = useState<WebhookStatus[]>([]);
   const [isChecking, setIsChecking] = useState(false);
+  const [testingWebhooks, setTestingWebhooks] = useState<Set<string>>(new Set());
 
   const webhookConfigs = [
     { key: 'authenticated_webhook_url', name: 'Authenticated Webhook' },
@@ -31,6 +35,105 @@ export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
     { key: 'thumbs_down_webhook_url', name: 'Thumbs Down Webhook' },
     { key: 'user_signup_webhook_url', name: 'User Signup Webhook' }
   ];
+
+  // Sample payloads for each webhook type
+  const getSamplePayload = (webhookKey: string) => {
+    const baseTime = new Date().toISOString();
+    
+    switch (webhookKey) {
+      case 'authenticated_webhook_url':
+        return {
+          message: "🧪 Test message from authenticated user",
+          user_id: "test-user-123",
+          username: "test_user",
+          sender: "Admin Test Panel",
+          timestamp: baseTime,
+          metadata: {
+            test: true,
+            source: "admin_panel"
+          }
+        };
+      case 'anonymous_webhook_url':
+        return {
+          message: "🧪 Test message from anonymous user",
+          sender: "Admin Test Panel",
+          timestamp: baseTime,
+          metadata: {
+            test: true,
+            source: "admin_panel",
+            anonymous: true
+          }
+        };
+      case 'debug_webhook_url':
+        return {
+          debug_info: {
+            test_type: "webhook_debug_test",
+            timestamp: baseTime,
+            browser: navigator.userAgent,
+            screen_resolution: `${screen.width}x${screen.height}`,
+            test_data: {
+              performance: {
+                connection_speed: "high",
+                latency: 45
+              }
+            }
+          },
+          metadata: {
+            test: true,
+            source: "admin_panel"
+          }
+        };
+      case 'thumbs_up_webhook_url':
+        return {
+          feedback_type: 'thumbs_up',
+          message_id: 'test-msg-' + Date.now(),
+          user_id: 'test-user-123',
+          timestamp: baseTime,
+          message_content: 'Sample message that received positive feedback',
+          metadata: {
+            test: true,
+            source: "admin_panel"
+          }
+        };
+      case 'thumbs_down_webhook_url':
+        return {
+          feedback_type: 'thumbs_down',
+          message_id: 'test-msg-' + Date.now(),
+          user_id: 'test-user-123',
+          timestamp: baseTime,
+          message_content: 'Sample message that received negative feedback',
+          feedback_reason: 'Test feedback from admin panel',
+          metadata: {
+            test: true,
+            source: "admin_panel"
+          }
+        };
+      case 'user_signup_webhook_url':
+        return {
+          user_id: 'test-user-' + Date.now(),
+          email: 'test@example.com',
+          username: 'test_user_' + Date.now(),
+          signup_timestamp: baseTime,
+          user_metadata: {
+            source: 'admin_test',
+            test_signup: true
+          },
+          metadata: {
+            test: true,
+            source: "admin_panel"
+          }
+        };
+      default:
+        return {
+          test_message: "🧪 Generic test payload",
+          timestamp: baseTime,
+          metadata: {
+            test: true,
+            source: "admin_panel"
+          }
+        };
+    }
+  };
 
   const checkWebhookStatus = async (url: string): Promise<'online' | 'offline' | 'unknown'> => {
     if (!url) return 'unknown';
@@ -80,7 +183,8 @@ export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
             name: config.name,
             url: '',
             status: 'not-configured' as const,
-            lastChecked: new Date()
+            lastChecked: new Date(),
+            webhookKey: config.key
           };
         }
 
@@ -90,7 +194,8 @@ export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
           name: config.name,
           url,
           status,
-          lastChecked: new Date()
+          lastChecked: new Date(),
+          webhookKey: config.key
         };
       })
     );
@@ -140,6 +245,56 @@ export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
   const truncateUrl = (url: string, maxLength: number = 40) => {
     if (url.length <= maxLength) return url;
     return url.substring(0, maxLength) + '...';
+  };
+
+  const testWebhook = async (webhook: WebhookStatus) => {
+    if (webhook.status !== 'online' || !webhook.url) return;
+    
+    setTestingWebhooks(prev => new Set(prev).add(webhook.webhookKey));
+    
+    try {
+      const payload = getSamplePayload(webhook.webhookKey);
+      
+      logger.info(`Testing webhook: ${webhook.name}`, { 
+        url: webhook.url, 
+        payload 
+      }, { module: 'webhook-status-checker' });
+      
+      const response = await fetch(webhook.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.text();
+      
+      if (response.ok) {
+        supaToast.success(`${webhook.name} test successful! Response: ${result.substring(0, 100)}${result.length > 100 ? '...' : ''}`, {
+          title: "Webhook Test Passed"
+        });
+        
+        logger.info(`Webhook test successful: ${webhook.name}`, { 
+          status: response.status, 
+          response: result 
+        }, { module: 'webhook-status-checker' });
+      } else {
+        throw new Error(`HTTP ${response.status}: ${result}`);
+      }
+    } catch (error) {
+      logger.error(`Webhook test failed: ${webhook.name}`, error, { module: 'webhook-status-checker' });
+      
+      supaToast.error(`${webhook.name} test failed: ${error.message}`, {
+        title: "Webhook Test Failed"
+      });
+    } finally {
+      setTestingWebhooks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(webhook.webhookKey);
+        return newSet;
+      });
+    }
   };
 
   return (
@@ -193,6 +348,22 @@ export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
               
               <div className="flex items-center gap-2">
                 {getStatusBadge(webhook.status)}
+                {webhook.status === 'online' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => testWebhook(webhook)}
+                    disabled={testingWebhooks.has(webhook.webhookKey)}
+                    className="h-6 px-2 text-xs"
+                  >
+                    {testingWebhooks.has(webhook.webhookKey) ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <TestTube className="h-3 w-3" />
+                    )}
+                    <span className="ml-1 hidden sm:inline">Test</span>
+                  </Button>
+                )}
                 {webhook.lastChecked && (
                   <span className="text-xs text-muted-foreground">
                     {webhook.lastChecked.toLocaleTimeString()}
