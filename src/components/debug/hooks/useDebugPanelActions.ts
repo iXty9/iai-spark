@@ -11,6 +11,8 @@ interface UseDebugPanelActionsProps {
   setSending: (sending: boolean) => void;
   setSendingStatus: (status: string) => void;
   addLog: (message: string) => void;
+  location?: any;
+  profile?: any;
 }
 
 export const useDebugPanelActions = ({
@@ -20,7 +22,9 @@ export const useDebugPanelActions = ({
   setCopied,
   setSending,
   setSendingStatus,
-  addLog
+  addLog,
+  location,
+  profile
 }: UseDebugPanelActionsProps) => {
   const copy = () => {
     navigator.clipboard.writeText(JSON.stringify(state, null, 2))
@@ -52,7 +56,16 @@ export const useDebugPanelActions = ({
         sessionStorage: { 
           keys: Object.keys(sessionStorage).filter(kf), 
           totalItems: sessionStorage.length 
-        }
+        },
+        locationServices: location ? {
+          isSupported: location.isSupported,
+          hasPermission: location.hasPermission,
+          isLoading: location.isLoading,
+          error: location.error,
+          currentLocation: location.currentLocation,
+          lastUpdated: location.lastUpdated,
+          autoUpdateEnabled: profile?.location_auto_update !== false
+        } : null
       };
       
       setSendingStatus('Sending to development team...');

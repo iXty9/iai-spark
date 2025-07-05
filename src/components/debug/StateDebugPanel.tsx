@@ -16,6 +16,8 @@ import { useDebugPanelActions } from './hooks/useDebugPanelActions';
 import { collectStorage } from './utils/storageUtils';
 import { domManagerService } from '@/services/global/dom-manager-service';
 import { timerManagerService } from '@/services/global/timer-manager-service';
+import { useLocation } from '@/hooks/use-location';
+import { useAuth } from '@/contexts/AuthContext';
 
 const MAX_LOG = 100, MAX_CONSOLE = 50;
 
@@ -30,6 +32,8 @@ export const StateDebugPanel = ({
   isAuthenticated: boolean;
   lastWebhookCall?: string | null;
 }) => {
+  const location = useLocation();
+  const { profile } = useAuth();
   const {
     state,
     setState,
@@ -74,7 +78,9 @@ export const StateDebugPanel = ({
     setCopied,
     setSending,
     setSendingStatus,
-    addLog
+    addLog,
+    location,
+    profile
   });
 
   // Storage collection and FPS tracking
@@ -159,6 +165,24 @@ export const StateDebugPanel = ({
         <DomInfoPanel domInfo={state.domInfo}/>
         <Separator className="col-span-2 my-1 bg-gray-700"/>
         <EventsActionsPanel lastAction={state.lastAction} lastError={state.lastError} timestamp={state.timestamp} lastWebhookResponse={state.lastWebhookResponse}/>
+        <Separator className="col-span-2 my-1 bg-gray-700"/>
+        <div className="col-span-2">
+          <div className="text-blue-400 font-bold mb-1">Location Services</div>
+          {row('Supported', `${location.isSupported}`)}
+          {row('Permission', `${location.hasPermission}`)}
+          {row('Auto Update', `${profile?.location_auto_update !== false}`)}
+          {location.currentLocation && (
+            <>
+              {row('Coordinates', `${location.currentLocation.latitude.toFixed(6)}, ${location.currentLocation.longitude.toFixed(6)}`)}
+              {location.currentLocation.city && row('City', location.currentLocation.city)}
+              {location.currentLocation.country && row('Country', location.currentLocation.country)}
+              {location.currentLocation.address && <div className="col-span-2 text-xs break-words"><span className="text-yellow-300">Address:</span> {location.currentLocation.address}</div>}
+              {location.lastUpdated && row('Last Updated', location.lastUpdated.toLocaleString())}
+            </>
+          )}
+          {location.error && <div className="col-span-2 text-red-400">Error: {location.error}</div>}
+        </div>
+        <Separator className="col-span-2 my-1 bg-gray-700"/>
         <LogsPanel logs={logs} consoleLogs={consoleLogs} maxLog={MAX_LOG} maxConsole={MAX_CONSOLE} />
         <StatusInfoPanel state={state} />
       </div>

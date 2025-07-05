@@ -4,6 +4,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { MapPin, MapPinOff, RefreshCw, AlertCircle } from 'lucide-react';
 import { useLocation } from '@/hooks/use-location';
+import { useLocationContext } from '@/contexts/LocationContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useDevMode } from '@/store/use-dev-mode';
 import { LocationPermissionDialog } from './LocationPermissionDialog';
 import { useToast } from '@/hooks/use-toast';
 
@@ -23,11 +26,12 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
     currentLocation, 
     error, 
     lastUpdated,
-    requestLocation,
-    getCurrentLocation,
     clearError
   } = useLocation();
   
+  const { handleAutoUpdateToggle } = useLocationContext();
+  const { profile } = useAuth();
+  const { isDevMode } = useDevMode();
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
   const { toast } = useToast();
 
@@ -48,18 +52,25 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
       return;
     }
 
-    // Refresh current location
-    const result = await getCurrentLocation();
-    if (result.success) {
-      toast({
-        title: "Location updated",
-        description: "Your current location has been refreshed."
-      });
-    } else {
+    // Toggle auto-update setting
+    const currentAutoUpdate = profile?.location_auto_update !== false;
+    const newAutoUpdate = !currentAutoUpdate;
+    
+    try {
+      const result = await handleAutoUpdateToggle(newAutoUpdate);
+      if (result.success) {
+        toast({
+          title: newAutoUpdate ? "Auto-updates enabled" : "Auto-updates disabled",
+          description: newAutoUpdate 
+            ? "Location will update automatically when you move"
+            : "Location updates have been disabled"
+        });
+      }
+    } catch (error) {
       toast({
         variant: "destructive",
-        title: "Location update failed",
-        description: result.error || "Failed to get your current location."
+        title: "Toggle failed",
+        description: "Failed to toggle location auto-updates"
       });
     }
   };
@@ -100,9 +111,10 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
     if (!isSupported) return 'Location services are not supported in your browser';
     if (error) return `Location error: ${error}`;
     if (hasPermission && currentLocation) {
-      return `Last updated: ${lastUpdated?.toLocaleString() || 'Unknown'}${
-        currentLocation.address ? `\n${currentLocation.address}` : ''
-      }`;
+      const autoUpdateStatus = profile?.location_auto_update !== false ? 'Auto-updates: ON' : 'Auto-updates: OFF';
+      const lastUpdate = `Last updated: ${lastUpdated?.toLocaleString() || 'Unknown'}`;
+      const addressInfo = isDevMode && currentLocation.address ? `\nAddress: ${currentLocation.address}` : '';
+      return `${autoUpdateStatus}\n${lastUpdate}${addressInfo}\n\nClick to toggle auto-updates`;
     }
     return 'Click to enable location services';
   };
