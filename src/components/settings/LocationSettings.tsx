@@ -19,7 +19,8 @@ export const LocationSettings: React.FC = () => {
     error, 
     lastUpdated,
     requestLocationPermission,
-    refreshLocation
+    refreshLocation,
+    handleAutoUpdateToggle: locationContextToggle
   } = useLocationContext();
   const { toast } = useToast();
 
@@ -48,10 +49,13 @@ export const LocationSettings: React.FC = () => {
   };
 
   const handleAutoUpdateToggle = async (enabled: boolean) => {
-    if (!updateProfile) return;
-    
     try {
-      await updateProfile({ location_auto_update: enabled });
+      await locationContextToggle(enabled);
+      
+      if (updateProfile) {
+        await updateProfile({ location_auto_update: enabled });
+      }
+      
       toast({
         title: enabled ? "Auto-update Enabled" : "Auto-update Disabled",
         description: enabled 

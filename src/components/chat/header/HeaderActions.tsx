@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useTheme } from '@/contexts/SupaThemeContext';
 import { useDevMode } from '@/store/use-dev-mode';
 import { toast } from "@/hooks/use-toast";
@@ -111,32 +112,47 @@ export const HeaderActions = ({
   };
   
   return (
-    <div className="flex items-center gap-3">
-      {!isMobile && (
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            className="relative rounded-full min-h-9 min-w-9 max-h-9 max-w-9 md:min-h-10 md:min-w-10 md:max-h-10 md:max-w-10 aspect-square border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm"
-          >
-          {theme === 'dark' ? <Sun className="h-6 w-6 md:h-6 md:w-6" /> : <Moon className="h-6 w-6 md:h-6 md:w-6" />}
-        </Button>
-      )}
-      
-      {user && <NotificationCenter />}
-      
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button 
-            variant="ghost" 
-            size="icon"
-            className="relative rounded-full min-h-9 min-w-9 max-h-9 max-w-9 md:min-h-10 md:min-w-10 md:max-h-10 md:max-w-10 aspect-square border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm"
-            aria-label="Actions menu"
-          >
-            <MoreVertical className="h-6 w-6 md:h-6 md:w-6" />
-          </Button>
-        </DropdownMenuTrigger>
+    <TooltipProvider>
+      <div className="flex items-center gap-3">
+        {!isMobile && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                className="relative rounded-full min-h-9 min-w-9 max-h-9 max-w-9 md:min-h-10 md:min-w-10 md:max-h-10 md:max-w-10 aspect-square border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm"
+              >
+                {theme === 'dark' ? <Sun className="h-6 w-6 md:h-6 md:w-6" /> : <Moon className="h-6 w-6 md:h-6 md:w-6" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>{theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+        
+        {user && <NotificationCenter />}
+        
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  className="relative rounded-full min-h-9 min-w-9 max-h-9 max-w-9 md:min-h-10 md:min-w-10 md:max-h-10 md:max-w-10 aspect-square border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm"
+                  aria-label="Actions menu"
+                >
+                  <MoreVertical className="h-6 w-6 md:h-6 md:w-6" />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>More actions</p>
+            </TooltipContent>
+          </Tooltip>
         <DropdownMenuContent 
           align="center"
           side="bottom"
@@ -183,7 +199,8 @@ export const HeaderActions = ({
             </>
           )}
         </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+        </DropdownMenu>
+      </div>
+    </TooltipProvider>
   );
 };

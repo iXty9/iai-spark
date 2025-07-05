@@ -7,6 +7,7 @@ interface LocationContextType extends LocationState {
   requestLocationPermission: () => Promise<void>;
   initializeLocation: () => Promise<void>;
   refreshLocation: () => Promise<{ success: boolean; error?: string }>;
+  handleAutoUpdateToggle: (enabled: boolean) => Promise<{ success: boolean }>;
 }
 
 const LocationContext = createContext<LocationContextType | undefined>(undefined);
@@ -79,11 +80,34 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     return { success: result.success, error: result.error };
   };
 
+  const handleAutoUpdateToggle = async (enabled: boolean) => {
+    if (!updateProfile) return { success: false };
+    
+    try {
+      await updateProfile({ location_auto_update: enabled });
+      
+      // Start or stop location watching based on the setting
+      if (enabled && location.hasPermission) {
+        location.startWatching();
+        logger.info('Location auto-update enabled and watching started', { module: 'location-context' });
+      } else {
+        location.stopWatching();
+        logger.info('Location auto-update disabled and watching stopped', { module: 'location-context' });
+      }
+      
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to update location auto-update setting:', error, { module: 'location-context' });
+      throw error;
+    }
+  };
+
   const value: LocationContextType = {
     ...location,
     requestLocationPermission,
     initializeLocation,
     refreshLocation,
+    handleAutoUpdateToggle,
   };
 
   return (
