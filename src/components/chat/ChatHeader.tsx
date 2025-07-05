@@ -4,6 +4,7 @@ import { UserMenu } from '@/components/UserMenu';
 import { importChat } from '@/services/import/importService';
 import { HeaderLogo } from './header/HeaderLogo';
 import { HeaderActions } from './header/HeaderActions';
+import { LocationStatusIndicator } from '@/components/location/LocationStatusIndicator';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
@@ -58,9 +59,10 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       />
       
       <div className="flex items-center gap-3 flex-shrink-0">
+        <LocationStatusIndicator variant="compact" />
         <UserMenu />
         
-        <HeaderActions 
+        <HeaderActions
           onClearChat={onClearChat}
           onExportChat={onExportChat}
           onImportChat={onImportChat}

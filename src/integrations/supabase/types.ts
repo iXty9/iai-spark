@@ -39,6 +39,14 @@ export type Database = {
           first_name: string | null
           id: string
           last_name: string | null
+          location_address: string | null
+          location_auto_update: boolean | null
+          location_city: string | null
+          location_country: string | null
+          location_latitude: number | null
+          location_longitude: number | null
+          location_permission_granted: boolean | null
+          location_updated_at: string | null
           phone_country_code: string | null
           phone_number: string | null
           theme_settings: string | null
@@ -51,6 +59,14 @@ export type Database = {
           first_name?: string | null
           id: string
           last_name?: string | null
+          location_address?: string | null
+          location_auto_update?: boolean | null
+          location_city?: string | null
+          location_country?: string | null
+          location_latitude?: number | null
+          location_longitude?: number | null
+          location_permission_granted?: boolean | null
+          location_updated_at?: string | null
           phone_country_code?: string | null
           phone_number?: string | null
           theme_settings?: string | null
@@ -63,6 +79,14 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
+          location_address?: string | null
+          location_auto_update?: boolean | null
+          location_city?: string | null
+          location_country?: string | null
+          location_latitude?: number | null
+          location_longitude?: number | null
+          location_permission_granted?: boolean | null
+          location_updated_at?: string | null
           phone_country_code?: string | null
           phone_number?: string | null
           theme_settings?: string | null

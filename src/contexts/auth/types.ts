@@ -10,6 +10,14 @@ export type ProfileType = {
   first_name?: string;
   last_name?: string;
   theme_settings?: string; // JSON string containing theme settings
+  location_latitude?: number;
+  location_longitude?: number;
+  location_address?: string;
+  location_city?: string;
+  location_country?: string;
+  location_updated_at?: string;
+  location_permission_granted?: boolean;
+  location_auto_update?: boolean;
 };
 
 export type AuthContextType = {
