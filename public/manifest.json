@@ -1,0 +1,27 @@
+{
+  "name": "Ixty AI - The Everywhere Intelligent Assistant",
+  "short_name": "Ixty AI",
+  "description": "Chat with Ixty AI, the productive AI assistant from iXty9!",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#dd3333",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "categories": ["productivity", "business", "utilities"],
+  "lang": "en",
+  "icons": [
+    {
+      "src": "https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

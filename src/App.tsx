@@ -7,6 +7,7 @@ import { WebSocketProvider } from '@/contexts/WebSocketContext';
 import { SupaThemeProvider } from '@/contexts/SupaThemeContext';
 import { LocationProvider } from '@/contexts/LocationContext';
 import { NotificationPermissionManager } from '@/components/notifications/NotificationPermissionManager';
+import { PWAManager } from '@/components/pwa/PWAManager';
 import Index from '@/pages/Index';
 import Auth from '@/pages/Auth';
 import Settings from '@/pages/Settings';
@@ -103,6 +104,7 @@ function App() {
               <SupaThemeProvider>
                 <LocationProvider>
                 <NotificationPermissionManager />
+                <PWAManager />
                 <div className="min-h-screen text-foreground">
                   <Routes>
                     <Route path="/" element={<Index />} />
