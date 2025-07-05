@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dynamic PWA Manifest</title>
+</head>
+<body>
+  <script>
+    // This is a placeholder for dynamic manifest generation
+    // In a production environment, this would be handled by the backend
+    // For now, the manifest.json will be served statically from the public folder
+    
+    // Redirect to the static manifest
+    window.location.href = '/manifest.json';
+  </script>
+</body>
+</html>

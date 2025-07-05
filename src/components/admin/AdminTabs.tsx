@@ -2,7 +2,7 @@
 import React, { ReactNode } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Settings, Users, Webhook, Globe, Palette, Server, Shield } from 'lucide-react';
+import { Settings, Users, Webhook, Globe, Palette, Server, Shield, Smartphone } from 'lucide-react';
 
 interface AdminTabsProps {
   webhookContent: ReactNode;
@@ -12,6 +12,7 @@ interface AdminTabsProps {
   seoContent: ReactNode;
   themeContent: ReactNode;
   authenticationContent: ReactNode;
+  pwaContent: ReactNode;
   activeTab?: string;
   onTabChange?: (tab: string) => void;
 }
@@ -24,6 +25,7 @@ export function AdminTabs({
   seoContent,
   themeContent,
   authenticationContent,
+  pwaContent,
   activeTab = "app-settings", 
   onTabChange 
 }: AdminTabsProps) {
@@ -37,6 +39,7 @@ export function AdminTabs({
     { value: "app-settings", label: "App Settings", icon: Settings, shortLabel: "App" },
     { value: "seo", label: "SEO", icon: Globe, shortLabel: "SEO" },
     { value: "theme", label: "Theme", icon: Palette, shortLabel: "Theme" },
+    { value: "pwa", label: "PWA", icon: Smartphone, shortLabel: "PWA" },
     { value: "authentication", label: "Authentication", icon: Shield, shortLabel: "Auth" },
     { value: "webhooks", label: "Webhooks", icon: Webhook, shortLabel: "Hooks" },
     { value: "users", label: "Users", icon: Users, shortLabel: "Users" },
@@ -52,7 +55,7 @@ export function AdminTabs({
     <Tabs value={activeTab} onValueChange={handleValueChange}>
       {/* Desktop tabs */}
       <div className="hidden md:block">
-        <TabsList className="w-full grid grid-cols-7">
+        <TabsList className="w-full grid grid-cols-8">
           {tabItems.map(tab => {
             const Icon = tab.icon;
             return (
@@ -98,6 +101,10 @@ export function AdminTabs({
       
       <TabsContent value="theme" className="mt-6">
         {themeContent}
+      </TabsContent>
+      
+      <TabsContent value="pwa" className="mt-6">
+        {pwaContent}
       </TabsContent>
       
       <TabsContent value="authentication" className="mt-6">

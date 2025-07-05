@@ -12,6 +12,7 @@ import { UserManagement } from '@/components/admin/UserManagement';
 import { SeoSettings } from '@/components/admin/SeoSettings';
 import { ThemeSettings } from '@/components/admin/ThemeSettings';
 import { AuthenticationSettings } from '@/components/admin/AuthenticationSettings';
+import { PWASettings } from '@/components/admin/PWASettings';
 import Environment from '@/components/admin/Environment';
 import { ArrowLeft } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -29,7 +30,7 @@ export default function Admin() {
   useEffect(() => {
     const queryParams = new URLSearchParams(window.location.search);
     const tabParam = queryParams.get('tab');
-    if (tabParam === 'users' || tabParam === 'webhooks' || tabParam === 'app-settings' || tabParam === 'environment' || tabParam === 'seo' || tabParam === 'theme' || tabParam === 'authentication') {
+    if (tabParam === 'users' || tabParam === 'webhooks' || tabParam === 'app-settings' || tabParam === 'environment' || tabParam === 'seo' || tabParam === 'theme' || tabParam === 'authentication' || tabParam === 'pwa') {
       setActiveTab(tabParam);
     }
   }, []);
@@ -187,6 +188,7 @@ export default function Admin() {
             seoContent={<SeoSettings />}
             themeContent={<ThemeSettings />}
             authenticationContent={<AuthenticationSettings />}
+            pwaContent={<PWASettings />}
             activeTab={activeTab}
             onTabChange={handleTabChange}
           />
