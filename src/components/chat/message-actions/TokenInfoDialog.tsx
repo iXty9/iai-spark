@@ -10,14 +10,17 @@ import { checkIsAdmin } from '@/services/admin/userRolesService';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 
 // Custom hook for counting animation
-const useCountingAnimation = (target: number, duration: number = 2000) => {
+const useCountingAnimation = (target: number, duration: number = 2000, shouldAnimate: boolean = true) => {
   const [current, setCurrent] = React.useState(0);
   
   React.useEffect(() => {
-    if (target === 0) {
-      setCurrent(0);
+    if (!shouldAnimate || target === 0) {
+      setCurrent(target);
       return;
     }
+    
+    // Reset to 0 first
+    setCurrent(0);
     
     const startTime = Date.now();
     const startValue = 0;
@@ -40,8 +43,13 @@ const useCountingAnimation = (target: number, duration: number = 2000) => {
       }
     };
     
-    requestAnimationFrame(animate);
-  }, [target, duration]);
+    // Small delay to ensure the dialog is visible before starting animation
+    const timeoutId = setTimeout(() => {
+      requestAnimationFrame(animate);
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [target, duration, shouldAnimate]);
   
   return current;
 };
@@ -62,10 +70,10 @@ export const TokenInfoDialog: React.FC<TokenInfoDialogProps> = ({
   const [isAdmin, setIsAdmin] = React.useState(false);
   const [billingLink, setBillingLink] = React.useState<string>('');
 
-  // Animated counters
-  const animatedPromptTokens = useCountingAnimation(tokenInfo?.promptTokens || 0);
-  const animatedCompletionTokens = useCountingAnimation(tokenInfo?.completionTokens || 0);
-  const animatedTotalTokens = useCountingAnimation(tokenInfo?.totalTokens || 0);
+  // Animated counters - only animate when dialog is open and tokenInfo exists
+  const animatedPromptTokens = useCountingAnimation(tokenInfo?.promptTokens || 0, 2000, open && !!tokenInfo);
+  const animatedCompletionTokens = useCountingAnimation(tokenInfo?.completionTokens || 0, 2000, open && !!tokenInfo);
+  const animatedTotalTokens = useCountingAnimation(tokenInfo?.totalTokens || 0, 2000, open && !!tokenInfo);
 
   React.useEffect(() => {
     const checkAdminAndLoadSettings = async () => {
@@ -91,13 +99,24 @@ export const TokenInfoDialog: React.FC<TokenInfoDialogProps> = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(
-        "w-[calc(100vw-2rem)] max-w-lg mx-4",
-        "max-h-[80vh] overflow-y-auto",
-        // Better centering accounting for chat bar (approximately 60px from bottom)
-        "fixed top-[calc(50vh-30px)] left-1/2 transform -translate-x-1/2 -translate-y-1/2",
-        isMobile ? "px-6 py-5 rounded-xl" : "px-6 py-6"
+        // Full width on mobile with padding, max width on desktop
+        isMobile ? "w-[calc(100vw-1rem)] mx-2" : "w-full max-w-lg mx-4",
+        "max-h-[85vh] overflow-y-auto",
+        // Better centering - account for mobile keyboard and chat input
+        isMobile 
+          ? "fixed top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2" 
+          : "fixed top-[calc(50%-40px)] left-1/2 -translate-x-1/2 -translate-y-1/2",
+        // Improved mobile styling
+        isMobile ? "px-4 py-6 rounded-2xl" : "px-6 py-6 rounded-lg",
+        // Ensure proper z-index and backdrop
+        "z-50 bg-background border shadow-2xl",
+        // Fix close button positioning
+        "[&>button]:absolute [&>button]:right-4 [&>button]:top-4 [&>button]:rounded-full [&>button]:w-8 [&>button]:h-8 [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button]:hover:bg-muted [&>button]:transition-colors"
       )}>
-        <DialogHeader className={isMobile ? "pb-3" : "pb-4"}>
+        <DialogHeader className={cn(
+          "pr-10", // Add right padding to account for close button
+          isMobile ? "pb-4" : "pb-4"
+        )}>
           <DialogTitle className={cn(
             "flex items-center gap-2 text-center justify-center",
             isMobile ? "text-lg" : "text-xl"
