@@ -1,5 +1,7 @@
+
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { logger } from '@/utils/logging';
+import { versionService } from './versionService';
 
 export interface PWAManifest {
   name: string;
@@ -109,10 +111,18 @@ export const updateManifestFile = async (): Promise<boolean> => {
   try {
     const manifest = await generateManifestFromSettings();
     
-    // In a real implementation, you would write this to the public/manifest.json file
-    // For now, we'll just log it and return true
-    logger.info('Manifest would be updated to:', manifest, { module: 'pwa-manifest' });
+    // In a real implementation, this would update the public/manifest.json file
+    // For now, we'll trigger a version update to ensure PWA users get the changes
+    const currentVersion = await versionService.getCurrentVersion();
+    if (currentVersion) {
+      const newVersion = {
+        ...currentVersion,
+        buildTime: new Date().toISOString()
+      };
+      await versionService.updateToVersion(newVersion);
+    }
     
+    logger.info('Manifest update triggered', { manifest }, { module: 'pwa-manifest' });
     return true;
   } catch (error) {
     logger.error('Failed to update manifest file', error, { module: 'pwa-manifest' });

@@ -1,0 +1,10 @@
+
+{
+  "version": "1.0.0",
+  "buildTime": "2025-07-05T21:33:00.000Z",
+  "buildHash": "dev-build",
+  "cacheNames": {
+    "static": "ixty-ai-static-dev-build",
+    "dynamic": "ixty-ai-dynamic-dev-build"
+  }
+}

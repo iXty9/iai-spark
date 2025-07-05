@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -5,12 +6,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { fetchAppSettings, updateAppSetting } from '@/services/admin/settingsService';
 import { logger } from '@/utils/logging';
-import { Smartphone, Monitor, Tablet, Palette, Settings, Eye, RefreshCw } from 'lucide-react';
+import { Smartphone, Palette, Settings, Eye, RefreshCw, Zap } from 'lucide-react';
+import { usePWA } from '@/hooks/use-pwa';
+import { PWAVersionIndicator } from '@/components/pwa/PWAVersionIndicator';
 
 interface PWASettingsState {
   pwa_app_name: string;
@@ -25,13 +27,11 @@ interface PWASettingsState {
   pwa_categories: string;
   pwa_lang: string;
   pwa_icon_url: string;
-  pwa_maskable_icon_url: string;
-  pwa_cache_strategy: string;
-  pwa_offline_fallback: string;
 }
 
 export function PWASettings() {
   const { toast } = useToast();
+  const { isInstalled, currentVersion, needsUpdate } = usePWA();
   const [settings, setSettings] = useState<PWASettingsState>({
     pwa_app_name: '',
     pwa_short_name: '',
@@ -44,10 +44,7 @@ export function PWASettings() {
     pwa_scope: '/',
     pwa_categories: '["productivity", "business", "utilities"]',
     pwa_lang: 'en',
-    pwa_icon_url: '',
-    pwa_maskable_icon_url: '',
-    pwa_cache_strategy: 'cache-first',
-    pwa_offline_fallback: 'true'
+    pwa_icon_url: ''
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -91,14 +88,9 @@ export function PWASettings() {
         await updateAppSetting(key, value);
       }
       
-      // Trigger manifest regeneration
-      await fetch('/api/update-manifest', { method: 'POST' }).catch(() => {
-        // Ignore if endpoint doesn't exist yet
-      });
-      
       toast({
         title: "Success",
-        description: "PWA settings saved successfully. Refresh the page to see changes."
+        description: "PWA settings saved successfully. Changes will be available after the next update."
       });
       
       logger.info('PWA settings saved successfully', null, { module: 'pwa-settings' });
@@ -132,21 +124,7 @@ export function PWASettings() {
         orientation: settings.pwa_orientation,
         scope: settings.pwa_scope,
         categories: categories,
-        lang: settings.pwa_lang,
-        icons: [
-          {
-            src: settings.pwa_icon_url || "https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png",
-            sizes: "192x192",
-            type: "image/png",
-            purpose: "any maskable"
-          },
-          {
-            src: settings.pwa_icon_url || "https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any maskable"  
-          }
-        ]
+        lang: settings.pwa_lang
       };
     } catch {
       return null;
@@ -167,6 +145,40 @@ export function PWASettings() {
 
   return (
     <div className="space-y-6">
+      {/* PWA Status */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5" />
+            PWA Status
+          </CardTitle>
+          <CardDescription>
+            Current Progressive Web App installation and version status
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Badge variant={isInstalled ? "default" : "secondary"}>
+                {isInstalled ? "Installed" : "Browser Mode"}
+              </Badge>
+              <PWAVersionIndicator />
+              {needsUpdate && (
+                <Badge variant="destructive" className="animate-pulse">
+                  Update Available
+                </Badge>
+              )}
+            </div>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {isInstalled 
+              ? "App is installed and running in PWA mode with automatic updates enabled."
+              : "App is running in browser mode. Install as PWA for better performance and offline access."
+            }
+          </div>
+        </CardContent>
+      </Card>
+
       {/* App Information */}
       <Card>
         <CardHeader>
@@ -377,9 +389,10 @@ export function PWASettings() {
         </Button>
       </div>
 
-      <div className="text-sm text-muted-foreground">
-        <p>⚠️ Changes to PWA settings require a page refresh to take effect.</p>
-        <p>💡 Users may need to reinstall the app to see manifest changes.</p>
+      <div className="text-sm text-muted-foreground space-y-1">
+        <p>💡 Changes will be available after the next app update.</p>
+        <p>🔄 PWA users receive automatic update notifications.</p>
+        <p>📱 Users may need to reinstall the app to see manifest changes.</p>
       </div>
     </div>
   );
