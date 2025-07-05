@@ -44,6 +44,24 @@ class LocationService {
   }
 
   /**
+   * Check if we're running in iOS Safari and handle special requirements
+   */
+  private async handleIOSSafariPermission(): Promise<boolean> {
+    if (!this.isIOSSafari()) return true;
+
+    // iOS Safari requires HTTPS
+    if (!this.isSecureContext()) {
+      logger.error('iOS Safari requires HTTPS for location services', { module: 'location' });
+      return false;
+    }
+
+    // For iOS Safari, we need to make the permission request immediately
+    // in response to user interaction, without any delays or awaits
+    logger.info('Preparing iOS Safari location permission request', { module: 'location' });
+    return true;
+  }
+
+  /**
    * Check permission state (if available)
    */
   private async checkPermissionState(): Promise<PermissionState | null> {
@@ -66,15 +84,18 @@ class LocationService {
       return { success: false, error: 'Geolocation is not supported' };
     }
 
-    // Check for HTTPS requirement on iOS Safari
-    if (this.isIOSSafari() && !this.isSecureContext()) {
-      return { success: false, error: 'HTTPS is required for location services on iOS Safari' };
+    // Handle iOS Safari special requirements
+    const canProceed = await this.handleIOSSafariPermission();
+    if (!canProceed) {
+      return { success: false, error: 'Location services require HTTPS on iOS Safari' };
     }
 
-    // Check permission state first if available
-    const permissionState = await this.checkPermissionState();
-    if (permissionState === 'denied') {
-      return { success: false, error: 'Location access denied. Please enable in browser settings.' };
+    // Check permission state first if available (but not on iOS Safari as it's unreliable)
+    if (!this.isIOSSafari()) {
+      const permissionState = await this.checkPermissionState();
+      if (permissionState === 'denied') {
+        return { success: false, error: 'Location access denied. Please enable in browser settings.' };
+      }
     }
 
     try {
@@ -84,6 +105,12 @@ class LocationService {
       return { success: true, data: locationData };
     } catch (error: any) {
       logger.error('Error getting current position:', error, { module: 'location' });
+      
+      // Provide iOS Safari specific error messages
+      if (this.isIOSSafari()) {
+        return { success: false, error: this.getIOSSafariErrorMessage(error) };
+      }
+      
       return { success: false, error: this.getErrorMessage(error) };
     }
   }
@@ -93,9 +120,18 @@ class LocationService {
    */
   async requestLocationPermission(): Promise<GeolocationResult> {
     try {
-      // For iOS Safari, try to request permission with user gesture
+      // Special handling for iOS Safari
       if (this.isIOSSafari()) {
         logger.info('iOS Safari detected, requesting location with user gesture', { module: 'location' });
+        
+        // iOS Safari requires the permission request to happen immediately
+        // in response to user interaction without any delays
+        const result = await this.requestIOSSafariLocation();
+        if (result.success && result.data) {
+          await this.saveLocationToDatabase(result.data, true);
+          logger.info('iOS Safari location permission granted and saved', { module: 'location' });
+        }
+        return result;
       }
 
       const result = await this.getCurrentPosition();
@@ -110,6 +146,37 @@ class LocationService {
       logger.error('Error requesting location permission:', error, { module: 'location' });
       return { success: false, error: 'Failed to request location permission' };
     }
+  }
+
+  /**
+   * Special iOS Safari location request handler
+   */
+  private async requestIOSSafariLocation(): Promise<GeolocationResult> {
+    return new Promise((resolve) => {
+      // iOS Safari requires immediate execution without async/await delays
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const locationData = await this.processPosition(position);
+            this.lastKnownLocation = locationData;
+            logger.info('iOS Safari location permission granted', { module: 'location' });
+            resolve({ success: true, data: locationData });
+          } catch (error) {
+            logger.error('iOS Safari location processing failed:', error, { module: 'location' });
+            resolve({ success: false, error: 'Failed to process location data' });
+          }
+        },
+        (error) => {
+          logger.error('iOS Safari geolocation error:', error, { module: 'location' });
+          resolve({ success: false, error: this.getIOSSafariErrorMessage(error) });
+        },
+        {
+          enableHighAccuracy: false, // Less aggressive for iOS Safari
+          timeout: 30000, // Longer timeout for iOS
+          maximumAge: 30000 // Allow cached location for iOS
+        }
+      );
+    });
   }
 
   /**
@@ -365,6 +432,22 @@ class LocationService {
         return 'Location request timed out';
       default:
         return 'An unknown error occurred while retrieving location';
+    }
+  }
+
+  /**
+   * Get iOS Safari specific error messages
+   */
+  private getIOSSafariErrorMessage(error: GeolocationPositionError): string {
+    switch (error.code) {
+      case error.PERMISSION_DENIED:
+        return 'Location access denied. Please enable location services in Safari settings and allow this website to access your location.';
+      case error.POSITION_UNAVAILABLE:
+        return 'Location information unavailable. Please check your device location settings.';
+      case error.TIMEOUT:
+        return 'Location request timed out. Please try again or check your internet connection.';
+      default:
+        return 'Unable to access location on iOS Safari. Please ensure location services are enabled in Settings > Privacy & Security > Location Services > Safari.';
     }
   }
 
