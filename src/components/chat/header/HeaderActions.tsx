@@ -17,6 +17,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useTheme } from '@/contexts/SupaThemeContext';
 import { useDevMode } from '@/store/use-dev-mode';
 import { toast } from "@/hooks/use-toast";
+import { usePWA } from '@/hooks/use-pwa';
+import { versionService } from '@/services/pwa/versionService';
 
 interface HeaderActionsProps {
   onClearChat: () => void;
@@ -44,6 +46,7 @@ export const HeaderActions = ({
   const { theme, setTheme } = useTheme();
   const { isDevMode, toggleDevMode } = useDevMode();
   const { user } = useAuth();
+  const { needsUpdate, isUpdating, updateApp } = usePWA();
   
   const handleDevModeToggle = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -110,6 +113,40 @@ export const HeaderActions = ({
       });
     }
   };
+
+  // Function to handle PWA update check
+  const handleCheckForUpdates = async () => {
+    try {
+      toast({
+        title: "Checking for Updates",
+        description: "Looking for the latest version...",
+        duration: 2000,
+      });
+      
+      const hasUpdate = await versionService.checkForUpdates();
+      
+      if (hasUpdate) {
+        toast({
+          title: "Update Available",
+          description: "A new version is ready to install",
+          duration: 3000,
+        });
+      } else {
+        toast({
+          title: "Up to Date",
+          description: "You're running the latest version",
+          duration: 2000,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to check for updates:', error);
+      toast({
+        variant: "destructive",
+        title: "Update Check Failed",
+        description: "Could not check for updates. Please try again.",
+      });
+    }
+  };
   
   return (
     <TooltipProvider>
@@ -165,6 +202,22 @@ export const HeaderActions = ({
           <DropdownMenuItem onClick={handleReloadTheme} className="py-2.5">
             <RefreshCw className="mr-2 h-4 w-4" />
             <span>{isMobile ? "Load Theme" : "Load Default Theme"}</span>
+          </DropdownMenuItem>
+          
+          {/* Check for Updates option */}
+          <DropdownMenuItem 
+            onClick={handleCheckForUpdates} 
+            className="py-2.5" 
+            disabled={isUpdating}
+          >
+            <RefreshCw className={`mr-2 h-4 w-4 ${isUpdating ? 'animate-spin' : ''}`} />
+            <span>
+              {isUpdating 
+                ? "Checking..." 
+                : (isMobile ? "Check Updates" : "Check for Updates")
+              }
+              {needsUpdate && !isUpdating && " (Available)"}
+            </span>
           </DropdownMenuItem>
           
           {hasMessages && (
