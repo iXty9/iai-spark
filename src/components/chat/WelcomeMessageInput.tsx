@@ -234,11 +234,6 @@ export const WelcomeMessageInput: React.FC<WelcomeMessageInputProps> = ({
                 rows={1}
                 spellCheck="true"
               />
-              
-              {/* Version Badge - positioned in bottom right of textarea */}
-              <div className="absolute bottom-1 left-3">
-                <VersionBadge />
-              </div>
             </div>
 
             {/* Voice Input Button */}
@@ -299,6 +294,11 @@ export const WelcomeMessageInput: React.FC<WelcomeMessageInputProps> = ({
               )}
             </Button>
           </div>
+        </div>
+        
+        {/* Version Badge - centered below input */}
+        <div className="flex justify-center mt-2">
+          <VersionBadge />
         </div>
       </form>
     </TooltipProvider>
