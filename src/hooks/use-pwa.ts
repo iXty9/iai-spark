@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { logger } from '@/utils/logging';
 import { versionService } from '@/services/pwa/versionService';
+import { supaToast } from '@/services/supa-toast';
 
 interface PWAInstallPrompt {
   prompt: () => Promise<void>;
@@ -111,6 +112,9 @@ export const usePWA = (): PWAHook => {
     // Set up version service update listener
     versionService.onUpdateAvailable((hasUpdate) => {
       setNeedsUpdate(hasUpdate);
+      if (hasUpdate) {
+        showUpdateNotification();
+      }
     });
 
     // Start periodic version checks
@@ -157,14 +161,36 @@ export const usePWA = (): PWAHook => {
     }
   };
 
+  const showUpdateNotification = () => {
+    supaToast.show({
+      type: 'info',
+      title: 'Update Available',
+      message: 'A new version of Ixty AI is ready to install',
+      persistent: true,
+      actions: [
+        {
+          label: 'Update Now',
+          action: () => updateApp()
+        },
+        {
+          label: 'Later',
+          action: () => supaToast.dismiss
+        }
+      ]
+    });
+  };
+
   const updateApp = async (): Promise<void> => {
     if (!registration) {
       logger.warn('No service worker registration available', { module: 'pwa' });
+      supaToast.error('Update failed: Service worker not available');
       return;
     }
 
     try {
       setIsUpdating(true);
+      
+      supaToast.info('Installing update...', { persistent: true });
       
       // Get the latest version info
       const remoteVersion = await versionService.fetchRemoteVersion();
@@ -176,22 +202,38 @@ export const usePWA = (): PWAHook => {
       // Tell the service worker to skip waiting and activate
       if (registration.waiting) {
         registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        
+        // Wait for the service worker to activate
+        await new Promise<void>((resolve) => {
+          const handleControllerChange = () => {
+            navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+            resolve();
+          };
+          navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+        });
       } else {
         // If no waiting worker, force update check
         await registration.update();
+        
+        // Wait a bit for the new worker to be installed
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
       
       setNeedsUpdate(false);
+      setIsUpdating(false);
       
-      // Reload the page after a short delay to ensure service worker is ready
+      supaToast.success('Update installed! Reloading...', { duration: 2000 });
+      
+      // Reload the page after a short delay
       setTimeout(() => {
         window.location.reload();
-      }, 1000);
+      }, 2000);
       
-      logger.info('App update initiated', { module: 'pwa' });
+      logger.info('App update completed successfully', { module: 'pwa' });
     } catch (error) {
       logger.error('Error updating app:', error, { module: 'pwa' });
       setIsUpdating(false);
+      supaToast.error('Update failed. Please try again.');
     }
   };
 
