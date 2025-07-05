@@ -77,7 +77,7 @@ export const usePWA = (): PWAHook => {
     const handleServiceWorkerMessage = (event: MessageEvent) => {
       if (event.data && event.data.type === 'SW_UPDATED') {
         logger.info('Service worker updated, refresh needed', { module: 'pwa' });
-        setNeedsUpdate(true);
+        // Don't set needsUpdate here - let version service handle it to avoid duplicates
       }
     };
 
@@ -94,8 +94,8 @@ export const usePWA = (): PWAHook => {
             if (newWorker) {
               newWorker.addEventListener('statechange', () => {
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  setNeedsUpdate(true);
                   logger.info('New service worker available', { module: 'pwa' });
+                  // Let version service handle update detection to avoid duplicates
                 }
               });
             }
@@ -162,7 +162,9 @@ export const usePWA = (): PWAHook => {
   };
 
   const showUpdateNotification = () => {
-    supaToast.show({
+    let toastId: string;
+    
+    toastId = supaToast.show({
       type: 'info',
       title: 'Update Available',
       message: 'A new version of Ixty AI is ready to install',
@@ -170,11 +172,14 @@ export const usePWA = (): PWAHook => {
       actions: [
         {
           label: 'Update Now',
-          action: () => updateApp()
+          action: () => {
+            supaToast.dismiss(toastId);
+            updateApp();
+          }
         },
         {
           label: 'Later',
-          action: () => supaToast.dismiss
+          action: () => supaToast.dismiss(toastId)
         }
       ]
     });
