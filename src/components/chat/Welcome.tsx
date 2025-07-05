@@ -1,19 +1,16 @@
 
-import React, { useEffect, useRef, useState, FormEvent, KeyboardEvent } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Send, Circle, Info } from 'lucide-react';
+import { Circle, Info } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { useDevMode } from '@/store/use-dev-mode';
-import { Textarea } from '@/components/ui/textarea';
-import { useTextareaResize } from '@/hooks/use-textarea-resize';
 import { Message } from '@/types/chat';
 import { logger } from '@/utils/logging';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWebSocket, ProactiveMessage } from '@/contexts/WebSocketContext';
-import { VersionBadge } from './VersionBadge';
+import { WelcomeMessageInput } from './WelcomeMessageInput';
 
 const DEFAULT_TAGLINE = "The Everywhere Intelligent Assistant";
 
@@ -40,11 +37,8 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
   const isMobile = useIsMobile();
   const { isDevMode } = useDevMode();
   const { onProactiveMessage } = useWebSocket();
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasSubmitted = useRef(false);
   const isTransitioning = useRef(false);
-
-  useTextareaResize(textareaRef, message);
 
   // Enhanced proactive message handling for mobile Safari
   useEffect(() => {
@@ -137,7 +131,6 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
     };
 
     loadSettings();
-    textareaRef.current?.focus();
 
     if (process.env.NODE_ENV === 'development' || isDevMode) {
       emitDebugEvent({
@@ -196,12 +189,6 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
     }, 0);
   };
 
-  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => setMessage(e.target.value);
-  const handleSubmit = (e: FormEvent) => { e.preventDefault(); submitMessage(); };
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitMessage(); }
-  };
-
   const handleAvatarError = () => {
     logger.warn('Avatar failed to load, falling back to default', { 
       attemptedUrl: avatarUrl,
@@ -252,39 +239,13 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
             )}
           </div>
         </div>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-2 w-full max-w-xl mx-auto">
-          <Textarea
-            ref={textareaRef}
-            value={message}
-            onChange={handleInput}
-            onKeyDown={handleKeyDown}
-            placeholder={isMobile ? "Ask me anything..." : "What can I assist you with today?"}
-            className="flex-1 rounded-lg backdrop-blur-sm bg-background/80 border-border/50 shadow-lg min-h-[60px] max-h-[150px] resize-none focus:bg-background/90 focus:border-border transition-all duration-200"
-            disabled={isSubmitting || isTransitioning.current}
-            aria-label="Message input"
-            spellCheck="true"
-            rows={1}
-          />
-          <VersionBadge />
-          <div className="flex items-center justify-end mt-2">
-            <Button
-              type="submit"
-              disabled={!message.trim() || isSubmitting || isTransitioning.current}
-              className="rounded-full bg-[#ea384c] hover:bg-[#dd3333] h-11 px-6 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-[#ea384c]/20 sm:h-10 sm:px-4 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-            >
-              {isSubmitting ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  {!isMobile && <span>Sending...</span>}
-                </div>
-              ) : isMobile ? (
-                <Send className="h-4 w-4" />
-              ) : (
-                <>Send <Send className="ml-2 h-4 w-4" /></>
-              )}
-            </Button>
-          </div>
-        </form>
+        <WelcomeMessageInput
+          message={message}
+          onChange={setMessage}
+          onSubmit={submitMessage}
+          isLoading={isSubmitting}
+          disabled={isTransitioning.current}
+        />
       </div>
     </div>
   );
