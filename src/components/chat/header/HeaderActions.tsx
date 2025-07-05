@@ -126,11 +126,8 @@ export const HeaderActions = ({
       const hasUpdate = await versionService.checkForUpdates();
       
       if (hasUpdate) {
-        toast({
-          title: "Update Available",
-          description: "A new version is ready to install",
-          duration: 3000,
-        });
+        // If update is available, trigger the update flow
+        await updateApp();
       } else {
         toast({
           title: "Up to Date",

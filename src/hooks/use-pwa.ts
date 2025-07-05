@@ -112,8 +112,16 @@ export const usePWA = (): PWAHook => {
     // Set up version service update listener
     versionService.onUpdateAvailable((hasUpdate) => {
       setNeedsUpdate(hasUpdate);
+      // Only show update notification if app is installed as PWA
       if (hasUpdate) {
-        showUpdateNotification();
+        // Check current installed state at the time of update
+        const currentIsStandalone = window.matchMedia('(display-mode: standalone)').matches;
+        const currentIsIOSStandalone = (window.navigator as any).standalone === true;
+        const currentIsInstalled = currentIsStandalone || currentIsIOSStandalone;
+        
+        if (currentIsInstalled) {
+          showUpdateNotification();
+        }
       }
     });
 
@@ -186,7 +194,13 @@ export const usePWA = (): PWAHook => {
   };
 
   const updateApp = async (): Promise<void> => {
-    if (!registration) {
+    // Try to get current registration if not available
+    let currentRegistration = registration;
+    if (!currentRegistration && 'serviceWorker' in navigator) {
+      currentRegistration = await navigator.serviceWorker.getRegistration();
+    }
+
+    if (!currentRegistration) {
       logger.warn('No service worker registration available', { module: 'pwa' });
       supaToast.error('Update failed: Service worker not available');
       return;
@@ -205,8 +219,8 @@ export const usePWA = (): PWAHook => {
       }
 
       // Tell the service worker to skip waiting and activate
-      if (registration.waiting) {
-        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      if (currentRegistration.waiting) {
+        currentRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
         
         // Wait for the service worker to activate
         await new Promise<void>((resolve) => {
@@ -218,7 +232,7 @@ export const usePWA = (): PWAHook => {
         });
       } else {
         // If no waiting worker, force update check
-        await registration.update();
+        await currentRegistration.update();
         
         // Wait a bit for the new worker to be installed
         await new Promise(resolve => setTimeout(resolve, 2000));
