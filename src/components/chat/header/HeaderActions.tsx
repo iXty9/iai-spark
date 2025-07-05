@@ -128,7 +128,7 @@ export const HeaderActions = ({
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <p>{theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}</p>
+              <p>{theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</p>
             </TooltipContent>
           </Tooltip>
         )}
@@ -150,7 +150,7 @@ export const HeaderActions = ({
               </DropdownMenuTrigger>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <p>More actions</p>
+              <p>More Actions</p>
             </TooltipContent>
           </Tooltip>
         <DropdownMenuContent 

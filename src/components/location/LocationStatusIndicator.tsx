@@ -111,10 +111,15 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
     if (!isSupported) return 'Location services are not supported in your browser';
     if (error) return `Location error: ${error}`;
     if (hasPermission && currentLocation) {
-      const autoUpdateStatus = profile?.location_auto_update !== false ? 'Auto-updates: ON' : 'Auto-updates: OFF';
       const lastUpdate = `Last updated: ${lastUpdated?.toLocaleString() || 'Unknown'}`;
-      const addressInfo = isDevMode && currentLocation.address ? `\nAddress: ${currentLocation.address}` : '';
-      return `${autoUpdateStatus}\n${lastUpdate}${addressInfo}\n\nClick to toggle auto-updates`;
+      
+      if (isDevMode) {
+        const autoUpdateStatus = profile?.location_auto_update !== false ? 'Auto-updates: ON' : 'Auto-updates: OFF';
+        const addressInfo = currentLocation.address ? `\nAddress: ${currentLocation.address}` : '';
+        return `${autoUpdateStatus}\n${lastUpdate}${addressInfo}\n\nClick to toggle auto-updates`;
+      }
+      
+      return lastUpdate;
     }
     return 'Click to enable location services';
   };
