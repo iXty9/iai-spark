@@ -30,7 +30,7 @@ export async function getBuildInfoFromSiteConfig(): Promise<BuildInfo> {
       }
       
       return {
-        version: siteConfig.version || '1.0.0',
+        version: siteConfig.version || '0.9.0-beta.1',
         buildDate,
         commitHash: siteConfig.commitHash || generatePseudoCommitHash(siteConfig),
         environment: siteConfig.environment || 'unknown'
@@ -40,11 +40,11 @@ export async function getBuildInfoFromSiteConfig(): Promise<BuildInfo> {
     logger.warn('Failed to fetch site config for build info', error, { module: 'site-config-utils' });
   }
   
-  // Fallback to environment variables or defaults
+  // Fallback to defaults with updated version
   return {
-    version: import.meta.env.VITE_APP_VERSION || 'Development',
-    buildDate: import.meta.env.VITE_BUILD_DATE || new Date().toLocaleDateString(),
-    commitHash: import.meta.env.VITE_COMMIT_HASH || 'dev-build',
+    version: '0.9.0-beta.1',
+    buildDate: new Date().toLocaleDateString(),
+    commitHash: 'dev-build',
     environment: import.meta.env.MODE || 'development'
   };
 }

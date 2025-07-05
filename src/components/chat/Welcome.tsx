@@ -13,6 +13,7 @@ import { logger } from '@/utils/logging';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWebSocket, ProactiveMessage } from '@/contexts/WebSocketContext';
+import { VersionBadge } from './VersionBadge';
 
 const DEFAULT_TAGLINE = "The Everywhere Intelligent Assistant";
 
@@ -283,6 +284,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
             </Button>
           </div>
         </form>
+        <VersionBadge />
       </div>
     </div>
   );
