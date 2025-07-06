@@ -1,8 +1,9 @@
 
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Settings, Users, Webhook, Globe, Palette, Server, Shield, Smartphone } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Settings, Users, Webhook, Globe, Palette, Server, Shield, Smartphone, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface AdminTabsProps {
   webhookContent: ReactNode;
@@ -29,12 +30,6 @@ export function AdminTabs({
   activeTab = "app-settings", 
   onTabChange 
 }: AdminTabsProps) {
-  const handleValueChange = (value: string) => {
-    if (onTabChange) {
-      onTabChange(value);
-    }
-  };
-
   const tabItems = [
     { value: "app-settings", label: "App Settings", icon: Settings, shortLabel: "App" },
     { value: "seo", label: "SEO", icon: Globe, shortLabel: "SEO" },
@@ -46,27 +41,86 @@ export function AdminTabs({
     { value: "environment", label: "Environment", icon: Server, shortLabel: "Env" }
   ];
 
+  const [scrollOffset, setScrollOffset] = useState(0);
+  const TABS_PER_VIEW = 5;
+  const maxOffset = Math.max(0, tabItems.length - TABS_PER_VIEW);
+
+  const handleValueChange = (value: string) => {
+    if (onTabChange) {
+      onTabChange(value);
+    }
+  };
+
+  const scrollLeft = () => {
+    setScrollOffset(Math.max(0, scrollOffset - 1));
+  };
+
+  const scrollRight = () => {
+    setScrollOffset(Math.min(maxOffset, scrollOffset + 1));
+  };
+
+  const visibleTabs = tabItems.slice(scrollOffset, scrollOffset + TABS_PER_VIEW);
+
   const getCurrentTabLabel = () => {
     const currentTab = tabItems.find(tab => tab.value === activeTab);
     return currentTab ? currentTab.label : "Select Tab";
   };
 
+  // Auto-scroll to show active tab
+  useEffect(() => {
+    const activeTabIndex = tabItems.findIndex(tab => tab.value === activeTab);
+    if (activeTabIndex !== -1) {
+      const currentViewStart = scrollOffset;
+      const currentViewEnd = scrollOffset + TABS_PER_VIEW - 1;
+      
+      if (activeTabIndex < currentViewStart) {
+        // Active tab is to the left of current view
+        setScrollOffset(activeTabIndex);
+      } else if (activeTabIndex > currentViewEnd) {
+        // Active tab is to the right of current view
+        setScrollOffset(Math.max(0, activeTabIndex - TABS_PER_VIEW + 1));
+      }
+    }
+  }, [activeTab, tabItems, scrollOffset, TABS_PER_VIEW]);
+
   return (
     <Tabs value={activeTab} onValueChange={handleValueChange}>
-      {/* Desktop tabs */}
+      {/* Desktop tabs with scrolling */}
       <div className="hidden md:block">
-        <TabsList className="w-full grid grid-cols-8">
-          {tabItems.map(tab => {
-            const Icon = tab.icon;
-            return (
-              <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-1 md:gap-2 min-h-[40px]">
-                <Icon className="h-4 w-4 flex-shrink-0" />
-                <span className="hidden lg:inline text-xs">{tab.label}</span>
-                <span className="lg:hidden text-xs">{tab.shortLabel}</span>
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={scrollLeft}
+            disabled={scrollOffset === 0}
+            className="flex-shrink-0"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          <TabsList className="flex-1">
+            {visibleTabs.map(tab => {
+              const Icon = tab.icon;
+              return (
+                <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-1 md:gap-2 min-h-[40px] flex-1">
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <span className="hidden lg:inline text-xs">{tab.label}</span>
+                  <span className="lg:hidden text-xs">{tab.shortLabel}</span>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={scrollRight}
+            disabled={scrollOffset === maxOffset}
+            className="flex-shrink-0"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Mobile dropdown */}
