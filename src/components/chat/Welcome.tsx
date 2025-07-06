@@ -237,7 +237,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
             {isLoading ? (
               <Skeleton className="h-5 w-64 bg-muted/20" />
             ) : (
-              <p className="text-muted-foreground animate-fade-in">&quot;{tagline}&quot;</p>
+              <p className="text-muted-foreground animate-fade-in">{tagline}</p>
             )}
           </div>
         </div>
