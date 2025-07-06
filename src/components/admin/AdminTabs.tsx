@@ -81,7 +81,7 @@ export function AdminTabs({
         setScrollOffset(Math.max(0, activeTabIndex - TABS_PER_VIEW + 1));
       }
     }
-  }, [activeTab, tabItems, scrollOffset, TABS_PER_VIEW]);
+  }, [activeTab, tabItems, TABS_PER_VIEW]);
 
   return (
     <Tabs value={activeTab} onValueChange={handleValueChange}>
