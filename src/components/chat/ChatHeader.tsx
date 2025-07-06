@@ -5,6 +5,7 @@ import { importChat } from '@/services/import/importService';
 import { HeaderLogo } from './header/HeaderLogo';
 import { HeaderActions } from './header/HeaderActions';
 import { LocationStatusIndicator } from '@/components/location/LocationStatusIndicator';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
@@ -29,6 +30,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   isMobile = false
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
   
   const handleImportClick = () => {
     fileInputRef.current?.click();
@@ -59,7 +61,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       />
       
       <div className="flex items-center gap-3 flex-shrink-0">
-        <LocationStatusIndicator variant="compact" />
+        {user && <LocationStatusIndicator variant="compact" />}
         <UserMenu />
         
         <HeaderActions
