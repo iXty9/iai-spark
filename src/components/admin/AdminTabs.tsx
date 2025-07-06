@@ -59,10 +59,10 @@ export function AdminTabs({
           {tabItems.map(tab => {
             const Icon = tab.icon;
             return (
-              <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-2">
-                <Icon className="h-4 w-4" />
-                <span className="hidden lg:inline">{tab.label}</span>
-                <span className="lg:hidden">{tab.shortLabel}</span>
+              <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-1 md:gap-2 min-h-[40px]">
+                <Icon className="h-4 w-4 flex-shrink-0" />
+                <span className="hidden lg:inline text-xs">{tab.label}</span>
+                <span className="lg:hidden text-xs">{tab.shortLabel}</span>
               </TabsTrigger>
             );
           })}
