@@ -63,6 +63,16 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
       return;
     }
 
+    // Check if user is authenticated
+    if (!profile) {
+      toast({
+        variant: "destructive",
+        title: "Authentication required",
+        description: "Please sign in to use location services."
+      });
+      return;
+    }
+
     if (!hasPermission) {
       setShowPermissionDialog(true);
       return;

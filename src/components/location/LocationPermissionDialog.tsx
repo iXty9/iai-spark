@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { MapPin, Shield, Clock, Globe } from 'lucide-react';
 import { useLocation } from '@/hooks/use-location';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LocationPermissionDialogProps {
   open: boolean;
@@ -23,8 +24,14 @@ export const LocationPermissionDialog: React.FC<LocationPermissionDialogProps> =
   onPermissionGranted
 }) => {
   const { requestLocation, isLoading } = useLocation();
+  const { user } = useAuth();
 
   const handleRequestPermission = async () => {
+    if (!user) {
+      onOpenChange(false);
+      return;
+    }
+    
     const result = await requestLocation();
     if (result.success) {
       onPermissionGranted?.();
