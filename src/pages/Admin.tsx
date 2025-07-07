@@ -90,7 +90,7 @@ export default function Admin() {
     return () => {
       isMounted = false;
     };
-  }, [user, navigate, toast]);
+  }, [user, navigate]);
 
   const handleGoBack = () => {
     navigate('/');

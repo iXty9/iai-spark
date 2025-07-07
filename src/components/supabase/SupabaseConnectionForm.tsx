@@ -95,10 +95,8 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
                     title: "Static configuration saved"
                   });
                 } else {
-                  toast({
-                    title: "Warning",
-                    description: "Could not save configuration to static file. This feature requires server-side API support.",
-                    variant: "default"
+                  supaToast.warning("Could not save configuration to static file. This feature requires server-side API support.", {
+                    title: "Warning"
                   });
                 }
               } catch (err) {

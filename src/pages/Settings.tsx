@@ -118,30 +118,24 @@ export default function Settings() {
           URL.revokeObjectURL(originalUrl);
         } catch (error) {
           logger.error('Error optimizing image:', error);
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Failed to process image. Please try another file.",
+          supaToast.error("Failed to process image. Please try another file.", {
+            title: "Error"
           });
         }
       };
       
       img.onerror = () => {
         URL.revokeObjectURL(originalUrl);
-        toast({
-          variant: "destructive",
-          title: "Invalid image",
-          description: "The selected file is not a valid image.",
+        supaToast.error("The selected file is not a valid image.", {
+          title: "Invalid image"
         });
       };
       
       img.src = originalUrl;
     } catch (error) {
       logger.error('Error in background image upload:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to upload image. Please try again.",
+      supaToast.error("Failed to upload image. Please try again.", {
+        title: "Error"
       });
     }
   };
@@ -168,19 +162,16 @@ export default function Settings() {
       }
     } catch (error) {
       logger.error('Error saving settings:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to save settings. Please try again.",
+      supaToast.error("Failed to save settings. Please try again.", {
+        title: "Error"
       });
     }
   };
 
   const handleCancelSettings = () => {
     discardChanges();
-    toast({
-      title: "Changes discarded",
-      description: "Your unsaved changes have been reverted",
+    supaToast.success("Your unsaved changes have been reverted", {
+      title: "Changes discarded"
     });
   };
 
@@ -189,17 +180,14 @@ export default function Settings() {
       const success = await resetToDefaults();
       
       if (success) {
-        toast({
-          title: "Settings reset",
-          description: "Your theme settings have been reset to defaults",
+        supaToast.success("Your theme settings have been reset to defaults", {
+          title: "Settings reset"
         });
       }
     } catch (error) {
       logger.error('Error resetting settings:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to reset settings. Please try again.",
+      supaToast.error("Failed to reset settings. Please try again.", {
+        title: "Error"
       });
     }
   };
