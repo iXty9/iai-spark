@@ -7,7 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { MapPin, RefreshCw, Shield, Clock, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocationContext } from '@/contexts/LocationContext';
-import { supaToast } from '@/services/supa-toast';
+import { useToast } from '@/hooks/use-toast';
 
 export const LocationSettings: React.FC = () => {
   const { profile, updateProfile } = useAuth();
@@ -22,22 +22,27 @@ export const LocationSettings: React.FC = () => {
     refreshLocation,
     handleAutoUpdateToggle: locationContextToggle
   } = useLocationContext();
+  const { toast } = useToast();
 
   const handlePermissionToggle = async () => {
     if (hasPermission) {
       // Cannot revoke permission programmatically - show info
-      supaToast.info("To disable location access, please change permissions in your browser settings.", {
-        title: "Location Permission"
+      toast({
+        title: "Location Permission",
+        description: "To disable location access, please change permissions in your browser settings.",
       });
     } else {
       try {
         await requestLocationPermission();
-        supaToast.success("Location services have been enabled successfully.", {
-          title: "Location Enabled"
+        toast({
+          title: "Location Enabled",
+          description: "Location services have been enabled successfully.",
         });
       } catch (error) {
-        supaToast.error("Location access was denied. Please enable it in your browser settings.", {
-          title: "Permission Denied"
+        toast({
+          variant: "destructive",
+          title: "Permission Denied",
+          description: "Location access was denied. Please enable it in your browser settings.",
         });
       }
     }
@@ -51,14 +56,17 @@ export const LocationSettings: React.FC = () => {
         await updateProfile({ location_auto_update: enabled });
       }
       
-      supaToast.success(enabled 
-        ? "Your location will be updated automatically when you move."
-        : "Your location will only update when manually refreshed.", {
-        title: enabled ? "Auto-update Enabled" : "Auto-update Disabled"
+      toast({
+        title: enabled ? "Auto-update Enabled" : "Auto-update Disabled",
+        description: enabled 
+          ? "Your location will be updated automatically when you move."
+          : "Your location will only update when manually refreshed.",
       });
     } catch (error) {
-      supaToast.error("Failed to update location preferences.", {
-        title: "Update Failed"
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: "Failed to update location preferences.",
       });
     }
   };
@@ -67,12 +75,15 @@ export const LocationSettings: React.FC = () => {
     const result = await refreshLocation();
     
     if (result.success) {
-      supaToast.success("Your current location has been refreshed.", {
-        title: "Location Updated"
+      toast({
+        title: "Location Updated",
+        description: "Your current location has been refreshed.",
       });
     } else {
-      supaToast.error(result.error || "Failed to refresh location.", {
-        title: "Refresh Failed"
+      toast({
+        variant: "destructive",
+        title: "Refresh Failed",
+        description: result.error || "Failed to refresh location.",
       });
     }
   };

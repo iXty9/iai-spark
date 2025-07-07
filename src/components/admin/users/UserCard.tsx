@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { User, Crown, Shield, Copy, ChevronUp, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
-import { supaToast } from '@/services/supa-toast';
+import { useToast } from '@/hooks/use-toast';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { UserRowActions } from './UserRowActions';
 import { cn } from '@/lib/utils';
@@ -27,7 +27,7 @@ export function UserCard({
   isExpanded = false,
   onToggleExpanded 
 }: UserCardProps) {
-  // Using unified SupaToast system
+  const { toast } = useToast();
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Never';
@@ -65,12 +65,15 @@ export function UserCard({
   const copyToClipboard = async (text: string, label: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      supaToast.success(`${label} copied to clipboard`, {
-        title: "Copied!"
+      toast({
+        title: "Copied!",
+        description: `${label} copied to clipboard`,
       });
     } catch (error) {
-      supaToast.error("Failed to copy to clipboard", {
-        title: "Copy failed"
+      toast({
+        variant: "destructive",
+        title: "Copy failed",
+        description: "Failed to copy to clipboard",
       });
     }
   };

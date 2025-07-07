@@ -7,7 +7,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useTextareaResize } from '@/hooks/use-textarea-resize';
 import { useFileUpload } from '@/hooks/chat/use-file-upload';
 import { useVoiceInput } from '@/hooks/chat/use-voice-input';
-import { supaToast } from '@/services/supa-toast';
+import { useToast } from '@/hooks/use-toast';
 import { VersionBadge } from './VersionBadge';
 
 interface WelcomeMessageInputProps {
@@ -28,7 +28,7 @@ export const WelcomeMessageInput: React.FC<WelcomeMessageInputProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
-  // Using unified SupaToast system
+  const { toast } = useToast();
   
   const { uploadState, uploadFile, clearError } = useFileUpload();
   const { 
@@ -83,12 +83,15 @@ export const WelcomeMessageInput: React.FC<WelcomeMessageInputProps> = ({
     if (result) {
       const fileInfo = `[Attached file: ${file.name}]\n\n`;
       onChange(fileInfo + message);
-      supaToast.success(`${file.name} has been attached to your message.`, {
-        title: "File attached"
+      toast({
+        title: "File attached",
+        description: `${file.name} has been attached to your message.`
       });
     } else if (uploadState.error) {
-      supaToast.error(uploadState.error, {
-        title: "Upload failed"
+      toast({
+        variant: "destructive",
+        title: "Upload failed",
+        description: uploadState.error
       });
       clearError();
     }
@@ -101,8 +104,10 @@ export const WelcomeMessageInput: React.FC<WelcomeMessageInputProps> = ({
   // Voice input handlers
   const handleVoiceClick = async () => {
     if (!voiceState.isSupported) {
-      supaToast.error("Your browser doesn't support voice input.", {
-        title: "Voice input not supported"
+      toast({
+        variant: "destructive",
+        title: "Voice input not supported",
+        description: "Your browser doesn't support voice input."
       });
       return;
     }
@@ -113,8 +118,10 @@ export const WelcomeMessageInput: React.FC<WelcomeMessageInputProps> = ({
       if (!voiceState.hasPermission) {
         const hasPermission = await requestPermission();
         if (!hasPermission) {
-          supaToast.error("Please allow microphone access to use voice input.", {
-            title: "Microphone access required"
+          toast({
+            variant: "destructive",
+            title: "Microphone access required",
+            description: "Please allow microphone access to use voice input."
           });
           return;
         }
@@ -124,8 +131,10 @@ export const WelcomeMessageInput: React.FC<WelcomeMessageInputProps> = ({
       await startRecording();
       
       if (voiceState.error) {
-        supaToast.error(voiceState.error, {
-          title: "Voice input failed"
+        toast({
+          variant: "destructive",
+          title: "Voice input failed",
+          description: voiceState.error
         });
         clearVoiceError();
       }
@@ -139,24 +148,27 @@ export const WelcomeMessageInput: React.FC<WelcomeMessageInputProps> = ({
       onChange(newMessage);
       clearTranscript();
       
-      supaToast.success("Your speech has been transcribed.", {
-        title: "Voice input complete"
+      toast({
+        title: "Voice input complete",
+        description: "Your speech has been transcribed."
       });
       
       if (textareaRef.current) {
         textareaRef.current.focus();
       }
     }
-  }, [voiceState.transcript, message, onChange, clearTranscript]);
+  }, [voiceState.transcript, message, onChange, clearTranscript, toast]);
 
   // Handle voice errors
   React.useEffect(() => {
     if (voiceState.error) {
-      supaToast.error(voiceState.error, {
-        title: "Voice input error"
+      toast({
+        variant: "destructive",
+        title: "Voice input error",
+        description: voiceState.error
       });
     }
-  }, [voiceState.error]);
+  }, [voiceState.error, toast]);
 
   const getVoiceButtonState = () => {
     if (voiceState.isProcessing) {
