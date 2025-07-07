@@ -29,8 +29,8 @@ export function useEnhancedLocation() {
       
       if (result.success && result.data) {
         setLocationData(result.data, true);
-        // Start smart periodic updates after successful permission grant
-        enhancedLocationService.startPeriodicUpdates();
+        // Only start watching, not periodic updates to avoid dual polling
+        // enhancedLocationService.startPeriodicUpdates();
       } else {
         setError(result.error || 'Failed to get location');
       }
@@ -97,7 +97,7 @@ export function useEnhancedLocation() {
     actions.clearError();
   }, [actions]);
 
-  // Initialize location state when user changes
+  // Initialize location state when user changes - fix circular dependencies
   useEffect(() => {
     if (!user) {
       actions.updateLocationState({
@@ -132,7 +132,7 @@ export function useEnhancedLocation() {
       
       checkExistingPermission();
     }
-  }, [user, actions, setLocationData]);
+  }, [user]); // Remove actions and setLocationData to prevent circular deps
 
   // Cleanup on unmount
   useEffect(() => {

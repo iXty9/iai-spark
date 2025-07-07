@@ -34,6 +34,7 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
   const { isDevMode } = useDevMode();
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
   const [isOperating, setIsOperating] = useState(false);
+  const [optimisticAutoUpdate, setOptimisticAutoUpdate] = useState<boolean | null>(null);
   const lastClickTime = useRef<number>(0);
   
 
@@ -73,10 +74,12 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
       return;
     }
 
-    // Toggle auto-update setting
-    const currentAutoUpdate = profile?.location_auto_update !== false;
+    // Toggle auto-update setting with optimistic UI updates
+    const currentAutoUpdate = optimisticAutoUpdate ?? (profile?.location_auto_update !== false);
     const newAutoUpdate = !currentAutoUpdate;
     
+    // Optimistic update for immediate UI feedback
+    setOptimisticAutoUpdate(newAutoUpdate);
     setIsOperating(true);
     
     try {
@@ -87,12 +90,18 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
           : "Location updates have been disabled", {
           title: newAutoUpdate ? "Auto-updates enabled" : "Auto-updates disabled"
         });
+        // Keep optimistic state until profile updates
+        setTimeout(() => setOptimisticAutoUpdate(null), 2000);
       } else {
+        // Revert optimistic update on failure
+        setOptimisticAutoUpdate(!newAutoUpdate);
         supaToast.error(result.error || "Failed to toggle location auto-updates", {
           title: "Toggle failed"
         });
       }
     } catch (error) {
+      // Revert optimistic update on error
+      setOptimisticAutoUpdate(!newAutoUpdate);
       supaToast.error("Failed to toggle location auto-updates", {
         title: "Toggle failed"
       });
@@ -111,7 +120,7 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
     }
     if (hasPermission) {
       // Show different icon based on auto-update setting when permission is granted
-      const autoUpdateEnabled = profile?.location_auto_update !== false;
+      const autoUpdateEnabled = optimisticAutoUpdate ?? (profile?.location_auto_update !== false);
       return autoUpdateEnabled ? <MapPin className="h-4 w-4" /> : <MapPinOff className="h-4 w-4" />;
     }
     return <MapPinOff className="h-4 w-4" />;
@@ -133,7 +142,7 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
   const getStatusVariant = () => {
     if (error) return 'destructive' as const;
     if (hasPermission) {
-      const autoUpdateEnabled = profile?.location_auto_update !== false;
+      const autoUpdateEnabled = optimisticAutoUpdate ?? (profile?.location_auto_update !== false);
       return autoUpdateEnabled ? 'default' as const : 'secondary' as const;
     }
     return 'secondary' as const;
@@ -146,7 +155,7 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
       const lastUpdate = `Last updated: ${lastUpdated?.toLocaleString() || 'Unknown'}`;
       
       if (isDevMode) {
-        const currentState = profile?.location_auto_update !== false;
+        const currentState = optimisticAutoUpdate ?? (profile?.location_auto_update !== false);
         const autoUpdateStatus = currentState ? 'Auto-updates: ON' : 'Auto-updates: OFF';
         const addressInfo = currentLocation.address ? `\nAddress: ${currentLocation.address}` : '';
         const toggleText = isOperating ? '\n\nUpdating...' : '\n\nClick to toggle auto-updates';

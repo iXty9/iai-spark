@@ -56,14 +56,15 @@ export function useLocationState() {
   }, [updateLocationState]);
 
   const setLocationData = useCallback((data: LocationData | null, hasPermission = false) => {
-    updateLocationState({
+    setState(prev => ({
+      ...prev,
       currentLocation: data,
       lastUpdated: data ? new Date() : null,
-      hasPermission: hasPermission || state.hasPermission,
+      hasPermission: hasPermission || prev.hasPermission,
       isLoading: false,
       error: null
-    });
-  }, [updateLocationState, state.hasPermission]);
+    }));
+  }, []);
 
   // Prevent concurrent operations
   const withOperationLock = useCallback(async <T>(operation: () => Promise<T>): Promise<T | null> => {
