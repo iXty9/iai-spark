@@ -4,9 +4,9 @@ export const DEFAULT_CONFIG: SupaToastConfig = {
   maxToasts: 5,
   defaultDuration: 5000,
   defaultPosition: 'bottom-right',
-  enableBrowserNotifications: false,
+  enableBrowserNotifications: true,
   enableWebSocketToasts: true,
-  enableSonnerIntegration: true,
+  enableSonnerIntegration: false,
   enableShadcnIntegration: true,
 };
 
