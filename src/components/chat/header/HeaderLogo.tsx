@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useAIAgentName } from '@/hooks/use-ai-agent-name';
 
 interface HeaderLogoProps {
   isMobile?: boolean;
@@ -9,6 +10,8 @@ interface HeaderLogoProps {
 }
 
 export const HeaderLogo = ({ isMobile, dynamicPadding }: HeaderLogoProps) => {
+  const { aiAgentName } = useAIAgentName();
+  
   const handleLogoClick = () => {
     window.open('https://ixty9.com', '_blank', 'noopener,noreferrer');
   };
@@ -35,7 +38,7 @@ export const HeaderLogo = ({ isMobile, dynamicPadding }: HeaderLogoProps) => {
             filter: 'contrast(1.2)'
           }}
         >
-          Ixty AI
+          {aiAgentName || 'AI Assistant'}
         </h1>
       </div>
     </div>
