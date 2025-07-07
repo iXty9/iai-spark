@@ -109,14 +109,7 @@ export async function updateAppSetting(key: string, value: string): Promise<bool
  */
 export async function setDefaultThemeSettings(themeSettings: any): Promise<boolean> {
   try {
-    // Ensure the theme settings have a proper timestamp for cache comparison
-    const settingsWithTimestamp = {
-      ...themeSettings,
-      exportDate: new Date().toISOString(),
-      name: themeSettings.name || 'Admin Default Theme'
-    };
-    
-    const success = await updateAppSetting('default_theme_settings', JSON.stringify(settingsWithTimestamp));
+    const success = await updateAppSetting('default_theme_settings', JSON.stringify(themeSettings));
     if (success) {
       logger.info('Default theme settings updated successfully', { module: 'admin-settings' });
     }

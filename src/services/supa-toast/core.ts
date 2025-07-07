@@ -56,8 +56,8 @@ class SupaToastService {
       this.showShadcnToast(options, toastId);
     }
 
-    // Show via sonner as fallback if shadcn fails or is disabled
-    if (this.config.enableSonnerIntegration) {
+    // Show via sonner if enabled and shadcn is disabled
+    if (this.config.enableSonnerIntegration && !this.config.enableShadcnIntegration) {
       this.showSonnerToast(options);
     }
 
