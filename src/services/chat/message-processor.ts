@@ -98,7 +98,6 @@ export async function processMessage({
       lastError: error instanceof Error ? `API Error: ${error.message}` : 'Unknown API error',
       isLoading: false,
     });
-    onError?.(error instanceof Error ? error : new Error('Unknown error occurred'));
     return createErrorResponse(error, canceled, controller);
   }
 }
