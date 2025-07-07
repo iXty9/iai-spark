@@ -226,8 +226,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
   return (
     <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto px-4 animate-fade-in">
       <div className="w-full text-center space-y-5">
-        {!hideMenuTitle && (
-          <div className="flex items-center justify-center gap-3">
+        <div className="flex items-center justify-center gap-3">
             <Avatar className="w-16 h-16 relative">
               {renderAvatar()}
               <AvatarFallback className="bg-[#ea384c]/10 text-[#ea384c] font-bold flex items-center justify-center">
@@ -245,8 +244,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
                 <p className="text-muted-foreground animate-fade-in">{tagline}</p>
               )}
             </div>
-          </div>
-        )}
+        </div>
         <WelcomeMessageInput
           message={message}
           onChange={setMessage}
