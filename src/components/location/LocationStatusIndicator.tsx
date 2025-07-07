@@ -118,8 +118,10 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
     if (error) {
       return <AlertCircle className="h-4 w-4" />;
     }
-    if (hasPermission && currentLocation) {
-      return <MapPin className="h-4 w-4" />;
+    if (hasPermission) {
+      // Show different icon based on auto-update setting when permission is granted
+      const autoUpdateEnabled = profile?.location_auto_update !== false;
+      return autoUpdateEnabled ? <MapPin className="h-4 w-4" /> : <MapPinOff className="h-4 w-4" />;
     }
     return <MapPinOff className="h-4 w-4" />;
   };
@@ -139,7 +141,10 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
 
   const getStatusVariant = () => {
     if (error) return 'destructive' as const;
-    if (hasPermission && currentLocation) return 'default' as const;
+    if (hasPermission) {
+      const autoUpdateEnabled = profile?.location_auto_update !== false;
+      return autoUpdateEnabled ? 'default' as const : 'secondary' as const;
+    }
     return 'secondary' as const;
   };
 
