@@ -16,6 +16,7 @@ import { User, LogOut, Settings, UserRound, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
 import { fetchAppSettings } from '@/services/admin/settingsService';
+import { useAIAgentName } from '@/hooks/use-ai-agent-name';
 import { logger } from '@/utils/logging';
 
 export const UserMenu = () => {
@@ -25,6 +26,8 @@ export const UserMenu = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminCheckLoading, setAdminCheckLoading] = useState(false);
   const [defaultAvatar, setDefaultAvatar] = useState<string | null>(null);
+  const [hideMenuTitle, setHideMenuTitle] = useState(false);
+  const { aiAgentName } = useAIAgentName();
 
   useEffect(() => {
     // Load default avatar setting only for authenticated users
@@ -33,6 +36,7 @@ export const UserMenu = () => {
         try {
           const settings = await fetchAppSettings();
           setDefaultAvatar(settings?.default_avatar_url || null);
+          setHideMenuTitle(settings?.hide_menu_title === 'true');
         } catch (error) {
           logger.warn('Failed to load default avatar setting', error, { module: 'user-menu' });
         }
@@ -164,6 +168,24 @@ export const UserMenu = () => {
                 <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
               </div>
             </DropdownMenuLabel>
+            {!hideMenuTitle && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>
+                  <div className="flex items-center space-x-2 py-1">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={defaultAvatar || undefined} alt={aiAgentName || 'AI Assistant'} />
+                      <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                        <UserRound className="h-3 w-3" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col">
+                      <p className="text-xs font-medium leading-none text-muted-foreground">{aiAgentName || 'AI Assistant'}</p>
+                    </div>
+                  </div>
+                </DropdownMenuLabel>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleProfileClick} className="py-2">
               <User className="mr-2 h-4 w-4" />
