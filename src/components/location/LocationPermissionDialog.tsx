@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { MapPin, Shield, Clock, Globe } from 'lucide-react';
-import { useLocation } from '@/hooks/use-location';
+import { useEnhancedLocation } from '@/hooks/location/use-enhanced-location';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface LocationPermissionDialogProps {
@@ -23,7 +23,7 @@ export const LocationPermissionDialog: React.FC<LocationPermissionDialogProps> =
   onOpenChange,
   onPermissionGranted
 }) => {
-  const { requestLocation, isLoading } = useLocation();
+  const { requestLocation, isLoading } = useEnhancedLocation();
   const { user } = useAuth();
 
   const handleRequestPermission = async () => {

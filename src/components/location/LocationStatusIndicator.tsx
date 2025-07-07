@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { MapPin, MapPinOff, RefreshCw, AlertCircle } from 'lucide-react';
-import { useLocation } from '@/hooks/use-location';
+import { useEnhancedLocation } from '@/hooks/location/use-enhanced-location';
 import { useLocationContext } from '@/contexts/LocationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDevMode } from '@/store/use-dev-mode';
@@ -27,28 +27,27 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
     error, 
     lastUpdated,
     clearError
-  } = useLocation();
+  } = useEnhancedLocation();
   
   const { handleAutoUpdateToggle } = useLocationContext();
   const { profile } = useAuth();
   const { isDevMode } = useDevMode();
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
-  const [isToggling, setIsToggling] = useState(false);
-  const [localAutoUpdate, setLocalAutoUpdate] = useState<boolean | null>(null);
+  const [isOperating, setIsOperating] = useState(false);
   const lastClickTime = useRef<number>(0);
   const { toast } = useToast();
 
-  // Debounced click handler with rate limiting
+  // Simplified click handler with better debouncing
   const handleLocationClick = useCallback(async () => {
-    // Rate limiting: prevent clicks within 500ms
+    // Rate limiting: prevent clicks within 1 second
     const now = Date.now();
-    if (now - lastClickTime.current < 500) {
+    if (now - lastClickTime.current < 1000) {
       return;
     }
     lastClickTime.current = now;
 
     // Prevent multiple concurrent operations
-    if (isToggling) {
+    if (isOperating || isLoading) {
       return;
     }
 
@@ -78,16 +77,11 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
       return;
     }
 
-    // Determine current state - use local state if available, otherwise fall back to profile
-    const currentAutoUpdate = localAutoUpdate !== null 
-      ? localAutoUpdate 
-      : (profile?.location_auto_update !== false);
+    // Toggle auto-update setting
+    const currentAutoUpdate = profile?.location_auto_update !== false;
     const newAutoUpdate = !currentAutoUpdate;
     
-    setIsToggling(true);
-    
-    // Optimistically update local state for immediate UI feedback
-    setLocalAutoUpdate(newAutoUpdate);
+    setIsOperating(true);
     
     try {
       const result = await handleAutoUpdateToggle(newAutoUpdate);
@@ -98,30 +92,27 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
             ? "Location will update automatically when you move"
             : "Location updates have been disabled"
         });
-        
-        // Clear local state after successful update - let profile state take over
-        setTimeout(() => setLocalAutoUpdate(null), 1000);
       } else {
-        // Revert optimistic update on failure
-        setLocalAutoUpdate(currentAutoUpdate);
-        throw new Error("Toggle operation failed");
+        toast({
+          variant: "destructive",
+          title: "Toggle failed",
+          description: result.error || "Failed to toggle location auto-updates"
+        });
       }
     } catch (error) {
-      // Revert optimistic update on error
-      setLocalAutoUpdate(currentAutoUpdate);
       toast({
         variant: "destructive",
         title: "Toggle failed",
         description: "Failed to toggle location auto-updates"
       });
     } finally {
-      setIsToggling(false);
+      setIsOperating(false);
     }
-  }, [isSupported, hasPermission, profile?.location_auto_update, localAutoUpdate, 
-      isToggling, clearError, handleAutoUpdateToggle, toast]);
+  }, [isSupported, hasPermission, profile?.location_auto_update, 
+      isOperating, isLoading, clearError, handleAutoUpdateToggle, toast]);
 
   const getStatusIcon = () => {
-    if (isLoading || isToggling) {
+    if (isLoading || isOperating) {
       return <RefreshCw className="h-4 w-4 animate-spin" />;
     }
     if (error) {
@@ -135,7 +126,7 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
 
   const getStatusText = () => {
     if (!isSupported) return 'Not supported';
-    if (isLoading || isToggling) return isToggling ? 'Updating...' : 'Getting location...';
+    if (isLoading || isOperating) return isOperating ? 'Updating...' : 'Getting location...';
     if (error) return 'Location error';
     if (hasPermission && currentLocation) {
       if (currentLocation.city) {
@@ -159,13 +150,10 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
       const lastUpdate = `Last updated: ${lastUpdated?.toLocaleString() || 'Unknown'}`;
       
       if (isDevMode) {
-        // Use local state if available for immediate feedback, otherwise use profile state
-        const currentState = localAutoUpdate !== null 
-          ? localAutoUpdate 
-          : (profile?.location_auto_update !== false);
+        const currentState = profile?.location_auto_update !== false;
         const autoUpdateStatus = currentState ? 'Auto-updates: ON' : 'Auto-updates: OFF';
         const addressInfo = currentLocation.address ? `\nAddress: ${currentLocation.address}` : '';
-        const toggleText = isToggling ? '\n\nUpdating...' : '\n\nClick to toggle auto-updates';
+        const toggleText = isOperating ? '\n\nUpdating...' : '\n\nClick to toggle auto-updates';
         return `${autoUpdateStatus}\n${lastUpdate}${addressInfo}${toggleText}`;
       }
       
@@ -183,7 +171,7 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
               variant="ghost"
               size="icon"
               onClick={handleLocationClick}
-              disabled={isLoading || isToggling}
+              disabled={isLoading || isOperating}
               className="h-8 w-8"
             >
               {getStatusIcon()}
@@ -209,7 +197,7 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
             variant="ghost"
             size="sm"
             onClick={handleLocationClick}
-            disabled={isLoading || isToggling}
+            disabled={isLoading || isOperating}
             className="h-auto p-2 flex items-center gap-2"
           >
             {getStatusIcon()}
