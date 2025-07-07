@@ -13,7 +13,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useNavigate } from 'react-router-dom';
 import { User, LogOut, Settings, UserRound, Shield } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { supaToast } from '@/services/supa-toast';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { logger } from '@/utils/logging';
@@ -21,7 +21,7 @@ import { logger } from '@/utils/logging';
 export const UserMenu = () => {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  // Using unified SupaToast system
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminCheckLoading, setAdminCheckLoading] = useState(false);
   const [defaultAvatar, setDefaultAvatar] = useState<string | null>(null);
@@ -91,16 +91,13 @@ export const UserMenu = () => {
     try {
       await signOut();
       navigate('/');
-      toast({
-        title: "Signed out",
-        description: "You have been signed out successfully",
+      supaToast.success("You have been signed out successfully", {
+        title: "Signed out"
       });
     } catch (error) {
       console.error('Sign out error:', error);
-      toast({
-        variant: "destructive",
-        title: "Error signing out",
-        description: "There was an error signing out. Please try again.",
+      supaToast.error("There was an error signing out. Please try again.", {
+        title: "Error signing out"
       });
     }
   };
