@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useToast } from '@/hooks/use-toast';
+import { supaToast } from '@/services/supa-toast';
 import { Share, Check, Copy, Globe, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { saveSiteEnvironmentConfig } from '@/services/supabase/site-config-service';
@@ -22,7 +22,6 @@ interface ShareConfigDialogProps {
 }
 
 export function ShareConfigDialog({ url, anonKey }: ShareConfigDialogProps) {
-  const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [savingSiteConfig, setSavingSiteConfig] = useState(false);
   const [siteConfigSaved, setSiteConfigSaved] = useState(false);
@@ -47,17 +46,14 @@ export function ShareConfigDialog({ url, anonKey }: ShareConfigDialogProps) {
       await navigator.clipboard.writeText(shareableUrl);
       setCopied(true);
       
-      toast({
-        title: "Link copied",
-        description: "The shareable connection link has been copied to your clipboard."
+      supaToast.success("The shareable connection link has been copied to your clipboard.", {
+        title: "Link copied"
       });
       
       setTimeout(() => setCopied(false), 3000);
     } catch (err) {
-      toast({
-        title: "Copy failed",
-        description: "Could not copy to clipboard. Please copy the link manually.",
-        variant: "destructive"
+      supaToast.error("Could not copy to clipboard. Please copy the link manually.", {
+        title: "Copy failed"
       });
     }
   };
@@ -70,24 +66,19 @@ export function ShareConfigDialog({ url, anonKey }: ShareConfigDialogProps) {
       
       if (success) {
         setSiteConfigSaved(true);
-        toast({
-          title: "Configuration saved",
-          description: "The connection configuration has been saved to the site environment."
+        supaToast.success("The connection configuration has been saved to the site environment.", {
+          title: "Configuration saved"
         });
         
         setTimeout(() => setSiteConfigSaved(false), 3000);
       } else {
-        toast({
-          title: "Save failed",
-          description: "Could not save connection configuration to site environment.",
-          variant: "destructive"
+        supaToast.error("Could not save connection configuration to site environment.", {
+          title: "Save failed"
         });
       }
     } catch (error) {
-      toast({
-        title: "Save failed",
-        description: "An error occurred while saving to site environment.",
-        variant: "destructive"
+      supaToast.error("An error occurred while saving to site environment.", {
+        title: "Save failed"
       });
     } finally {
       setSavingSiteConfig(false);

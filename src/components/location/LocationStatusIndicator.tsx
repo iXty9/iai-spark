@@ -8,7 +8,7 @@ import { useLocationContext } from '@/contexts/LocationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDevMode } from '@/store/use-dev-mode';
 import { LocationPermissionDialog } from './LocationPermissionDialog';
-import { useToast } from '@/hooks/use-toast';
+import { supaToast } from '@/services/supa-toast';
 
 interface LocationStatusIndicatorProps {
   showLabel?: boolean;
@@ -35,7 +35,7 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
   const [isOperating, setIsOperating] = useState(false);
   const lastClickTime = useRef<number>(0);
-  const { toast } = useToast();
+  
 
   // Simplified click handler with better debouncing
   const handleLocationClick = useCallback(async () => {
@@ -54,20 +54,16 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
     clearError();
     
     if (!isSupported) {
-      toast({
-        variant: "destructive",
-        title: "Location not supported",
-        description: "Your browser doesn't support location services."
+      supaToast.error("Your browser doesn't support location services.", {
+        title: "Location not supported"
       });
       return;
     }
 
     // Check if user is authenticated
     if (!profile) {
-      toast({
-        variant: "destructive",
-        title: "Authentication required",
-        description: "Please sign in to use location services."
+      supaToast.error("Please sign in to use location services.", {
+        title: "Authentication required"
       });
       return;
     }
@@ -86,30 +82,25 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
     try {
       const result = await handleAutoUpdateToggle(newAutoUpdate);
       if (result.success) {
-        toast({
-          title: newAutoUpdate ? "Auto-updates enabled" : "Auto-updates disabled",
-          description: newAutoUpdate 
-            ? "Location will update automatically when you move"
-            : "Location updates have been disabled"
+        supaToast.success(newAutoUpdate 
+          ? "Location will update automatically when you move"
+          : "Location updates have been disabled", {
+          title: newAutoUpdate ? "Auto-updates enabled" : "Auto-updates disabled"
         });
       } else {
-        toast({
-          variant: "destructive",
-          title: "Toggle failed",
-          description: result.error || "Failed to toggle location auto-updates"
+        supaToast.error(result.error || "Failed to toggle location auto-updates", {
+          title: "Toggle failed"
         });
       }
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Toggle failed",
-        description: "Failed to toggle location auto-updates"
+      supaToast.error("Failed to toggle location auto-updates", {
+        title: "Toggle failed"
       });
     } finally {
       setIsOperating(false);
     }
   }, [isSupported, hasPermission, profile?.location_auto_update, 
-      isOperating, isLoading, clearError, handleAutoUpdateToggle, toast]);
+      isOperating, isLoading, clearError, handleAutoUpdateToggle]);
 
   const getStatusIcon = () => {
     if (isLoading || isOperating) {

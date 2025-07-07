@@ -14,14 +14,13 @@ import { SoundSettings } from '@/components/settings/SoundSettings';
 import { LocationSettings } from '@/components/settings/LocationSettings';
 import { SettingsFooter } from '@/components/settings/SettingsFooter';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useToast } from '@/hooks/use-toast';
+import { supaToast } from '@/services/supa-toast';
 import { logger } from '@/utils/logging';
 import { useEffect, useState } from 'react';
 
 export default function Settings() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("appearance");
 
   const {
@@ -82,10 +81,8 @@ export default function Settings() {
       
       // Check file size - max 10MB for original
       if (file.size > 10 * 1024 * 1024) {
-        toast({
-          variant: "destructive",
-          title: "File too large",
-          description: "Background image must be less than 10MB",
+        supaToast.error("Background image must be less than 10MB", {
+          title: "File too large"
         });
         return;
       }
@@ -165,9 +162,8 @@ export default function Settings() {
       const success = await saveChanges();
       
       if (success) {
-        toast({
-          title: "Settings saved",
-          description: "Your theme settings have been saved successfully",
+        supaToast.success("Your theme settings have been saved successfully", {
+          title: "Settings saved"
         });
       }
     } catch (error) {
