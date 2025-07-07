@@ -168,7 +168,7 @@ export function AppSettings() {
                   <Label htmlFor="hideMenuTitle">Hide AI name and avatar in main menu</Label>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  When enabled, the AI name and avatar will be hidden from the main welcome screen.
+                  When enabled, the AI name and avatar will be hidden from the dropdown menu.
                 </p>
               </div>
               

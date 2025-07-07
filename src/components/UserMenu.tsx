@@ -32,17 +32,29 @@ export const UserMenu = () => {
   useEffect(() => {
     // Load default avatar setting only for authenticated users
     if (user) {
-      const loadDefaultAvatar = async () => {
+      const loadSettings = async () => {
         try {
           const settings = await fetchAppSettings();
           setDefaultAvatar(settings?.default_avatar_url || null);
           setHideMenuTitle(settings?.hide_menu_title === 'true');
         } catch (error) {
-          logger.warn('Failed to load default avatar setting', error, { module: 'user-menu' });
+          logger.warn('Failed to load settings', error, { module: 'user-menu' });
         }
       };
 
-      loadDefaultAvatar();
+      loadSettings();
+
+      // Listen for settings changes to update immediately when admin saves
+      const handleSettingsChange = () => {
+        loadSettings();
+      };
+
+      // Set up an interval to check for settings changes (simple approach)
+      const settingsInterval = setInterval(handleSettingsChange, 1000);
+
+      return () => {
+        clearInterval(settingsInterval);
+      };
     }
   }, [user]);
 
