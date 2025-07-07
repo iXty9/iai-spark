@@ -50,18 +50,13 @@ class SupaThemesCore {
 
   // Core initialization
   async initialize(userId?: string): Promise<void> {
-    // Early theme application for better performance - apply from localStorage immediately
-    if (!userId) {
-      this.loadAnonymousTheme();
-    }
-    
     if (userId && userId !== this.userId) {
       this.userId = userId;
       await this.persistence.loadUserTheme(userId, this.state);
       this.realtimeSync.setupRealtimeSync(userId, this.state, this.notifyListeners.bind(this));
     } else if (!userId) {
-      // Load admin defaults for unauthenticated users (already applied early above)
-      await this.loadAdminDefaults();
+      // For anonymous users, always load admin defaults first
+      await this.loadAnonymousThemeWithAdminDefaults();
     }
     
     this.state.isReady = true;
@@ -72,67 +67,89 @@ class SupaThemesCore {
     logger.info('SupaThemes initialized', { module: 'supa-themes', userId: this.userId });
   }
 
-  // Load anonymous user theme from localStorage
-  private loadAnonymousTheme(): void {
-    const localTheme = ThemeLocalStorage.loadTheme();
-    if (localTheme) {
-      this.state.mode = localTheme.mode || 'light';
-      this.state.lightTheme = localTheme.lightTheme || getDefaultLightTheme();
-      this.state.darkTheme = localTheme.darkTheme || getDefaultDarkTheme();
-      this.state.backgroundImage = localTheme.backgroundImage || null;
-      this.state.backgroundOpacity = localTheme.backgroundOpacity ?? 0.5;
-      this.state.autoDimDarkMode = localTheme.autoDimDarkMode ?? true;
+  // Load anonymous theme with admin defaults priority
+  private async loadAnonymousThemeWithAdminDefaults(): Promise<void> {
+    try {
+      // First, load admin defaults
+      const adminDefaults = await this.persistence.loadAdminDefaultTheme();
+      const localTheme = ThemeLocalStorage.loadTheme();
+      
+      if (adminDefaults) {
+        // Check if local theme is older than admin defaults (if available)
+        const shouldUseAdminDefaults = !localTheme || 
+          !localTheme.exportDate || 
+          new Date(adminDefaults.exportDate || 0) > new Date(localTheme.exportDate);
+        
+        if (shouldUseAdminDefaults) {
+          // Use admin defaults
+          this.state.mode = adminDefaults.mode || 'light';
+          this.state.lightTheme = adminDefaults.lightTheme || getDefaultLightTheme();
+          this.state.darkTheme = adminDefaults.darkTheme || getDefaultDarkTheme();
+          this.state.backgroundImage = adminDefaults.backgroundImage || null;
+          this.state.backgroundOpacity = adminDefaults.backgroundOpacity ?? 0.5;
+          this.state.autoDimDarkMode = adminDefaults.autoDimDarkMode ?? true;
+          
+          // Save admin defaults to localStorage for future loads
+          this.saveAnonymousTheme();
+          
+          logger.info('Admin default theme applied for anonymous user', { module: 'supa-themes' });
+        } else {
+          // Use local theme (it's newer)
+          this.applyLocalTheme(localTheme);
+          logger.info('Local theme applied (newer than admin defaults)', { module: 'supa-themes' });
+        }
+      } else if (localTheme) {
+        // No admin defaults, use local theme
+        this.applyLocalTheme(localTheme);
+        logger.info('Local theme applied (no admin defaults)', { module: 'supa-themes' });
+      } else {
+        // No admin defaults, no local theme - use hardcoded defaults
+        this.applyHardcodedDefaults();
+        this.saveAnonymousTheme();
+        logger.info('Hardcoded defaults applied for anonymous user', { module: 'supa-themes' });
+      }
       
       // Apply theme immediately for better performance
       this.themeApplier.applyBatched(this.state);
       
-      logger.info('Anonymous theme loaded from localStorage', { module: 'supa-themes' });
-    } else {
-      // Use defaults and save them for future visits
-      const defaultSettings = ThemeLocalStorage.getDefaultSettings();
-      this.state.mode = defaultSettings.mode || 'light';
-      this.state.lightTheme = defaultSettings.lightTheme || getDefaultLightTheme();
-      this.state.darkTheme = defaultSettings.darkTheme || getDefaultDarkTheme();
-      this.state.backgroundImage = defaultSettings.backgroundImage || null;
-      this.state.backgroundOpacity = defaultSettings.backgroundOpacity ?? 0.5;
-      this.state.autoDimDarkMode = defaultSettings.autoDimDarkMode ?? true;
-      
-      // Save defaults for next visit
-      this.saveAnonymousTheme();
-      
-      // Apply theme immediately
+    } catch (error) {
+      logger.error('Error loading anonymous theme with admin defaults:', error);
+      // Fallback to hardcoded defaults
+      this.applyHardcodedDefaults();
       this.themeApplier.applyBatched(this.state);
-      
-      logger.info('Default theme applied and saved for anonymous user', { module: 'supa-themes' });
     }
   }
 
-  // Load admin defaults (for unauthenticated users)
-  private async loadAdminDefaults(): Promise<void> {
-    try {
-      const adminDefaults = await this.persistence.loadAdminDefaultTheme();
-      
-      if (adminDefaults) {
-        // Merge admin defaults with existing anonymous settings (don't override user prefs)
-        if (!ThemeLocalStorage.loadTheme()) {
-          this.state.mode = adminDefaults.mode || this.state.mode;
-          this.state.lightTheme = adminDefaults.lightTheme || this.state.lightTheme;
-          this.state.darkTheme = adminDefaults.darkTheme || this.state.darkTheme;
-          this.state.backgroundImage = adminDefaults.backgroundImage ?? this.state.backgroundImage;
-          this.state.backgroundOpacity = adminDefaults.backgroundOpacity ?? this.state.backgroundOpacity;
-          this.state.autoDimDarkMode = adminDefaults.autoDimDarkMode ?? this.state.autoDimDarkMode;
-          
-          // Save the merged settings
-          this.saveAnonymousTheme();
-        }
-        
-        logger.info('Admin defaults merged for anonymous user', { module: 'supa-themes' });
-      } else {
-        logger.info('No admin defaults found, keeping anonymous settings', { module: 'supa-themes' });
-      }
-    } catch (error) {
-      logger.warn('Failed to load admin defaults:', error);
-    }
+  private applyLocalTheme(localTheme: ThemeSettings): void {
+    this.state.mode = localTheme.mode || 'light';
+    this.state.lightTheme = localTheme.lightTheme || getDefaultLightTheme();
+    this.state.darkTheme = localTheme.darkTheme || getDefaultDarkTheme();
+    this.state.backgroundImage = localTheme.backgroundImage || null;
+    this.state.backgroundOpacity = localTheme.backgroundOpacity ?? 0.5;
+    this.state.autoDimDarkMode = localTheme.autoDimDarkMode ?? true;
+  }
+
+  private applyHardcodedDefaults(): void {
+    const defaultSettings = ThemeLocalStorage.getDefaultSettings();
+    this.state.mode = defaultSettings.mode || 'light';
+    this.state.lightTheme = defaultSettings.lightTheme || getDefaultLightTheme();
+    this.state.darkTheme = defaultSettings.darkTheme || getDefaultDarkTheme();
+    this.state.backgroundImage = defaultSettings.backgroundImage || null;
+    this.state.backgroundOpacity = defaultSettings.backgroundOpacity ?? 0.5;
+    this.state.autoDimDarkMode = defaultSettings.autoDimDarkMode ?? true;
+  }
+  // State management
+  getState(): SupaThemeState {
+    return { ...this.state };
+  }
+
+  subscribe(listener: StateListener): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private notifyListeners(): void {
+    this.listeners.forEach(listener => listener(this.getState()));
   }
 
   // Save anonymous theme to localStorage - moved before usage
@@ -156,20 +173,6 @@ class SupaThemesCore {
     } catch (error) {
       logger.error('Failed to save anonymous theme:', error, { module: 'supa-themes' });
     }
-  }
-
-  // State management
-  getState(): SupaThemeState {
-    return { ...this.state };
-  }
-
-  subscribe(listener: StateListener): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
-
-  private notifyListeners(): void {
-    this.listeners.forEach(listener => listener(this.getState()));
   }
 
   // Public API - Theme mode

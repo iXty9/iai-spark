@@ -36,6 +36,12 @@ export class ThemePersistence {
       
       if (settings.default_theme_settings) {
         const parsedSettings = JSON.parse(settings.default_theme_settings) as ThemeSettings;
+        
+        // Ensure exportDate is set for comparison with local cache
+        if (!parsedSettings.exportDate) {
+          parsedSettings.exportDate = new Date().toISOString();
+        }
+        
         logger.info('Admin default theme loaded', { module: 'supa-themes' });
         return parsedSettings;
       }
