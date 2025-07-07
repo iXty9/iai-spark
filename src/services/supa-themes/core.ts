@@ -135,22 +135,27 @@ class SupaThemesCore {
     }
   }
 
-  // Save anonymous theme to localStorage
-  private saveAnonymousTheme(): void {
+  // Save anonymous theme to localStorage - moved before usage
+  private saveAnonymousTheme = (): void => {
     if (this.userId) return; // Only for anonymous users
     
-    const themeSettings: ThemeSettings = {
-      mode: this.state.mode,
-      lightTheme: this.state.lightTheme,
-      darkTheme: this.state.darkTheme,
-      backgroundImage: this.state.backgroundImage,
-      backgroundOpacity: this.state.backgroundOpacity,
-      autoDimDarkMode: this.state.autoDimDarkMode,
-      name: 'Anonymous Theme',
-      exportDate: new Date().toISOString()
-    };
-    
-    ThemeLocalStorage.saveTheme(themeSettings);
+    try {
+      const themeSettings: ThemeSettings = {
+        mode: this.state.mode,
+        lightTheme: this.state.lightTheme,
+        darkTheme: this.state.darkTheme,
+        backgroundImage: this.state.backgroundImage,
+        backgroundOpacity: this.state.backgroundOpacity,
+        autoDimDarkMode: this.state.autoDimDarkMode,
+        name: 'Anonymous Theme',
+        exportDate: new Date().toISOString()
+      };
+      
+      ThemeLocalStorage.saveTheme(themeSettings);
+      logger.info('Anonymous theme saved to localStorage', { module: 'supa-themes' });
+    } catch (error) {
+      logger.error('Failed to save anonymous theme:', error, { module: 'supa-themes' });
+    }
   }
 
   // State management
