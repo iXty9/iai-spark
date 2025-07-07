@@ -8,7 +8,6 @@ import { useDevMode } from '@/store/use-dev-mode';
 import { Message } from '@/types/chat';
 import { logger } from '@/utils/logging';
 import { fetchAppSettings } from '@/services/admin/settingsService';
-import { useAIAgentName } from '@/hooks/use-ai-agent-name';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWebSocket, ProactiveMessage } from '@/contexts/WebSocketContext';
 import { WelcomeMessageInput } from './WelcomeMessageInput';
@@ -32,8 +31,6 @@ const isMobileSafari = () => {
 export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransition }) => {
   const [message, setMessage] = useState('');
   const [tagline, setTagline] = useState<string | null>(null);
-  const [hideMenuTitle, setHideMenuTitle] = useState(false);
-  const { aiAgentName } = useAIAgentName();
   const [isLoading, setLoading] = useState(true);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState(false);
@@ -236,7 +233,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
             </AvatarFallback>
           </Avatar>
           <div className="space-y-2 text-left">
-            <h1 className="text-2xl font-bold text-[#ea384c] animate-fade-in">{aiAgentName || 'AI Assistant'}</h1>
+            <h1 className="text-2xl font-bold text-[#ea384c] animate-fade-in">Ixty AI</h1>
             {isLoading ? (
               <Skeleton className="h-5 w-64 bg-muted/20" />
             ) : (

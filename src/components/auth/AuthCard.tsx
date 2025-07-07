@@ -2,7 +2,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Star, Rocket, Heart, Zap, Sparkles, Crown, Award, Trophy } from 'lucide-react';
 import { useAuthSettings } from '@/hooks/admin/useAuthSettings';
-import { useAIAgentName } from '@/hooks/use-ai-agent-name';
 
 const ICON_COMPONENTS = {
   star: Star,
@@ -21,7 +20,6 @@ interface AuthCardProps {
 
 export const AuthCard = ({ children }: AuthCardProps) => {
   const { authSettings } = useAuthSettings();
-  const { aiAgentName } = useAIAgentName();
   
   const IconComponent = ICON_COMPONENTS[authSettings.taglineIcon as keyof typeof ICON_COMPONENTS] || Star;
   
@@ -43,7 +41,7 @@ export const AuthCard = ({ children }: AuthCardProps) => {
           
           <div className="space-y-2">
             <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-              {aiAgentName || 'AI Assistant'}
+              Ixty AI
             </CardTitle>
             <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
               <IconComponent className="h-4 w-4" />
