@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
+import { supaToast } from '@/services/supa-toast';
 import { fetchAppSettings, updateAppSetting } from '@/services/admin/settingsService';
 import { logger } from '@/utils/logging';
 import { Smartphone, Palette, Settings, Eye, RefreshCw, Zap } from 'lucide-react';
@@ -30,7 +30,7 @@ interface PWASettingsState {
 }
 
 export function PWASettings() {
-  const { toast } = useToast();
+  // Using unified SupaToast system
   const { isInstalled, currentVersion, needsUpdate } = usePWA();
   const [settings, setSettings] = useState<PWASettingsState>({
     pwa_app_name: '',
@@ -69,10 +69,8 @@ export function PWASettings() {
       logger.info('PWA settings loaded successfully', null, { module: 'pwa-settings' });
     } catch (error) {
       logger.error('Failed to load PWA settings', error, { module: 'pwa-settings' });
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to load PWA settings"
+      supaToast.error("Failed to load PWA settings", {
+        title: "Error loading PWA settings"
       });
     } finally {
       setIsLoading(false);
@@ -88,18 +86,15 @@ export function PWASettings() {
         await updateAppSetting(key, value);
       }
       
-      toast({
-        title: "Success",
-        description: "PWA settings saved successfully. Changes will be available after the next update."
+      supaToast.success("PWA settings saved successfully. Changes will be available after the next update.", {
+        title: "PWA settings saved"
       });
       
       logger.info('PWA settings saved successfully', null, { module: 'pwa-settings' });
     } catch (error) {
       logger.error('Failed to save PWA settings', error, { module: 'pwa-settings' });
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to save PWA settings"
+      supaToast.error("Failed to save PWA settings", {
+        title: "Error saving PWA settings"
       });
     } finally {
       setIsSaving(false);

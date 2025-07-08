@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+import { supaToast } from '@/services/supa-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
 import { AdminTabs } from '@/components/admin/AdminTabs';
@@ -19,7 +19,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Admin() {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -43,10 +42,8 @@ export default function Admin() {
         // Only redirect if component is still mounted
         if (isMounted) {
           setIsRedirecting(true);
-          toast({
-            variant: "destructive",
-            title: "Authentication Required",
-            description: "Please sign in to access the admin panel.",
+          supaToast.error("Please sign in to access the admin panel.", {
+            title: "Authentication Required"
           });
           navigate('/auth');
         }
@@ -62,10 +59,8 @@ export default function Admin() {
           
           if (!adminStatus) {
             setIsRedirecting(true);
-            toast({
-              variant: "destructive",
-              title: "Access Denied",
-              description: "You don't have admin privileges to access this page.",
+            supaToast.error("You don't have admin privileges to access this page.", {
+              title: "Access Denied"
             });
             navigate('/');
           }
@@ -75,10 +70,8 @@ export default function Admin() {
         
         // Only show toast and redirect if component is still mounted
         if (isMounted) {
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Failed to verify admin privileges.",
+          supaToast.error("Failed to verify admin privileges.", {
+            title: "Error"
           });
           setIsRedirecting(true);
           navigate('/');
@@ -97,7 +90,7 @@ export default function Admin() {
     return () => {
       isMounted = false;
     };
-  }, [user, navigate, toast]);
+  }, [user, navigate]);
 
   const handleGoBack = () => {
     navigate('/');

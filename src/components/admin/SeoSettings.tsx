@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
+import { supaToast } from '@/services/supa-toast';
 import { fetchAppSettings, updateAppSetting } from '@/services/admin/settingsService';
 import { settingsCacheService } from '@/services/settings-cache-service';
 import { Loader2, Save } from 'lucide-react';
@@ -21,7 +21,7 @@ interface SeoSettingsData {
 }
 
 export function SeoSettings() {
-  const { toast } = useToast();
+  // Using unified SupaToast system
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [settings, setSettings] = useState<SeoSettingsData>({
@@ -49,10 +49,8 @@ export function SeoSettings() {
         });
       } catch (error) {
         console.error('Failed to load SEO settings:', error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load SEO settings.",
+        supaToast.error("Failed to load SEO settings.", {
+          title: "Error"
         });
       } finally {
         setIsLoading(false);
@@ -60,7 +58,7 @@ export function SeoSettings() {
     };
 
     loadSettings();
-  }, [toast]);
+  }, []);
 
   const handleInputChange = (key: keyof SeoSettingsData, value: string) => {
     setSettings(prev => ({
@@ -84,16 +82,13 @@ export function SeoSettings() {
         settingsCacheService.updateCache(key, value);
       });
 
-      toast({
-        title: "Success",
-        description: "SEO settings saved successfully.",
+      supaToast.success("SEO settings saved successfully.", {
+        title: "Success"
       });
     } catch (error) {
       console.error('Failed to save SEO settings:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to save SEO settings.",
+      supaToast.error("Failed to save SEO settings.", {
+        title: "Error"
       });
     } finally {
       setIsSaving(false);

@@ -12,7 +12,7 @@ import { generateConfigFile } from '@/utils/config-generator';
 import { writeConfigToLocalStorage, readConfigFromLocalStorage } from '@/services/site-config/site-config-file-service';
 import { SiteConfigEnv } from '@/services/supabase/site-config-service';
 import { Download, RefreshCw, Save } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { supaToast } from '@/services/supa-toast';
 
 const fields = [
   {
@@ -35,7 +35,6 @@ export function ConfigurationDashboard({ onConfigSaved }) {
   const [state, setState] = useState({ supabaseUrl: '', supabaseAnonKey: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('configure');
-  const { toast } = useToast();
 
   // Load config from localStorage on mount
   useEffect(() => {
@@ -46,10 +45,8 @@ export function ConfigurationDashboard({ onConfigSaved }) {
     });
   }, []);
 
-  const handleMissingFields = () => toast({
-    title: "Validation Error",
-    description: "Please provide both Supabase URL and Anonymous Key",
-    variant: "destructive"
+  const handleMissingFields = () => supaToast.error("Please provide both Supabase URL and Anonymous Key", {
+    title: "Validation Error"
   });
 
   const hasFields = state.supabaseUrl && state.supabaseAnonKey;
@@ -65,16 +62,19 @@ export function ConfigurationDashboard({ onConfigSaved }) {
       };
       const saved = writeConfigToLocalStorage(config);
       if (saved) {
-        toast({
-          title: "Configuration Saved",
-          description: "Supabase connection details have been saved successfully.",
+        supaToast.success("Supabase connection details have been saved successfully.", {
+          title: "Configuration Saved"
         });
         onConfigSaved?.();
       } else {
-        toast({ title: "Save Failed", description: "Failed to save configuration. Please try again.", variant: "destructive" });
+        supaToast.error("Failed to save configuration. Please try again.", {
+          title: "Save Failed"
+        });
       }
     } catch (error) {
-      toast({ title: "Error", description: error?.message || "An unknown error occurred", variant: "destructive" });
+      supaToast.error(error?.message || "An unknown error occurred", {
+        title: "Error"
+      });
     } finally { setIsSubmitting(false); }
   };
 
@@ -83,15 +83,18 @@ export function ConfigurationDashboard({ onConfigSaved }) {
     setIsSubmitting(true);
     try {
       if (await generateConfigFile(state.supabaseUrl, state.supabaseAnonKey)) {
-        toast({
-          title: "Configuration File Generated",
-          description: "site-config.json has been generated and downloaded. Place this file in your public directory. Note: This file contains sensitive information and should not be committed to version control.",
+        supaToast.success("site-config.json has been generated and downloaded. Place this file in your public directory. Note: This file contains sensitive information and should not be committed to version control.", {
+          title: "Configuration File Generated"
         });
       } else {
-        toast({ title: "Generation Failed", description: "Failed to generate configuration file. Please try again.", variant: "destructive" });
+        supaToast.error("Failed to generate configuration file. Please try again.", {
+          title: "Generation Failed"
+        });
       }
     } catch (error) {
-      toast({ title: "Error", description: error?.message || "An unknown error occurred", variant: "destructive" });
+      supaToast.error(error?.message || "An unknown error occurred", {
+        title: "Error"
+      });
     } finally { setIsSubmitting(false); }
   };
 

@@ -55,10 +55,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   
   return (
     <header className="py-3 flex items-center justify-between min-h-[3rem]">
-      <HeaderLogo 
-        isMobile={isMobile} 
-        dynamicPadding={{ left: 0 }}
-      />
+      <div className="flex-1">
+        <HeaderLogo 
+          isMobile={isMobile} 
+          dynamicPadding={{ left: 0 }}
+        />
+      </div>
       
       <div className="flex items-center gap-3 flex-shrink-0">
         {user && <LocationStatusIndicator variant="compact" />}

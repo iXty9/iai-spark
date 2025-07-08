@@ -13,34 +13,34 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useNavigate } from 'react-router-dom';
 import { User, LogOut, Settings, UserRound, Shield } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { supaToast } from '@/services/supa-toast';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
 import { fetchAppSettings } from '@/services/admin/settingsService';
-import { useAIAgentName } from '@/hooks/use-ai-agent-name';
 import { logger } from '@/utils/logging';
 
 export const UserMenu = () => {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const { aiAgentName } = useAIAgentName();
+  // Using unified SupaToast system
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminCheckLoading, setAdminCheckLoading] = useState(false);
   const [defaultAvatar, setDefaultAvatar] = useState<string | null>(null);
 
   useEffect(() => {
-    // Load default avatar setting for all users (authenticated and anonymous)
-    const loadDefaultAvatar = async () => {
-      try {
-        const settings = await fetchAppSettings();
-        setDefaultAvatar(settings?.default_avatar_url || null);
-      } catch (error) {
-        logger.warn('Failed to load default avatar setting', error, { module: 'user-menu' });
-      }
-    };
+    // Load default avatar setting only for authenticated users
+    if (user) {
+      const loadDefaultAvatar = async () => {
+        try {
+          const settings = await fetchAppSettings();
+          setDefaultAvatar(settings?.default_avatar_url || null);
+        } catch (error) {
+          logger.warn('Failed to load default avatar setting', error, { module: 'user-menu' });
+        }
+      };
 
-    loadDefaultAvatar();
-  }, []);
+      loadDefaultAvatar();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -91,16 +91,13 @@ export const UserMenu = () => {
     try {
       await signOut();
       navigate('/');
-      toast({
-        title: "Signed out",
-        description: "You have been signed out successfully",
+      supaToast.success("You have been signed out successfully", {
+        title: "Signed out"
       });
     } catch (error) {
       console.error('Sign out error:', error);
-      toast({
-        variant: "destructive",
-        title: "Error signing out",
-        description: "There was an error signing out. Please try again.",
+      supaToast.error("There was an error signing out. Please try again.", {
+        title: "Error signing out"
       });
     }
   };
@@ -116,15 +113,11 @@ export const UserMenu = () => {
   };
 
   const getAvatarUrl = () => {
-    // Use profile avatar for authenticated users if available
+    // Only use profile avatar for authenticated users
     if (user && profile?.avatar_url) {
       return profile.avatar_url;
     }
-    // Use admin's default avatar if available
-    if (defaultAvatar) {
-      return defaultAvatar;
-    }
-    // Return undefined to use fallback
+    // For authenticated users without profile picture or signed-out users, return undefined to use fallback
     return undefined;
   };
 
@@ -149,7 +142,7 @@ export const UserMenu = () => {
             </DropdownMenuTrigger>
           </TooltipTrigger>
           <TooltipContent side="bottom">
-            <p>{user ? `${profile?.username || 'User'} menu` : `${aiAgentName} - Sign in`}</p>
+            <p>{user ? `${profile?.username || 'User'} menu` : 'User menu - Sign in'}</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>

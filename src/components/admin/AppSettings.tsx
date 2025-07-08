@@ -17,6 +17,8 @@ export function AppSettings() {
   const [siteTitle, setSiteTitle] = useState('');
   const [defaultAvatarUrl, setDefaultAvatarUrl] = useState('');
   const [aiAgentName, setAiAgentName] = useState('');
+  const [hideMenuTitle, setHideMenuTitle] = useState(false);
+  const [headerLinkUrl, setHeaderLinkUrl] = useState('');
 
   useEffect(() => {
     loadSettings();
@@ -32,6 +34,8 @@ export function AppSettings() {
       setSiteTitle(settings.site_title || 'AI Chat Application');
       setDefaultAvatarUrl(settings.default_avatar_url || '');
       setAiAgentName(settings.ai_agent_name || 'AI Assistant');
+      setHideMenuTitle(settings.hide_menu_title === 'true');
+      setHeaderLinkUrl(settings.header_link_url || 'https://ixty9.com');
     } catch (error) {
       console.error('Error loading app settings:', error);
       supaToast.error("There was an error loading the application settings.", {
@@ -57,11 +61,19 @@ export function AppSettings() {
       // Save AI agent name
       await updateAppSetting('ai_agent_name', aiAgentName);
       
+      // Save hide menu title setting
+      await updateAppSetting('hide_menu_title', hideMenuTitle.toString());
+      
+      // Save header link URL
+      await updateAppSetting('header_link_url', headerLinkUrl);
+      
       // Update cache with new values for immediate effect
       settingsCacheService.updateCache('app_name', tagline);
       settingsCacheService.updateCache('site_title', siteTitle);
       settingsCacheService.updateCache('default_avatar_url', defaultAvatarUrl);
       settingsCacheService.updateCache('ai_agent_name', aiAgentName);
+      settingsCacheService.updateCache('hide_menu_title', hideMenuTitle.toString());
+      settingsCacheService.updateCache('header_link_url', headerLinkUrl);
       
       supaToast.success("Application settings have been updated successfully.", {
         title: "Settings saved"
@@ -147,6 +159,36 @@ export function AppSettings() {
                 />
                 <p className="text-sm text-muted-foreground">
                   This avatar is used as the default for AI messages and user fallbacks. Leave empty to use built-in fallback.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="headerLinkUrl">Header Link URL</Label>
+                <Input
+                  id="headerLinkUrl"
+                  value={headerLinkUrl}
+                  onChange={(e) => setHeaderLinkUrl(e.target.value)}
+                  placeholder="Enter header logo/name click destination URL"
+                  type="url"
+                />
+                <p className="text-sm text-muted-foreground">
+                  This URL will be opened when users click on the AI name and avatar in the header.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="hideMenuTitle"
+                    checked={hideMenuTitle}
+                    onChange={(e) => setHideMenuTitle(e.target.checked)}
+                    className="rounded border-gray-300"
+                  />
+                  <Label htmlFor="hideMenuTitle">Hide AI name and avatar in main menu</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  When enabled, the AI name and avatar will be hidden from the header menu.
                 </p>
               </div>
               

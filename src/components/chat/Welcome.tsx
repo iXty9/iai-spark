@@ -8,6 +8,7 @@ import { useDevMode } from '@/store/use-dev-mode';
 import { Message } from '@/types/chat';
 import { logger } from '@/utils/logging';
 import { fetchAppSettings } from '@/services/admin/settingsService';
+import { useAIAgentName } from '@/hooks/use-ai-agent-name';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWebSocket, ProactiveMessage } from '@/contexts/WebSocketContext';
 import { WelcomeMessageInput } from './WelcomeMessageInput';
@@ -34,6 +35,8 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
   const [isLoading, setLoading] = useState(true);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState(false);
+  const [hideMenuTitle, setHideMenuTitle] = useState(false);
+  const { aiAgentName } = useAIAgentName();
   const [isSubmitting, setSubmitting] = useState(false);
   const [showLocationPrompt, setShowLocationPrompt] = useState(true);
   const isMobile = useIsMobile();
@@ -120,6 +123,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
         const settings = await fetchAppSettings();
         setTagline(settings.app_name || DEFAULT_TAGLINE);
         setAvatarUrl(settings.default_avatar_url || null);
+        setHideMenuTitle(settings.hide_menu_title === 'true');
         if (settings.site_title && typeof document !== 'undefined') {
           document.title = settings.site_title;
         }
@@ -223,23 +227,23 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
     <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto px-4 animate-fade-in">
       <div className="w-full text-center space-y-5">
         <div className="flex items-center justify-center gap-3">
-          <Avatar className="w-16 h-16 relative">
-            {renderAvatar()}
-            <AvatarFallback className="bg-[#ea384c]/10 text-[#ea384c] font-bold flex items-center justify-center">
-              <div className="relative">
-                <Circle className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[#ea384c] w-full h-full" />
-                <Info className="relative z-10 text-[#ea384c]" size={18} />
-              </div>
-            </AvatarFallback>
-          </Avatar>
-          <div className="space-y-2 text-left">
-            <h1 className="text-2xl font-bold text-[#ea384c] animate-fade-in">Ixty AI</h1>
-            {isLoading ? (
-              <Skeleton className="h-5 w-64 bg-muted/20" />
-            ) : (
-              <p className="text-muted-foreground animate-fade-in">{tagline}</p>
-            )}
-          </div>
+            <Avatar className="w-16 h-16 relative">
+              {renderAvatar()}
+              <AvatarFallback className="bg-[#ea384c]/10 text-[#ea384c] font-bold flex items-center justify-center">
+                <div className="relative">
+                  <Circle className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[#ea384c] w-full h-full" />
+                  <Info className="relative z-10 text-[#ea384c]" size={18} />
+                </div>
+              </AvatarFallback>
+            </Avatar>
+            <div className="space-y-2 text-left">
+              <h1 className="text-2xl font-bold text-[#ea384c] animate-fade-in">{aiAgentName || 'AI Assistant'}</h1>
+              {isLoading ? (
+                <Skeleton className="h-5 w-64 bg-muted/20" />
+              ) : (
+                <p className="text-muted-foreground animate-fade-in">{tagline}</p>
+              )}
+            </div>
         </div>
         <WelcomeMessageInput
           message={message}
