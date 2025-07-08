@@ -16,31 +16,31 @@ import { User, LogOut, Settings, UserRound, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
 import { fetchAppSettings } from '@/services/admin/settingsService';
+import { useAIAgentName } from '@/hooks/use-ai-agent-name';
 import { logger } from '@/utils/logging';
 
 export const UserMenu = () => {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { aiAgentName } = useAIAgentName();
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminCheckLoading, setAdminCheckLoading] = useState(false);
   const [defaultAvatar, setDefaultAvatar] = useState<string | null>(null);
 
   useEffect(() => {
-    // Load default avatar setting only for authenticated users
-    if (user) {
-      const loadDefaultAvatar = async () => {
-        try {
-          const settings = await fetchAppSettings();
-          setDefaultAvatar(settings?.default_avatar_url || null);
-        } catch (error) {
-          logger.warn('Failed to load default avatar setting', error, { module: 'user-menu' });
-        }
-      };
+    // Load default avatar setting for all users (authenticated and anonymous)
+    const loadDefaultAvatar = async () => {
+      try {
+        const settings = await fetchAppSettings();
+        setDefaultAvatar(settings?.default_avatar_url || null);
+      } catch (error) {
+        logger.warn('Failed to load default avatar setting', error, { module: 'user-menu' });
+      }
+    };
 
-      loadDefaultAvatar();
-    }
-  }, [user]);
+    loadDefaultAvatar();
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -116,11 +116,15 @@ export const UserMenu = () => {
   };
 
   const getAvatarUrl = () => {
-    // Only use profile avatar for authenticated users
+    // Use profile avatar for authenticated users if available
     if (user && profile?.avatar_url) {
       return profile.avatar_url;
     }
-    // For authenticated users without profile picture or signed-out users, return undefined to use fallback
+    // Use admin's default avatar if available
+    if (defaultAvatar) {
+      return defaultAvatar;
+    }
+    // Return undefined to use fallback
     return undefined;
   };
 
@@ -145,7 +149,7 @@ export const UserMenu = () => {
             </DropdownMenuTrigger>
           </TooltipTrigger>
           <TooltipContent side="bottom">
-            <p>{user ? `${profile?.username || 'User'} menu` : 'User menu - Sign in'}</p>
+            <p>{user ? `${profile?.username || 'User'} menu` : `${aiAgentName} - Sign in`}</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
