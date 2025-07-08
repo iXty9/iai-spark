@@ -6,11 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, Play, Trash2, Volume2, AlertCircle, Sparkles } from 'lucide-react';
 import { useSoundSettings } from '@/hooks/use-sound-settings';
-import { supaToast } from '@/services/supa-toast';
+import { useToast } from '@/hooks/use-toast';
 import { SoundType } from '@/types/sound';
 import { cn } from '@/lib/utils';
 
 export function SoundSettings() {
+  const { toast } = useToast();
   const {
     settings,
     isLoading,
@@ -36,8 +37,10 @@ export function SoundSettings() {
     const validation = validateFile(file);
 
     if (!validation.isValid) {
-      supaToast.error(validation.error, {
-        title: "Invalid file"
+      toast({
+        variant: "destructive",
+        title: "Invalid file",
+        description: validation.error,
       });
       return;
     }
@@ -46,8 +49,10 @@ export function SoundSettings() {
       // Test the file first at max volume
       const canPlay = await testSound(file, 1.0);
       if (!canPlay) {
-        supaToast.error("The selected file cannot be played. Please try a different file.", {
-          title: "Invalid audio file"
+        toast({
+          variant: "destructive",
+          title: "Invalid audio file",
+          description: "The selected file cannot be played. Please try a different file.",
         });
         return;
       }
@@ -55,17 +60,22 @@ export function SoundSettings() {
       const success = await uploadSound(file, soundType);
       
       if (success) {
-        supaToast.success(`${soundType === 'toast_notification' ? 'Notification' : 'Chat message'} sound updated successfully`, {
-          title: "Sound uploaded"
+        toast({
+          title: "Sound uploaded",
+          description: `${soundType === 'toast_notification' ? 'Notification' : 'Chat message'} sound updated successfully`,
         });
       } else {
-        supaToast.error("Failed to upload sound file. Please try again.", {
-          title: "Upload failed"
+        toast({
+          variant: "destructive",
+          title: "Upload failed",
+          description: "Failed to upload sound file. Please try again.",
         });
       }
     } catch (error) {
-      supaToast.error("An error occurred while uploading the sound file.", {
-        title: "Error"
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An error occurred while uploading the sound file.",
       });
     }
 
@@ -79,12 +89,15 @@ export function SoundSettings() {
     const success = await removeSound(soundType);
     
     if (success) {
-      supaToast.success(`${soundType === 'toast_notification' ? 'Notification' : 'Chat message'} sound removed successfully`, {
-        title: "Sound removed"
+      toast({
+        title: "Sound removed",
+        description: `${soundType === 'toast_notification' ? 'Notification' : 'Chat message'} sound removed successfully`,
       });
     } else {
-      supaToast.error("Failed to remove sound. Please try again.", {
-        title: "Remove failed"
+      toast({
+        variant: "destructive",
+        title: "Remove failed",
+        description: "Failed to remove sound. Please try again.",
       });
     }
   };
@@ -93,12 +106,15 @@ export function SoundSettings() {
     const success = await playTestSound(soundType);
     
     if (!success) {
-      supaToast.error("Unable to play the test sound. Check your sound settings and try again.", {
-        title: "Test failed"
+      toast({
+        variant: "destructive",
+        title: "Test failed",
+        description: "Unable to play the test sound. Check your sound settings and try again.",
       });
     } else {
-      supaToast.success(`${soundType === 'toast_notification' ? 'Notification' : 'Chat message'} sound played successfully`, {
-        title: "Test successful"
+      toast({
+        title: "Test successful",
+        description: `${soundType === 'toast_notification' ? 'Notification' : 'Chat message'} sound played successfully`,
       });
     }
   };
@@ -107,8 +123,10 @@ export function SoundSettings() {
     const success = await updateSettings({ sounds_enabled: enabled });
     
     if (!success) {
-      supaToast.error("Failed to update sound settings. Please try again.", {
-        title: "Update failed"
+      toast({
+        variant: "destructive",
+        title: "Update failed",
+        description: "Failed to update sound settings. Please try again.",
       });
     }
   };

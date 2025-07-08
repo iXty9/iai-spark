@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CardContent } from '@/components/ui/card';
 import { Info, Loader2 } from 'lucide-react';
-import { supaToast } from '@/services/supa-toast';
+import { useToast } from '@/hooks/use-toast';
 import { updateAppSetting } from '@/services/admin/settingsService';
 import { WebhookUrlFormField } from './WebhookUrlFormField';
 import { WebhookStatusChecker } from './WebhookStatusChecker';
@@ -19,7 +19,7 @@ interface WebhookSettingsFormProps {
 }
 
 export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProps) {
-  // Using unified SupaToast system
+  const { toast } = useToast();
   const [settings, setSettings] = useState<WebhookSettings>(initialSettings);
   const [errors, setErrors] = useState<WebhookFormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -48,8 +48,10 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
     // If there are errors, don't proceed
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      supaToast.error("Please fix the errors before saving.", {
-        title: "Validation failed"
+      toast({
+        variant: "destructive",
+        title: "Validation failed",
+        description: "Please fix the errors before saving.",
       });
       return;
     }
@@ -63,13 +65,16 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
       await updateAppSetting('thumbs_down_webhook_url', settings.thumbs_down_webhook_url);
       await updateAppSetting('user_signup_webhook_url', settings.user_signup_webhook_url);
       
-      supaToast.success("Your webhook settings have been updated successfully.", {
-        title: "Webhook settings saved"
+      toast({
+        title: "Webhook settings saved",
+        description: "Your webhook settings have been updated successfully.",
       });
     } catch (error) {
       console.error('Error saving webhook settings:', error);
-      supaToast.error("There was an error saving the webhook settings.", {
-        title: "Failed to save webhook settings"
+      toast({
+        variant: "destructive",
+        title: "Failed to save webhook settings",
+        description: "There was an error saving the webhook settings.",
       });
     } finally {
       setIsSaving(false);

@@ -16,7 +16,7 @@ import { EmptyStateTable } from './EmptyStateTable';
 import { UserRowActions } from './UserRowActions';
 import { UserCard } from './UserCard';
 import { Button } from '@/components/ui/button';
-import { supaToast } from '@/services/supa-toast';
+import { useToast } from '@/hooks/use-toast';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface UsersTableProps {
@@ -40,7 +40,7 @@ export function UsersTable({
   onClearFilters = () => {},
   updatingUserId
 }: UsersTableProps) {
-  // Using unified SupaToast system
+  const { toast } = useToast();
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
   const toggleCardExpanded = (userId: string) => {
@@ -91,12 +91,15 @@ export function UsersTable({
   const copyToClipboard = async (text: string, label: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      supaToast.success(`${label} copied to clipboard`, {
-        title: "Copied!"
+      toast({
+        title: "Copied!",
+        description: `${label} copied to clipboard`,
       });
     } catch (error) {
-      supaToast.error("Failed to copy to clipboard", {
-        title: "Copy failed"
+      toast({
+        variant: "destructive",
+        title: "Copy failed",
+        description: "Failed to copy to clipboard",
       });
     }
   };

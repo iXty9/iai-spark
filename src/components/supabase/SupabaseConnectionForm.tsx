@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { connectionService } from '@/services/supabase/connection-service';
 import { Loader2, Save, Cloud, FileText } from 'lucide-react';
-import { supaToast } from '@/services/supa-toast';
+import { useToast } from '@/hooks/use-toast';
 import { saveConnectionConfig } from '@/services/admin/settingsService';
 import { updateAllSiteConfigurations } from '@/services/supabase/site-config-service';
 import { Switch } from '@/components/ui/switch';
@@ -16,6 +16,7 @@ interface SupabaseConnectionFormProps {
 }
 
 export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProps) {
+  const { toast } = useToast();
   const [url, setUrl] = useState('');
   const [anonKey, setAnonKey] = useState('');
   const [isTesting, setIsTesting] = useState(false);
@@ -54,8 +55,9 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
           const dbSaved = await saveConnectionConfig(url, anonKey);
           
           if (dbSaved) {
-            supaToast.success("Your connection settings have been saved to the database and will be available across all browsers.", {
-              title: "Configuration saved"
+            toast({
+              title: "Configuration saved",
+              description: "Your connection settings have been saved to the database and will be available across all browsers.",
             });
             
             // If requested, also save to site environment
@@ -66,11 +68,16 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
                 const allSaved = await updateAllSiteConfigurations(url, anonKey);
                 
                 if (allSaved) {
-                  supaToast.success("Connection settings have been saved to the site environment for automatic connection.", {
-                    title: "Site configuration saved"
+                  toast({
+                    title: "Site configuration saved",
+                    description: "Connection settings have been saved to the site environment for automatic connection.",
                   });
                 } else {
-                  supaToast.warning("Connected successfully, but couldn't save site environment configuration.");
+                  toast({
+                    title: "Warning",
+                    description: "Connected successfully, but couldn't save site environment configuration.",
+                    variant: "default"
+                  });
                 }
               } catch (err) {
                 console.error("Failed to save to site environment:", err);
@@ -91,12 +98,15 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
                 });
                 
                 if (staticFileSaved) {
-                  supaToast.success("Connection settings have been saved to a static file for truly stateless bootstrapping.", {
-                    title: "Static configuration saved"
+                  toast({
+                    title: "Static configuration saved",
+                    description: "Connection settings have been saved to a static file for truly stateless bootstrapping.",
                   });
                 } else {
-                  supaToast.warning("Could not save configuration to static file. This feature requires server-side API support.", {
-                    title: "Warning"
+                  toast({
+                    title: "Warning",
+                    description: "Could not save configuration to static file. This feature requires server-side API support.",
+                    variant: "default"
                   });
                 }
               } catch (err) {
@@ -106,7 +116,11 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
               }
             }
           } else {
-            supaToast.warning("Connected successfully, but couldn't save configuration to database for persistence. Settings will only be available in this browser.");
+            toast({
+              title: "Warning",
+              description: "Connected successfully, but couldn't save configuration to database for persistence. Settings will only be available in this browser.",
+              variant: "default"
+            });
           }
         } catch (err) {
           // Don't block the user flow if this fails - they'll have localStorage config which should work fine
@@ -115,8 +129,9 @@ export function SupabaseConnectionForm({ onSuccess }: SupabaseConnectionFormProp
           setIsSavingToDb(false);
         }
         
-        supaToast.success("Successfully connected to Supabase.", {
-          title: "Connection successful"
+        toast({
+          title: "Connection successful",
+          description: "Successfully connected to Supabase.",
         });
       } else {
         setError(testResult.error || 'Could not connect to Supabase with the provided credentials. Please check your URL and keys.');

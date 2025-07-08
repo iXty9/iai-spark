@@ -36,12 +36,6 @@ export class ThemePersistence {
       
       if (settings.default_theme_settings) {
         const parsedSettings = JSON.parse(settings.default_theme_settings) as ThemeSettings;
-        
-        // Ensure exportDate is set for comparison with local cache
-        if (!parsedSettings.exportDate) {
-          parsedSettings.exportDate = new Date().toISOString();
-        }
-        
         logger.info('Admin default theme loaded', { module: 'supa-themes' });
         return parsedSettings;
       }
@@ -68,7 +62,6 @@ export class ThemePersistence {
         darkTheme: state.darkTheme,
         backgroundImage: state.backgroundImage,
         backgroundOpacity: state.backgroundOpacity,
-        autoDimDarkMode: state.autoDimDarkMode,
         exportDate: new Date().toISOString(),
         name: 'Custom Theme'
       };
@@ -101,6 +94,5 @@ export class ThemePersistence {
     if (settings.darkTheme) state.darkTheme = settings.darkTheme;
     if (settings.backgroundImage !== undefined) state.backgroundImage = settings.backgroundImage;
     if (settings.backgroundOpacity !== undefined) state.backgroundOpacity = settings.backgroundOpacity;
-    if (settings.autoDimDarkMode !== undefined) state.autoDimDarkMode = settings.autoDimDarkMode;
   }
 }

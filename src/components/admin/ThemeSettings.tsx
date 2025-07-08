@@ -7,13 +7,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
 import { setDefaultThemeSettings } from '@/services/admin/settingsService';
 import { useTheme } from '@/contexts/SupaThemeContext';
-import { supaToast } from '@/services/supa-toast';
+import { useToast } from '@/hooks/use-toast';
 import { useSoundSettings } from '@/hooks/use-sound-settings';
 import { soundService } from '@/services/sound/sound-service';
 
 export function ThemeSettings() {
   const { user } = useAuth();
-  // Using unified SupaToast system
+  const { toast } = useToast();
   const { currentTheme, mode, lightTheme, darkTheme, backgroundImage, backgroundOpacity } = useTheme();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSettingDefault, setIsSettingDefault] = useState(false);
@@ -60,15 +60,18 @@ export function ThemeSettings() {
       const success = await setDefaultThemeSettings(currentThemeSettings);
       
       if (success) {
-        supaToast.success("Your current theme settings have been set as the system default for all new users.", {
-          title: "Default theme set"
+        toast({
+          title: "Default theme set",
+          description: "Your current theme settings have been set as the system default for all new users.",
         });
       } else {
         throw new Error('Failed to update default theme settings');
       }
     } catch (error) {
-      supaToast.error("Failed to set default theme. Please try again.", {
-        title: "Error"
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to set default theme. Please try again.",
       });
     } finally {
       setIsSettingDefault(false);
@@ -91,15 +94,18 @@ export function ThemeSettings() {
       const success = await soundService.setDefaultSettings(defaultSoundSettings);
       
       if (success) {
-        supaToast.success("Your current sound settings have been set as the system default for all new users.", {
-          title: "Default sounds set"
+        toast({
+          title: "Default sounds set",
+          description: "Your current sound settings have been set as the system default for all new users.",
         });
       } else {
         throw new Error('Failed to update default sound settings');
       }
     } catch (error) {
-      supaToast.error("Failed to set default sounds. Please try again.", {
-        title: "Error"
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to set default sounds. Please try again.",
       });
     } finally {
       setIsSettingSoundDefault(false);
