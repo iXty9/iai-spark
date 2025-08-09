@@ -15,8 +15,10 @@ import { useNavigate } from 'react-router-dom';
 import { User, LogOut, Settings, UserRound, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
-import { fetchAppSettings } from '@/services/admin/settingsService';
 import { logger } from '@/utils/logging';
+import { useAIAgentName } from '@/hooks/use-ai-agent-name';
+import { settingsCacheService } from '@/services/settings-cache-service';
+import { avatarCacheService } from '@/services/avatar-cache-service';
 
 export const UserMenu = () => {
   const { user, profile, signOut } = useAuth();
@@ -24,23 +26,40 @@ export const UserMenu = () => {
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminCheckLoading, setAdminCheckLoading] = useState(false);
-  const [defaultAvatar, setDefaultAvatar] = useState<string | null>(null);
+  const [aiAvatarUrl, setAiAvatarUrl] = useState<string | undefined>(undefined);
+  const [aiAvatarError, setAiAvatarError] = useState(false);
+  const { aiAgentName } = useAIAgentName();
 
   useEffect(() => {
-    // Load default avatar setting only for authenticated users
-    if (user) {
-      const loadDefaultAvatar = async () => {
-        try {
-          const settings = await fetchAppSettings();
-          setDefaultAvatar(settings?.default_avatar_url || null);
-        } catch (error) {
-          logger.warn('Failed to load default avatar setting', error, { module: 'user-menu' });
-        }
-      };
+    let isMounted = true;
 
-      loadDefaultAvatar();
-    }
-  }, [user]);
+    const applyFromSettings = (settings: Record<string, string>) => {
+      if (!isMounted) return;
+      const url = (settings.avatar_url as string) || (settings.default_avatar_url as string) || undefined;
+      setAiAvatarUrl(url);
+      setAiAvatarError(false);
+      if (url) {
+        try {
+          avatarCacheService.preloadImage(url);
+        } catch (e) {
+          logger.warn('Avatar preload failed in UserMenu', e, { module: 'user-menu' });
+        }
+      }
+    };
+
+    settingsCacheService.getSettings()
+      .then(applyFromSettings)
+      .catch((error) => {
+        logger.warn('Failed to load avatar settings', error, { module: 'user-menu' });
+      });
+
+    const unsubscribe = settingsCacheService.addChangeListener(applyFromSettings);
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -112,7 +131,10 @@ export const UserMenu = () => {
     if (user?.email) {
       return user.email.charAt(0).toUpperCase();
     }
-    return 'G';
+    if (aiAgentName) {
+      return aiAgentName.charAt(0).toUpperCase();
+    }
+    return 'A';
   };
 
   const getAvatarUrl = () => {
@@ -120,7 +142,10 @@ export const UserMenu = () => {
     if (user && profile?.avatar_url) {
       return profile.avatar_url;
     }
-    // For authenticated users without profile picture or signed-out users, return undefined to use fallback
+    // For signed-out state, try AI/default avatar from settings
+    if (!user && aiAvatarUrl && !aiAvatarError) {
+      return aiAvatarUrl;
+    }
     return undefined;
   };
 
@@ -136,16 +161,16 @@ export const UserMenu = () => {
                 className="relative rounded-full min-h-9 min-w-9 max-h-9 max-w-9 md:min-h-10 md:min-w-10 md:max-h-10 md:max-w-10 aspect-square border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm"
               >
                 <Avatar className="h-8 w-8 md:h-9 md:w-9">
-                  <AvatarImage src={getAvatarUrl()} alt={profile?.username || "User"} />
+                  <AvatarImage src={getAvatarUrl()} alt={user ? (profile?.username || 'User') : aiAgentName} onError={() => setAiAvatarError(true)} />
                   <AvatarFallback className={user ? "bg-primary/10 text-primary text-xs" : "bg-secondary/80 text-xs"}>
-                    {user ? getInitials() : <UserRound className="h-3 w-3" />}
+                    {getInitials()}
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
           <TooltipContent side="bottom">
-            <p>{user ? `${profile?.username || 'User'} menu` : 'User menu - Sign in'}</p>
+            <p>{user ? `${profile?.username || 'User'} menu` : `${aiAgentName} menu - Sign in`}</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
