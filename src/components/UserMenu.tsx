@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -12,13 +12,18 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useNavigate } from 'react-router-dom';
-import { User, LogOut, Settings, UserRound, Shield } from 'lucide-react';
+import { User, LogOut, Settings, UserRound, Shield, Sun, Moon, Monitor } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
 import { logger } from '@/utils/logging';
-import { useAIAgentName } from '@/hooks/use-ai-agent-name';
-import { settingsCacheService } from '@/services/settings-cache-service';
-import { avatarCacheService } from '@/services/avatar-cache-service';
+import { useTheme } from '@/contexts/SupaThemeContext';
+import { 
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem
+} from '@/components/ui/dropdown-menu';
 
 export const UserMenu = () => {
   const { user, profile, signOut } = useAuth();
@@ -26,40 +31,67 @@ export const UserMenu = () => {
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminCheckLoading, setAdminCheckLoading] = useState(false);
-  const [aiAvatarUrl, setAiAvatarUrl] = useState<string | undefined>(undefined);
-  const [aiAvatarError, setAiAvatarError] = useState(false);
-  const { aiAgentName } = useAIAgentName();
+  const { mode, setMode } = useTheme();
+  const [themePref, setThemePref] = useState<'light' | 'dark' | 'system'>('light');
+  const mediaQueryRef = useRef<MediaQueryList | null>(null);
+  const mediaHandlerRef = useRef<((e: MediaQueryListEvent) => void) | null>(null);
+
+  const applySystem = () => {
+    if (typeof window === 'undefined') return null;
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+    setMode(mql.matches ? 'dark' : 'light');
+    return mql;
+  };
+
+  const enableSystemMode = () => {
+    const mql = applySystem();
+    if (!mql) return;
+    const handler = (e: MediaQueryListEvent) => setMode(e.matches ? 'dark' : 'light');
+    if (mediaQueryRef.current && mediaHandlerRef.current) {
+      mediaQueryRef.current.removeEventListener('change', mediaHandlerRef.current);
+    }
+    mql.addEventListener('change', handler);
+    mediaQueryRef.current = mql;
+    mediaHandlerRef.current = handler;
+  };
+
+  const disableSystemMode = () => {
+    if (mediaQueryRef.current && mediaHandlerRef.current) {
+      mediaQueryRef.current.removeEventListener('change', mediaHandlerRef.current);
+    }
+    mediaQueryRef.current = null;
+    mediaHandlerRef.current = null;
+  };
 
   useEffect(() => {
-    let isMounted = true;
-
-    const applyFromSettings = (settings: Record<string, string>) => {
-      if (!isMounted) return;
-      const url = (settings.avatar_url as string) || (settings.default_avatar_url as string) || undefined;
-      setAiAvatarUrl(url);
-      setAiAvatarError(false);
-      if (url) {
-        try {
-          avatarCacheService.preloadImage(url);
-        } catch (e) {
-          logger.warn('Avatar preload failed in UserMenu', e, { module: 'user-menu' });
-        }
-      }
-    };
-
-    settingsCacheService.getSettings()
-      .then(applyFromSettings)
-      .catch((error) => {
-        logger.warn('Failed to load avatar settings', error, { module: 'user-menu' });
-      });
-
-    const unsubscribe = settingsCacheService.addChangeListener(applyFromSettings);
-
-    return () => {
-      isMounted = false;
-      unsubscribe();
-    };
+    const stored = (typeof window !== 'undefined' ? localStorage.getItem('theme_mode_pref') : null) as 'light' | 'dark' | 'system' | null;
+    if (stored === 'system') {
+      setThemePref('system');
+      enableSystemMode();
+    } else if (stored === 'light' || stored === 'dark') {
+      setThemePref(stored);
+      if (stored !== mode) setMode(stored);
+      disableSystemMode();
+    } else {
+      setThemePref(mode);
+      disableSystemMode();
+    }
+    return () => disableSystemMode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const onThemeChange = (value: 'light' | 'dark' | 'system') => {
+    setThemePref(value);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('theme_mode_pref', value);
+    }
+    if (value === 'system') {
+      enableSystemMode();
+    } else {
+      disableSystemMode();
+      setMode(value);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -131,20 +163,12 @@ export const UserMenu = () => {
     if (user?.email) {
       return user.email.charAt(0).toUpperCase();
     }
-    if (aiAgentName) {
-      return aiAgentName.charAt(0).toUpperCase();
-    }
-    return 'A';
+    return 'U';
   };
 
   const getAvatarUrl = () => {
-    // Only use profile avatar for authenticated users
     if (user && profile?.avatar_url) {
       return profile.avatar_url;
-    }
-    // For signed-out state, try AI/default avatar from settings
-    if (!user && aiAvatarUrl && !aiAvatarError) {
-      return aiAvatarUrl;
     }
     return undefined;
   };
@@ -161,16 +185,16 @@ export const UserMenu = () => {
                 className="relative rounded-full min-h-9 min-w-9 max-h-9 max-w-9 md:min-h-10 md:min-w-10 md:max-h-10 md:max-w-10 aspect-square border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm"
               >
                 <Avatar className="h-8 w-8 md:h-9 md:w-9">
-                  <AvatarImage src={getAvatarUrl()} alt={user ? (profile?.username || 'User') : aiAgentName} onError={() => setAiAvatarError(true)} />
+                  <AvatarImage src={getAvatarUrl()} alt={user ? (profile?.username || 'User') : 'User'} />
                   <AvatarFallback className={user ? "bg-primary/10 text-primary text-xs" : "bg-secondary/80 text-xs"}>
-                    {getInitials()}
+                    {user ? getInitials() : <UserRound className="h-3 w-3" />}
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
           <TooltipContent side="bottom">
-            <p>{user ? `${profile?.username || 'User'} menu` : `${aiAgentName} menu - Sign in`}</p>
+            <p>{user ? `${profile?.username || 'User'} menu` : 'User menu - Sign in'}</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -189,6 +213,17 @@ export const UserMenu = () => {
                 <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
               </div>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>Theme</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuRadioGroup value={themePref} onValueChange={(v) => onThemeChange(v as 'light' | 'dark' | 'system')}>
+                  <DropdownMenuRadioItem value="light"><Sun className="mr-2 h-4 w-4" /> Light</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="dark"><Moon className="mr-2 h-4 w-4" /> Dark</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="system"><Monitor className="mr-2 h-4 w-4" /> System</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleProfileClick} className="py-2">
               <User className="mr-2 h-4 w-4" />
@@ -215,6 +250,17 @@ export const UserMenu = () => {
           </>
         ) : (
           <>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>Theme</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuRadioGroup value={themePref} onValueChange={(v) => onThemeChange(v as 'light' | 'dark' | 'system')}>
+                  <DropdownMenuRadioItem value="light"><Sun className="mr-2 h-4 w-4" /> Light</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="dark"><Moon className="mr-2 h-4 w-4" /> Dark</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="system"><Monitor className="mr-2 h-4 w-4" /> System</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLoginClick} className="py-2">
               <User className="mr-2 h-4 w-4" />
               <span>Log in</span>
