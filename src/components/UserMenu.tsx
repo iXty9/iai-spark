@@ -12,18 +12,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useNavigate } from 'react-router-dom';
-import { User, LogOut, Settings, UserRound, Shield, Sun, Moon, Monitor } from 'lucide-react';
+import { User, LogOut, Settings, UserRound, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
 import { logger } from '@/utils/logging';
-import { useTheme } from '@/contexts/SupaThemeContext';
-import { 
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem
-} from '@/components/ui/dropdown-menu';
+
 
 export const UserMenu = () => {
   const { user, profile, signOut } = useAuth();
@@ -31,67 +24,8 @@ export const UserMenu = () => {
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminCheckLoading, setAdminCheckLoading] = useState(false);
-  const { mode, setMode } = useTheme();
-  const [themePref, setThemePref] = useState<'light' | 'dark' | 'system'>('light');
-  const mediaQueryRef = useRef<MediaQueryList | null>(null);
-  const mediaHandlerRef = useRef<((e: MediaQueryListEvent) => void) | null>(null);
 
-  const applySystem = () => {
-    if (typeof window === 'undefined') return null;
-    const mql = window.matchMedia('(prefers-color-scheme: dark)');
-    setMode(mql.matches ? 'dark' : 'light');
-    return mql;
-  };
 
-  const enableSystemMode = () => {
-    const mql = applySystem();
-    if (!mql) return;
-    const handler = (e: MediaQueryListEvent) => setMode(e.matches ? 'dark' : 'light');
-    if (mediaQueryRef.current && mediaHandlerRef.current) {
-      mediaQueryRef.current.removeEventListener('change', mediaHandlerRef.current);
-    }
-    mql.addEventListener('change', handler);
-    mediaQueryRef.current = mql;
-    mediaHandlerRef.current = handler;
-  };
-
-  const disableSystemMode = () => {
-    if (mediaQueryRef.current && mediaHandlerRef.current) {
-      mediaQueryRef.current.removeEventListener('change', mediaHandlerRef.current);
-    }
-    mediaQueryRef.current = null;
-    mediaHandlerRef.current = null;
-  };
-
-  useEffect(() => {
-    const stored = (typeof window !== 'undefined' ? localStorage.getItem('theme_mode_pref') : null) as 'light' | 'dark' | 'system' | null;
-    if (stored === 'system') {
-      setThemePref('system');
-      enableSystemMode();
-    } else if (stored === 'light' || stored === 'dark') {
-      setThemePref(stored);
-      if (stored !== mode) setMode(stored);
-      disableSystemMode();
-    } else {
-      setThemePref(mode);
-      disableSystemMode();
-    }
-    return () => disableSystemMode();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const onThemeChange = (value: 'light' | 'dark' | 'system') => {
-    setThemePref(value);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('theme_mode_pref', value);
-    }
-    if (value === 'system') {
-      enableSystemMode();
-    } else {
-      disableSystemMode();
-      setMode(value);
-    }
-  };
 
   useEffect(() => {
     if (user) {
@@ -214,17 +148,6 @@ export const UserMenu = () => {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>Theme</DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                <DropdownMenuRadioGroup value={themePref} onValueChange={(v) => onThemeChange(v as 'light' | 'dark' | 'system')}>
-                  <DropdownMenuRadioItem value="light"><Sun className="mr-2 h-4 w-4" /> Light</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="dark"><Moon className="mr-2 h-4 w-4" /> Dark</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="system"><Monitor className="mr-2 h-4 w-4" /> System</DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleProfileClick} className="py-2">
               <User className="mr-2 h-4 w-4" />
               <span>Profile</span>
@@ -250,17 +173,6 @@ export const UserMenu = () => {
           </>
         ) : (
           <>
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>Theme</DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                <DropdownMenuRadioGroup value={themePref} onValueChange={(v) => onThemeChange(v as 'light' | 'dark' | 'system')}>
-                  <DropdownMenuRadioItem value="light"><Sun className="mr-2 h-4 w-4" /> Light</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="dark"><Moon className="mr-2 h-4 w-4" /> Dark</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="system"><Monitor className="mr-2 h-4 w-4" /> System</DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLoginClick} className="py-2">
               <User className="mr-2 h-4 w-4" />
               <span>Log in</span>

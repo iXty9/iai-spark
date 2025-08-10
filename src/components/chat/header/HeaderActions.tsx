@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { 
-  Download, Trash2, Sun, Moon, Code, 
+  Download, Trash2, Sun, Moon, Monitor, Code, 
   Upload, RefreshCw, MoreVertical 
 } from 'lucide-react';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
@@ -43,7 +43,7 @@ export const HeaderActions = ({
   dynamicPadding = { right: 0 },
   isMobile = false
 }: HeaderActionsProps) => {
-  const { theme, setTheme } = useTheme();
+  const { mode, setMode } = useTheme();
   const { isDevMode, toggleDevMode } = useDevMode();
   const { user } = useAuth();
   const { needsUpdate, isUpdating, updateApp, isInstalled } = usePWA();
@@ -69,6 +69,70 @@ export const HeaderActions = ({
         title: "Error",
         description: "Failed to toggle developer mode",
       });
+    }
+  };
+
+  // Theme preference (Light/Dark/System) management for the theme button
+  const [themePref, setThemePref] = React.useState<'light' | 'dark' | 'system'>('light');
+  const mediaQueryRef = React.useRef<MediaQueryList | null>(null);
+  const mediaHandlerRef = React.useRef<((e: MediaQueryListEvent) => void) | null>(null);
+
+  const applySystem = () => {
+    if (typeof window === 'undefined') return null;
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+    setMode(mql.matches ? 'dark' : 'light');
+    return mql;
+  };
+
+  const enableSystemMode = () => {
+    const mql = applySystem();
+    if (!mql) return;
+    const handler = (e: MediaQueryListEvent) => setMode(e.matches ? 'dark' : 'light');
+    if (mediaQueryRef.current && mediaHandlerRef.current) {
+      mediaQueryRef.current.removeEventListener('change', mediaHandlerRef.current);
+    }
+    mql.addEventListener('change', handler);
+    mediaQueryRef.current = mql;
+    mediaHandlerRef.current = handler;
+  };
+
+  const disableSystemMode = () => {
+    if (mediaQueryRef.current && mediaHandlerRef.current) {
+      mediaQueryRef.current.removeEventListener('change', mediaHandlerRef.current);
+    }
+    mediaQueryRef.current = null;
+    mediaHandlerRef.current = null;
+  };
+
+  React.useEffect(() => {
+    const stored = (typeof window !== 'undefined' ? localStorage.getItem('theme_mode_pref') : null) as 'light' | 'dark' | 'system' | null;
+    if (stored === 'system') {
+      setThemePref('system');
+      enableSystemMode();
+    } else if (stored === 'light' || stored === 'dark') {
+      setThemePref(stored);
+      disableSystemMode();
+      if (stored !== mode) setMode(stored);
+    } else {
+      // Default to light for first-time users
+      setThemePref('light');
+      disableSystemMode();
+      if (mode !== 'light') setMode('light');
+    }
+    return () => disableSystemMode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onThemeChange = (value: 'light' | 'dark' | 'system') => {
+    setThemePref(value);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('theme_mode_pref', value);
+    }
+    if (value === 'system') {
+      enableSystemMode();
+    } else {
+      disableSystemMode();
+      setMode(value);
     }
   };
 
@@ -149,22 +213,72 @@ export const HeaderActions = ({
     <TooltipProvider>
       <div className="flex items-center gap-3">
         {!isMobile && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                className="relative rounded-full min-h-9 min-w-9 max-h-9 max-w-9 md:min-h-10 md:min-w-10 md:max-h-10 md:max-w-10 aspect-square border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm"
-              >
-                {theme === 'dark' ? <Sun className="h-6 w-6 md:h-6 md:w-6" /> : <Moon className="h-6 w-6 md:h-6 md:w-6" />}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p>{theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</p>
-            </TooltipContent>
-          </Tooltip>
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    aria-label={`Theme: ${themePref === 'system' ? 'System' : (mode === 'dark' ? 'Dark' : 'Light')}`}
+                    className="relative rounded-full min-h-9 min-w-9 max-h-9 max-w-9 md:min-h-10 md:min-w-10 md:max-h-10 md:max-w-10 aspect-square border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm"
+                  >
+                    {mode === 'dark' ? <Sun className="h-6 w-6 md:h-6 md:w-6" /> : <Moon className="h-6 w-6 md:h-6 md:w-6" />}
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Theme: {themePref === 'system' ? 'System' : (mode === 'dark' ? 'Dark' : 'Light')}</p>
+              </TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent 
+              align="start"
+              side="bottom"
+              className="z-50 w-fit p-3"
+              alignOffset={0}
+              collisionPadding={6}
+              avoidCollisions={true}
+            >
+              <div className="grid grid-cols-3 gap-3">
+                <div className="flex flex-col items-center gap-1">
+                  <Button 
+                    variant={themePref === 'light' ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className="rounded-full min-h-9 min-w-9 max-h-9 max-w-9 border border-border/40"
+                    onClick={() => onThemeChange('light')}
+                    aria-label="Switch to Light"
+                  >
+                    <Sun className="h-5 w-5" />
+                  </Button>
+                  <span className="text-xs">Light</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <Button 
+                    variant={themePref === 'dark' ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className="rounded-full min-h-9 min-w-9 max-h-9 max-w-9 border border-border/40"
+                    onClick={() => onThemeChange('dark')}
+                    aria-label="Switch to Dark"
+                  >
+                    <Moon className="h-5 w-5" />
+                  </Button>
+                  <span className="text-xs">Dark</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <Button 
+                    variant={themePref === 'system' ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className="rounded-full min-h-9 min-w-9 max-h-9 max-w-9 border border-border/40"
+                    onClick={() => onThemeChange('system')}
+                    aria-label="Use System"
+                  >
+                    <Monitor className="h-5 w-5" />
+                  </Button>
+                  <span className="text-xs">System</span>
+                </div>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
         
         {user && <NotificationCenter />}
@@ -243,9 +357,9 @@ export const HeaderActions = ({
           
           {isMobile && (
             <>
-              <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="py-2.5">
-                {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
-                <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+              <DropdownMenuItem onClick={() => setMode(mode === 'dark' ? 'light' : 'dark')} className="py-2.5">
+                {mode === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
+                <span>{mode === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
               </DropdownMenuItem>
               
             </>
