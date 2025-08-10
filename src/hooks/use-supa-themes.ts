@@ -23,13 +23,11 @@ export const useSupaThemes = () => {
     return unsubscribe;
   }, []);
 
-  // Initialize when user changes
+  // Initialize when user changes (supports anonymous)
   useEffect(() => {
-    if (user?.id) {
-      supaThemes.initialize(user.id).catch(error => {
-        logger.error('Failed to initialize SupaThemes', error, { module: 'use-supa-themes' });
-      });
-    }
+    supaThemes.initialize(user?.id).catch(error => {
+      logger.error('Failed to initialize SupaThemes', error, { module: 'use-supa-themes' });
+    });
   }, [user?.id]);
 
   // Theme operations

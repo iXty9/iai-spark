@@ -78,6 +78,7 @@ class SupaThemesCore {
         this.state.darkTheme = adminDefaults.darkTheme || getDefaultDarkTheme();
         this.state.backgroundImage = adminDefaults.backgroundImage || null;
         this.state.backgroundOpacity = adminDefaults.backgroundOpacity ?? 0.5;
+        this.state.autoDimDarkMode = adminDefaults.autoDimDarkMode ?? true;
         
         logger.info('Admin default theme loaded for unauthenticated user', { module: 'supa-themes' });
       } else {
@@ -106,6 +107,8 @@ class SupaThemesCore {
   setMode(mode: 'light' | 'dark'): void {
     this.state.mode = mode;
     this.themeApplier.applyCurrentTheme(this.state);
+    // Also re-apply background to account for auto-dim behavior in dark mode
+    this.themeApplier.applyCurrentBackground(this.state);
     this.notifyListeners();
     
     // Auto-save with debouncing (only when not in preview mode)
@@ -231,6 +234,7 @@ class SupaThemesCore {
         this.state.darkTheme = adminDefaults.darkTheme || getDefaultDarkTheme();
         this.state.backgroundImage = adminDefaults.backgroundImage || null;
         this.state.backgroundOpacity = adminDefaults.backgroundOpacity ?? 0.5;
+        this.state.autoDimDarkMode = adminDefaults.autoDimDarkMode ?? true;
       } else {
         // Fallback to hardcoded defaults if no admin defaults
         this.state.mode = 'light';
@@ -238,6 +242,7 @@ class SupaThemesCore {
         this.state.darkTheme = getDefaultDarkTheme();
         this.state.backgroundImage = null;
         this.state.backgroundOpacity = 0.5;
+        this.state.autoDimDarkMode = true;
       }
 
       this.themeApplier.applyCurrentTheme(this.state);

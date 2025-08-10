@@ -14,7 +14,7 @@ import { soundService } from '@/services/sound/sound-service';
 export function ThemeSettings() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { currentTheme, mode, lightTheme, darkTheme, backgroundImage, backgroundOpacity } = useTheme();
+  const { currentTheme, mode, lightTheme, darkTheme, backgroundImage, backgroundOpacity, autoDimDarkMode } = useTheme();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSettingDefault, setIsSettingDefault] = useState(false);
   const [hasPersonalTheme, setHasPersonalTheme] = useState(false);
@@ -53,6 +53,7 @@ export function ThemeSettings() {
         darkTheme,
         backgroundImage,
         backgroundOpacity,
+        autoDimDarkMode,
         exportDate: new Date().toISOString(),
         name: 'Admin Default Theme'
       };

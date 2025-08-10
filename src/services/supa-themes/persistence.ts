@@ -62,6 +62,7 @@ export class ThemePersistence {
         darkTheme: state.darkTheme,
         backgroundImage: state.backgroundImage,
         backgroundOpacity: state.backgroundOpacity,
+        autoDimDarkMode: state.autoDimDarkMode,
         exportDate: new Date().toISOString(),
         name: 'Custom Theme'
       };
@@ -94,5 +95,6 @@ export class ThemePersistence {
     if (settings.darkTheme) state.darkTheme = settings.darkTheme;
     if (settings.backgroundImage !== undefined) state.backgroundImage = settings.backgroundImage;
     if (settings.backgroundOpacity !== undefined) state.backgroundOpacity = settings.backgroundOpacity;
+    if (settings.autoDimDarkMode !== undefined) state.autoDimDarkMode = settings.autoDimDarkMode;
   }
 }

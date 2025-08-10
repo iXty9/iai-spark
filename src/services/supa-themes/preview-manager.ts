@@ -39,6 +39,8 @@ export class PreviewManager {
     state.previewMode = mode;
     state.hasUnsavedChanges = true;
     this.themeApplier.applyCurrentTheme(state);
+    // Re-apply background to adjust opacity/dimming when mode changes
+    this.themeApplier.applyCurrentBackground(state);
   }
 
   previewLightTheme(state: SupaThemeState, theme: ThemeColors): void {
