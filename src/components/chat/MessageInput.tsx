@@ -60,12 +60,14 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   const handleFileAttached = (content: string, fileName: string) => {
-    // For now, we'll append file info to the message
-    // In the future, this could be handled differently based on file type
-    const fileInfo = `[Attached file: ${fileName}]\n\n`;
-    onChange(fileInfo + message);
+    // Encode attachment inline using a structured block the webhook can parse
+    // content is a data URL (e.g., data:image/png;base64,....)
+    const mimeMatch = /^data:([^;]+);base64,/.exec(content || '');
+    const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+    const attachmentBlock = `\n[attachment name="${fileName}" mime="${mime}"]\n${content}\n[/attachment]\n`;
+    const newMessage = message ? `${message}\n${attachmentBlock}` : attachmentBlock;
+    onChange(newMessage);
   };
-
   const handleVoiceTranscript = (transcript: string) => {
     // Append voice transcript to current message
     const newMessage = message ? `${message} ${transcript}` : transcript;

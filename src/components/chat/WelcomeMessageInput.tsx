@@ -81,8 +81,12 @@ export const WelcomeMessageInput: React.FC<WelcomeMessageInputProps> = ({
 
     const result = await uploadFile(file);
     if (result) {
-      const fileInfo = `[Attached file: ${file.name}]\n\n`;
-      onChange(fileInfo + message);
+      // result is a data URL. Extract mime and embed as a structured attachment block
+      const mimeMatch = /^data:([^;]+);base64,/.exec(result || '');
+      const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+      const attachmentBlock = `\n[attachment name="${file.name}" mime="${mime}"]\n${result}\n[/attachment]\n`;
+      const newMessage = message ? `${message}\n${attachmentBlock}` : attachmentBlock;
+      onChange(newMessage);
       toast({
         title: "File attached",
         description: `${file.name} has been attached to your message.`

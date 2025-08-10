@@ -28,6 +28,44 @@ const webhookSessionTracker = {
 webhookSessionTracker.initialize();
 
 /**
+ * Extract structured attachments embedded in the message and return
+ * a clean message without the attachment blocks plus a parsed list
+ */
+interface ParsedAttachment {
+  name: string;
+  mime: string;
+  data: string; // base64 string (no data: prefix)
+  size?: number;
+}
+
+const extractAttachmentsFromMessage = (msg: string): { text: string; attachments: ParsedAttachment[] } => {
+  const attachments: ParsedAttachment[] = [];
+  if (!msg) return { text: msg, attachments };
+
+  const regex = /\[attachment\s+name="([^"]+)"\s+mime="([^"]+)"\]\s*([\s\S]*?)\s*\[\/attachment\]/g;
+  let clean = msg;
+
+  clean = clean.replace(regex, (_match, name, mime, dataUrl) => {
+    let base64 = dataUrl?.trim() || '';
+    let parsedMime = mime;
+    if (base64.startsWith('data:')) {
+      const commaIdx = base64.indexOf(',');
+      if (commaIdx > -1) {
+        const header = base64.substring(5, commaIdx); // after 'data:'
+        const headerMime = header.split(';')[0];
+        parsedMime = parsedMime || headerMime;
+        base64 = base64.substring(commaIdx + 1);
+      }
+    }
+
+    attachments.push({ name, mime: parsedMime || 'application/octet-stream', data: base64 });
+    return '';
+  });
+
+  return { text: clean.trim(), attachments };
+};
+
+/**
  * Sends a message to the appropriate webhook based on authentication status
  * Returns both the request payload and response for complete data preservation
  */
@@ -111,15 +149,19 @@ export const sendWebhookMessage = async (
     }
     
     // Prepare message - keep it compact but include proper sender info and user_id
-    const payload = {
-      message: message,
+    const { text: cleanMessage, attachments } = extractAttachmentsFromMessage(message);
+    const payload: any = {
+      message: cleanMessage,
       sender: senderName,
       timestamp: new Date().toISOString(),
       isAuthenticated: isAuthenticated,
       sessionCall: webhookSessionTracker.callsThisSession,
       user_id: userInfo?.id || null
     };
-    
+
+    if (attachments.length > 0) {
+      payload.attachments = attachments;
+    }
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
