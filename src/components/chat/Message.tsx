@@ -7,9 +7,10 @@ import { TimeMachineDialog } from './message/TimeMachineDialog';
 import { formatSmartTimestamp } from '@/utils/text-utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAIAgentName } from '@/hooks/use-ai-agent-name';
-import { Clock } from 'lucide-react';
+import { Clock, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { extractAttachmentsFromText, downloadAttachment } from '@/utils/attachment-utils';
 
 interface MessageProps {
   message: ChatMessage;
@@ -21,7 +22,10 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
   const isProactive = message.source === 'proactive';
   const { user, profile } = useAuth();
   const { aiAgentName } = useAIAgentName();
-  const [timeMachineOpen, setTimeMachineOpen] = useState(false);
+const [timeMachineOpen, setTimeMachineOpen] = useState(false);
+  
+  // Extract attachments for user messages to enable downloads
+  const userAttachments = isUser ? extractAttachmentsFromText(message.content).attachments : [];
   
   // Get display name for the message
   const getDisplayName = () => {
@@ -89,9 +93,32 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
               </div>
             )}
             
-            {/* Enhanced timestamp with clock icon */}
+{/* Enhanced timestamp with clock icon + user download */}
             <div className={`mt-1 flex items-center gap-1 text-xs ${isUser ? 'justify-end user-timestamp' : 'justify-start ai-timestamp'}`}>
               <span>{formatSmartTimestamp(message.timestamp)}</span>
+              {isUser && userAttachments.length > 0 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-4 w-4 p-0 text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => {
+                        if (userAttachments.length === 1) {
+                          downloadAttachment(userAttachments[0]);
+                        } else {
+                          userAttachments.forEach(att => downloadAttachment(att));
+                        }
+                      }}
+                    >
+                      <Download className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs">{userAttachments.length === 1 ? 'Download file' : 'Download files'}</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button

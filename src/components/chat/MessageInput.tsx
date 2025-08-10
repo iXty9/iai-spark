@@ -1,10 +1,13 @@
 
-import React, { useRef, FormEvent } from 'react';
+import React, { useRef, FormEvent, useState } from 'react';
 import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useTextareaResize } from '@/hooks/use-textarea-resize';
 import { useIOSFixes } from '@/hooks/use-ios-fixes';
 import { InputButtons } from './message-input/InputButtons';
+import { ParsedAttachment, isImageMime, toDataUrl } from '@/utils/attachment-utils';
+import { X } from 'lucide-react';
 
 interface MessageInputProps {
   message: string;
@@ -27,6 +30,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   useTextareaResize(textareaRef, message);
   useIOSFixes(formRef, message, isIOSSafari);
+
+  const [attachments, setAttachments] = useState<ParsedAttachment[]>([]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
