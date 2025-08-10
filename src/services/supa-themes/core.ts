@@ -57,6 +57,15 @@ class SupaThemesCore {
       // Load admin defaults for unauthenticated users
       await this.loadAdminDefaults();
     }
+
+    // Determine initial mode preference (device/local preference wins for anonymous users)
+    const preferred = this.getPreferredInitialMode();
+    if (preferred) {
+      this.state.mode = preferred;
+    } else if (!this.userId) {
+      // Default to light for first-time/anonymous users
+      this.state.mode = 'light';
+    }
     
     this.state.isReady = true;
     this.themeApplier.applyCurrentTheme(this.state);
@@ -87,6 +96,19 @@ class SupaThemesCore {
     } catch (error) {
       logger.warn('Failed to load admin defaults, using hardcoded defaults:', error);
     }
+  }
+
+  private getPreferredInitialMode(): 'light' | 'dark' | null {
+    try {
+      if (typeof window === 'undefined') return null;
+      const pref = (localStorage.getItem('theme_mode_pref') as 'light' | 'dark' | 'system' | null);
+      if (pref === 'light' || pref === 'dark') return pref;
+      if (pref === 'system') {
+        const mql = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+        return mql && mql.matches ? 'dark' : 'light';
+      }
+    } catch (e) {}
+    return null;
   }
 
   // State management
