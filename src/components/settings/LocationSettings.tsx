@@ -8,7 +8,7 @@ import { MapPin, RefreshCw, Shield, Clock, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocationContext } from '@/contexts/LocationContext';
 import { useToast } from '@/hooks/use-toast';
-
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 export const LocationSettings: React.FC = () => {
   const { profile, updateProfile } = useAuth();
   const { 
@@ -20,7 +20,12 @@ export const LocationSettings: React.FC = () => {
     lastUpdated,
     requestLocationPermission,
     refreshLocation,
-    handleAutoUpdateToggle: locationContextToggle
+    handleAutoUpdateToggle: locationContextToggle,
+    permissionMismatch,
+    syncPermissionState,
+    handleCoarseModeToggle,
+    handleIncludeAddressToggle,
+    clearSavedLocation,
   } = useLocationContext();
   const { toast } = useToast();
 
@@ -85,6 +90,42 @@ export const LocationSettings: React.FC = () => {
         title: "Refresh Failed",
         description: result.error || "Failed to refresh location.",
       });
+    }
+  };
+
+  const handleFixSync = async () => {
+    const res = await syncPermissionState();
+    if (res.success) {
+      toast({ title: 'Sync complete', description: `Browser permission: ${res.browser ?? 'unknown'}` });
+    } else {
+      toast({ variant: 'destructive', title: 'Sync failed', description: 'Could not synchronize permission state.' });
+    }
+  };
+
+  const handleCoarseToggle = async (enabled: boolean) => {
+    const res = await handleCoarseModeToggle(enabled);
+    if (res.success) {
+      toast({ title: enabled ? 'Coarse location enabled' : 'Coarse location disabled' });
+    } else {
+      toast({ variant: 'destructive', title: 'Update failed', description: 'Could not update coarse location preference.' });
+    }
+  };
+
+  const handleIncludeAddress = async (enabled: boolean) => {
+    const res = await handleIncludeAddressToggle(enabled);
+    if (res.success) {
+      toast({ title: enabled ? 'Including address details' : 'Hiding address details' });
+    } else {
+      toast({ variant: 'destructive', title: 'Update failed', description: 'Could not update address preference.' });
+    }
+  };
+
+  const handleClearSaved = async () => {
+    const res = await clearSavedLocation();
+    if (res.success) {
+      toast({ title: 'Location data cleared' });
+    } else {
+      toast({ variant: 'destructive', title: 'Clear failed', description: res.error || 'Could not clear saved location.' });
     }
   };
 
@@ -158,6 +199,15 @@ export const LocationSettings: React.FC = () => {
               </div>
             )}
           </div>
+          {permissionMismatch && (
+            <Alert>
+              <AlertTitle>Permission mismatch detected</AlertTitle>
+              <AlertDescription className="flex items-center justify-between gap-2">
+                Your browser permission and profile setting are out of sync.
+                <Button size="sm" variant="outline" onClick={handleFixSync}>Fix sync</Button>
+              </AlertDescription>
+            </Alert>
+          )}
 
           <Separator />
 
@@ -223,7 +273,40 @@ export const LocationSettings: React.FC = () => {
             Privacy & Security
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
+          {/* Privacy Controls */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="font-medium">Coarse Location</p>
+                <p className="text-sm text-muted-foreground">Round coordinates to city-level for extra privacy</p>
+              </div>
+              <Switch
+                checked={(profile as any)?.location_use_coarse ?? false}
+                onCheckedChange={handleCoarseToggle}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="font-medium">Include Address Details</p>
+                <p className="text-sm text-muted-foreground">Save address/city/country alongside coordinates</p>
+              </div>
+              <Switch
+                checked={(profile as any)?.location_include_address !== false}
+                onCheckedChange={handleIncludeAddress}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="font-medium">Clear Saved Location</p>
+                <p className="text-sm text-muted-foreground">Remove stored location details from your profile</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleClearSaved}>Clear</Button>
+            </div>
+          </div>
+
+          <Separator />
+
           <div className="space-y-3 text-sm text-muted-foreground">
             <div className="flex items-start gap-2">
               <Shield className="h-4 w-4 mt-0.5 flex-shrink-0" />

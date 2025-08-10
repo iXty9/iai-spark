@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { MapPin, MapPinOff, RefreshCw, AlertCircle } from 'lucide-react';
-import { useLocation } from '@/hooks/use-location';
 import { useLocationContext } from '@/contexts/LocationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDevMode } from '@/store/use-dev-mode';
@@ -26,10 +25,8 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
     currentLocation, 
     error, 
     lastUpdated,
-    clearError
-  } = useLocation();
-  
-  const { handleAutoUpdateToggle } = useLocationContext();
+    handleAutoUpdateToggle,
+  } = useLocationContext();
   const { profile } = useAuth();
   const { isDevMode } = useDevMode();
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
@@ -51,8 +48,7 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
     if (isToggling) {
       return;
     }
-
-    clearError();
+    // No-op: keep UX responsive without clearing errors here
     
     if (!isSupported) {
       toast({
@@ -118,7 +114,7 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
       setIsToggling(false);
     }
   }, [isSupported, hasPermission, profile?.location_auto_update, localAutoUpdate, 
-      isToggling, clearError, handleAutoUpdateToggle, toast]);
+       isToggling, handleAutoUpdateToggle, toast]);
 
   const getStatusIcon = () => {
     if (isLoading || isToggling) {
