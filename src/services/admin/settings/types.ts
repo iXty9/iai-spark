@@ -5,6 +5,7 @@ export interface AppSettings {
   app_name?: string;
   site_title?: string;
   default_theme_settings?: string;
+  show_ai_in_menu?: string;
   [key: string]: string | undefined;
 }
 

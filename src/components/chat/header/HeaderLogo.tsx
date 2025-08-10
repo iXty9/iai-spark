@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useAppSettingBoolean } from '@/hooks/use-app-setting-boolean';
 
 interface HeaderLogoProps {
   isMobile?: boolean;
@@ -9,9 +10,12 @@ interface HeaderLogoProps {
 }
 
 export const HeaderLogo = ({ isMobile, dynamicPadding }: HeaderLogoProps) => {
+  const { value: showInMenu } = useAppSettingBoolean('show_ai_in_menu', true);
   const handleLogoClick = () => {
     window.open('https://ixty9.com', '_blank', 'noopener,noreferrer');
   };
+  
+  if (!showInMenu) return null;
   
   return (
     <div 

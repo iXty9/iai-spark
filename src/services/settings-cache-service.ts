@@ -189,7 +189,8 @@ class SettingsCacheService {
   private getFallbackSettings(): Record<string, string> {
     const fallbackSettings = {
       ai_agent_name: 'AI Assistant',
-      app_name: 'The Everywhere Intelligent Assistant'
+      app_name: 'The Everywhere Intelligent Assistant',
+      show_ai_in_menu: 'true'
     };
     
     // Emit change event with fallback data to unblock hooks

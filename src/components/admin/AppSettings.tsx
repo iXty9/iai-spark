@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WebSocketSettings } from './WebSocketSettings';
+import { Switch } from '@/components/ui/switch';
 
 export function AppSettings() {
   const [isLoading, setIsLoading] = useState(true);
@@ -17,6 +18,7 @@ export function AppSettings() {
   const [siteTitle, setSiteTitle] = useState('');
   const [defaultAvatarUrl, setDefaultAvatarUrl] = useState('');
   const [aiAgentName, setAiAgentName] = useState('');
+  const [showAiInMenu, setShowAiInMenu] = useState(true);
 
   useEffect(() => {
     loadSettings();
@@ -32,6 +34,7 @@ export function AppSettings() {
       setSiteTitle(settings.site_title || 'AI Chat Application');
       setDefaultAvatarUrl(settings.default_avatar_url || '');
       setAiAgentName(settings.ai_agent_name || 'AI Assistant');
+      setShowAiInMenu(settings.show_ai_in_menu !== 'false');
     } catch (error) {
       console.error('Error loading app settings:', error);
       supaToast.error("There was an error loading the application settings.", {
@@ -57,11 +60,15 @@ export function AppSettings() {
       // Save AI agent name
       await updateAppSetting('ai_agent_name', aiAgentName);
       
+      // Save show AI in menu toggle
+      await updateAppSetting('show_ai_in_menu', showAiInMenu ? 'true' : 'false');
+      
       // Update cache with new values for immediate effect
       settingsCacheService.updateCache('app_name', tagline);
       settingsCacheService.updateCache('site_title', siteTitle);
       settingsCacheService.updateCache('default_avatar_url', defaultAvatarUrl);
       settingsCacheService.updateCache('ai_agent_name', aiAgentName);
+      settingsCacheService.updateCache('show_ai_in_menu', showAiInMenu ? 'true' : 'false');
       
       supaToast.success("Application settings have been updated successfully.", {
         title: "Settings saved"
@@ -148,6 +155,14 @@ export function AppSettings() {
                 <p className="text-sm text-muted-foreground">
                   This avatar is used as the default for AI messages and user fallbacks. Leave empty to use built-in fallback.
                 </p>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t mt-2">
+                <div className="space-y-1">
+                  <Label htmlFor="showAiInMenu">Show AI identity in main menu</Label>
+                  <p className="text-xs text-muted-foreground">Toggle to show or hide the AI avatar and name in the dropdown menu header.</p>
+                </div>
+                <Switch id="showAiInMenu" checked={showAiInMenu} onCheckedChange={setShowAiInMenu} disabled={isSaving} />
               </div>
               
               <Button 
