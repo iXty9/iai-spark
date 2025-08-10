@@ -30,6 +30,9 @@ class LocationService {
   private lastReverseGeocodeTime = 0;
   private lastReverseGeocodeLocation: { lat: number; lon: number } | null = null;
   private tabId = Math.random().toString(36).slice(2);
+  // Privacy preferences
+  private useCoarse = false;
+  private includeAddress = true;
   /**
    * Check if geolocation is supported
    */
@@ -150,6 +153,17 @@ class LocationService {
     } catch {
       // BroadcastChannel not supported; non-leader tabs won't receive live updates
     }
+  }
+
+  // ===== Privacy options API =====
+  public setPrivacyOptions(opts: { useCoarse?: boolean; includeAddress?: boolean }) {
+    if (typeof opts.useCoarse === 'boolean') this.useCoarse = opts.useCoarse;
+    if (typeof opts.includeAddress === 'boolean') this.includeAddress = opts.includeAddress;
+    logger.info('Updated location privacy options', { module: 'location', useCoarse: this.useCoarse, includeAddress: this.includeAddress });
+  }
+
+  public getPrivacyOptions() {
+    return { useCoarse: this.useCoarse, includeAddress: this.includeAddress };
   }
 
   /**
@@ -386,9 +400,9 @@ class LocationService {
         .update({
           location_latitude: locationData.latitude,
           location_longitude: locationData.longitude,
-          location_address: locationData.address,
-          location_city: locationData.city,
-          location_country: locationData.country,
+          location_address: this.includeAddress ? locationData.address : null,
+          location_city: this.includeAddress ? locationData.city : null,
+          location_country: this.includeAddress ? locationData.country : null,
           location_updated_at: locationData.timestamp,
           ...(permissionGranted && { location_permission_granted: true })
         })
@@ -446,39 +460,53 @@ class LocationService {
     return degrees * (Math.PI / 180);
   }
 
+  private roundCoord(value: number): number {
+    return Math.round(value * 100) / 100; // 2 decimals
+  }
+
   /**
    * Convert geolocation position to our LocationData format
    */
   private async processPosition(position: GeolocationPosition): Promise<LocationData> {
     const { latitude, longitude } = position.coords;
 
-    // Determine if we should reverse geocode (throttle by distance/time)
-    const now = Date.now();
-    const prev = this.lastReverseGeocodeLocation;
-    const prevAddr = this.lastKnownLocation;
-    const distFromLast = prev ? this.calculateDistance(prev.lat, prev.lon, latitude, longitude) : Infinity;
-    const shouldGeocode = !prev || distFromLast > 0.5 || (now - this.lastReverseGeocodeTime) > 15 * 60 * 1000;
+    // Apply coarse rounding if enabled (~1.1km at 2 decimals)
+    const latOut = this.useCoarse ? this.roundCoord(latitude) : latitude;
+    const lonOut = this.useCoarse ? this.roundCoord(longitude) : longitude;
 
-    let address = prevAddr?.address;
-    let city = prevAddr?.city;
-    let country = prevAddr?.country;
+    let address: string | undefined;
+    let city: string | undefined;
+    let country: string | undefined;
 
-    if (shouldGeocode) {
-      try {
-        const geocodeResult = await this.reverseGeocode(latitude, longitude);
-        address = geocodeResult.address ?? address;
-        city = geocodeResult.city ?? city;
-        country = geocodeResult.country ?? country;
-        this.lastReverseGeocodeLocation = { lat: latitude, lon: longitude };
-        this.lastReverseGeocodeTime = now;
-      } catch (error) {
-        logger.warn('Failed to reverse geocode location:', error, { module: 'location' });
+    if (this.includeAddress) {
+      // Determine if we should reverse geocode (throttle by distance/time)
+      const now = Date.now();
+      const prev = this.lastReverseGeocodeLocation;
+      const prevAddr = this.lastKnownLocation;
+      const distFromLast = prev ? this.calculateDistance(prev.lat, prev.lon, latitude, longitude) : Infinity;
+      const shouldGeocode = !prev || distFromLast > 0.5 || (now - this.lastReverseGeocodeTime) > 15 * 60 * 1000;
+
+      address = prevAddr?.address;
+      city = prevAddr?.city;
+      country = prevAddr?.country;
+
+      if (shouldGeocode) {
+        try {
+          const geocodeResult = await this.reverseGeocode(latOut, lonOut);
+          address = geocodeResult.address ?? address;
+          city = geocodeResult.city ?? city;
+          country = geocodeResult.country ?? country;
+          this.lastReverseGeocodeLocation = { lat: latOut, lon: lonOut };
+          this.lastReverseGeocodeTime = now;
+        } catch (error) {
+          logger.warn('Failed to reverse geocode location:', error, { module: 'location' });
+        }
       }
     }
 
     return {
-      latitude,
-      longitude,
+      latitude: latOut,
+      longitude: lonOut,
       address,
       city,
       country,

@@ -48,10 +48,12 @@ export type Database = {
           location_auto_update: boolean | null
           location_city: string | null
           location_country: string | null
+          location_include_address: boolean | null
           location_latitude: number | null
           location_longitude: number | null
           location_permission_granted: boolean | null
           location_updated_at: string | null
+          location_use_coarse: boolean | null
           phone_country_code: string | null
           phone_number: string | null
           theme_settings: string | null
@@ -68,10 +70,12 @@ export type Database = {
           location_auto_update?: boolean | null
           location_city?: string | null
           location_country?: string | null
+          location_include_address?: boolean | null
           location_latitude?: number | null
           location_longitude?: number | null
           location_permission_granted?: boolean | null
           location_updated_at?: string | null
+          location_use_coarse?: boolean | null
           phone_country_code?: string | null
           phone_number?: string | null
           theme_settings?: string | null
@@ -88,10 +92,12 @@ export type Database = {
           location_auto_update?: boolean | null
           location_city?: string | null
           location_country?: string | null
+          location_include_address?: boolean | null
           location_latitude?: number | null
           location_longitude?: number | null
           location_permission_granted?: boolean | null
           location_updated_at?: string | null
+          location_use_coarse?: boolean | null
           phone_country_code?: string | null
           phone_number?: string | null
           theme_settings?: string | null
