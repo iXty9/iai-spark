@@ -35,12 +35,25 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    
-    if (message.trim() && !isLoading) {
-      onSubmit(e);
+
+    const composeWithAttachments = () => {
+      if (attachments.length === 0) return message;
+      const blocks = attachments
+        .map(att => `\n[attachment name="${att.name}" mime="${att.mime}"]\ndata:${att.mime};base64,${att.data}\n[/attachment]\n`)
+        .join('');
+      return message ? `${message}\n${blocks}` : blocks;
+    };
+
+    if ((message.trim() || attachments.length > 0) && !isLoading) {
+      const composed = composeWithAttachments();
+      onChange(composed);
+      // Ensure state update flushes before submit handler reads it
+      setTimeout(() => onSubmit(), 0);
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
+      // Clear local attachments after sending
+      setAttachments([]);
     }
   };
 
@@ -51,12 +64,19 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     }
     
     // Only submit on plain Enter key (no Shift)
-    if (e.key === 'Enter' && !e.shiftKey && !isMobile && message.trim() && !isLoading) {
+    if (e.key === 'Enter' && !e.shiftKey && !isMobile && (message.trim() || attachments.length > 0) && !isLoading) {
       e.preventDefault();
-      onSubmit();
+      // Build and send with attachments
+      const blocks = attachments
+        .map(att => `\n[attachment name="${att.name}" mime="${att.mime}"]\ndata:${att.mime};base64,${att.data}\n[/attachment]\n`)
+        .join('');
+      const composed = attachments.length > 0 ? (message ? `${message}\n${blocks}` : blocks) : message;
+      onChange(composed);
+      setTimeout(() => onSubmit(), 0);
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
+      setAttachments([]);
     }
   };
 
@@ -65,13 +85,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   const handleFileAttached = (content: string, fileName: string) => {
-    // Encode attachment inline using a structured block the webhook can parse
-    // content is a data URL (e.g., data:image/png;base64,....)
-    const mimeMatch = /^data:([^;]+);base64,/.exec(content || '');
-    const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
-    const attachmentBlock = `\n[attachment name="${fileName}" mime="${mime}"]\n${content}\n[/attachment]\n`;
-    const newMessage = message ? `${message}\n${attachmentBlock}` : attachmentBlock;
-    onChange(newMessage);
+    // Keep attachment out of the input box; store locally for preview and send on submit
+    const match = /^data:([^;]+);base64,(.*)$/s.exec(content || '');
+    const mime = match ? match[1] : 'application/octet-stream';
+    const data = match ? match[2] : content;
+    setAttachments(prev => [...prev, { name: fileName, mime, data }]);
   };
   const handleVoiceTranscript = (transcript: string) => {
     // Append voice transcript to current message
@@ -94,6 +112,32 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     >
       <div className="flex items-end gap-3 w-full">
         <div className="relative flex-1">
+          {attachments.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {attachments.map((att, idx) => (
+                <div key={idx} className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-2 py-1">
+                  {isImageMime(att.mime) ? (
+                    <img src={toDataUrl(att)} alt={att.name} className="h-8 w-8 object-cover rounded" loading="lazy" />
+                  ) : (
+                    <div className="h-8 w-8 rounded bg-muted flex items-center justify-center text-xs">
+                      {att.name.split('.').pop()?.toUpperCase()}
+                    </div>
+                  )}
+                  <span className="text-xs max-w-[140px] truncate" title={att.name}>{att.name}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                    aria-label={`Remove ${att.name}`}
+                    onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
           <Textarea
             ref={textareaRef}
             value={message}
@@ -112,11 +156,17 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           message={message}
           isLoading={isLoading}
           onSendClick={() => {
-            if (message.trim() && !isLoading) {
-              onSubmit();
+            if ((message.trim() || attachments.length > 0) && !isLoading) {
+              const blocks = attachments
+                .map(att => `\n[attachment name="${att.name}" mime="${att.mime}"]\ndata:${att.mime};base64,${att.data}\n[/attachment]\n`)
+                .join('');
+              const composed = attachments.length > 0 ? (message ? `${message}\n${blocks}` : blocks) : message;
+              onChange(composed);
+              setTimeout(() => onSubmit(), 0);
               if (textareaRef.current) {
                 textareaRef.current.style.height = 'auto';
               }
+              setAttachments([]);
             }
           }}
           onFileAttached={handleFileAttached}

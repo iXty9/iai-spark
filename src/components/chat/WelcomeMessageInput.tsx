@@ -1,7 +1,7 @@
-import React, { useRef, FormEvent } from 'react';
+import React, { useRef, FormEvent, useState } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Send, Paperclip, Mic, MicOff, Loader2 } from 'lucide-react';
+import { Send, Paperclip, Mic, MicOff, Loader2, X } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useTextareaResize } from '@/hooks/use-textarea-resize';
@@ -9,6 +9,7 @@ import { useFileUpload } from '@/hooks/chat/use-file-upload';
 import { useVoiceInput } from '@/hooks/chat/use-voice-input';
 import { useToast } from '@/hooks/use-toast';
 import { VersionBadge } from './VersionBadge';
+import { ParsedAttachment, isImageMime, toDataUrl } from '@/utils/attachment-utils';
 
 interface WelcomeMessageInputProps {
   message: string;
@@ -42,13 +43,27 @@ export const WelcomeMessageInput: React.FC<WelcomeMessageInputProps> = ({
 
   useTextareaResize(textareaRef, message);
 
+  const [attachments, setAttachments] = useState<ParsedAttachment[]>([]);
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (message.trim() && !isLoading && !disabled) {
+
+    const composeWithAttachments = () => {
+      if (attachments.length === 0) return message;
+      const blocks = attachments
+        .map(att => `\n[attachment name="${att.name}" mime="${att.mime}"]\ndata:${att.mime};base64,${att.data}\n[/attachment]\n`)
+        .join('');
+      return message ? `${message}\n${blocks}` : blocks;
+    };
+
+    if ((message.trim() || attachments.length > 0) && !isLoading && !disabled) {
+      const composed = composeWithAttachments();
+      onChange(composed);
       onSubmit(e);
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
+      setAttachments([]);
     }
   };
 
@@ -57,12 +72,18 @@ export const WelcomeMessageInput: React.FC<WelcomeMessageInputProps> = ({
       return; // Allow default behavior for Shift+Enter
     }
     
-    if (e.key === 'Enter' && !e.shiftKey && !isMobile && message.trim() && !isLoading && !disabled) {
+    if (e.key === 'Enter' && !e.shiftKey && !isMobile && (message.trim() || attachments.length > 0) && !isLoading && !disabled) {
       e.preventDefault();
+      const blocks = attachments
+        .map(att => `\n[attachment name="${att.name}" mime="${att.mime}"]\ndata:${att.mime};base64,${att.data}\n[/attachment]\n`)
+        .join('');
+      const composed = attachments.length > 0 ? (message ? `${message}\n${blocks}` : blocks) : message;
+      onChange(composed);
       onSubmit();
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
+      setAttachments([]);
     }
   };
 
@@ -81,12 +102,11 @@ export const WelcomeMessageInput: React.FC<WelcomeMessageInputProps> = ({
 
     const result = await uploadFile(file);
     if (result) {
-      // result is a data URL. Extract mime and embed as a structured attachment block
-      const mimeMatch = /^data:([^;]+);base64,/.exec(result || '');
-      const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
-      const attachmentBlock = `\n[attachment name="${file.name}" mime="${mime}"]\n${result}\n[/attachment]\n`;
-      const newMessage = message ? `${message}\n${attachmentBlock}` : attachmentBlock;
-      onChange(newMessage);
+      // result is a data URL. Extract and store locally, don't show in input
+      const match = /^data:([^;]+);base64,(.*)$/s.exec(result || '');
+      const mime = match ? match[1] : 'application/octet-stream';
+      const data = match ? match[2] : result;
+      setAttachments(prev => [...prev, { name: file.name, mime, data }]);
       toast({
         title: "File attached",
         description: `${file.name} has been attached to your message.`
@@ -226,6 +246,32 @@ export const WelcomeMessageInput: React.FC<WelcomeMessageInputProps> = ({
 
             {/* Text Input */}
             <div className="flex-1 relative">
+              {attachments.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-2">
+                  {attachments.map((att, idx) => (
+                    <div key={idx} className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-2 py-1">
+                      {isImageMime(att.mime) ? (
+                        <img src={toDataUrl(att)} alt={att.name} className="h-8 w-8 object-cover rounded" loading="lazy" />
+                      ) : (
+                        <div className="h-8 w-8 rounded bg-muted flex items-center justify-center text-xs">
+                          {att.name.split('.').pop()?.toUpperCase()}
+                        </div>
+                      )}
+                      <span className="text-xs max-w-[140px] truncate" title={att.name}>{att.name}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                        aria-label={`Remove ${att.name}`}
+                        onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <Textarea
                 ref={textareaRef}
                 value={message}
@@ -277,15 +323,21 @@ export const WelcomeMessageInput: React.FC<WelcomeMessageInputProps> = ({
               type="button" 
               variant="default" 
               size="icon" 
-              disabled={!message.trim() || isLoading || disabled}
+              disabled={!(message.trim() || attachments.length > 0) || isLoading || disabled}
               aria-label="Send message"
               className="rounded-full shrink-0 h-10 w-10 bg-[#ea384c] hover:bg-[#dd3333] transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-[#ea384c]/20 disabled:opacity-50 disabled:hover:scale-100"
               onClick={() => {
-                if (message.trim() && !isLoading && !disabled) {
+                if ((message.trim() || attachments.length > 0) && !isLoading && !disabled) {
+                  const blocks = attachments
+                    .map(att => `\n[attachment name="${att.name}" mime="${att.mime}"]\ndata:${att.mime};base64,${att.data}\n[/attachment]\n`)
+                    .join('');
+                  const composed = attachments.length > 0 ? (message ? `${message}\n${blocks}` : blocks) : message;
+                  onChange(composed);
                   onSubmit();
                   if (textareaRef.current) {
                     textareaRef.current.style.height = 'auto';
                   }
+                  setAttachments([]);
                 }
               }}
             >
