@@ -20,7 +20,16 @@ class LocationService {
   private watchId: number | null = null;
   private lastKnownLocation: LocationData | null = null;
   private updateInterval: NodeJS.Timeout | null = null;
-
+  // Cross-tab coordination
+  private isLeader = false;
+  private bc: BroadcastChannel | null = null;
+  private heartbeatIntervalId: NodeJS.Timeout | null = null;
+  private lastHeartbeat = 0;
+  // Watcher callbacks for UI updates
+  private watchCallbacks = new Set<(location: LocationData) => void>();
+  private lastReverseGeocodeTime = 0;
+  private lastReverseGeocodeLocation: { lat: number; lon: number } | null = null;
+  private tabId = Math.random().toString(36).slice(2);
   /**
    * Check if geolocation is supported
    */
@@ -67,13 +76,80 @@ class LocationService {
   private async checkPermissionState(): Promise<PermissionState | null> {
     try {
       if ('permissions' in navigator) {
-        const result = await navigator.permissions.query({name: 'geolocation'});
-        return result.state;
+        const result = await navigator.permissions.query({ name: 'geolocation' as any });
+        return (result as any).state;
       }
     } catch (error) {
       logger.warn('Permission API not available:', error, { module: 'location' });
     }
     return null;
+  }
+
+  // ===== Cross-tab leadership using localStorage lock =====
+  private ensureLeadership() {
+    const KEY = 'location_leader_v1';
+    const now = Date.now();
+
+    const tryAcquire = () => {
+      try {
+        const curr = localStorage.getItem(KEY);
+        const parsed = curr ? JSON.parse(curr) as { id: string; ts: number } : null;
+        if (!parsed || now - parsed.ts > 10000) {
+          localStorage.setItem(KEY, JSON.stringify({ id: this.tabId, ts: Date.now() }));
+          this.isLeader = true;
+          logger.info('Acquired location leadership', { module: 'location' });
+        } else {
+          this.isLeader = parsed.id === this.tabId;
+        }
+      } catch (e) {
+        // If storage unavailable, fallback to single-tab behavior
+        this.isLeader = true;
+      }
+    };
+
+    tryAcquire();
+
+    // Renew lock if we are leader
+    if (this.isLeader) {
+      if (this.heartbeatIntervalId) clearInterval(this.heartbeatIntervalId);
+      this.heartbeatIntervalId = setInterval(() => {
+        try {
+          localStorage.setItem(KEY, JSON.stringify({ id: this.tabId, ts: Date.now() }));
+        } catch { /* ignore */ }
+      }, 5000);
+    }
+
+    // Listen for leadership changes
+    window.addEventListener('storage', (ev) => {
+      if (ev.key !== KEY) return;
+      try {
+        const parsed = ev.newValue ? JSON.parse(ev.newValue) as { id: string; ts: number } : null;
+        const amLeader = parsed && parsed.id === this.tabId;
+        if (this.isLeader !== amLeader) {
+          this.isLeader = amLeader;
+          logger.info(amLeader ? 'This tab is now leader' : 'This tab lost leadership', { module: 'location' });
+          // Stop native watchers if no longer leader
+          if (!amLeader) this.stopWatching();
+        }
+      } catch { /* ignore */ }
+    });
+  }
+
+  private initBroadcast() {
+    if (this.bc) return;
+    try {
+      this.bc = new BroadcastChannel('location-updates-v1');
+      this.bc.onmessage = (e) => {
+        const msg = e.data;
+        if (msg && msg.type === 'location-update' && !this.isLeader) {
+          const data = msg.data as LocationData;
+          this.lastKnownLocation = data;
+          this.watchCallbacks.forEach((cb) => cb(data));
+        }
+      };
+    } catch {
+      // BroadcastChannel not supported; non-leader tabs won't receive live updates
+    }
   }
 
   /**
@@ -188,6 +264,22 @@ class LocationService {
       return;
     }
 
+    this.ensureLeadership();
+    this.initBroadcast();
+
+    if (callback) this.watchCallbacks.add(callback);
+
+    // If not leader, don't register native watcher; rely on broadcasts
+    if (!this.isLeader) {
+      logger.info('Non-leader tab: subscribing to broadcasted location updates', { module: 'location' });
+      return;
+    }
+
+    // Leader: avoid duplicate native watchers
+    if (this.watchId !== null) {
+      return;
+    }
+
     this.watchId = navigator.geolocation.watchPosition(
       async (position) => {
         try {
@@ -197,7 +289,10 @@ class LocationService {
           if (shouldUpdate) {
             this.lastKnownLocation = locationData;
             await this.saveLocationToDatabase(locationData);
-            callback?.(locationData);
+            // Notify local subscribers
+            this.watchCallbacks.forEach((cb) => cb(locationData));
+            // Broadcast to other tabs
+            try { this.bc?.postMessage({ type: 'location-update', data: locationData }); } catch {}
             
             logger.info('Location updated via watching', {
               latitude: locationData.latitude,
@@ -228,6 +323,8 @@ class LocationService {
       navigator.geolocation.clearWatch(this.watchId);
       this.watchId = null;
     }
+    // Clear callbacks to avoid leaks when components unmount
+    this.watchCallbacks.clear();
   }
 
   /**
@@ -239,14 +336,27 @@ class LocationService {
       clearInterval(this.updateInterval);
     }
 
-    // Update every 10 minutes initially, can be made smarter based on movement patterns
+    this.ensureLeadership();
+    this.initBroadcast();
+
+    // Only leader performs periodic background updates
+    if (!this.isLeader) {
+      logger.info('Non-leader tab: skipping periodic updates', { module: 'location' });
+      return;
+    }
+
     this.updateInterval = setInterval(async () => {
       try {
+        // Pause updates while tab is hidden to save resources
+        if (document.hidden) return;
+
         const result = await this.getCurrentPosition();
         if (result.success && result.data) {
           const shouldUpdate = this.shouldUpdateLocation(result.data);
           if (shouldUpdate) {
             await this.saveLocationToDatabase(result.data);
+            // Broadcast update for other tabs
+            try { this.bc?.postMessage({ type: 'location-update', data: result.data }); } catch {}
             logger.info('Periodic location update completed', { module: 'location' });
           }
         }
@@ -341,16 +451,29 @@ class LocationService {
    */
   private async processPosition(position: GeolocationPosition): Promise<LocationData> {
     const { latitude, longitude } = position.coords;
-    
-    // Try to get address information via reverse geocoding
-    let address, city, country;
-    try {
-      const geocodeResult = await this.reverseGeocode(latitude, longitude);
-      address = geocodeResult.address;
-      city = geocodeResult.city;
-      country = geocodeResult.country;
-    } catch (error) {
-      logger.warn('Failed to reverse geocode location:', error, { module: 'location' });
+
+    // Determine if we should reverse geocode (throttle by distance/time)
+    const now = Date.now();
+    const prev = this.lastReverseGeocodeLocation;
+    const prevAddr = this.lastKnownLocation;
+    const distFromLast = prev ? this.calculateDistance(prev.lat, prev.lon, latitude, longitude) : Infinity;
+    const shouldGeocode = !prev || distFromLast > 0.5 || (now - this.lastReverseGeocodeTime) > 15 * 60 * 1000;
+
+    let address = prevAddr?.address;
+    let city = prevAddr?.city;
+    let country = prevAddr?.country;
+
+    if (shouldGeocode) {
+      try {
+        const geocodeResult = await this.reverseGeocode(latitude, longitude);
+        address = geocodeResult.address ?? address;
+        city = geocodeResult.city ?? city;
+        country = geocodeResult.country ?? country;
+        this.lastReverseGeocodeLocation = { lat: latitude, lon: longitude };
+        this.lastReverseGeocodeTime = now;
+      } catch (error) {
+        logger.warn('Failed to reverse geocode location:', error, { module: 'location' });
+      }
     }
 
     return {
@@ -368,26 +491,14 @@ class LocationService {
    */
   private async reverseGeocode(lat: number, lon: number) {
     try {
-      // Using OpenStreetMap Nominatim (free service)
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`,
-        {
-          headers: {
-            'User-Agent': 'IxtyAI-LocationService/1.0'
-          }
-        }
-      );
-      
-      if (!response.ok) {
-        throw new Error('Geocoding service unavailable');
-      }
-
-      const data = await response.json();
-      
+      const { data, error } = await supabase.functions.invoke('reverse-geocode', {
+        body: { lat, lon }
+      });
+      if (error) throw error;
       return {
-        address: data.display_name,
-        city: data.address?.city || data.address?.town || data.address?.village,
-        country: data.address?.country
+        address: data?.address,
+        city: data?.city,
+        country: data?.country
       };
     } catch (error) {
       logger.warn('Reverse geocoding failed:', error, { module: 'location' });

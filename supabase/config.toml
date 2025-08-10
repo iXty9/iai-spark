@@ -41,3 +41,6 @@ port = 8089
 
 [experimental]
 multi_project = false
+
+[functions.reverse-geocode]
+verify_jwt = false
