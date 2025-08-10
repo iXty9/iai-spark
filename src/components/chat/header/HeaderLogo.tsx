@@ -14,13 +14,14 @@ export const HeaderLogo = ({ isMobile, dynamicPadding }: HeaderLogoProps) => {
   const handleLogoClick = () => {
     window.open('https://ixty9.com', '_blank', 'noopener,noreferrer');
   };
-  
-  if (!showInMenu) return null;
+
+  const hidden = !showInMenu;
   
   return (
     <div 
-      className="flex items-center cursor-pointer flex-shrink-0" 
+      className={`flex items-center cursor-pointer flex-shrink-0 ${hidden ? 'invisible pointer-events-none' : ''}`}
       onClick={handleLogoClick}
+      aria-hidden={hidden}
     >
       <img 
         src="https://ixty9.com/wp-content/uploads/2023/10/cropped-faviconV4.png" 
