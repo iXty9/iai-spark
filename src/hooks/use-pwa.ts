@@ -175,7 +175,7 @@ export const usePWA = (): PWAHook => {
     toastId = supaToast.show({
       type: 'info',
       title: 'Update Available',
-      message: 'A new version of Ixty AI is ready to install',
+      message: 'A new version is ready with improvements and fixes. Your preferences will be preserved.',
       persistent: true,
       actions: [
         {
@@ -209,6 +209,11 @@ export const usePWA = (): PWAHook => {
     try {
       setIsUpdating(true);
       
+      supaToast.info('Preparing update...', { persistent: true });
+      
+      // Perform cache cleanup first
+      await versionService.performCacheCleanup();
+      
       supaToast.info('Installing update...', { persistent: true });
       
       // Get the latest version info
@@ -216,6 +221,12 @@ export const usePWA = (): PWAHook => {
       if (remoteVersion) {
         await versionService.updateToVersion(remoteVersion);
         setCurrentVersion(remoteVersion.buildHash);
+      }
+
+      // Clear browser caches if available
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(name => caches.delete(name)));
       }
 
       // Tell the service worker to skip waiting and activate
@@ -229,6 +240,9 @@ export const usePWA = (): PWAHook => {
             resolve();
           };
           navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+          
+          // Fallback timeout
+          setTimeout(resolve, 3000);
         });
       } else {
         // If no waiting worker, force update check
@@ -241,18 +255,34 @@ export const usePWA = (): PWAHook => {
       setNeedsUpdate(false);
       setIsUpdating(false);
       
-      supaToast.success('Update installed! Reloading...', { duration: 2000 });
+      supaToast.success('Update complete! Reloading with latest version...', { duration: 3000 });
       
-      // Reload the page after a short delay
+      // Reload the page with cache bypass after a short delay
       setTimeout(() => {
         window.location.reload();
-      }, 2000);
+      }, 1500);
       
       logger.info('App update completed successfully', { module: 'pwa' });
     } catch (error) {
       logger.error('Error updating app:', error, { module: 'pwa' });
       setIsUpdating(false);
-      supaToast.error('Update failed. Please try again.');
+      
+      supaToast.show({
+        type: 'error',
+        title: 'Update Failed',
+        message: 'Trying alternative update method...',
+        persistent: true,
+        actions: [
+          {
+            label: 'Force Update',
+            action: () => versionService.forceCacheRefresh()
+          },
+          {
+            label: 'Try Again',
+            action: () => updateApp()
+          }
+        ]
+      });
     }
   };
 

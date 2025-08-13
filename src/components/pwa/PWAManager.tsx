@@ -1,22 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { PWAInstallPrompt } from './PWAInstallPrompt';
+import { CacheUpdateNotification } from './CacheUpdateNotification';
 import { usePWA } from '@/hooks/use-pwa';
 
 export const PWAManager: React.FC = () => {
-  const { isInstallable } = usePWA();
+  const { isInstallable, needsUpdate } = usePWA();
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [showUpdateNotification, setShowUpdateNotification] = useState(false);
   const [bottomOffset, setBottomOffset] = useState<number>(16);
 
   // Show install prompt after a delay if app is installable
   useEffect(() => {
-    if (isInstallable) {
+    if (isInstallable && !needsUpdate) {
       const timer = setTimeout(() => {
         setShowInstallPrompt(true);
       }, 10000); // Show after 10 seconds
 
       return () => clearTimeout(timer);
     }
-  }, [isInstallable]);
+  }, [isInstallable, needsUpdate]);
+
+  // Show update notification when update is available
+  useEffect(() => {
+    if (needsUpdate) {
+      setShowUpdateNotification(true);
+      // Hide install prompt if update is available
+      setShowInstallPrompt(false);
+    }
+  }, [needsUpdate]);
 
   // Keep the install prompt above the chat input bar
   useEffect(() => {
@@ -45,11 +56,22 @@ export const PWAManager: React.FC = () => {
       window.removeEventListener('resize', updateOffset);
       ro?.disconnect();
     };
-  }, [showInstallPrompt, isInstallable]);
+  }, [showInstallPrompt, showUpdateNotification, isInstallable]);
 
   return (
     <>
-      {showInstallPrompt && isInstallable && (
+      {/* Update notification takes priority over install prompt */}
+      {showUpdateNotification && needsUpdate && (
+        <div className="fixed left-4 right-4 z-[120] md:left-auto md:w-96" style={{ bottom: bottomOffset }}>
+          <CacheUpdateNotification 
+            onDismiss={() => setShowUpdateNotification(false)}
+            onUpdate={() => setShowUpdateNotification(false)}
+          />
+        </div>
+      )}
+      
+      {/* Install prompt shows only when no update is available */}
+      {showInstallPrompt && isInstallable && !needsUpdate && (
         <div className="fixed left-4 right-4 z-[120] md:left-auto md:w-96" style={{ bottom: bottomOffset }}>
           <PWAInstallPrompt onDismiss={() => setShowInstallPrompt(false)} />
         </div>
