@@ -5,6 +5,7 @@ export interface AppVersion {
   version: string;
   buildTime: string;
   buildHash: string;
+  environment?: string;
   cacheNames: {
     static: string;
     dynamic: string;
@@ -88,14 +89,33 @@ class VersionService {
 
       if (!remoteVersion) return false;
       
+      // In development, don't trigger updates unless explicitly different
+      if (remoteVersion.environment === 'development') {
+        // Only update if we have no stored version (first load)
+        const hasUpdate = !currentVersion;
+        
+        if (hasUpdate) {
+          logger.info('First load in development', { 
+            remote: remoteVersion.buildHash 
+          }, { module: 'version-service' });
+          
+          // Auto-update on first load in dev without notification
+          await this.updateToVersion(remoteVersion);
+          return false; // Don't notify listeners
+        }
+        
+        return false;
+      }
+      
+      // Production logic: check for actual changes
       const hasUpdate = !currentVersion || 
-        currentVersion.buildHash !== remoteVersion.buildHash ||
-        currentVersion.buildTime !== remoteVersion.buildTime;
+        currentVersion.buildHash !== remoteVersion.buildHash;
 
       if (hasUpdate) {
         logger.info('Update detected', { 
           current: currentVersion?.buildHash, 
-          remote: remoteVersion.buildHash 
+          remote: remoteVersion.buildHash,
+          environment: remoteVersion.environment
         }, { module: 'version-service' });
         
         this.notifyListeners(true);

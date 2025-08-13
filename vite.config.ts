@@ -7,22 +7,24 @@ import fs from 'fs';
 
 // Plugin to generate version.json during build
 const generateVersionPlugin = () => {
+  // Create a stable build hash for the session
+  const sessionBuildHash = process.env.NODE_ENV === 'production' 
+    ? Math.random().toString(36).substr(2, 12)
+    : 'dev-stable';
+  
   return {
     name: 'generate-version',
     buildStart() {
       const buildTime = new Date().toISOString();
-      const buildHash = process.env.NODE_ENV === 'production' 
-        ? Math.random().toString(36).substr(2, 12) // Longer hash for prod
-        : 'dev-build';
       
       const version = {
         version: "1.0.0",
         buildTime,
-        buildHash,
+        buildHash: sessionBuildHash,
         environment: process.env.NODE_ENV || 'development',
         cacheNames: {
-          static: `ixty-ai-static-${buildHash}`,
-          dynamic: `ixty-ai-dynamic-${buildHash}`
+          static: `ixty-ai-static-${sessionBuildHash}`,
+          dynamic: `ixty-ai-dynamic-${sessionBuildHash}`
         }
       };
       
@@ -35,17 +37,17 @@ const generateVersionPlugin = () => {
       console.log('Generated version.json:', version);
     },
     configureServer(server: any) {
-      // In development, regenerate version on each request to version.json
+      // In development, serve a stable version to prevent constant updates
       server.middlewares.use('/version.json', (req: any, res: any, next: any) => {
         if (process.env.NODE_ENV === 'development') {
           const devVersion = {
             version: "1.0.0-dev",
-            buildTime: new Date().toISOString(),
-            buildHash: `dev-${Date.now()}`,
+            buildTime: "2024-01-01T00:00:00.000Z", // Stable timestamp for dev
+            buildHash: sessionBuildHash,
             environment: 'development',
             cacheNames: {
-              static: `ixty-ai-static-dev-${Date.now()}`,
-              dynamic: `ixty-ai-dynamic-dev-${Date.now()}`
+              static: `ixty-ai-static-${sessionBuildHash}`,
+              dynamic: `ixty-ai-dynamic-${sessionBuildHash}`
             }
           };
           
