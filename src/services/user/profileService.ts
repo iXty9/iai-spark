@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
+import { validateWebhookUrl, sanitizeInput } from '@/utils/validation';
 
 export interface ProfileData {
   id?: string;
@@ -10,6 +11,7 @@ export interface ProfileData {
   website?: string;
   bio?: string;
   theme_settings?: string;
+  webhook_url?: string;
 }
 
 /**
@@ -37,7 +39,7 @@ export async function fetchProfile(userId: string) {
 }
 
 /**
- * Update a user's profile data
+ * Update a user's profile data with enhanced security validation
  * @param userId The user ID
  * @param updates The profile data to update
  */
@@ -46,9 +48,32 @@ export async function updateProfile(
   updates: Partial<ProfileData>
 ) {
   try {
+    // Sanitize text inputs
+    const sanitizedUpdates = { ...updates };
+    
+    if (sanitizedUpdates.username) {
+      sanitizedUpdates.username = sanitizeInput(sanitizedUpdates.username);
+    }
+    
+    if (sanitizedUpdates.full_name) {
+      sanitizedUpdates.full_name = sanitizeInput(sanitizedUpdates.full_name);
+    }
+    
+    if (sanitizedUpdates.bio) {
+      sanitizedUpdates.bio = sanitizeInput(sanitizedUpdates.bio);
+    }
+    
+    // Validate webhook URL if being updated
+    if ('webhook_url' in updates && updates.webhook_url) {
+      const webhookValidation = validateWebhookUrl(updates.webhook_url);
+      if (webhookValidation) {
+        return { success: false, error: { message: webhookValidation } };
+      }
+    }
+    
     const result = await supabase
       .from('profiles')
-      .update(updates)
+      .update(sanitizedUpdates)
       .eq('id', userId);
       
     if (result.error) {

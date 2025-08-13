@@ -101,7 +101,7 @@ export const validateSearchParams = (params: {
   }
 };
 
-// Sanitization helpers
+// Enhanced sanitization helpers
 export const sanitizeSearchQuery = (query: string): string => {
   return query.trim().replace(/[<>]/g, '');
 };
@@ -112,4 +112,86 @@ export const normalizeRole = (role: string): UserRole => {
     return normalizedRole as UserRole;
   }
   return 'user';
+};
+
+/**
+ * Enhanced input sanitization to prevent XSS and injection attacks
+ */
+export const sanitizeInput = (input: string): string => {
+  if (typeof input !== 'string') {
+    return '';
+  }
+  
+  // Enhanced sanitization - remove potentially dangerous characters and patterns
+  return input
+    .replace(/[<>]/g, '') // Remove angle brackets
+    .replace(/javascript:/gi, '') // Remove javascript: protocol
+    .replace(/data:/gi, '') // Remove data: protocol
+    .replace(/vbscript:/gi, '') // Remove vbscript: protocol
+    .replace(/on\w+=/gi, '') // Remove event handlers
+    .replace(/eval\s*\(/gi, '') // Remove eval calls
+    .replace(/expression\s*\(/gi, '') // Remove CSS expressions
+    .replace(/script/gi, '') // Remove script tags
+    .trim();
+};
+
+/**
+ * Validate webhook URL with security restrictions
+ */
+export const validateWebhookUrl = (url: string): string | null => {
+  if (!url || url.trim() === '') {
+    return null; // Empty URLs are allowed
+  }
+
+  try {
+    const parsedUrl = new URL(url);
+    
+    // Only allow HTTP and HTTPS protocols
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      return 'Webhook URL must use HTTP or HTTPS protocol';
+    }
+    
+    // Prevent localhost and internal IP addresses
+    const hostname = parsedUrl.hostname.toLowerCase();
+    if (hostname === 'localhost' || 
+        hostname === '127.0.0.1' ||
+        hostname.startsWith('192.168.') ||
+        hostname.startsWith('10.') ||
+        /^172\.(1[6-9]|2[0-9]|3[01])\./.test(hostname)) {
+      return 'Webhook URL cannot point to localhost or internal IP addresses';
+    }
+    
+    return null; // Valid URL
+  } catch (error) {
+    return 'Invalid webhook URL format';
+  }
+};
+
+/**
+ * Validate app setting key for security
+ */
+export const validateAppSettingKey = (key: string): boolean => {
+  if (!key || typeof key !== 'string') {
+    return false;
+  }
+  
+  const lowerKey = key.toLowerCase();
+  
+  // Check for dangerous keywords
+  const dangerousKeywords = [
+    'supabase', 'key', 'secret', 'password', 'token', 
+    'credential', 'url', 'api', 'service_role_key', 
+    'anon_key', 'database_url', 'jwt_secret'
+  ];
+  
+  if (dangerousKeywords.some(keyword => lowerKey.includes(keyword))) {
+    return false;
+  }
+  
+  // Check format - only alphanumeric and underscores
+  if (!/^[a-zA-Z0-9_]+$/.test(key)) {
+    return false;
+  }
+  
+  return key.length > 0;
 };
