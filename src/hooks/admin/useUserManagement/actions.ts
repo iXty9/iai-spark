@@ -19,12 +19,20 @@ export function useUserManagementActions(
 ) {
   const { toast } = useToast();
   const { validateParams, sanitizeSearchQuery, normalizeRole } = useValidation(dispatch);
+  
+  // Request deduplication
+  let currentRequestId = 0;
 
   const executeSearch = useCallback(async (isSearch: boolean = false) => {
+    // Request deduplication - cancel if a newer request comes in
+    const requestId = ++currentRequestId;
+    
     dispatch({ type: 'SET_LOADING', payload: true });
     dispatch({ type: 'SET_ERROR', payload: null });
     
     try {
+      // Check if this request is still current
+      if (requestId !== currentRequestId) return;
       const params = {
         searchQuery: debouncedSearchQuery,
         page: isSearch ? 1 : state.currentPage,
@@ -55,6 +63,9 @@ export function useUserManagementActions(
         result = await fetchUsers(options);
       }
 
+      // Check if this request is still current before updating state
+      if (requestId !== currentRequestId) return;
+
       dispatch({ type: 'SET_USERS', payload: result.users });
       dispatch({ type: 'SET_TOTAL_PAGES', payload: Math.ceil(result.totalCount / state.pageSize) || 1 });
       
@@ -72,7 +83,7 @@ export function useUserManagementActions(
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [debouncedSearchQuery, state.currentPage, state.pageSize, state.roleFilter, toast, validateParams, sanitizeSearchQuery, normalizeRole]);
+  }, [debouncedSearchQuery, state.currentPage, state.pageSize, state.roleFilter]);
 
   const checkConnection = useCallback(async () => {
     try {

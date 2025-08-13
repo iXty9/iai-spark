@@ -37,19 +37,19 @@ export function useUserManagement() {
     await executeSearch(isSearch);
   };
 
-  // Effect for debounced search with validation
+  // Effect for debounced search (search query changes)
   useEffect(() => {
     if (state.connectionStatus?.isConnected && state.connectionStatus?.functionAvailable) {
       executeSearch(true);
     }
-  }, [debouncedSearchQuery, executeSearch, state.connectionStatus]);
+  }, [debouncedSearchQuery]);
 
-  // Effect for pagination and filters (not search)
+  // Effect for pagination and filters (non-search changes)
   useEffect(() => {
     if (state.connectionStatus?.isConnected && state.connectionStatus?.functionAvailable && !debouncedSearchQuery) {
       executeSearch(false);
     }
-  }, [state.currentPage, state.pageSize, state.roleFilter, executeSearch, state.connectionStatus]);
+  }, [state.currentPage, state.pageSize, state.roleFilter]);
 
   // Check connection status on component mount
   useEffect(() => {

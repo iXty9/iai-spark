@@ -39,15 +39,7 @@ export function SearchInput({
     }
   };
 
-  // Auto-search on value change after user has interacted
-  useEffect(() => {
-    if (hasInteracted) {
-      const timeoutId = setTimeout(() => {
-        onSearch();
-      }, 300);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [value, hasInteracted, onSearch]);
+  // Manual search only - auto-search is handled by useUserManagement debounce
 
   return (
     <div className={`relative transition-all duration-200 ${
