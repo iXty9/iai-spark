@@ -66,22 +66,28 @@ export function AdminTabs({
     return currentTab ? currentTab.label : "Select Tab";
   };
 
-  // Auto-scroll to show active tab
+  // Auto-scroll to show active tab only when tab changes (not when manually scrolling)
   useEffect(() => {
     const activeTabIndex = tabItems.findIndex(tab => tab.value === activeTab);
     if (activeTabIndex !== -1) {
-      const currentViewStart = scrollOffset;
-      const currentViewEnd = scrollOffset + TABS_PER_VIEW - 1;
-      
-      if (activeTabIndex < currentViewStart) {
-        // Active tab is to the left of current view
-        setScrollOffset(activeTabIndex);
-      } else if (activeTabIndex > currentViewEnd) {
-        // Active tab is to the right of current view
-        setScrollOffset(Math.max(0, activeTabIndex - TABS_PER_VIEW + 1));
-      }
+      setScrollOffset(prevOffset => {
+        const currentViewStart = prevOffset;
+        const currentViewEnd = prevOffset + TABS_PER_VIEW - 1;
+        
+        // Only auto-scroll if the active tab is not visible in current view
+        if (activeTabIndex < currentViewStart) {
+          // Active tab is to the left of current view
+          return activeTabIndex;
+        } else if (activeTabIndex > currentViewEnd) {
+          // Active tab is to the right of current view
+          return Math.max(0, activeTabIndex - TABS_PER_VIEW + 1);
+        }
+        
+        // Keep current offset if active tab is already visible
+        return prevOffset;
+      });
     }
-  }, [activeTab, tabItems, TABS_PER_VIEW]);
+  }, [activeTab, TABS_PER_VIEW]); // Removed scrollOffset and tabItems from dependencies
 
   return (
     <Tabs value={activeTab} onValueChange={handleValueChange}>
