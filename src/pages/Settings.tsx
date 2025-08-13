@@ -186,6 +186,9 @@ export default function Settings() {
       title: "Changes discarded",
       description: "Your unsaved changes have been reverted",
     });
+    // Navigate back after canceling changes
+    exitSettingsMode(false);
+    navigate('/');
   };
 
   const handleResetSettings = async () => {
