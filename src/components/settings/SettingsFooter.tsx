@@ -104,7 +104,7 @@ export function SettingsFooter({
           <Button 
             variant="outline" 
             onClick={onCancel} 
-            disabled={isSubmitting || !hasChanges}
+            disabled={isSubmitting}
             className="sm:w-auto"
           >
             <X className="h-4 w-4 mr-2" />
