@@ -30,20 +30,57 @@
     <meta name="theme-color" content="#dd3333">
 
     <!-- No-flash theme script: ensures correct initial mode before app/CSS load -->
+    <style>
+      /* Force light mode for anonymous users - prevents OS dark mode interference */
+      :root {
+        color-scheme: light;
+      }
+      
+      /* Override browser dark mode detection for fresh loads */
+      html:not(.user-authenticated) {
+        color-scheme: light !important;
+      }
+      
+      /* Immediate background to prevent flash */
+      body {
+        background-color: #fefefe;
+        color: #0a0a0a;
+        transition: none !important;
+      }
+      
+      /* Dark mode overrides only when explicitly set */
+      html.dark body {
+        background-color: #0a0a0a;
+        color: #fefefe;
+      }
+    </style>
     <script>
       (function() {
         try {
+          var isAuthenticated = false; // Will be updated by app
           var pref = localStorage.getItem('theme_mode_pref');
-          var mode = 'light';
+          var mode = 'light'; // Always default to light for fresh anonymous users
+          
+          // Only respect saved preferences for explicit light/dark choices
           if (pref === 'dark' || pref === 'light') {
             mode = pref;
-          } else if (pref === 'system') {
-            var mql = window.matchMedia('(prefers-color-scheme: dark)');
-            mode = mql.matches ? 'dark' : 'light';
           }
+          // Never auto-resolve "system" preference on app load for anonymous users
+          
           var root = document.documentElement;
           root.classList.remove('light', 'dark');
           root.classList.add(mode);
+          
+          // Set immediate CSS vars to prevent flash
+          root.style.setProperty('--theme-mode', mode);
+          
+          // Detect Edge browser for special handling
+          var isEdge = /Edg/.test(navigator.userAgent);
+          if (isEdge && mode === 'light') {
+            // Force light mode more aggressively in Edge
+            root.style.setProperty('color-scheme', 'light');
+            document.body && (document.body.style.colorScheme = 'light');
+          }
         } catch (e) { /* noop */ }
       })();
     </script>

@@ -49,12 +49,14 @@ class SupaThemesCore {
 
   // Core initialization
   async initialize(userId?: string): Promise<void> {
-    // Wait for version service to stabilize to avoid race conditions
-    // This prevents theme changes during auto-update cycles
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Apply immediate theme to prevent flash
+    // Apply immediate theme first to prevent any flash
     this.applyImmediateTheme();
+    
+    // For anonymous users, skip the delay to prevent theme conflicts
+    if (userId) {
+      // Only wait for authenticated users to avoid PWA update conflicts
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
     
     if (userId && userId !== this.userId) {
       this.userId = userId;
@@ -109,25 +111,41 @@ class SupaThemesCore {
   private applyImmediateTheme(): void {
     if (typeof window === 'undefined') return;
     
-    // For authenticated users, check saved user preference first
-    if (this.userId) {
-      const savedMode = this.getSavedUserMode();
-      if (savedMode) {
-        applyImmediateDocumentTheme(savedMode);
-        return;
-      }
-    }
-    
-    // For anonymous users, only use explicit localStorage preferences
-    // Never auto-resolve "system" to OS preference during app load
-    const localPref = this.getLocalStoragePreference();
-    if (localPref) {
-      applyImmediateDocumentTheme(localPref);
+    // Force light mode for anonymous users immediately
+    if (!this.userId) {
+      const localPref = this.getLocalStoragePreference();
+      const mode = localPref || 'light';
+      
+      // Apply theme immediately with browser-specific fixes
+      applyImmediateDocumentTheme(mode);
+      this.applyBrowserSpecificFixes(mode);
       return;
     }
     
-    // Default to light mode for fresh anonymous users
-    applyImmediateDocumentTheme('light');
+    // For authenticated users, check saved user preference
+    const savedMode = this.getSavedUserMode();
+    const mode = savedMode || 'light';
+    applyImmediateDocumentTheme(mode);
+  }
+  
+  private applyBrowserSpecificFixes(mode: 'light' | 'dark'): void {
+    if (typeof window === 'undefined') return;
+    
+    const isEdge = /Edg/.test(navigator.userAgent);
+    const isChrome = /Chrome/.test(navigator.userAgent) && !/Edg/.test(navigator.userAgent);
+    
+    if (mode === 'light') {
+      // Force light mode more aggressively for problematic browsers
+      document.documentElement.style.setProperty('color-scheme', 'light');
+      if (document.body) {
+        document.body.style.colorScheme = 'light';
+      }
+      
+      // Edge-specific fixes
+      if (isEdge) {
+        document.documentElement.classList.add('force-light-mode');
+      }
+    }
   }
 
   private getSavedUserMode(): 'light' | 'dark' | null {

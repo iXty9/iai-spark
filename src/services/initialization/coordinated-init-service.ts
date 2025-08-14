@@ -86,8 +86,10 @@ class CoordinatedInitService {
       this.notifySubscribers({ phase: 'theme', isComplete: false, details: 'Initializing theme system' });
       await supaThemes.initialize(userIdHint);
       
-      // Ensure theme is applied before any version checks can interfere
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Minimal delay only for authenticated users to prevent conflicts
+      if (userIdHint) {
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
 
       // Phase 4: Complete
       this.isComplete = true;

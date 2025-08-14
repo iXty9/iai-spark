@@ -5,6 +5,7 @@
 
 /* Import the unified theme styles */
 @import './styles/theme.css';
+@import './styles/theme-fixes.css';
 
 body {
   @apply bg-background text-foreground;

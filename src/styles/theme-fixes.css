@@ -1,0 +1,40 @@
+/* Theme flash prevention and browser-specific fixes */
+
+/* Force light mode for anonymous users - prevents OS interference */
+:root {
+  color-scheme: light;
+}
+
+/* Edge browser specific fixes */
+html.force-light-mode {
+  color-scheme: light !important;
+}
+
+html.force-light-mode body {
+  background-color: #fefefe !important;
+  color: #0a0a0a !important;
+}
+
+/* Chrome stability fixes */
+@media (prefers-color-scheme: dark) {
+  html:not(.dark):not(.user-authenticated) {
+    color-scheme: light !important;
+  }
+}
+
+/* Prevent theme transitions during initialization */
+.theme-initializing,
+.theme-initializing * {
+  transition: none !important;
+}
+
+/* Immediate background colors to prevent flash */
+body {
+  background-color: var(--background, #fefefe);
+  color: var(--foreground, #0a0a0a);
+}
+
+html.dark body {
+  background-color: var(--background, #0a0a0a);
+  color: var(--foreground, #fefefe);
+}
