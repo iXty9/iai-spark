@@ -27,7 +27,7 @@ class CoordinatedInitService {
     return this.instance;
   }
 
-  async initialize(): Promise<InitializationStatus> {
+  async initialize(userIdHint?: string): Promise<InitializationStatus> {
     if (this.isComplete) {
       return { phase: 'complete', isComplete: true };
     }
@@ -82,9 +82,9 @@ class CoordinatedInitService {
         return errorStatus;
       }
 
-      // Phase 3: Initialize theme system
+      // Phase 3: Initialize theme system with user context
       this.notifySubscribers({ phase: 'theme', isComplete: false, details: 'Initializing theme system' });
-      await supaThemes.initialize();
+      await supaThemes.initialize(userIdHint);
 
       // Phase 4: Complete
       this.isComplete = true;

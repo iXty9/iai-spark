@@ -2,7 +2,7 @@ import { ThemeColors, ThemeSettings } from '@/types/theme';
 import { logger } from '@/utils/logging';
 import { SupaThemeState, StateListener } from './types';
 import { getDefaultLightTheme, getDefaultDarkTheme } from './defaults';
-import { ThemeApplier } from './theme-applier';
+import { ThemeApplier, applyImmediateDocumentTheme } from './theme-applier';
 import { ThemePersistence } from './persistence';
 import { PreviewManager } from './preview-manager';
 import { RealtimeSync } from './realtime-sync';
@@ -49,22 +49,25 @@ class SupaThemesCore {
 
   // Core initialization
   async initialize(userId?: string): Promise<void> {
+    // Apply immediate theme to prevent flash
+    this.applyImmediateTheme();
+    
     if (userId && userId !== this.userId) {
       this.userId = userId;
       await this.persistence.loadUserTheme(userId, this.state);
       this.realtimeSync.setupRealtimeSync(userId, this.state, this.notifyListeners.bind(this));
+      
+      // For authenticated users, prioritize database settings over localStorage
+      this.syncLocalStorageWithUser();
     } else if (!userId) {
       // Load admin defaults for unauthenticated users
       await this.loadAdminDefaults();
-    }
-
-    // Determine initial mode preference (device/local preference wins for anonymous users)
-    const preferred = this.getPreferredInitialMode();
-    if (preferred) {
-      this.state.mode = preferred;
-    } else if (!this.userId) {
-      // Default to light for first-time/anonymous users
-      this.state.mode = 'light';
+      
+      // For anonymous users, use localStorage preference or OS preference
+      const preferred = this.getPreferredInitialMode();
+      if (preferred) {
+        this.state.mode = preferred;
+      }
     }
     
     this.state.isReady = true;
@@ -98,10 +101,38 @@ class SupaThemesCore {
     }
   }
 
-  private getPreferredInitialMode(): 'light' | 'dark' | null {
+  // Apply immediate theme on initialization to prevent flash
+  private applyImmediateTheme(): void {
+    if (typeof window === 'undefined') return;
+    
+    // Check for saved user preference first (for authenticated flow)
+    const savedMode = this.getSavedUserMode();
+    if (savedMode) {
+      applyImmediateDocumentTheme(savedMode);
+      return;
+    }
+    
+    // Fall back to localStorage preference  
+    const localPref = this.getLocalStoragePreference();
+    if (localPref) {
+      applyImmediateDocumentTheme(localPref);
+      return;
+    }
+    
+    // Default to light mode
+    applyImmediateDocumentTheme('light');
+  }
+
+  private getSavedUserMode(): 'light' | 'dark' | null {
+    // This would need to be synchronous, so we'll check if theme state was loaded
+    return this.state.mode !== 'light' ? this.state.mode : null;
+  }
+
+  private getLocalStoragePreference(): 'light' | 'dark' | null {
     try {
       if (typeof window === 'undefined') return null;
-      const pref = (localStorage.getItem('theme_mode_pref') as 'light' | 'dark' | 'system' | null);
+      const pref = localStorage.getItem('theme_mode_pref') as 'light' | 'dark' | 'system' | null;
+      
       if (pref === 'light' || pref === 'dark') return pref;
       if (pref === 'system') {
         const mql = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
@@ -109,6 +140,31 @@ class SupaThemesCore {
       }
     } catch (e) {}
     return null;
+  }
+
+  private getPreferredInitialMode(): 'light' | 'dark' | null {
+    // For anonymous users only
+    return this.getLocalStoragePreference();
+  }
+
+  private setDocumentMode(mode: 'light' | 'dark'): void {
+    applyImmediateDocumentTheme(mode);
+  }
+
+  // Sync localStorage with authenticated user's database settings
+  private syncLocalStorageWithUser(): void {
+    if (typeof window === 'undefined' || !this.userId) return;
+    
+    try {
+      // Update localStorage to match user's database preference
+      localStorage.setItem('theme_mode_pref', this.state.mode);
+      logger.info('Synchronized localStorage with user database settings', { 
+        module: 'supa-themes', 
+        mode: this.state.mode 
+      });
+    } catch (error) {
+      logger.warn('Failed to sync localStorage with user settings:', error);
+    }
   }
 
   // State management
@@ -128,14 +184,29 @@ class SupaThemesCore {
   // Public API - Theme mode
   setMode(mode: 'light' | 'dark'): void {
     this.state.mode = mode;
+    applyImmediateDocumentTheme(mode);
     this.themeApplier.applyCurrentTheme(this.state);
     // Also re-apply background to account for auto-dim behavior in dark mode
     this.themeApplier.applyCurrentBackground(this.state);
     this.notifyListeners();
     
+    // Sync with localStorage for consistency
+    this.updateLocalStoragePreference(mode);
+    
     // Auto-save with debouncing (only when not in preview mode)
     if (!this.state.isInPreview && this.userId) {
       this.autoSave.scheduleAutoSave(this.userId, this.saveTheme.bind(this));
+    }
+  }
+
+  // Update localStorage preference when user changes theme
+  private updateLocalStoragePreference(mode: 'light' | 'dark'): void {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('theme_mode_pref', mode);
+      }
+    } catch (error) {
+      logger.warn('Failed to update localStorage theme preference:', error);
     }
   }
 

@@ -8,17 +8,7 @@ import { SupaThemeProvider } from '@/contexts/SupaThemeContext';
 import { LocationProvider } from '@/contexts/LocationContext';
 import { NotificationPermissionManager } from '@/components/notifications/NotificationPermissionManager';
 import { PWAManager } from '@/components/pwa/PWAManager';
-import Index from '@/pages/Index';
-import Auth from '@/pages/Auth';
-import Settings from '@/pages/Settings';
-import Profile from '@/pages/Profile';
-import Admin from '@/pages/Admin';
-import Initialize from '@/pages/Initialize';
-import { ErrorPage } from '@/pages/ErrorPage';
-import NotFound from '@/pages/NotFound';
-import Reconnect from '@/pages/Reconnect';
-import SupabaseAuth from '@/pages/SupabaseAuth';
-import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { AppContent } from '@/components/AppContent';
 import { ProductionErrorBoundary } from '@/components/error/ProductionErrorBoundary';
 import { coordinatedInitService } from '@/services/initialization/coordinated-init-service';
 import { logger } from '@/utils/logging';
@@ -106,40 +96,7 @@ function App() {
                 <NotificationPermissionManager />
                 <PWAManager />
                 <div className="min-h-screen text-foreground">
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/auth" element={<Auth />} />
-                    <Route path="/supabase-auth" element={<SupabaseAuth />} />
-                    <Route path="/initialize" element={<Initialize />} />
-                    <Route path="/reconnect" element={<Reconnect />} />
-                    <Route path="/chat" element={<Index />} />
-                    <Route path="/error" element={<ErrorPage />} />
-                    <Route
-                      path="/settings"
-                      element={
-                        <ProtectedRoute>
-                          <Settings />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/profile"
-                      element={
-                        <ProtectedRoute>
-                          <Profile />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/admin"
-                      element={
-                        <ProtectedRoute>
-                          <Admin />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
+                  <AppContent />
                   
                   <Toaster />
                   

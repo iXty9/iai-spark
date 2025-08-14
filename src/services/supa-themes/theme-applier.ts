@@ -2,6 +2,18 @@ import { ThemeColors } from '@/types/theme';
 import { applyThemeChanges, applyBackgroundImage } from '@/utils/theme-utils';
 import { SupaThemeState } from './types';
 
+// Immediate theme application to prevent flash of wrong theme
+export const applyImmediateDocumentTheme = (mode: 'light' | 'dark') => {
+  if (typeof document === 'undefined') return;
+  
+  // Apply theme class immediately to document
+  document.documentElement.classList.remove('light', 'dark');
+  document.documentElement.classList.add(mode);
+  
+  // Set a CSS variable for immediate styling
+  document.documentElement.style.setProperty('--theme-mode', mode);
+};
+
 export class ThemeApplier {
   applyCurrentTheme(state: SupaThemeState): void {
     const currentTheme = this.getCurrentTheme(state);

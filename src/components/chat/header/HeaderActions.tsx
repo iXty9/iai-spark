@@ -72,7 +72,7 @@ export const HeaderActions = ({
     }
   };
 
-  // Theme preference (Light/Dark/System) management for the theme button
+  // Theme preference state - sync with SupaThemes service
   const [themePref, setThemePref] = React.useState<'light' | 'dark' | 'system'>('light');
   const mediaQueryRef = React.useRef<MediaQueryList | null>(null);
   const mediaHandlerRef = React.useRef<((e: MediaQueryListEvent) => void) | null>(null);
@@ -104,6 +104,7 @@ export const HeaderActions = ({
     mediaHandlerRef.current = null;
   };
 
+  // Initialize theme preference from localStorage on mount
   React.useEffect(() => {
     const stored = (typeof window !== 'undefined' ? localStorage.getItem('theme_mode_pref') : null) as 'light' | 'dark' | 'system' | null;
     if (stored === 'system') {
@@ -112,12 +113,11 @@ export const HeaderActions = ({
     } else if (stored === 'light' || stored === 'dark') {
       setThemePref(stored);
       disableSystemMode();
-      if (stored !== mode) setMode(stored);
+      // Don't override if SupaThemes has already set the mode from database
     } else {
-      // Default to light for first-time users
-      setThemePref('light');
+      // Use current mode from SupaThemes service
+      setThemePref(mode);
       disableSystemMode();
-      if (mode !== 'light') setMode('light');
     }
     return () => disableSystemMode();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -125,18 +125,22 @@ export const HeaderActions = ({
 
   const onThemeChange = (value: 'light' | 'dark' | 'system') => {
     setThemePref(value);
+    
+    // Update localStorage for consistency
     if (typeof window !== 'undefined') {
       localStorage.setItem('theme_mode_pref', value);
     }
+    
     if (value === 'system') {
       enableSystemMode();
     } else {
       disableSystemMode();
+      // Use SupaThemes setMode which handles both localStorage and database
       setMode(value);
     }
   };
 
-  // Function to handle force reloading theme using supa-themes
+  // Function to handle force reloading theme using centralized SupaThemes service
   const handleReloadTheme = async () => {
     try {
       // Show loading toast
@@ -146,11 +150,18 @@ export const HeaderActions = ({
         duration: 1500,
       });
 
-      // Use supa-themes service to reset to defaults
+      // Use the centralized SupaThemes service to reset to defaults
       const { supaThemes } = await import('@/services/supa-themes/core');
       const success = await supaThemes.resetToDefaults();
       
       if (success) {
+        // Update local theme preference to match reset
+        const currentMode = supaThemes.getState().mode;
+        setThemePref(currentMode);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('theme_mode_pref', currentMode);
+        }
+        
         toast({
           title: "Theme Loaded",
           description: "Default theme applied successfully",
