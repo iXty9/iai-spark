@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supaThemes } from '@/services/supa-themes/core';
+import { smartUpdateService } from '@/services/pwa/smartUpdateService';
 import { logger } from '@/utils/logging';
 
 /**
@@ -24,8 +25,11 @@ export const useAuthThemeSync = () => {
         });
         
         await supaThemes.initialize(userId || undefined);
+        
+        // Initialize smart updates after theme is ready
+        await smartUpdateService.initialize();
       } catch (error) {
-        logger.error('Failed to reinitialize theme system:', error, { 
+        logger.error('Failed to reinitialize theme system and smart updates:', error, { 
           module: 'auth-theme-sync' 
         });
       }

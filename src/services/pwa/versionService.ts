@@ -118,6 +118,17 @@ class VersionService {
           environment: remoteVersion.environment
         }, { module: 'version-service' });
         
+        // Silent update for fresh anonymous users in production
+        if (this.shouldSilentUpdate(currentVersion, remoteVersion)) {
+          logger.info('Performing silent update for fresh anonymous user', {
+            current: currentVersion?.buildHash,
+            remote: remoteVersion.buildHash
+          }, { module: 'version-service' });
+          
+          await this.updateToVersion(remoteVersion);
+          return false; // Don't notify listeners
+        }
+        
         // Only notify listeners if requireAuth is false (no auth requirement) or requireAuth is true (auth required)
         if (!requireAuth) {
           this.notifyListeners(true);
@@ -254,6 +265,26 @@ class VersionService {
 
   onUpdateAvailable(callback: (hasUpdate: boolean) => void): void {
     this.listeners.push(callback);
+  }
+
+  private shouldSilentUpdate(current: AppVersion | null, remote: AppVersion): boolean {
+    // Only in production environment
+    if (remote.environment !== 'production') {
+      return false;
+    }
+    
+    // Check if this is a fresh browser (no stored version)
+    const storedVersion = localStorage.getItem('app_version');
+    
+    // Check if user is authenticated
+    const hasAuth = localStorage.getItem('sb-supabase-auth-token') || 
+                   sessionStorage.getItem('sb-supabase-auth-token');
+
+    // Silent update conditions:
+    // 1. Fresh browser load (no stored version)
+    // 2. User is not authenticated  
+    // 3. Versions are different
+    return !storedVersion && !hasAuth && (!current || current.buildHash !== remote.buildHash);
   }
 
   private notifyListeners(hasUpdate: boolean): void {

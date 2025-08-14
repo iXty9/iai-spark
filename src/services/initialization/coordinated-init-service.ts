@@ -82,9 +82,12 @@ class CoordinatedInitService {
         return errorStatus;
       }
 
-      // Phase 3: Initialize theme system with user context
+      // Phase 3: Initialize theme system with user context (priority initialization)
       this.notifySubscribers({ phase: 'theme', isComplete: false, details: 'Initializing theme system' });
       await supaThemes.initialize(userIdHint);
+      
+      // Ensure theme is applied before any version checks can interfere
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Phase 4: Complete
       this.isComplete = true;

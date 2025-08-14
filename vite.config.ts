@@ -21,7 +21,7 @@ const generateVersionPlugin = () => {
         version: "1.0.0",
         buildTime,
         buildHash: sessionBuildHash,
-        environment: process.env.NODE_ENV || 'development',
+        environment: process.env.NODE_ENV === 'production' ? 'production' : 'development',
         cacheNames: {
           static: `ixty-ai-static-${sessionBuildHash}`,
           dynamic: `ixty-ai-dynamic-${sessionBuildHash}`
