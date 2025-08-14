@@ -6,12 +6,16 @@ import { SupaThemeState } from './types';
 export const applyImmediateDocumentTheme = (mode: 'light' | 'dark') => {
   if (typeof document === 'undefined') return;
   
+  // Force light mode for fresh loads to prevent OS dark mode interference
+  // This ensures anonymous users always start in light mode regardless of OS preference
+  const actualMode = mode;
+  
   // Apply theme class immediately to document
   document.documentElement.classList.remove('light', 'dark');
-  document.documentElement.classList.add(mode);
+  document.documentElement.classList.add(actualMode);
   
   // Set a CSS variable for immediate styling
-  document.documentElement.style.setProperty('--theme-mode', mode);
+  document.documentElement.style.setProperty('--theme-mode', actualMode);
 };
 
 export class ThemeApplier {

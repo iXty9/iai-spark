@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { PWAInstallPrompt } from './PWAInstallPrompt';
 import { CacheUpdateNotification } from './CacheUpdateNotification';
 import { usePWA } from '@/hooks/use-pwa';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const PWAManager: React.FC = () => {
+  const { user } = useAuth();
   const { isInstallable, needsUpdate } = usePWA();
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [showUpdateNotification, setShowUpdateNotification] = useState(false);
@@ -20,14 +22,14 @@ export const PWAManager: React.FC = () => {
     }
   }, [isInstallable, needsUpdate]);
 
-  // Show update notification when update is available
+  // Show update notification when update is available (only for authenticated users)
   useEffect(() => {
-    if (needsUpdate) {
+    if (needsUpdate && user) {
       setShowUpdateNotification(true);
       // Hide install prompt if update is available
       setShowInstallPrompt(false);
     }
-  }, [needsUpdate]);
+  }, [needsUpdate, user]);
 
   // Keep the install prompt above the chat input bar
   useEffect(() => {
@@ -60,8 +62,8 @@ export const PWAManager: React.FC = () => {
 
   return (
     <>
-      {/* Update notification takes priority over install prompt */}
-      {showUpdateNotification && needsUpdate && (
+      {/* Update notification takes priority over install prompt - only for authenticated users */}
+      {showUpdateNotification && needsUpdate && user && (
         <div className="fixed left-4 right-4 z-[120] md:left-auto md:w-96" style={{ bottom: bottomOffset }}>
           <CacheUpdateNotification 
             onDismiss={() => setShowUpdateNotification(false)}

@@ -49,6 +49,10 @@ class SupaThemesCore {
 
   // Core initialization
   async initialize(userId?: string): Promise<void> {
+    // Wait for version service to stabilize to avoid race conditions
+    // This prevents theme changes during auto-update cycles
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     // Apply immediate theme to prevent flash
     this.applyImmediateTheme();
     
@@ -63,7 +67,7 @@ class SupaThemesCore {
       // Load admin defaults for unauthenticated users
       await this.loadAdminDefaults();
       
-      // For anonymous users, use localStorage preference or OS preference
+      // For anonymous users, use localStorage preference but NOT OS preference on app load
       const preferred = this.getPreferredInitialMode();
       if (preferred) {
         this.state.mode = preferred;

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { logger } from '@/utils/logging';
 import { versionService } from '@/services/pwa/versionService';
 import { supaToast } from '@/services/supa-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface PWAInstallPrompt {
   prompt: () => Promise<void>;
@@ -21,6 +22,7 @@ interface PWAHook {
 }
 
 export const usePWA = (): PWAHook => {
+  const { user } = useAuth();
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -67,8 +69,10 @@ export const usePWA = (): PWAHook => {
     // Listen for online/offline changes
     const handleOnline = () => {
       setIsOnline(true);
-      // Check for updates when coming back online
-      versionService.checkForUpdates();
+      // Check for updates when coming back online, but only for authenticated users
+      if (user) {
+        versionService.checkForUpdates(true);
+      }
     };
     
     const handleOffline = () => setIsOnline(false);
@@ -111,8 +115,11 @@ export const usePWA = (): PWAHook => {
 
     // Set up version service update listener
     versionService.onUpdateAvailable((hasUpdate) => {
+      // Only show updates to authenticated users
+      if (!user) return;
+      
       setNeedsUpdate(hasUpdate);
-      // Only show update notification if app is installed as PWA
+      // Only show update notification if app is installed as PWA and user is authenticated
       if (hasUpdate) {
         // Check current installed state at the time of update
         const currentIsStandalone = window.matchMedia('(display-mode: standalone)').matches;
@@ -125,8 +132,10 @@ export const usePWA = (): PWAHook => {
       }
     });
 
-    // Start periodic version checks
-    versionService.startPeriodicChecks();
+    // Start periodic version checks only for authenticated users
+    if (user) {
+      versionService.startPeriodicChecks();
+    }
 
     // Add event listeners
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);

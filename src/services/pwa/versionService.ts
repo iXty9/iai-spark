@@ -80,7 +80,7 @@ class VersionService {
     }
   }
 
-  async checkForUpdates(): Promise<boolean> {
+  async checkForUpdates(requireAuth: boolean = false): Promise<boolean> {
     try {
       const [currentVersion, remoteVersion] = await Promise.all([
         this.getCurrentVersion(),
@@ -91,11 +91,11 @@ class VersionService {
       
       // In development, don't trigger updates unless explicitly different
       if (remoteVersion.environment === 'development') {
-        // Only update if we have no stored version (first load)
-        const hasUpdate = !currentVersion;
+        // Only update if we have no stored version (first load) AND user is authenticated
+        const hasUpdate = !currentVersion && requireAuth;
         
         if (hasUpdate) {
-          logger.info('First load in development', { 
+          logger.info('First load in development for authenticated user', { 
             remote: remoteVersion.buildHash 
           }, { module: 'version-service' });
           
@@ -118,7 +118,10 @@ class VersionService {
           environment: remoteVersion.environment
         }, { module: 'version-service' });
         
-        this.notifyListeners(true);
+        // Only notify listeners if requireAuth is false (no auth requirement) or requireAuth is true (auth required)
+        if (!requireAuth) {
+          this.notifyListeners(true);
+        }
       }
 
       return hasUpdate;
