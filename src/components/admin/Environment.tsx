@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import { RefreshCw, Globe, Server, Database, Code, Activity, Settings2, Download } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RefreshCw, Globe, Server, Database, Code, Activity, Settings2, Download, Zap } from 'lucide-react';
 import { getEnvironmentInfo, setEnvironmentOverride, clearEnvironmentOverride } from '@/config/supabase/environment';
 import { collectEnvironmentInfo } from '@/utils/debug/environment-debug';
 import { globalStateService } from '@/services/debug/global-state-service';
@@ -13,6 +14,8 @@ import { logger } from '@/utils/logging';
 import { useAuth } from '@/contexts/AuthContext';
 import { getClient } from '@/integrations/supabase/client';
 import { getBuildInfoFromSiteConfig } from '@/utils/site-config-utils';
+import { applicationModeService, ApplicationMode } from '@/services/admin/applicationModeService';
+import { toast } from 'sonner';
 
 // Reusable Info Row with optional properties
 const Info = ({ label, value, badgeVariant, className = '', mono }: {
@@ -42,6 +45,8 @@ export default function Environment() {
   const [envOverride, setEnvOverride] = useState('');
   const [fps, setFps] = useState(0);
   const [build, setBuild] = useState(null);
+  const [applicationMode, setApplicationModeState] = useState<ApplicationMode>('production');
+  const [isUpdatingMode, setIsUpdatingMode] = useState(false);
 
   const refreshData = async () => {
     setIsRefreshing(true);
@@ -51,6 +56,10 @@ export default function Environment() {
       setBuild(await getBuildInfoFromSiteConfig());
       const g = globalStateService.getDebugState();
       const client = getClient();
+      
+      // Load application mode
+      const mode = await applicationModeService.getApplicationMode();
+      setApplicationModeState(mode);
       const supa = {
         ...g.supabaseInfo,
         connectionStatus: client ? 'connected' : 'disconnected',
@@ -106,6 +115,29 @@ export default function Environment() {
     setTimeout(refreshData, 100);
   };
 
+  const handleApplicationModeChange = async (newMode: ApplicationMode) => {
+    if (newMode === applicationMode) return;
+    
+    setIsUpdatingMode(true);
+    try {
+      await applicationModeService.setApplicationMode(newMode);
+      setApplicationModeState(newMode);
+      
+      toast.success(`Application mode changed to ${newMode}`, {
+        description: 'The change takes effect immediately. Some features may require a page refresh.'
+      });
+      
+      logger.info('Application mode changed via admin panel', { newMode }, { module: 'environment-page' });
+    } catch (error) {
+      logger.error('Failed to update application mode', error, { module: 'environment-page' });
+      toast.error('Failed to update application mode', {
+        description: 'Please try again or check the console for details.'
+      });
+    } finally {
+      setIsUpdatingMode(false);
+    }
+  };
+
   const exportDiagnostics = () => {
     const blob = new Blob([JSON.stringify({
       environment: env, supabase, performance: perf,
@@ -124,6 +156,48 @@ export default function Environment() {
 
   return (
     <div className="space-y-6">
+      {/* Application Mode Control */}
+      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-secondary/5">
+        <CardHeader className="flex flex-row items-center space-y-0 pb-4">
+          <Zap className="h-5 w-5 mr-2 text-primary" />
+          <CardTitle className="text-lg">Application Mode</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="space-y-1">
+                <h3 className="text-sm font-medium">Current Mode: {applicationMode === 'development' ? 'Development' : 'Production'}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {applicationMode === 'development' 
+                    ? 'Silent PWA updates, enhanced debugging, immediate updates during initialization'
+                    : 'Standard PWA updates for authenticated users, minimal logging, silent updates for anonymous users'
+                  }
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant={applicationMode === 'development' ? 'destructive' : 'default'} className="font-medium">
+                  {applicationMode === 'development' ? 'DEV' : 'PROD'}
+                </Badge>
+                <Select value={applicationMode} onValueChange={handleApplicationModeChange} disabled={isUpdatingMode}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="development">Development</SelectItem>
+                    <SelectItem value="production">Production</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="text-xs text-muted-foreground space-y-1">
+              <div><strong>Development Mode:</strong> Silent updates for everyone, immediate updates during init, enhanced debugging</div>
+              <div><strong>Production Mode:</strong> Updates shown to authenticated users only, anonymous users get silent updates</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Header */}
       <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
         <div>

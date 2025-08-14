@@ -4,6 +4,7 @@ import { logger } from '@/utils/logging';
 import { versionService } from '@/services/pwa/versionService';
 import { supaToast } from '@/services/supa-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useApplicationMode } from '@/hooks/use-application-mode';
 
 interface PWAInstallPrompt {
   prompt: () => Promise<void>;
@@ -23,6 +24,7 @@ interface PWAHook {
 
 export const usePWA = (): PWAHook => {
   const { user } = useAuth();
+  const { isDevelopmentMode } = useApplicationMode();
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -115,8 +117,18 @@ export const usePWA = (): PWAHook => {
 
     // Set up version service update listener
     versionService.onUpdateAvailable((hasUpdate) => {
-      // Only show updates to authenticated users
-      if (!user) return;
+      // In development mode: don't show notifications (silent updates only)
+      // In production mode: only show to authenticated users
+      const shouldShowNotification = isDevelopmentMode ? false : !!user;
+      
+      if (!shouldShowNotification) {
+        logger.info('Update notification suppressed', { 
+          reason: isDevelopmentMode ? 'development mode - silent updates' : 'production mode - anonymous user',
+          user: !!user,
+          isDevelopmentMode
+        }, { module: 'use-pwa' });
+        return;
+      }
       
       setNeedsUpdate(hasUpdate);
       // Only show update notification if app is installed as PWA and user is authenticated

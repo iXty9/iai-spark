@@ -1,5 +1,6 @@
 
 import { logger } from '@/utils/logging';
+import { applicationModeService } from '@/services/admin/applicationModeService';
 
 export interface AppVersion {
   version: string;
@@ -82,32 +83,15 @@ class VersionService {
 
   async checkForUpdates(requireAuth: boolean = false): Promise<boolean> {
     try {
-      const [currentVersion, remoteVersion] = await Promise.all([
+      const [currentVersion, remoteVersion, isDevelopmentMode] = await Promise.all([
         this.getCurrentVersion(),
-        this.fetchRemoteVersion()
+        this.fetchRemoteVersion(),
+        applicationModeService.isApplicationInDevelopmentMode()
       ]);
 
       if (!remoteVersion) return false;
       
-      // In development, don't trigger updates unless explicitly different
-      if (remoteVersion.environment === 'development') {
-        // Only update if we have no stored version (first load) AND user is authenticated
-        const hasUpdate = !currentVersion && requireAuth;
-        
-        if (hasUpdate) {
-          logger.info('First load in development for authenticated user', { 
-            remote: remoteVersion.buildHash 
-          }, { module: 'version-service' });
-          
-          // Auto-update on first load in dev without notification
-          await this.updateToVersion(remoteVersion);
-          return false; // Don't notify listeners
-        }
-        
-        return false;
-      }
-      
-      // Production logic: check for actual changes
+      // Check for actual changes
       const hasUpdate = !currentVersion || 
         currentVersion.buildHash !== remoteVersion.buildHash;
 
@@ -115,21 +99,24 @@ class VersionService {
         logger.info('Update detected', { 
           current: currentVersion?.buildHash, 
           remote: remoteVersion.buildHash,
-          environment: remoteVersion.environment
+          applicationMode: isDevelopmentMode ? 'development' : 'production'
         }, { module: 'version-service' });
         
-        // Silent update for fresh anonymous users in production
-        if (this.shouldSilentUpdate(currentVersion, remoteVersion)) {
-          logger.info('Performing silent update for fresh anonymous user', {
+        // In development mode OR fresh anonymous users: silent update
+        if (isDevelopmentMode || this.shouldSilentUpdate(currentVersion, remoteVersion)) {
+          const reason = isDevelopmentMode ? 'development mode' : 'fresh anonymous user';
+          
+          logger.info('Performing silent update', {
+            reason,
             current: currentVersion?.buildHash,
             remote: remoteVersion.buildHash
           }, { module: 'version-service' });
           
           await this.updateToVersion(remoteVersion);
-          return false; // Don't notify listeners
+          return false; // Don't notify listeners for silent updates
         }
         
-        // Only notify listeners if requireAuth is false (no auth requirement) or requireAuth is true (auth required)
+        // Notify listeners for non-silent updates
         if (!requireAuth) {
           this.notifyListeners(true);
         }
@@ -268,11 +255,6 @@ class VersionService {
   }
 
   private shouldSilentUpdate(current: AppVersion | null, remote: AppVersion): boolean {
-    // Only in production environment
-    if (remote.environment !== 'production') {
-      return false;
-    }
-    
     // Check if this is a fresh browser (no stored version)
     const storedVersion = localStorage.getItem('app_version');
     
@@ -280,7 +262,7 @@ class VersionService {
     const hasAuth = localStorage.getItem('sb-supabase-auth-token') || 
                    sessionStorage.getItem('sb-supabase-auth-token');
 
-    // Silent update conditions:
+    // Silent update conditions in production mode:
     // 1. Fresh browser load (no stored version)
     // 2. User is not authenticated  
     // 3. Versions are different
