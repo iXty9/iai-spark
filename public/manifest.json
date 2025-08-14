@@ -1,6 +1,6 @@
 {
   "_comment": "This manifest is dynamically configurable via the admin panel PWA settings",
-  "name": "Ixty AI - The Everywhere Intelligent Assistant",
+  "name": "Ixty AI",
   "short_name": "Ixty AI",
   "description": "Chat with Ixty AI, the productive AI assistant from iXty9!",
   "start_url": "/",

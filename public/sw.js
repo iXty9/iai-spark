@@ -83,6 +83,27 @@ self.addEventListener('message', (event) => {
       });
     });
   }
+  
+  if (event.data && event.data.type === 'UPDATE_MANIFEST') {
+    // Cache the new manifest data
+    const manifest = event.data.manifest;
+    console.log('Service Worker: Caching new manifest:', manifest);
+    
+    // Store manifest in cache for dynamic serving
+    caches.open(DYNAMIC_CACHE).then(cache => {
+      const manifestResponse = new Response(JSON.stringify(manifest), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+      cache.put('/manifest.json', manifestResponse);
+    });
+    
+    // Notify clients about manifest update
+    self.clients.matchAll().then(clients => {
+      clients.forEach(client => {
+        client.postMessage({ type: 'MANIFEST_UPDATED', manifest });
+      });
+    });
+  }
 });
 
 // Fetch event - network-first for version and critical files, cache-first for others

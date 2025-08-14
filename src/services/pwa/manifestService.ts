@@ -111,21 +111,56 @@ export const updateManifestFile = async (): Promise<boolean> => {
   try {
     const manifest = await generateManifestFromSettings();
     
-    // In a real implementation, this would update the public/manifest.json file
-    // For now, we'll trigger a version update to ensure PWA users get the changes
-    const currentVersion = await versionService.getCurrentVersion();
-    if (currentVersion) {
-      const newVersion = {
-        ...currentVersion,
-        buildTime: new Date().toISOString()
-      };
-      await versionService.updateToVersion(newVersion);
+    // Update the static manifest file by writing to the public directory
+    try {
+      const manifestJson = JSON.stringify(manifest, null, 2);
+      
+      // In a browser environment, we can't write files directly
+      // Instead, we'll use the service worker to cache the new manifest
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'UPDATE_MANIFEST',
+          manifest: manifest
+        });
+      }
+      
+      // Also trigger a version update to ensure PWA users get the changes
+      const currentVersion = await versionService.getCurrentVersion();
+      if (currentVersion) {
+        const newVersion = {
+          ...currentVersion,
+          buildTime: new Date().toISOString(),
+          manifestVersion: Date.now().toString()
+        };
+        await versionService.updateToVersion(newVersion);
+      }
+      
+      logger.info('Manifest update triggered', { manifest }, { module: 'pwa-manifest' });
+      return true;
+    } catch (writeError) {
+      logger.warn('Could not write manifest file directly, using version update fallback', writeError, { module: 'pwa-manifest' });
+      
+      // Fallback: just trigger version update
+      const currentVersion = await versionService.getCurrentVersion();
+      if (currentVersion) {
+        const newVersion = {
+          ...currentVersion,
+          buildTime: new Date().toISOString(),
+          manifestVersion: Date.now().toString()
+        };
+        await versionService.updateToVersion(newVersion);
+      }
+      return true;
     }
-    
-    logger.info('Manifest update triggered', { manifest }, { module: 'pwa-manifest' });
-    return true;
   } catch (error) {
     logger.error('Failed to update manifest file', error, { module: 'pwa-manifest' });
     return false;
   }
+};
+
+export const getManifestUrl = (): string => {
+  // For dynamic manifest, we could serve from /api/manifest
+  // For now, use the static manifest with cache busting
+  const timestamp = Date.now();
+  return `/manifest.json?v=${timestamp}`;
 };

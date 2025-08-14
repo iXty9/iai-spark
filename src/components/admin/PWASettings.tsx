@@ -88,10 +88,22 @@ export function PWASettings() {
         await updateAppSetting(key, value);
       }
       
-      toast({
-        title: "Success",
-        description: "PWA settings saved successfully. Changes will be available after the next update."
-      });
+      // Update the PWA manifest after saving settings
+      const { updateManifestFile } = await import('@/services/pwa/manifestService');
+      const manifestUpdated = await updateManifestFile();
+      
+      if (manifestUpdated) {
+        toast({
+          title: "Success",
+          description: "PWA settings and manifest have been updated successfully. Installed PWA users will get the updates on next app refresh."
+        });
+      } else {
+        toast({
+          title: "Settings saved",
+          description: "PWA settings saved, but manifest update failed. Some changes may require reinstalling the PWA.",
+          variant: "destructive"
+        });
+      }
       
       logger.info('PWA settings saved successfully', null, { module: 'pwa-settings' });
     } catch (error) {
