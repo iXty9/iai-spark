@@ -105,21 +105,24 @@ class SupaThemesCore {
   private applyImmediateTheme(): void {
     if (typeof window === 'undefined') return;
     
-    // Check for saved user preference first (for authenticated flow)
-    const savedMode = this.getSavedUserMode();
-    if (savedMode) {
-      applyImmediateDocumentTheme(savedMode);
-      return;
+    // For authenticated users, check saved user preference first
+    if (this.userId) {
+      const savedMode = this.getSavedUserMode();
+      if (savedMode) {
+        applyImmediateDocumentTheme(savedMode);
+        return;
+      }
     }
     
-    // Fall back to localStorage preference  
+    // For anonymous users, only use explicit localStorage preferences
+    // Never auto-resolve "system" to OS preference during app load
     const localPref = this.getLocalStoragePreference();
     if (localPref) {
       applyImmediateDocumentTheme(localPref);
       return;
     }
     
-    // Default to light mode
+    // Default to light mode for fresh anonymous users
     applyImmediateDocumentTheme('light');
   }
 
@@ -133,13 +136,14 @@ class SupaThemesCore {
       if (typeof window === 'undefined') return null;
       const pref = localStorage.getItem('theme_mode_pref') as 'light' | 'dark' | 'system' | null;
       
+      // For anonymous users, only return explicit light/dark values
+      // Never auto-resolve "system" preference during initialization
       if (pref === 'light' || pref === 'dark') return pref;
-      if (pref === 'system') {
-        const mql = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
-        return mql && mql.matches ? 'dark' : 'light';
-      }
+      
+      // "system" preference should not be auto-resolved on app load
+      // This ensures fresh anonymous users always start in light mode
     } catch (e) {}
-    return null;
+    return null; // Default to light mode if no explicit preference
   }
 
   private getPreferredInitialMode(): 'light' | 'dark' | null {

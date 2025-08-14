@@ -109,7 +109,13 @@ export const HeaderActions = ({
     const stored = (typeof window !== 'undefined' ? localStorage.getItem('theme_mode_pref') : null) as 'light' | 'dark' | 'system' | null;
     if (stored === 'system') {
       setThemePref('system');
-      enableSystemMode();
+      // For anonymous users, show system preference in UI but don't auto-apply OS preference
+      if (!user) {
+        // Don't enable system mode for anonymous users on app load
+        disableSystemMode();
+      } else {
+        enableSystemMode();
+      }
     } else if (stored === 'light' || stored === 'dark') {
       setThemePref(stored);
       disableSystemMode();
@@ -368,11 +374,20 @@ export const HeaderActions = ({
           
           {isMobile && (
             <>
-              <DropdownMenuItem onClick={() => setMode(mode === 'dark' ? 'light' : 'dark')} className="py-2.5">
-                {mode === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
-                <span>{mode === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+              <DropdownMenuItem onClick={() => onThemeChange('light')} className="py-2.5">
+                <Sun className="mr-2 h-4 w-4" />
+                <span className={themePref === 'light' ? 'font-medium' : ''}>Light</span>
               </DropdownMenuItem>
               
+              <DropdownMenuItem onClick={() => onThemeChange('dark')} className="py-2.5">
+                <Moon className="mr-2 h-4 w-4" />
+                <span className={themePref === 'dark' ? 'font-medium' : ''}>Dark</span>
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem onClick={() => onThemeChange('system')} className="py-2.5">
+                <Monitor className="mr-2 h-4 w-4" />
+                <span className={themePref === 'system' ? 'font-medium' : ''}>System</span>
+              </DropdownMenuItem>
             </>
           )}
         </DropdownMenuContent>
