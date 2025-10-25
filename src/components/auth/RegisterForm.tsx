@@ -329,7 +329,7 @@ export function RegisterForm() {
                           <label className="text-sm text-foreground leading-relaxed">
                             <ReactMarkdown
                               components={{
-                                a: (props) => <a {...props} className="text-primary hover:underline" />,
+                                a: (props) => <a {...props} className="text-primary underline hover:no-underline font-medium" />,
                                 strong: (props) => <strong {...props} className="font-semibold" />,
                                 em: (props) => <em {...props} className="italic" />,
                                 p: (props) => <span {...props} />
