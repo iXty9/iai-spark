@@ -250,12 +250,15 @@ export const AuthenticationSettings = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label htmlFor="auth_disclaimer_text" className="text-sm font-medium">Disclaimer Text</Label>
+            <Label htmlFor="auth_disclaimer_text" className="text-sm font-medium">Disclaimer Text (Markdown Supported)</Label>
+            <p className="text-xs text-muted-foreground mt-1 mb-2">
+              Use **bold**, *italic*, or [clickable links](https://example.com) in your disclaimer
+            </p>
             <Textarea
               id="auth_disclaimer_text"
               value={settings.auth_disclaimer_text}
               onChange={(e) => handleInputChange('auth_disclaimer_text', e.target.value)}
-              placeholder="I agree to terms & conditions provided by the company..."
+              placeholder="I agree to [terms & conditions](https://example.com) provided by the company..."
               className="min-h-[80px] bg-background/50 border-border/50 resize-none"
             />
           </div>

@@ -14,6 +14,7 @@ import { PhoneInput } from '@/components/ui/phone-input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuthSettings } from '@/hooks/admin/useAuthSettings';
 import { UserPlus, Mail, User, Lock, Phone, AlertCircle, Users, Shield, Sparkles, FileText } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -325,10 +326,18 @@ export function RegisterForm() {
                           />
                         </FormControl>
                         <div className="space-y-1 leading-none">
-                          <label 
-                            className="text-sm text-foreground leading-relaxed"
-                            dangerouslySetInnerHTML={{ __html: authSettings.disclaimerText }}
-                          />
+                          <label className="text-sm text-foreground leading-relaxed">
+                            <ReactMarkdown
+                              components={{
+                                a: (props) => <a {...props} className="text-primary hover:underline" />,
+                                strong: (props) => <strong {...props} className="font-semibold" />,
+                                em: (props) => <em {...props} className="italic" />,
+                                p: (props) => <span {...props} />
+                              }}
+                            >
+                              {authSettings.disclaimerText}
+                            </ReactMarkdown>
+                          </label>
                         </div>
                       </div>
                       <FormMessage className="text-xs ml-6" />
