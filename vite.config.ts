@@ -7,26 +7,10 @@ import fs from 'fs';
 
 // Plugin to generate version.json during build
 const generateVersionPlugin = () => {
-  // Create a deterministic build hash based on timestamp or git commit
-  const getBuildHash = () => {
-    if (process.env.NODE_ENV === 'production') {
-      // Use git commit hash if available
-      const gitHash = process.env.VITE_GIT_COMMIT || 
-                      process.env.COMMIT_REF || 
-                      process.env.VERCEL_GIT_COMMIT_SHA;
-      
-      if (gitHash) {
-        return gitHash.substring(0, 12);
-      }
-      
-      // Fallback: Use timestamp-based hash (ensures uniqueness per build)
-      const timestamp = new Date().toISOString();
-      return timestamp.replace(/[-:.TZ]/g, '').substring(0, 14);
-    }
-    return 'dev-stable';
-  };
-  
-  const sessionBuildHash = getBuildHash();
+  // Create a stable build hash for the session
+  const sessionBuildHash = process.env.NODE_ENV === 'production' 
+    ? Math.random().toString(36).substr(2, 12)
+    : 'dev-stable';
   
   return {
     name: 'generate-version',
@@ -50,7 +34,7 @@ const generateVersionPlugin = () => {
         JSON.stringify(version, null, 2)
       );
       
-      console.log('✅ Generated version.json:', version);
+      console.log('Generated version.json:', version);
     },
     configureServer(server: any) {
       // In development, serve a stable version to prevent constant updates

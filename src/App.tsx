@@ -15,7 +15,6 @@ import { logger } from '@/utils/logging';
 import { applySiteTitle } from '@/utils/site-utils';
 import './App.css';
 import { globalCleanupService } from '@/services/global/global-cleanup-service';
-import { versionService } from '@/services/pwa/versionService';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,15 +45,6 @@ function App() {
     const initializeApp = async () => {
       try {
         logger.info('Starting app initialization', { module: 'app' });
-        
-        // Log build information on startup
-        const version = await versionService.getCurrentVersion();
-        console.log('🚀 Ixty AI Build Info:', {
-          version: version?.version,
-          buildHash: version?.buildHash,
-          environment: version?.environment,
-          buildTime: version?.buildTime
-        });
         
         const initResult = await coordinatedInitService.initialize();
         
