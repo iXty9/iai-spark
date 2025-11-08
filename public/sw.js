@@ -47,29 +47,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Validate manifest structure
-const isValidManifest = (manifest) => {
-  if (!manifest || typeof manifest !== 'object') {
-    return false;
-  }
-  
-  // Check required fields
-  const requiredFields = ['name', 'short_name', 'icons'];
-  for (const field of requiredFields) {
-    if (!manifest[field]) {
-      return false;
-    }
-  }
-  
-  // Validate icons array
-  if (!Array.isArray(manifest.icons) || manifest.icons.length === 0) {
-    return false;
-  }
-  
-  return true;
-};
-
-// Activate event - clean up old caches AND corrupted manifests
+// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   console.log('Service Worker: Activating...');
   event.waitUntil(
@@ -85,25 +63,7 @@ self.addEventListener('activate', (event) => {
               return caches.delete(cacheName);
             }
           })
-        ).then(() => {
-          // Also check and clean corrupted manifest from current cache
-          return caches.open(DYNAMIC_CACHE).then(cache => {
-            return cache.match('/manifest.json').then(response => {
-              if (response) {
-                return response.json().then(manifest => {
-                  if (!isValidManifest(manifest)) {
-                    console.log('Service Worker: Removing corrupted manifest from cache');
-                    return cache.delete('/manifest.json');
-                  }
-                }).catch(() => {
-                  // Invalid JSON, delete it
-                  console.log('Service Worker: Removing invalid manifest (parse error)');
-                  return cache.delete('/manifest.json');
-                });
-              }
-            });
-          });
-        });
+        );
       });
     })
   );
@@ -125,35 +85,19 @@ self.addEventListener('message', (event) => {
   }
   
   if (event.data && event.data.type === 'UPDATE_MANIFEST') {
-    // Cache the new manifest data with validation
+    // Cache the new manifest data
     const manifest = event.data.manifest;
-    console.log('Service Worker: Received manifest update request:', manifest);
+    console.log('Service Worker: Caching new manifest:', manifest);
     
-    // Validate manifest before caching
-    if (!isValidManifest(manifest)) {
-      console.error('Service Worker: Manifest validation failed, rejecting update', manifest);
-      // Notify sender of failure
-      if (event.source) {
-        event.source.postMessage({ 
-          type: 'MANIFEST_UPDATE_FAILED', 
-          error: 'Invalid manifest structure' 
-        });
-      }
-      return;
-    }
-    
-    // Store validated manifest in cache
+    // Store manifest in cache for dynamic serving
     caches.open(DYNAMIC_CACHE).then(cache => {
       const manifestResponse = new Response(JSON.stringify(manifest), {
-        headers: { 'Content-Type': 'application/manifest+json' }
+        headers: { 'Content-Type': 'application/json' }
       });
       cache.put('/manifest.json', manifestResponse);
-      console.log('Service Worker: Manifest cached successfully');
-    }).catch(error => {
-      console.error('Service Worker: Failed to cache manifest', error);
     });
     
-    // Notify clients about successful manifest update
+    // Notify clients about manifest update
     self.clients.matchAll().then(clients => {
       clients.forEach(client => {
         client.postMessage({ type: 'MANIFEST_UPDATED', manifest });
@@ -178,81 +122,17 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
   
-  // ALWAYS fetch version.json from network, NEVER from cache
-  if (url.pathname === '/version.json') {
-    event.respondWith(
-      fetch(event.request.url + '?t=' + Date.now(), {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      })
-      .then((response) => {
-        if (response && response.status === 200) {
-          // Do NOT cache version.json at all
-          return response;
-        }
-        throw new Error('Network response was not ok');
-      })
-      .catch((error) => {
-        console.error('Failed to fetch version.json:', error);
-        // No fallback to cache - version checks should fail if offline
-        return new Response(JSON.stringify({ 
-          error: 'Offline', 
-          buildHash: 'offline' 
-        }), {
-          headers: { 'Content-Type': 'application/json' }
-        });
-      })
-    );
-    return;
-  }
-  
-  // Network-first strategy for critical app files
-  if (url.pathname.endsWith('.tsx') || 
+  // Network-first strategy for version.json and critical app files
+  if (url.pathname === '/version.json' || 
+      url.pathname.endsWith('.tsx') || 
       url.pathname.endsWith('.ts') ||
       url.pathname === '/manifest.json') {
     
     event.respondWith(
-      fetch(event.request.url + (url.search ? '&' : '?') + 't=' + Date.now(), {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate'
-        }
-      })
+      fetch(event.request)
         .then((response) => {
           if (response && response.status === 200) {
-            // For manifest.json, validate content-type and JSON structure
-            if (url.pathname === '/manifest.json') {
-              const contentType = response.headers.get('content-type') || '';
-              if (!contentType.includes('json')) {
-                console.error('Service Worker: Manifest has invalid content-type:', contentType);
-                // Don't cache, return as-is but log error
-                return response;
-              }
-              
-              // Clone and validate JSON structure before caching
-              const responseClone = response.clone();
-              return responseClone.json().then(manifest => {
-                if (!isValidManifest(manifest)) {
-                  console.error('Service Worker: Manifest failed validation, not caching');
-                  return response;
-                }
-                
-                // Valid manifest - cache it
-                caches.open(DYNAMIC_CACHE).then((cache) => {
-                  cache.put(event.request, response.clone());
-                  console.log('Service Worker: Valid manifest cached');
-                });
-                return response;
-              }).catch(err => {
-                console.error('Service Worker: Manifest JSON parse error, not caching', err);
-                return response;
-              });
-            }
-            
-            // Cache other files normally
+            // Cache the updated file
             const responseClone = response.clone();
             caches.open(DYNAMIC_CACHE).then((cache) => {
               cache.put(event.request, responseClone);

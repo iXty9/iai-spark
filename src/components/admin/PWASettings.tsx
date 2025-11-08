@@ -83,41 +83,12 @@ export function PWASettings() {
     try {
       setIsSaving(true);
       
-      // Validate required fields before saving
-      const requiredFields: (keyof PWASettingsState)[] = ['pwa_app_name', 'pwa_short_name', 'pwa_description'];
-      const missingFields = requiredFields.filter(field => !settings[field] || settings[field].trim() === '');
-      
-      if (missingFields.length > 0) {
-        toast({
-          variant: "destructive",
-          title: "Validation Error",
-          description: `Please fill in all required fields: ${missingFields.map(f => f.replace('pwa_', '')).join(', ')}`
-        });
-        return;
-      }
-      
       // Save all PWA settings
       for (const [key, value] of Object.entries(settings)) {
         await updateAppSetting(key, value);
       }
       
-      logger.info('PWA settings saved to database', null, { module: 'pwa-settings' });
-      
-      // Verify settings were saved by fetching them back
-      const savedSettings = await fetchAppSettings();
-      const hasAllSettings = requiredFields.every(field => savedSettings[field]);
-      
-      if (!hasAllSettings) {
-        logger.warn('Settings saved but verification failed - incomplete data returned', null, { module: 'pwa-settings' });
-        toast({
-          variant: "destructive",
-          title: "Warning",
-          description: "Settings saved, but could not verify all data. Manifest update skipped for safety."
-        });
-        return;
-      }
-      
-      // Update the PWA manifest after saving and verifying settings
+      // Update the PWA manifest after saving settings
       const { updateManifestFile } = await import('@/services/pwa/manifestService');
       const manifestUpdated = await updateManifestFile();
       
@@ -129,7 +100,7 @@ export function PWASettings() {
       } else {
         toast({
           title: "Settings saved",
-          description: "PWA settings saved, but manifest update failed validation. Check console for details.",
+          description: "PWA settings saved, but manifest update failed. Some changes may require reinstalling the PWA.",
           variant: "destructive"
         });
       }

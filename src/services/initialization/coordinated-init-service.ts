@@ -47,40 +47,48 @@ class CoordinatedInitService {
       const configResult = await fastConfig.loadConfig();
 
       if (!configResult.success || !configResult.config) {
-        logger.warn('Config load failed, continuing with degraded mode', { module: 'coordinated-init' });
-        // Don't block app - continue with default behavior
-        // The app will work in degraded mode until config is available
+        const errorStatus = { 
+          phase: 'error' as const, 
+          isComplete: false, 
+          error: 'Configuration not found or invalid'
+        };
+        this.notifySubscribers(errorStatus);
+        return errorStatus;
       }
 
-      // Phase 2: Initialize client (only if config is valid)
-      if (configResult?.success && configResult.config) {
-        this.notifySubscribers({ phase: 'client', isComplete: false, details: 'Initializing Supabase client' });
-        const clientSuccess = await clientManager.initialize(configResult.config);
+      // Phase 2: Initialize client
+      this.notifySubscribers({ phase: 'client', isComplete: false, details: 'Initializing Supabase client' });
+      const clientSuccess = await clientManager.initialize(configResult.config);
 
-        if (!clientSuccess) {
-          logger.warn('Client init failed, continuing with degraded mode', { module: 'coordinated-init' });
-          // Don't block - app can still render UI
-        } else {
-          // Wait for client readiness
-          const isReady = await clientManager.waitForReadiness();
-          if (!isReady) {
-            logger.warn('Client readiness timeout, continuing anyway', { module: 'coordinated-init' });
-          }
-        }
+      if (!clientSuccess) {
+        const errorStatus = { 
+          phase: 'error' as const, 
+          isComplete: false, 
+          error: 'Failed to initialize Supabase client'
+        };
+        this.notifySubscribers(errorStatus);
+        return errorStatus;
+      }
+
+      // Wait for client readiness
+      const isReady = await clientManager.waitForReadiness();
+      if (!isReady) {
+        const errorStatus = { 
+          phase: 'error' as const, 
+          isComplete: false, 
+          error: 'Client readiness timeout'
+        };
+        this.notifySubscribers(errorStatus);
+        return errorStatus;
       }
 
       // Phase 3: Initialize theme system with user context (priority initialization)
       this.notifySubscribers({ phase: 'theme', isComplete: false, details: 'Initializing theme system' });
-      try {
-        await supaThemes.initialize(userIdHint);
-        
-        // Minimal delay only for authenticated users to prevent conflicts
-        if (userIdHint) {
-          await new Promise(resolve => setTimeout(resolve, 25));
-        }
-      } catch (themeError) {
-        logger.warn('Theme initialization failed, using defaults', themeError, { module: 'coordinated-init' });
-        // Don't block - app will use default theme
+      await supaThemes.initialize(userIdHint);
+      
+      // Minimal delay only for authenticated users to prevent conflicts
+      if (userIdHint) {
+        await new Promise(resolve => setTimeout(resolve, 25));
       }
 
       // Phase 4: Complete

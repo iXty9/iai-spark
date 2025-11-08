@@ -87,11 +87,10 @@ export const usePWA = (): PWAHook => {
       }
     };
 
-    // Register service worker after window load to prevent interference with initial fetches
+    // Register service worker
     if ('serviceWorker' in navigator) {
-      const registerServiceWorker = () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then((reg) => {
+      navigator.serviceWorker.register('/sw.js')
+        .then((reg) => {
           setRegistration(reg);
           logger.info('Service Worker registered successfully', { module: 'pwa' });
 
@@ -111,17 +110,9 @@ export const usePWA = (): PWAHook => {
           // Listen for messages from service worker
           navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
         })
-          .catch((error) => {
-            logger.error('Service Worker registration failed:', error, { module: 'pwa' });
-          });
-      };
-
-      // Wait for window load before registering SW
-      if (document.readyState === 'complete') {
-        registerServiceWorker();
-      } else {
-        window.addEventListener('load', registerServiceWorker);
-      }
+        .catch((error) => {
+          logger.error('Service Worker registration failed:', error, { module: 'pwa' });
+        });
     }
 
     // Set up version service update listener
@@ -172,7 +163,6 @@ export const usePWA = (): PWAHook => {
       
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
-        window.removeEventListener('load', () => {});
       }
       
       versionService.stopPeriodicChecks();

@@ -63,16 +63,9 @@ class VersionService {
 
   async fetchRemoteVersion(): Promise<AppVersion | null> {
     try {
-      // Add timestamp to URL to bypass ALL caching layers
-      const cacheBuster = `?t=${Date.now()}`;
-      
-      const response = await fetch(`/version.json${cacheBuster}`, { 
-        cache: 'no-store',  // Changed from 'no-cache'
-        headers: { 
-          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
+      const response = await fetch('/version.json', { 
+        cache: 'no-cache',
+        headers: { 'Cache-Control': 'no-cache' }
       });
       
       if (!response.ok) {
@@ -80,10 +73,7 @@ class VersionService {
       }
       
       const version = await response.json();
-      logger.info('Remote version fetched', { 
-        buildHash: version.buildHash,
-        environment: version.environment 
-      }, { module: 'version-service' });
+      logger.info('Remote version fetched', { version }, { module: 'version-service' });
       return version;
     } catch (error) {
       logger.error('Failed to fetch remote version', error, { module: 'version-service' });
@@ -101,33 +91,16 @@ class VersionService {
 
       if (!remoteVersion) return false;
       
-      // Check if current version is critically outdated (force update)
-      const isCriticalUpdate = this.isCriticalUpdate(currentVersion, remoteVersion);
-      
       // Check for actual changes
       const hasUpdate = !currentVersion || 
-        currentVersion.buildHash !== remoteVersion.buildHash ||
-        isCriticalUpdate;
+        currentVersion.buildHash !== remoteVersion.buildHash;
 
       if (hasUpdate) {
         logger.info('Update detected', { 
           current: currentVersion?.buildHash, 
           remote: remoteVersion.buildHash,
-          critical: isCriticalUpdate,
           applicationMode: isDevelopmentMode ? 'development' : 'production'
         }, { module: 'version-service' });
-        
-        // Force update for critical changes
-        if (isCriticalUpdate) {
-          logger.warn('Critical update required, forcing refresh', {
-            current: currentVersion?.buildHash,
-            remote: remoteVersion.buildHash
-          }, { module: 'version-service' });
-          
-          await this.updateToVersion(remoteVersion);
-          await this.forceCacheRefresh();
-          return true;
-        }
         
         // In development mode OR fresh anonymous users: silent update
         if (isDevelopmentMode || this.shouldSilentUpdate(currentVersion, remoteVersion)) {
@@ -154,20 +127,6 @@ class VersionService {
       logger.error('Update check failed', error, { module: 'version-service' });
       return false;
     }
-  }
-
-  private isCriticalUpdate(current: AppVersion | null, remote: AppVersion): boolean {
-    // If current version is "dev-stable" but remote is production, force update
-    if (current?.buildHash === 'dev-stable' && remote.environment === 'production') {
-      return true;
-    }
-    
-    // If user is stuck on old dev-stable and remote has changed
-    if (current?.buildHash === 'dev-stable' && remote.buildHash !== 'dev-stable') {
-      return true;
-    }
-    
-    return false;
   }
 
   async updateToVersion(version: AppVersion): Promise<void> {
