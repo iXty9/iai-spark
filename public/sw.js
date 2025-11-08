@@ -122,9 +122,39 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
   
-  // Network-first strategy for version.json and critical app files
-  if (url.pathname === '/version.json' || 
-      url.pathname.endsWith('.tsx') || 
+  // ALWAYS fetch version.json from network, NEVER from cache
+  if (url.pathname === '/version.json') {
+    event.respondWith(
+      fetch(event.request.url + '?t=' + Date.now(), {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      })
+      .then((response) => {
+        if (response && response.status === 200) {
+          // Do NOT cache version.json at all
+          return response;
+        }
+        throw new Error('Network response was not ok');
+      })
+      .catch((error) => {
+        console.error('Failed to fetch version.json:', error);
+        // No fallback to cache - version checks should fail if offline
+        return new Response(JSON.stringify({ 
+          error: 'Offline', 
+          buildHash: 'offline' 
+        }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      })
+    );
+    return;
+  }
+  
+  // Network-first strategy for critical app files
+  if (url.pathname.endsWith('.tsx') || 
       url.pathname.endsWith('.ts') ||
       url.pathname === '/manifest.json') {
     

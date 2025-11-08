@@ -3,8 +3,7 @@ import { logger } from '@/utils/logging';
 import { 
   refreshWebhookCache, 
   getWebhookUrlFromCache, 
-  isValidWebhookUrl,
-  getDefaultUrls 
+  isValidWebhookUrl
 } from './cache/url-cache';
 
 /**
@@ -15,24 +14,17 @@ export const getWebhookUrl = async (isAuthenticated: boolean): Promise<string> =
     await refreshWebhookCache();
     const urlKey = isAuthenticated ? 'authenticated_webhook_url' : 'anonymous_webhook_url';
     const url = getWebhookUrlFromCache(urlKey);
-    const { DEFAULT_AUTHENTICATED_WEBHOOK, DEFAULT_ANONYMOUS_WEBHOOK } = getDefaultUrls();
       
-    // Validate URL before returning
-    if (url && isValidWebhookUrl(url)) {
-      return url;
-    } else {
-      // If URL is invalid, log the issue and use default
-      logger.warn('Invalid webhook URL detected, using fallback', 
-        { url, isAuthenticated }, 
-        { module: 'webhook' }
+    if (!url || !isValidWebhookUrl(url)) {
+      throw new Error(
+        `Webhook URL for ${urlKey} is not configured or invalid. Please configure webhook URLs in Admin Settings → Webhook Settings.`
       );
-      return isAuthenticated ? DEFAULT_AUTHENTICATED_WEBHOOK : DEFAULT_ANONYMOUS_WEBHOOK;
     }
+    
+    return url;
   } catch (error) {
-    logger.error('Failed to get webhook URL, using fallback', error, { module: 'webhook' });
-    // Fallback to the original hardcoded URLs if we can't get from the database
-    const { DEFAULT_AUTHENTICATED_WEBHOOK, DEFAULT_ANONYMOUS_WEBHOOK } = getDefaultUrls();
-    return isAuthenticated ? DEFAULT_AUTHENTICATED_WEBHOOK : DEFAULT_ANONYMOUS_WEBHOOK;
+    logger.error('Failed to get webhook URL', error, { module: 'webhook' });
+    throw error;
   }
 };
 
@@ -43,23 +35,17 @@ export const getDebugWebhookUrl = async (): Promise<string> => {
   try {
     await refreshWebhookCache();
     const url = getWebhookUrlFromCache('debug_webhook_url');
-    const { DEFAULT_DEBUG_WEBHOOK } = getDefaultUrls();
     
-    // Validate URL before returning
-    if (url && isValidWebhookUrl(url)) {
-      return url;
-    } else {
-      // If URL is invalid, log the issue and use default
-      logger.warn('Invalid debug webhook URL detected, using fallback', 
-        { url }, 
-        { module: 'webhook' }
+    if (!url || !isValidWebhookUrl(url)) {
+      throw new Error(
+        'Debug webhook URL is not configured or invalid. Please configure webhook URLs in Admin Settings → Webhook Settings.'
       );
-      return DEFAULT_DEBUG_WEBHOOK;
     }
+    
+    return url;
   } catch (error) {
-    logger.error('Failed to get debug webhook URL, using fallback', error, { module: 'webhook' });
-    const { DEFAULT_DEBUG_WEBHOOK } = getDefaultUrls();
-    return DEFAULT_DEBUG_WEBHOOK;
+    logger.error('Failed to get debug webhook URL', error, { module: 'webhook' });
+    throw error;
   }
 };
 
