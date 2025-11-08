@@ -7,15 +7,18 @@ let lastCacheUpdate = 0;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 /**
- * Get default webhook URLs - returns empty strings to force database configuration
- * SECURITY: Hardcoded URLs removed to prevent exposure in client code
+ * Validate a webhook URL - must be HTTPS
  */
-export const getDefaultUrls = () => {
-  return {
-    DEFAULT_AUTHENTICATED_WEBHOOK: '',
-    DEFAULT_ANONYMOUS_WEBHOOK: '',
-    DEFAULT_DEBUG_WEBHOOK: ''
-  };
+export const isValidWebhookUrl = (url: string): boolean => {
+  if (!url || url.trim() === '') {
+    return false;
+  }
+  try {
+    const webhookUrl = new URL(url);
+    return webhookUrl.protocol === 'https:';
+  } catch (error) {
+    return false;
+  }
 };
 
 /**
@@ -29,24 +32,36 @@ export const refreshWebhookCache = async (): Promise<void> => {
 
   try {
     const settings = await fetchAppSettings();
-    const { DEFAULT_AUTHENTICATED_WEBHOOK, DEFAULT_ANONYMOUS_WEBHOOK, DEFAULT_DEBUG_WEBHOOK } = getDefaultUrls();
     
-    // Update cache with new values, using defaults if not configured
-    webhookUrlCache = {
-      'authenticated_webhook_url': settings['authenticated_webhook_url'] || DEFAULT_AUTHENTICATED_WEBHOOK,
-      'anonymous_webhook_url': settings['anonymous_webhook_url'] || DEFAULT_ANONYMOUS_WEBHOOK,
-      'debug_webhook_url': settings['debug_webhook_url'] || DEFAULT_DEBUG_WEBHOOK,
-      'webhook_timeout': settings['webhook_timeout'] || '300000' // Default 5 minutes (300,000ms)
-    };
+    // Validate required webhook URLs are configured
+    const requiredKeys = ['authenticated_webhook_url', 'anonymous_webhook_url', 'debug_webhook_url'];
+    const missingKeys = requiredKeys.filter(key => !settings[key] || settings[key].trim() === '');
     
-    // Log any invalid URLs for admin awareness (but don't block them)
-    Object.entries(webhookUrlCache).forEach(([key, url]) => {
-      if (key !== 'webhook_timeout' && !isValidWebhookUrl(url)) {
-        logger.warn(`Potentially invalid webhook URL detected for ${key}`, { url }, { module: 'webhook' });
+    if (missingKeys.length > 0) {
+      throw new Error(
+        `Webhook URLs not configured. Please configure the following in Admin Settings → Webhook Settings: ${missingKeys.join(', ')}`
+      );
+    }
+    
+    // Validate URLs are in correct format
+    requiredKeys.forEach(key => {
+      if (!isValidWebhookUrl(settings[key])) {
+        throw new Error(
+          `Invalid webhook URL for ${key}. URLs must use HTTPS protocol. Please update in Admin Settings → Webhook Settings.`
+        );
       }
     });
     
+    // Update cache with validated values
+    webhookUrlCache = {
+      'authenticated_webhook_url': settings['authenticated_webhook_url'],
+      'anonymous_webhook_url': settings['anonymous_webhook_url'],
+      'debug_webhook_url': settings['debug_webhook_url'],
+      'webhook_timeout': settings['webhook_timeout'] || '300000' // Default 5 minutes (300,000ms)
+    };
+    
     lastCacheUpdate = now;
+    logger.info('Webhook cache refreshed successfully', null, { module: 'webhook' });
   } catch (error) {
     logger.error('Error refreshing webhook cache:', error, { module: 'webhook' });
     throw error;
@@ -65,18 +80,4 @@ export const getWebhookUrlFromCache = (key: string): string => {
  */
 export const isCacheInitialized = (): boolean => {
   return Object.keys(webhookUrlCache).length > 0;
-};
-
-/**
- * Validate a webhook URL - now more permissive to allow different domains
- */
-export const isValidWebhookUrl = (url: string): boolean => {
-  try {
-    const webhookUrl = new URL(url);
-    // Allow HTTPS URLs from any domain (removed domain restriction)
-    // Still require HTTPS for security
-    return webhookUrl.protocol === 'https:';
-  } catch (error) {
-    return false;
-  }
 };
