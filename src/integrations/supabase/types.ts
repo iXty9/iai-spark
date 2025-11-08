@@ -222,7 +222,10 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_safe_app_setting: { Args: { setting_key: string }; Returns: boolean }
+      is_safe_app_setting: {
+        Args: { setting_key: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "user"

@@ -7,14 +7,18 @@ let lastCacheUpdate = 0;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 /**
- * Get default webhook URLs - returns empty strings to force database configuration
- * SECURITY: Hardcoded URLs removed to prevent exposure in client code
+ * Get default webhook URLs from hardcoded defaults
  */
 export const getDefaultUrls = () => {
+  // Use hardcoded defaults since custom environment variables aren't available in browser builds
+  const DEFAULT_AUTHENTICATED_WEBHOOK = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7';
+  const DEFAULT_ANONYMOUS_WEBHOOK = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574';
+  const DEFAULT_DEBUG_WEBHOOK = 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d8534';
+
   return {
-    DEFAULT_AUTHENTICATED_WEBHOOK: '',
-    DEFAULT_ANONYMOUS_WEBHOOK: '',
-    DEFAULT_DEBUG_WEBHOOK: ''
+    DEFAULT_AUTHENTICATED_WEBHOOK,
+    DEFAULT_ANONYMOUS_WEBHOOK,
+    DEFAULT_DEBUG_WEBHOOK
   };
 };
 

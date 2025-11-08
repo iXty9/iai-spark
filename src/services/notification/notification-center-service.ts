@@ -132,10 +132,34 @@ class NotificationCenterService {
   }
 
   /**
-   * DEPRECATED - Client-side notification storage removed for security
-   * Notifications must be created server-side via edge functions only
-   * @deprecated Use edge functions with service role key instead
+   * Store notification from websocket
    */
+  async storeNotification(notification: Omit<UserNotification, 'id' | 'created_at' | 'user_id'>, userId: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('user_notifications')
+        .insert({
+          user_id: userId,
+          title: notification.title,
+          message: notification.message,
+          type: notification.type,
+          sender: notification.sender,
+          metadata: notification.metadata,
+          source: notification.source || 'websocket'
+        });
+
+      if (error) {
+        logger.error('Failed to store notification', error, { module: 'notification-center' });
+        return false;
+      }
+
+      this.notifyListeners();
+      return true;
+    } catch (error) {
+      logger.error('Error storing notification', error, { module: 'notification-center' });
+      return false;
+    }
+  }
 
   /**
    * Subscribe to notification changes

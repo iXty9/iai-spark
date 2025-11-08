@@ -4,7 +4,6 @@
   background-color: var(--user-bubble-color, var(--primary-color)) !important;
   color: var(--user-text-color, white) !important;
   opacity: var(--user-bubble-opacity, 1);
-  text-align: left;
 }
 
 .ai-message-bubble {
