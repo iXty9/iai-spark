@@ -47,7 +47,29 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate event - clean up old caches
+// Validate manifest structure
+const isValidManifest = (manifest) => {
+  if (!manifest || typeof manifest !== 'object') {
+    return false;
+  }
+  
+  // Check required fields
+  const requiredFields = ['name', 'short_name', 'icons'];
+  for (const field of requiredFields) {
+    if (!manifest[field]) {
+      return false;
+    }
+  }
+  
+  // Validate icons array
+  if (!Array.isArray(manifest.icons) || manifest.icons.length === 0) {
+    return false;
+  }
+  
+  return true;
+};
+
+// Activate event - clean up old caches AND corrupted manifests
 self.addEventListener('activate', (event) => {
   console.log('Service Worker: Activating...');
   event.waitUntil(
@@ -63,7 +85,25 @@ self.addEventListener('activate', (event) => {
               return caches.delete(cacheName);
             }
           })
-        );
+        ).then(() => {
+          // Also check and clean corrupted manifest from current cache
+          return caches.open(DYNAMIC_CACHE).then(cache => {
+            return cache.match('/manifest.json').then(response => {
+              if (response) {
+                return response.json().then(manifest => {
+                  if (!isValidManifest(manifest)) {
+                    console.log('Service Worker: Removing corrupted manifest from cache');
+                    return cache.delete('/manifest.json');
+                  }
+                }).catch(() => {
+                  // Invalid JSON, delete it
+                  console.log('Service Worker: Removing invalid manifest (parse error)');
+                  return cache.delete('/manifest.json');
+                });
+              }
+            });
+          });
+        });
       });
     })
   );
@@ -85,19 +125,35 @@ self.addEventListener('message', (event) => {
   }
   
   if (event.data && event.data.type === 'UPDATE_MANIFEST') {
-    // Cache the new manifest data
+    // Cache the new manifest data with validation
     const manifest = event.data.manifest;
-    console.log('Service Worker: Caching new manifest:', manifest);
+    console.log('Service Worker: Received manifest update request:', manifest);
     
-    // Store manifest in cache for dynamic serving
+    // Validate manifest before caching
+    if (!isValidManifest(manifest)) {
+      console.error('Service Worker: Manifest validation failed, rejecting update', manifest);
+      // Notify sender of failure
+      if (event.source) {
+        event.source.postMessage({ 
+          type: 'MANIFEST_UPDATE_FAILED', 
+          error: 'Invalid manifest structure' 
+        });
+      }
+      return;
+    }
+    
+    // Store validated manifest in cache
     caches.open(DYNAMIC_CACHE).then(cache => {
       const manifestResponse = new Response(JSON.stringify(manifest), {
         headers: { 'Content-Type': 'application/json' }
       });
       cache.put('/manifest.json', manifestResponse);
+      console.log('Service Worker: Manifest cached successfully');
+    }).catch(error => {
+      console.error('Service Worker: Failed to cache manifest', error);
     });
     
-    // Notify clients about manifest update
+    // Notify clients about successful manifest update
     self.clients.matchAll().then(clients => {
       clients.forEach(client => {
         client.postMessage({ type: 'MANIFEST_UPDATED', manifest });
