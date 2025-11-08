@@ -33,8 +33,8 @@ export const refreshWebhookCache = async (): Promise<void> => {
   try {
     const settings = await fetchAppSettings();
     
-    // Validate required webhook URLs are configured
-    const requiredKeys = ['authenticated_webhook_url', 'anonymous_webhook_url', 'debug_webhook_url'];
+    // Validate required webhook URLs are configured (debug_webhook_url is optional for non-admins)
+    const requiredKeys = ['authenticated_webhook_url', 'anonymous_webhook_url'];
     const missingKeys = requiredKeys.filter(key => !settings[key] || settings[key].trim() === '');
     
     if (missingKeys.length > 0) {
