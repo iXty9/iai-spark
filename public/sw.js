@@ -178,6 +178,28 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
   
+  // NEVER cache manifest.json - always fetch from network
+  if (url.pathname === '/manifest.json') {
+    event.respondWith(
+      fetch(event.request.url + '?t=' + Date.now())
+        .then((response) => {
+          if (response && response.status === 200) {
+            // Do NOT cache manifest.json
+            return response;
+          }
+          throw new Error('Manifest fetch failed');
+        })
+        .catch((error) => {
+          console.error('Failed to fetch manifest.json:', error);
+          return new Response('{}', {
+            status: 404,
+            headers: { 'Content-Type': 'application/manifest+json' }
+          });
+        })
+    );
+    return;
+  }
+  
   // ALWAYS fetch version.json from network, NEVER from cache
   if (url.pathname === '/version.json') {
     event.respondWith(
@@ -209,29 +231,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  // Network-first strategy for critical app files
-  if (url.pathname.endsWith('.tsx') || 
-      url.pathname.endsWith('.ts') ||
-      url.pathname === '/manifest.json') {
-    
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          if (response && response.status === 200) {
-            // Cache the updated file
-            const responseClone = response.clone();
-            caches.open(DYNAMIC_CACHE).then((cache) => {
-              cache.put(event.request, responseClone);
-            });
-            return response;
-          }
-          throw new Error('Network response was not ok');
-        })
-        .catch(() => {
-          // Fallback to cache if network fails
-          return caches.match(event.request);
-        })
-    );
+  // Skip .ts/.tsx files - these shouldn't be fetched in production builds
+  // (they're compiled to .js by Vite)
+  if (url.pathname.endsWith('.tsx') || url.pathname.endsWith('.ts')) {
     return;
   }
 

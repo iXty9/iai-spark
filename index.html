@@ -26,7 +26,7 @@
     
     <link rel="icon" href="https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png" type="image/png">
     <link rel="apple-touch-icon" href="https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png">
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="/manifest.json" type="application/manifest+json">
     <meta name="theme-color" content="#dd3333">
 
     <!-- No-flash theme script: ensures correct initial mode before app/CSS load -->
@@ -88,6 +88,16 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Bust manifest cache on load -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        var link = document.querySelector('link[rel="manifest"]');
+        if (link && !link.href.includes('?v=')) {
+          link.href = link.href + '?v=' + Date.now();
+        }
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>

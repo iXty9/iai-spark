@@ -87,32 +87,48 @@ export const usePWA = (): PWAHook => {
       }
     };
 
-    // Register service worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
-        .then((reg) => {
-          setRegistration(reg);
-          logger.info('Service Worker registered successfully', { module: 'pwa' });
+    // Register service worker - delayed until window load to avoid race conditions
+    // Skip registration if ?no-sw=1 is in URL (emergency debug mode)
+    const registerServiceWorker = () => {
+      if ('serviceWorker' in navigator) {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('no-sw') === '1') {
+          logger.info('Service Worker registration skipped (no-sw debug mode)', { module: 'pwa' });
+          return;
+        }
 
-          // Check for updates
-          reg.addEventListener('updatefound', () => {
-            const newWorker = reg.installing;
-            if (newWorker) {
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  logger.info('New service worker available', { module: 'pwa' });
-                  // Let version service handle update detection to avoid duplicates
-                }
-              });
-            }
+        navigator.serviceWorker.register('/sw.js')
+          .then((reg) => {
+            setRegistration(reg);
+            logger.info('Service Worker registered successfully', { module: 'pwa' });
+
+            // Check for updates
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              if (newWorker) {
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    logger.info('New service worker available', { module: 'pwa' });
+                    // Let version service handle update detection to avoid duplicates
+                  }
+                });
+              }
+            });
+
+            // Listen for messages from service worker
+            navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+          })
+          .catch((error) => {
+            logger.error('Service Worker registration failed:', error, { module: 'pwa' });
           });
+      }
+    };
 
-          // Listen for messages from service worker
-          navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
-        })
-        .catch((error) => {
-          logger.error('Service Worker registration failed:', error, { module: 'pwa' });
-        });
+    // Delay SW registration until window load
+    if (document.readyState === 'complete') {
+      registerServiceWorker();
+    } else {
+      window.addEventListener('load', registerServiceWorker);
     }
 
     // Set up version service update listener
@@ -160,6 +176,7 @@ export const usePWA = (): PWAHook => {
       window.removeEventListener('appinstalled', handleAppInstalled);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('load', registerServiceWorker);
       
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
