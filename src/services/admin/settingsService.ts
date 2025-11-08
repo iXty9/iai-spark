@@ -22,12 +22,43 @@ export const fetchAppSettings = async (): Promise<Record<string, string>> => {
 
     // Transform array of key-value pairs into an object
     const settings: Record<string, string> = {};
-    data.forEach(item => {
+    data.forEach((item) => {
       settings[item.key] = item.value;
     });
 
-    logger.info('App settings loaded successfully', { count: Object.keys(settings).length }, { module: 'settings-service' });
-    
+    // Detailed diagnostics to understand visibility (RLS, auth state, etc.)
+    const keys = Object.keys(settings);
+    const urlLikeKeys = keys.filter((k) => k.includes('url'));
+    const webhookKeys = keys.filter((k) => k.includes('webhook'));
+
+    let authUserId: string | null = null;
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      authUserId = session?.session?.user?.id ?? null;
+    } catch (_) {
+      // ignore auth inspection errors
+    }
+
+    logger.info(
+      'App settings loaded successfully',
+      {
+        count: keys.length,
+        sampleKeys: keys.slice(0, 20),
+        urlLikeKeysVisible: urlLikeKeys,
+        webhookKeysVisible: webhookKeys,
+        authUserId,
+      },
+      { module: 'settings-service' }
+    );
+
+    if (urlLikeKeys.length === 0) {
+      logger.warn(
+        'No URL-like keys visible from app_settings; RLS may be restricting access for this user (non-admin or anonymous)',
+        null,
+        { module: 'settings-service' }
+      );
+    }
+
     return settings;
   } catch (error) {
     logger.error('Failed to fetch app settings', error, { module: 'settings-service' });

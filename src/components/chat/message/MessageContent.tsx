@@ -48,7 +48,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ message, isUser 
 
   if (isUser) {
     return (
-      <div className="text-sm whitespace-pre-wrap break-words text-right">
+      <div className="text-sm whitespace-pre-wrap break-words text-left leading-relaxed max-w-[70ch]">
         {cleanText}
         <Attachments />
       </div>

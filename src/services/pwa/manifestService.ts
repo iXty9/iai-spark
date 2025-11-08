@@ -107,21 +107,61 @@ export const generateManifestFromSettings = async (): Promise<PWAManifest> => {
   }
 };
 
+const validateManifest = (manifest: PWAManifest): boolean => {
+  if (!manifest || typeof manifest !== 'object') {
+    logger.error('Manifest validation failed: not an object', null, { module: 'pwa-manifest' });
+    return false;
+  }
+  
+  // Check required fields
+  const requiredFields: (keyof PWAManifest)[] = ['name', 'short_name', 'icons'];
+  for (const field of requiredFields) {
+    if (!manifest[field]) {
+      logger.error(`Manifest validation failed: missing required field "${field}"`, null, { module: 'pwa-manifest' });
+      return false;
+    }
+  }
+  
+  // Validate icons array
+  if (!Array.isArray(manifest.icons) || manifest.icons.length === 0) {
+    logger.error('Manifest validation failed: icons must be a non-empty array', null, { module: 'pwa-manifest' });
+    return false;
+  }
+  
+  // Validate each icon has required properties
+  for (const icon of manifest.icons) {
+    if (!icon.src || !icon.sizes || !icon.type) {
+      logger.error('Manifest validation failed: icon missing required properties', icon, { module: 'pwa-manifest' });
+      return false;
+    }
+  }
+  
+  logger.info('Manifest validation passed', null, { module: 'pwa-manifest' });
+  return true;
+};
+
 export const updateManifestFile = async (): Promise<boolean> => {
   try {
     const manifest = await generateManifestFromSettings();
     
-    // Update the static manifest file by writing to the public directory
+    // Validate manifest before attempting to cache
+    if (!validateManifest(manifest)) {
+      logger.error('Generated manifest is invalid, aborting update', manifest, { module: 'pwa-manifest' });
+      return false;
+    }
+    
+    // Update the manifest via service worker
     try {
-      const manifestJson = JSON.stringify(manifest, null, 2);
-      
-      // In a browser environment, we can't write files directly
-      // Instead, we'll use the service worker to cache the new manifest
+      // In a browser environment, we'll use the service worker to cache the new manifest
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({
           type: 'UPDATE_MANIFEST',
           manifest: manifest
         });
+        
+        logger.info('Manifest update message sent to service worker', { manifest }, { module: 'pwa-manifest' });
+      } else {
+        logger.warn('Service worker not available, manifest update skipped', null, { module: 'pwa-manifest' });
       }
       
       // Also trigger a version update to ensure PWA users get the changes
@@ -135,22 +175,11 @@ export const updateManifestFile = async (): Promise<boolean> => {
         await versionService.updateToVersion(newVersion);
       }
       
-      logger.info('Manifest update triggered', { manifest }, { module: 'pwa-manifest' });
+      logger.info('Manifest update completed successfully', null, { module: 'pwa-manifest' });
       return true;
-    } catch (writeError) {
-      logger.warn('Could not write manifest file directly, using version update fallback', writeError, { module: 'pwa-manifest' });
-      
-      // Fallback: just trigger version update
-      const currentVersion = await versionService.getCurrentVersion();
-      if (currentVersion) {
-        const newVersion = {
-          ...currentVersion,
-          buildTime: new Date().toISOString(),
-          manifestVersion: Date.now().toString()
-        };
-        await versionService.updateToVersion(newVersion);
-      }
-      return true;
+    } catch (updateError) {
+      logger.error('Failed to send manifest update to service worker', updateError, { module: 'pwa-manifest' });
+      return false;
     }
   } catch (error) {
     logger.error('Failed to update manifest file', error, { module: 'pwa-manifest' });

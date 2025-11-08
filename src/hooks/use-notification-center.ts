@@ -39,19 +39,12 @@ export function useNotificationCenter() {
     await notificationCenterService.deleteNotification(notificationId);
   };
 
-  const storeNotification = async (notification: Omit<UserNotification, 'id' | 'created_at' | 'user_id'>) => {
-    if (user) {
-      await notificationCenterService.storeNotification(notification, user.id);
-    }
-  };
-
   return {
     notifications,
     unreadCount,
     isLoading,
     markAsRead,
     markAllAsRead,
-    deleteNotification,
-    storeNotification
+    deleteNotification
   };
 }
