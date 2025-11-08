@@ -145,7 +145,7 @@ self.addEventListener('message', (event) => {
     // Store validated manifest in cache
     caches.open(DYNAMIC_CACHE).then(cache => {
       const manifestResponse = new Response(JSON.stringify(manifest), {
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/manifest+json' }
       });
       cache.put('/manifest.json', manifestResponse);
       console.log('Service Worker: Manifest cached successfully');
@@ -215,10 +215,44 @@ self.addEventListener('fetch', (event) => {
       url.pathname === '/manifest.json') {
     
     event.respondWith(
-      fetch(event.request)
+      fetch(event.request.url + (url.search ? '&' : '?') + 't=' + Date.now(), {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate'
+        }
+      })
         .then((response) => {
           if (response && response.status === 200) {
-            // Cache the updated file
+            // For manifest.json, validate content-type and JSON structure
+            if (url.pathname === '/manifest.json') {
+              const contentType = response.headers.get('content-type') || '';
+              if (!contentType.includes('json')) {
+                console.error('Service Worker: Manifest has invalid content-type:', contentType);
+                // Don't cache, return as-is but log error
+                return response;
+              }
+              
+              // Clone and validate JSON structure before caching
+              const responseClone = response.clone();
+              return responseClone.json().then(manifest => {
+                if (!isValidManifest(manifest)) {
+                  console.error('Service Worker: Manifest failed validation, not caching');
+                  return response;
+                }
+                
+                // Valid manifest - cache it
+                caches.open(DYNAMIC_CACHE).then((cache) => {
+                  cache.put(event.request, response.clone());
+                  console.log('Service Worker: Valid manifest cached');
+                });
+                return response;
+              }).catch(err => {
+                console.error('Service Worker: Manifest JSON parse error, not caching', err);
+                return response;
+              });
+            }
+            
+            // Cache other files normally
             const responseClone = response.clone();
             caches.open(DYNAMIC_CACHE).then((cache) => {
               cache.put(event.request, responseClone);

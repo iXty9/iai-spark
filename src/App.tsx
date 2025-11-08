@@ -8,6 +8,7 @@ import { SupaThemeProvider } from '@/contexts/SupaThemeContext';
 import { LocationProvider } from '@/contexts/LocationContext';
 import { NotificationPermissionManager } from '@/components/notifications/NotificationPermissionManager';
 import { PWAManager } from '@/components/pwa/PWAManager';
+import { SafeBootDiagnostics } from '@/components/pwa/SafeBootDiagnostics';
 import { AppContent } from '@/components/AppContent';
 import { ProductionErrorBoundary } from '@/components/error/ProductionErrorBoundary';
 import { coordinatedInitService } from '@/services/initialization/coordinated-init-service';
@@ -33,6 +34,8 @@ function App() {
   const [clientReady, setClientReady] = useState(false);
 
   useEffect(() => {
+    console.log('⚛️ React mounted:', new Date().toISOString());
+    
     // Initialize global cleanup service
     globalCleanupService.initialize();
     
@@ -86,11 +89,33 @@ function App() {
 
   if (!isAppReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-4" style={{ borderColor: '#dd3333' }}></div>
-          <p>Loading...</p>
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#fefefe',
+        color: '#0a0a0a',
+        fontFamily: 'system-ui, -apple-system, sans-serif'
+      }}>
+        <div style={{ textAlign: 'center', maxWidth: '400px', padding: '20px' }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            border: '4px solid #f0f0f0',
+            borderTopColor: '#dd3333',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 24px'
+          }}></div>
+          <p style={{ fontSize: '16px', marginBottom: '8px' }}>Starting Ixty AI...</p>
+          {initError && (
+            <p style={{ fontSize: '14px', color: '#dc2626', marginTop: '16px' }}>
+              {initError}
+            </p>
+          )}
         </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
@@ -105,7 +130,8 @@ function App() {
                 <LocationProvider>
                 <NotificationPermissionManager />
                 <PWAManager />
-                <div className="min-h-screen text-foreground">
+                <SafeBootDiagnostics />
+                <div className="min-h-screen text-foreground" data-app-content>
                   <AppContent />
                   
                   <Toaster />
