@@ -108,9 +108,9 @@ export function RegisterForm() {
             <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
               <UserPlus className="h-4 w-4" />
             </div>
-            <h3 className="text-lg font-semibold text-foreground">{authSettings.registerTitle}</h3>
+            <h3 className="text-lg font-semibold text-foreground dark:text-black">{authSettings.registerTitle}</h3>
           </div>
-          <p className="text-sm text-muted-foreground leading-relaxed">
+          <p className="text-sm text-muted-foreground dark:text-black/70 leading-relaxed">
             {authSettings.registerDescription}
           </p>
         </CardContent>
@@ -326,7 +326,7 @@ export function RegisterForm() {
                           />
                         </FormControl>
                         <div className="space-y-1 leading-none">
-                          <label className="text-sm text-foreground leading-relaxed">
+                          <label className="text-sm text-foreground dark:text-black leading-relaxed">
                             <ReactMarkdown
                               components={{
                                 a: (props) => <a {...props} className="text-primary underline hover:no-underline font-medium" target="_blank" rel="noopener noreferrer" />,
