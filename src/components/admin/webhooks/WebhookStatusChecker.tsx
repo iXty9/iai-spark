@@ -184,7 +184,7 @@ export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
       webhookConfigs.map(async (config) => {
         const url = settings[config.key as keyof WebhookSettings];
         
-        if (!url) {
+        if (!url || typeof url !== 'string') {
           return {
             name: config.name,
             url: '',
@@ -198,7 +198,7 @@ export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
         
         return {
           name: config.name,
-          url,
+          url: url,
           status,
           lastChecked: new Date(),
           webhookKey: config.key

@@ -2,6 +2,7 @@
 import { logger } from '@/utils/logging';
 import { getDebugWebhookUrl } from './url-provider';
 import { isValidWebhookUrl } from './cache/url-cache';
+import { getWebhookAuthHeaders } from './auth-header-builder';
 
 // Track debug webhook calls to implement rate limiting
 const debugWebhookTracker = {
@@ -144,10 +145,14 @@ export const sendDebugWebhookMessage = async (debugInfo: any): Promise<any> => {
       return { error: true, message: 'Payload too large' };
     }
     
+    // Get auth headers for debug webhook
+    const authHeaders = await getWebhookAuthHeaders('debug_webhook_url');
+    
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders
       },
       body: jsonPayload,
       signal: controller.signal

@@ -3,6 +3,7 @@ import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertDescription } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
 
 interface WebhookUrlFormFieldProps {
   id: string;
@@ -12,6 +13,8 @@ interface WebhookUrlFormFieldProps {
   error?: string;
   placeholder: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  useAuth?: boolean;
+  onAuthToggle?: (checked: boolean) => void;
 }
 
 export function WebhookUrlFormField({
@@ -21,7 +24,9 @@ export function WebhookUrlFormField({
   value,
   error,
   placeholder,
-  onChange
+  onChange,
+  useAuth = false,
+  onAuthToggle
 }: WebhookUrlFormFieldProps) {
   return (
     <div className="space-y-2">
@@ -38,6 +43,18 @@ export function WebhookUrlFormField({
         <AlertDescription className="text-destructive text-sm mt-1">
           {error}
         </AlertDescription>
+      )}
+      {onAuthToggle && (
+        <div className="flex items-center justify-between pt-2">
+          <Label htmlFor={`${name}_use_auth`} className="text-sm font-normal text-muted-foreground">
+            Use Header Authentication
+          </Label>
+          <Switch
+            id={`${name}_use_auth`}
+            checked={useAuth}
+            onCheckedChange={onAuthToggle}
+          />
+        </div>
       )}
     </div>
   );
