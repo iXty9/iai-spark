@@ -55,7 +55,7 @@ export const AuthCard = ({ children }: AuthCardProps) => {
         </CardDescription>
       </CardHeader>
       
-      <CardContent className="px-6 pb-6">
+      <CardContent className="px-6 pb-6 auth-readable">
         {children}
       </CardContent>
     </Card>

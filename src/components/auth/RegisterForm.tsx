@@ -100,7 +100,7 @@ export function RegisterForm() {
   };
 
   return (
-    <div className="space-y-6 auth-readable">
+    <div className="space-y-6">
       {/* Register Header */}
       <Card className="glass-panel border-0 shadow-sm">
         <CardContent className="p-4 sm:p-6">
@@ -108,9 +108,9 @@ export function RegisterForm() {
             <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
               <UserPlus className="h-4 w-4" />
             </div>
-            <h3 className="text-lg font-semibold text-foreground auth-title">{authSettings.registerTitle}</h3>
+            <h3 className="text-lg font-semibold auth-title">{authSettings.registerTitle}</h3>
           </div>
-          <p className="text-sm text-foreground/70 auth-description leading-relaxed">
+          <p className="text-sm auth-description leading-relaxed">
             {authSettings.registerDescription}
           </p>
         </CardContent>
