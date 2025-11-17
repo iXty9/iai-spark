@@ -68,7 +68,7 @@ export const LoginForm = () => {
   const isDebugAllowed = process.env.NODE_ENV === 'development' && isDevMode;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 auth-readable">
       {/* Login Header */}
       <Card className="glass-panel border-0 shadow-sm">
         <CardContent className="p-4 sm:p-6">
@@ -76,9 +76,9 @@ export const LoginForm = () => {
             <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
               <User className="h-4 w-4" />
             </div>
-            <h3 className="text-lg font-semibold text-foreground dark:text-black">{authSettings.loginTitle}</h3>
+            <h3 className="text-lg font-semibold text-foreground auth-title">{authSettings.loginTitle}</h3>
           </div>
-          <p className="text-sm text-muted-foreground dark:text-black/70 leading-relaxed">
+          <p className="text-sm text-foreground/70 auth-description leading-relaxed">
             {authSettings.loginDescription}
           </p>
         </CardContent>
