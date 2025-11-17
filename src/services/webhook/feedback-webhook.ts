@@ -10,6 +10,7 @@ import {
   dispatchWebhookRequestEnd,
   dispatchWebhookRequestError
 } from './utils/webhook-events';
+import { getWebhookAuthHeaders, WebhookType } from './auth-header-builder';
 
 export type FeedbackType = 'thumbs_up' | 'thumbs_down';
 
@@ -99,10 +100,16 @@ export const sendFeedbackWebhook = async (
       page_url: window.location.href
     };
     
+    // Get auth headers for this webhook type
+    const webhookType: WebhookType = feedbackType === 'thumbs_up' ? 
+      'thumbs_up_webhook_url' : 'thumbs_down_webhook_url';
+    const authHeaders = await getWebhookAuthHeaders(webhookType);
+    
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders
       },
       body: JSON.stringify(payload),
       signal: controller.signal

@@ -9,6 +9,7 @@ import {
   dispatchWebhookRequestEnd,
   dispatchWebhookRequestError
 } from './utils/webhook-events';
+import { getWebhookAuthHeaders } from './auth-header-builder';
 
 // Track webhook calls per tab session
 const webhookSessionTracker = {
@@ -115,6 +116,10 @@ export const sendWebhookMessage = async (
   // Log webhook activity
   logWebhookActivity(webhookUrl, 'REQUEST_SENT');
   
+  // Get auth headers for this webhook type
+  const webhookType = isAuthenticated ? 'authenticated_webhook_url' : 'anonymous_webhook_url';
+  const authHeaders = await getWebhookAuthHeaders(webhookType);
+  
   try {
     // Use external controller if provided, otherwise create new one
     const controller = externalController || new AbortController();
@@ -166,6 +171,7 @@ export const sendWebhookMessage = async (
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders
       },
       body: JSON.stringify(payload),
       signal: controller.signal

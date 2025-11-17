@@ -2,6 +2,7 @@
 import { logger } from '@/utils/logging';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { isValidWebhookUrl } from './cache/url-cache';
+import { getWebhookAuthHeaders } from './auth-header-builder';
 
 interface UserSignupData {
   email: string;
@@ -52,6 +53,9 @@ export const sendUserSignupWebhook = async (userData: UserSignupData): Promise<v
       timestamp: userData.timestamp
     };
     
+    // Get auth headers for signup webhook
+    const authHeaders = await getWebhookAuthHeaders('user_signup_webhook_url');
+    
     // Send the webhook with a timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
@@ -60,6 +64,7 @@ export const sendUserSignupWebhook = async (userData: UserSignupData): Promise<v
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders
       },
       body: JSON.stringify(payload),
       signal: controller.signal

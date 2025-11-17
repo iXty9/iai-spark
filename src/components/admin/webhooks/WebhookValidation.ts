@@ -6,6 +6,14 @@ export interface WebhookSettings {
   thumbs_up_webhook_url: string;
   thumbs_down_webhook_url: string;
   user_signup_webhook_url: string;
+  webhook_auth_header_name: string;
+  webhook_auth_header_value: string;
+  authenticated_webhook_url_use_auth: boolean;
+  anonymous_webhook_url_use_auth: boolean;
+  debug_webhook_url_use_auth: boolean;
+  thumbs_up_webhook_url_use_auth: boolean;
+  thumbs_down_webhook_url_use_auth: boolean;
+  user_signup_webhook_url_use_auth: boolean;
 }
 
 export interface WebhookFormErrors {
