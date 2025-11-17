@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { CardContent, Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info, Key } from 'lucide-react';
+import { Info, Key, Eye, EyeOff, Copy } from 'lucide-react';
 import { WebhookSettings, validateWebhookSettings } from './WebhookValidation';
 import { WebhookUrlFormField } from './WebhookUrlFormField';
 import { WebhookStatusChecker } from './WebhookStatusChecker';
@@ -20,6 +20,7 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
   const { toast } = useToast();
   const [settings, setSettings] = useState<WebhookSettings>(initialSettings);
   const [errors, setErrors] = useState<any>({});
+  const [showToken, setShowToken] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,6 +38,16 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
 
   const generateRandomToken = () => {
     setSettings(prev => ({ ...prev, webhook_auth_header_value: crypto.randomUUID() }));
+    setShowToken(true);
+  };
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(settings.webhook_auth_header_value);
+      toast({ title: "Copied!", description: "Token copied to clipboard" });
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: "Failed to copy to clipboard" });
+    }
   };
 
   const handleSave = async () => {
@@ -87,7 +98,34 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
           <div className="space-y-2">
             <Label htmlFor="webhook_auth_header_value">Header Value (Secret Token)</Label>
             <div className="flex gap-2">
-              <Input id="webhook_auth_header_value" name="webhook_auth_header_value" type="password" value={settings.webhook_auth_header_value} onChange={handleChange} placeholder="Enter your secret token" className="flex-1" />
+              <Input 
+                id="webhook_auth_header_value" 
+                name="webhook_auth_header_value" 
+                type={showToken ? "text" : "password"}
+                value={settings.webhook_auth_header_value} 
+                onChange={handleChange} 
+                placeholder="Enter your secret token" 
+                className="flex-1" 
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setShowToken(!showToken)}
+                title={showToken ? "Hide token" : "Show token"}
+              >
+                {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={copyToClipboard}
+                disabled={!settings.webhook_auth_header_value}
+                title="Copy to clipboard"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
               <Button type="button" variant="outline" onClick={generateRandomToken}>Generate</Button>
             </div>
             <p className="text-xs text-muted-foreground">⚠️ Must match n8n workflow Header Auth value</p>
