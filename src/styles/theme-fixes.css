@@ -38,3 +38,16 @@ html.dark body {
   background-color: var(--background, #0a0a0a);
   color: var(--foreground, #fefefe);
 }
+
+/* Auth page dark mode readability fixes */
+.dark .auth-readable .auth-title {
+  color: #000 !important;
+}
+
+.dark .auth-readable .auth-description {
+  color: rgba(0, 0, 0, 0.7) !important;
+}
+
+.dark .auth-readable .auth-disclaimer {
+  color: #000 !important;
+}
