@@ -240,7 +240,7 @@ export const HeaderActions = ({
                     aria-label={`Theme: ${themePref === 'system' ? 'System' : (mode === 'dark' ? 'Dark' : 'Light')}`}
                     className="relative rounded-full min-h-9 min-w-9 max-h-9 max-w-9 md:min-h-10 md:min-w-10 md:max-h-10 md:max-w-10 aspect-square border border-border/40 hover:border-primary/30 transition-all duration-200 flex-shrink-0 shadow-sm"
                   >
-                    {mode === 'dark' ? <Sun className="h-6 w-6 md:h-6 md:w-6" /> : <Moon className="h-6 w-6 md:h-6 md:w-6" />}
+                    {mode === 'dark' ? <Moon className="h-6 w-6 md:h-6 md:w-6" /> : <Sun className="h-6 w-6 md:h-6 md:w-6" />}
                   </Button>
                 </DropdownMenuTrigger>
               </TooltipTrigger>
