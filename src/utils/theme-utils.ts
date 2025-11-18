@@ -40,21 +40,14 @@ const performThemeApplication = (themeColors: any) => {
   const root = document.documentElement;
   
   if (themeColors) {
+    // Tailwind-First: Map theme properties to ONLY Tailwind CSS variables
     const colorMappings = {
       primaryColor: '--primary',
       accentColor: '--accent', 
       backgroundColor: '--background',
+      textColor: '--foreground',
       
-      textColor: [
-        '--foreground',
-        '--card-foreground', 
-        '--popover-foreground',
-        '--secondary-foreground',
-        '--accent-foreground',
-        '--muted-foreground',
-        '--text-color'
-      ],
-      
+      // Custom variables for message bubbles and markup (not part of Tailwind)
       userBubbleColor: '--user-bubble-color',
       aiBubbleColor: '--ai-bubble-color',
       userTextColor: '--user-text-color',
@@ -65,89 +58,34 @@ const performThemeApplication = (themeColors: any) => {
       userBubbleOpacity: '--user-bubble-opacity',
       aiBubbleOpacity: '--ai-bubble-opacity',
       
-      // ENHANCED: Complete markup color mapping with text color support
+      // Markup element styling
       codeBlockBackground: '--markup-code-bg',
       linkColor: '--markup-link',
       blockquoteColor: '--markup-blockquote',
       tableHeaderBackground: '--markup-table-header',
-      
-      // NEW: Text color mappings for markup elements
       codeBlockTextColor: '--markup-code-text',
       linkTextColor: '--markup-link-text',
       blockquoteTextColor: '--markup-blockquote-text',
       tableHeaderTextColor: '--markup-table-header-text',
-      
-      // NEW: Proactive highlight color mapping
       proactiveHighlightColor: '--proactive-highlight-color'
     };
 
     Object.entries(themeColors).forEach(([key, value]) => {
       if (key.includes('Opacity')) {
+        // Opacity values are numeric, not colors
         root.style.setProperty(`--${kebabCase(key)}`, String(value));
       } 
       else if (colorMappings[key]) {
-        const mappings = Array.isArray(colorMappings[key]) ? colorMappings[key] : [colorMappings[key]];
+        const cssVar = colorMappings[key];
         
-        mappings.forEach(cssVar => {
-          if (key.includes('Color') || key.includes('Background')) {
-            const hslValue = hexToHsl(String(value));
-            root.style.setProperty(cssVar, hslValue);
-            
-            if (key === 'textColor') {
-              root.style.setProperty('--text-color-hex', String(value));
-            }
-            
-            // ENHANCED: Set raw hex values for all markup colors for direct inline style usage
-            if (key.startsWith('codeBlock') || key.startsWith('link') || key.startsWith('blockquote') || key.startsWith('tableHeader') || key === 'proactiveHighlightColor') {
-              root.style.setProperty(`--${kebabCase(key)}-hex`, String(value));
-            }
-          } else {
-            root.style.setProperty(cssVar, String(value));
-          }
-        });
-        
-        root.style.setProperty(`--${kebabCase(key)}`, String(value));
-      } 
-      else {
-        root.style.setProperty(`--${kebabCase(key)}`, String(value));
+        if (key.includes('Color') || key.includes('Background')) {
+          const hslValue = hexToHsl(String(value));
+          root.style.setProperty(cssVar, hslValue);
+        } else {
+          root.style.setProperty(cssVar, String(value));
+        }
       }
     });
-
-    if (themeColors.textColor) {
-      document.body.style.color = themeColors.textColor;
-      
-      const textElements = document.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, div, label, a, button, input, textarea, select');
-      textElements.forEach(element => {
-        const htmlElement = element as HTMLElement;
-        if (!htmlElement.style.color || htmlElement.style.color === '' || htmlElement.style.color === 'inherit') {
-          htmlElement.style.color = 'inherit';
-        }
-      });
-      
-      document.body.offsetHeight;
-    }
-
-    // ENHANCED: Check for markup colors to determine if they're applied
-    const markupColorsApplied = !!(
-      themeColors.codeBlockBackground || 
-      themeColors.linkColor || 
-      themeColors.blockquoteColor || 
-      themeColors.tableHeaderBackground ||
-      themeColors.codeBlockTextColor ||
-      themeColors.linkTextColor ||
-      themeColors.blockquoteTextColor ||
-      themeColors.tableHeaderTextColor ||
-      themeColors.proactiveHighlightColor
-    );
-
-    // Reduce console noise - only log in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Applied theme changes', { 
-        textColorApplied: !!themeColors.textColor,
-        markupColorsApplied,
-        proactiveColorApplied: !!themeColors.proactiveHighlightColor
-      });
-    }
   }
 };
 
