@@ -36,6 +36,11 @@ function App() {
     // Initialize global cleanup service
     globalCleanupService.initialize();
     
+    // Apply site title on mount
+    applySiteTitle().catch(() => {
+      logger.warn('Failed to apply site title on mount', { module: 'app' });
+    });
+    
     return () => {
       // Cleanup will be handled automatically by the service
       // but we can also trigger it manually here if needed

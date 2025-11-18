@@ -174,7 +174,19 @@ class SettingsCacheService {
       this.saveToLocalStorage(settings);
       return settings;
     } catch (error) {
-      console.error('[SETTINGS-CACHE] Failed to fetch settings from database:', error);
+      // Improved error logging with RLS context
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isRLSError = errorMessage.toLowerCase().includes('policy') || 
+                        errorMessage.toLowerCase().includes('permission');
+      
+      if (isRLSError) {
+        console.warn('[SETTINGS-CACHE] RLS policy may be restricting access for anonymous users:', {
+          error: errorMessage,
+          note: 'Some settings may not be visible. Check RLS policies on app_settings table.'
+        });
+      } else {
+        console.error('[SETTINGS-CACHE] Failed to fetch settings from database:', error);
+      }
       
       // Return cached data even if expired as fallback
       if (this.cache) {

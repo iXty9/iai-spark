@@ -30,7 +30,7 @@ export function AppSettings() {
       const settings = await fetchAppSettings();
       
       // Map settings to state
-      setTagline(settings.app_name || 'The Everywhere Intelligent Assistant');
+      setTagline(settings.tagline || 'The Everywhere Intelligent Assistant');
       setSiteTitle(settings.site_title || 'AI Chat Application');
       setDefaultAvatarUrl(settings.default_avatar_url || '');
       setAiAgentName(settings.ai_agent_name || 'AI Assistant');
@@ -48,8 +48,8 @@ export function AppSettings() {
   const saveGeneralSettings = async () => {
     setIsSaving(true);
     try {
-      // Save tagline (previously app_name)
-      await updateAppSetting('app_name', tagline);
+      // Save tagline
+      await updateAppSetting('tagline', tagline);
       
       // Save site title
       await updateAppSetting('site_title', siteTitle);
@@ -63,12 +63,8 @@ export function AppSettings() {
       // Save show AI in menu toggle
       await updateAppSetting('show_ai_in_menu', showAiInMenu ? 'true' : 'false');
       
-      // Update cache with new values for immediate effect
-      settingsCacheService.updateCache('app_name', tagline);
-      settingsCacheService.updateCache('site_title', siteTitle);
-      settingsCacheService.updateCache('default_avatar_url', defaultAvatarUrl);
-      settingsCacheService.updateCache('ai_agent_name', aiAgentName);
-      settingsCacheService.updateCache('show_ai_in_menu', showAiInMenu ? 'true' : 'false');
+      // Invalidate cache to force fresh data load
+      settingsCacheService.invalidateCache();
       
       supaToast.success("Application settings have been updated successfully.", {
         title: "Settings saved"
