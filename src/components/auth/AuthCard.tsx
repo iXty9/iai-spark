@@ -24,7 +24,7 @@ export const AuthCard = ({ children }: AuthCardProps) => {
   const IconComponent = ICON_COMPONENTS[authSettings.taglineIcon as keyof typeof ICON_COMPONENTS] || Star;
   
   return (
-    <Card className="w-full max-w-md mx-auto glass-panel border-0 shadow-xl backdrop-blur-md bg-background/90">
+    <Card className="w-full max-w-md mx-auto glass-panel border-0 shadow-xl backdrop-blur-md bg-background/90 auth-readable">
       <CardHeader className="space-y-4 text-center pb-8">
         {/* Enhanced Logo Section */}
         <div className="flex flex-col items-center space-y-4">
@@ -55,7 +55,7 @@ export const AuthCard = ({ children }: AuthCardProps) => {
         </CardDescription>
       </CardHeader>
       
-      <CardContent className="px-6 pb-6 auth-readable">
+      <CardContent className="px-6 pb-6">
         {children}
       </CardContent>
     </Card>
