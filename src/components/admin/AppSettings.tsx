@@ -29,8 +29,8 @@ export function AppSettings() {
     try {
       const settings = await fetchAppSettings();
       
-      // Map settings to state
-      setTagline(settings.tagline || 'The Everywhere Intelligent Assistant');
+      // Map settings to state - support both old (app_name) and new (tagline) keys
+      setTagline(settings.tagline || settings.app_name || 'The Everywhere Intelligent Assistant');
       setSiteTitle(settings.site_title || 'AI Chat Application');
       setDefaultAvatarUrl(settings.default_avatar_url || '');
       setAiAgentName(settings.ai_agent_name || 'AI Assistant');
@@ -109,7 +109,7 @@ export function AppSettings() {
                   placeholder="Enter welcome screen tagline"
                 />
                 <p className="text-sm text-muted-foreground">
-                  This tagline appears on the welcome screen. The default is "The Everywhere Intelligent Assistant"
+                  This tagline appears on the welcome screen. The default is &quot;The Everywhere Intelligent Assistant&quot;
                 </p>
               </div>
               
