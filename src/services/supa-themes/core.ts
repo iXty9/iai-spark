@@ -49,7 +49,18 @@ class SupaThemesCore {
 
   // Core initialization
   async initialize(userId?: string): Promise<void> {
-    // Apply immediate theme first to prevent any flash
+    const nextUserId = userId ?? null;
+    
+    // Make initialization idempotent - no-op if same user context
+    if (this.state.isReady && this.userId === nextUserId) {
+      logger.info('SupaThemes.initialize: no-op (same context)', { 
+        module: 'supa-themes', 
+        userId: nextUserId ?? 'anonymous' 
+      });
+      return;
+    }
+    
+    // Apply immediate theme only if explicit preference exists
     this.applyImmediateTheme();
     
     // For anonymous users, skip the delay to prevent theme conflicts
@@ -111,40 +122,21 @@ class SupaThemesCore {
   private applyImmediateTheme(): void {
     if (typeof window === 'undefined') return;
     
-    // Force light mode for anonymous users immediately
-    if (!this.userId) {
-      const localPref = this.getLocalStoragePreference();
-      const mode = localPref || 'light';
-      
-      // Apply theme immediately with browser-specific fixes
-      applyImmediateDocumentTheme(mode);
-      this.applyBrowserSpecificFixes(mode);
-      return;
-    }
+    // Only apply immediate theme if there's an explicit localStorage preference
+    const explicitPref = this.getLocalStoragePreference();
     
-    // For authenticated users, check saved user preference
-    const savedMode = this.getSavedUserMode();
-    const mode = savedMode || 'light';
-    applyImmediateDocumentTheme(mode);
-  }
-  
-  private applyBrowserSpecificFixes(mode: 'light' | 'dark'): void {
-    if (typeof window === 'undefined') return;
-    
-    const isEdge = /Edg/.test(navigator.userAgent);
-    const isChrome = /Chrome/.test(navigator.userAgent) && !/Edg/.test(navigator.userAgent);
-    
-    if (mode === 'light') {
-      // Force light mode more aggressively for problematic browsers
-      document.documentElement.style.setProperty('color-scheme', 'light');
-      if (document.body) {
-        document.body.style.colorScheme = 'light';
-      }
-      
-      // Edge-specific fixes
-      if (isEdge) {
-        document.documentElement.classList.add('force-light-mode');
-      }
+    if (explicitPref) {
+      logger.info('Applying immediate theme from localStorage', { 
+        module: 'supa-themes', 
+        mode: explicitPref 
+      });
+      applyImmediateDocumentTheme(explicitPref);
+    } else {
+      // No explicit preference - let base CSS render (defaults to light)
+      // and apply final mode once defaults are loaded
+      logger.info('No explicit theme preference, skipping immediate theme application', { 
+        module: 'supa-themes' 
+      });
     }
   }
 

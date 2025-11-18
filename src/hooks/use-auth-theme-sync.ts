@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supaThemes } from '@/services/supa-themes/core';
 import { smartUpdateService } from '@/services/pwa/smartUpdateService';
@@ -10,21 +10,29 @@ import { logger } from '@/utils/logging';
  */
 export const useAuthThemeSync = () => {
   const { user, isLoading } = useAuth();
+  const lastUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (isLoading) return; // Wait for auth to stabilize
 
-    const userId = user?.id || null;
+    const currentUserId = user?.id ?? null;
+    
+    // Only reinitialize if user context actually changed
+    if (lastUserIdRef.current === currentUserId) {
+      return;
+    }
+    
+    lastUserIdRef.current = currentUserId;
     
     // Reinitialize theme system with current user context
     const reinitializeTheme = async () => {
       try {
         logger.info('Reinitializing theme system for auth change', { 
           module: 'auth-theme-sync', 
-          userId: userId ? 'authenticated' : 'anonymous' 
+          userId: currentUserId ? 'authenticated' : 'anonymous' 
         });
         
-        await supaThemes.initialize(userId || undefined);
+        await supaThemes.initialize(currentUserId || undefined);
         
         // Initialize smart updates after theme is ready
         await smartUpdateService.initialize();
