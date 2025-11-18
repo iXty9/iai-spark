@@ -34,3 +34,11 @@ html.dark body {
 .dark .auth-readable textarea::placeholder {
   color: hsl(0 0% 100% / 0.6) !important;
 }
+
+/* Auth-specific readability fixes in dark mode */
+.dark .auth-readable .auth-title {
+  color: hsl(var(--foreground)) !important; /* uses local override: black */
+}
+.dark .auth-readable .auth-description {
+  color: hsl(var(--muted-foreground)) !important; /* uses local override: dark gray */
+}
