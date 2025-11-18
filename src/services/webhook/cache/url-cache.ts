@@ -33,35 +33,42 @@ export const refreshWebhookCache = async (): Promise<void> => {
   try {
     const settings = await fetchAppSettings();
     
-    // Validate required webhook URLs are configured (debug_webhook_url is optional for non-admins)
-    const requiredKeys = ['authenticated_webhook_url', 'anonymous_webhook_url'];
-    const missingKeys = requiredKeys.filter(key => !settings[key] || settings[key].trim() === '');
+    // Determine which webhook URLs the current user can see based on RLS
+    // Anonymous users can only see anonymous_webhook_url
+    // Authenticated users can see both
+    const visibleWebhookKeys = Object.keys(settings).filter(key => 
+      key === 'anonymous_webhook_url' || key === 'authenticated_webhook_url'
+    );
     
-    if (missingKeys.length > 0) {
+    // Validate that at least ONE webhook URL is configured and visible
+    if (visibleWebhookKeys.length === 0) {
       throw new Error(
-        `Webhook URLs not configured. Please configure the following in Admin Settings → Webhook Settings: ${missingKeys.join(', ')}`
+        'No webhook URLs are configured or visible to your user role. Please contact an administrator.'
       );
     }
     
-    // Validate URLs are in correct format
-    requiredKeys.forEach(key => {
+    // Validate that visible URLs are in correct format
+    visibleWebhookKeys.forEach(key => {
       if (!isValidWebhookUrl(settings[key])) {
         throw new Error(
-          `Invalid webhook URL for ${key}. URLs must use HTTPS protocol. Please update in Admin Settings → Webhook Settings.`
+          `Invalid webhook URL for ${key}. URLs must use HTTPS protocol. Please contact an administrator.`
         );
       }
     });
     
     // Update cache with validated values
+    // Only cache what this user can actually see
     webhookUrlCache = {
-      'authenticated_webhook_url': settings['authenticated_webhook_url'],
-      'anonymous_webhook_url': settings['anonymous_webhook_url'],
-      'debug_webhook_url': settings['debug_webhook_url'],
+      'authenticated_webhook_url': settings['authenticated_webhook_url'] || '',
+      'anonymous_webhook_url': settings['anonymous_webhook_url'] || '',
+      'debug_webhook_url': settings['debug_webhook_url'] || '',
       'webhook_timeout': settings['webhook_timeout'] || '300000' // Default 5 minutes (300,000ms)
     };
     
     lastCacheUpdate = now;
-    logger.info('Webhook cache refreshed successfully', null, { module: 'webhook' });
+    logger.info('Webhook cache refreshed successfully', { 
+      visibleKeys: visibleWebhookKeys 
+    }, { module: 'webhook' });
   } catch (error) {
     logger.error('Error refreshing webhook cache:', error, { module: 'webhook' });
     throw error;
