@@ -29,59 +29,39 @@
     <link rel="manifest" href="/manifest.json" type="application/manifest+json">
     <meta name="theme-color" content="#dd3333">
 
-    <!-- No-flash theme script: ensures correct initial mode before app/CSS load -->
-    <style>
-      /* Force light mode for anonymous users - prevents OS dark mode interference */
-      :root {
-        color-scheme: light;
-      }
-      
-      /* Override browser dark mode detection for fresh loads */
-      html:not(.user-authenticated) {
-        color-scheme: light !important;
-      }
-      
-      /* Immediate background to prevent flash */
-      body {
-        background-color: #fefefe;
-        color: #0a0a0a;
-        transition: none !important;
-      }
-      
-      /* Dark mode overrides only when explicitly set */
-      html.dark body {
-        background-color: #0a0a0a;
-        color: #fefefe;
-      }
-    </style>
+    <!-- Two-Phase Theme Initialization: Pre-React bootstrap for zero-flash theme application -->
     <script>
       (function() {
         try {
-          var isAuthenticated = false; // Will be updated by app
-          var pref = localStorage.getItem('theme_mode_pref');
-          var mode = 'light'; // Always default to light for fresh anonymous users
-          
-          // Only respect saved preferences for explicit light/dark choices
-          if (pref === 'dark' || pref === 'light') {
-            mode = pref;
-          }
-          // Never auto-resolve "system" preference on app load for anonymous users
+          // Phase 1: Get theme mode from sessionStorage (set during bootstrap or last session)
+          var bootstrapMode = sessionStorage.getItem('bootstrap_current_theme_mode');
+          var mode = bootstrapMode || 'light'; // Default to light if no session data
           
           var root = document.documentElement;
           root.classList.remove('light', 'dark');
           root.classList.add(mode);
           
-          // Set immediate CSS vars to prevent flash
-          root.style.setProperty('--theme-mode', mode);
-          
-          // Detect Edge browser for special handling
-          var isEdge = /Edg/.test(navigator.userAgent);
-          if (isEdge && mode === 'light') {
-            // Force light mode more aggressively in Edge
-            root.style.setProperty('color-scheme', 'light');
-            document.body && (document.body.style.colorScheme = 'light');
+          // Phase 2: Apply critical CSS variables immediately
+          if (mode === 'dark') {
+            // Dark mode colors
+            root.style.setProperty('--background', '0 0% 3.9%');
+            root.style.setProperty('--foreground', '0 0% 98%');
+            root.style.setProperty('--muted-foreground', '0 0% 75%');
+            root.style.setProperty('--primary', '0 72.2% 50.6%');
+          } else {
+            // Light mode colors (explicit defaults)
+            root.style.setProperty('--background', '0 0% 100%');
+            root.style.setProperty('--foreground', '0 0% 3.9%');
+            root.style.setProperty('--muted-foreground', '0 0% 45.1%');
+            root.style.setProperty('--primary', '0 75% 60%');
           }
-        } catch (e) { /* noop */ }
+          
+          // Prevent transition flash
+          root.classList.add('theme-initializing');
+        } catch (e) {
+          // Silent fail - CSS defaults will apply
+          console.warn('Theme bootstrap failed:', e);
+        }
       })();
     </script>
 

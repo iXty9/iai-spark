@@ -141,7 +141,7 @@ export function RegisterForm() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-foreground">Email</FormLabel>
+                      <FormLabel className="text-sm font-medium text-foreground/80">Email</FormLabel>
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <FormControl>
@@ -162,7 +162,7 @@ export function RegisterForm() {
                   name="username"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-foreground">Username</FormLabel>
+                      <FormLabel className="text-sm font-medium text-foreground/80">Username</FormLabel>
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <FormControl>
@@ -184,7 +184,7 @@ export function RegisterForm() {
                     name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium text-foreground">Password</FormLabel>
+                        <FormLabel className="text-sm font-medium text-foreground/80">Password</FormLabel>
                         <div className="relative">
                           <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                           <FormControl>
@@ -206,7 +206,7 @@ export function RegisterForm() {
                     name="confirmPassword"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium text-foreground">Confirm Password</FormLabel>
+                        <FormLabel className="text-sm font-medium text-foreground/80">Confirm Password</FormLabel>
                         <div className="relative">
                           <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                           <FormControl>
@@ -244,7 +244,7 @@ export function RegisterForm() {
                     name="firstName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium text-foreground">First Name</FormLabel>
+                        <FormLabel className="text-sm font-medium text-foreground/80">First Name</FormLabel>
                         <FormControl>
                           <Input 
                             placeholder="First name" 
@@ -262,7 +262,7 @@ export function RegisterForm() {
                     name="lastName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium text-foreground">Last Name</FormLabel>
+                        <FormLabel className="text-sm font-medium text-foreground/80">Last Name</FormLabel>
                         <FormControl>
                           <Input 
                             placeholder="Last name" 
@@ -281,7 +281,7 @@ export function RegisterForm() {
                   name="phoneNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-foreground">Phone Number</FormLabel>
+                      <FormLabel className="text-sm font-medium text-foreground/80">Phone Number</FormLabel>
                       <div className="relative">
                         <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
                         <FormControl>

@@ -11,6 +11,7 @@ import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/utils/logging';
 
 const BOOTSTRAP_SETTINGS_KEY = 'bootstrap_app_settings';
+const BOOTSTRAP_THEME_KEY = 'bootstrap_theme_data';
 
 // Keys that are accessible at the PUBLIC level (before authentication)
 const PUBLIC_SETTINGS_KEYS = [
@@ -67,6 +68,13 @@ export async function loadBootstrapSettings(supabaseUrl: string, supabaseAnonKey
     // Store in sessionStorage (NOT localStorage) to ensure fresh data on tab reload
     try {
       sessionStorage.setItem(BOOTSTRAP_SETTINGS_KEY, JSON.stringify(settings));
+      
+      // Also store theme data for pre-React theme application
+      const themeData = {
+        mode: 'light', // Default mode
+        defaultTheme: settings.default_theme_settings ? JSON.parse(settings.default_theme_settings) : null
+      };
+      sessionStorage.setItem(BOOTSTRAP_THEME_KEY, JSON.stringify(themeData));
     } catch (storageError) {
       logger.warn('Failed to store bootstrap settings in sessionStorage', { module: 'bootstrap-settings' });
     }
