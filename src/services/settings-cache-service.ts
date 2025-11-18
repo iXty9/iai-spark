@@ -7,6 +7,7 @@ interface CachedSettings {
   data: Record<string, string>;
   timestamp: number;
   ttl: number; // Time to live in milliseconds
+  context: 'application' | 'anonymous' | 'authenticated' | 'unknown';
 }
 
 type SettingsChangeListener = (settings: Record<string, string>) => void;
@@ -25,6 +26,7 @@ class SettingsCacheService {
   private readonly CACHE_KEY = 'app_settings_cache';
   private readonly DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes
   private listeners: Set<SettingsChangeListener> = new Set();
+  private lastCacheContext: 'application' | 'anonymous' | 'authenticated' | 'unknown' = 'unknown';
 
   static getInstance(): SettingsCacheService {
     if (!this.instance) {
@@ -98,15 +100,17 @@ class SettingsCacheService {
     return Date.now() - cache.timestamp < cache.ttl;
   }
 
-  private saveToLocalStorage(settings: Record<string, string>): void {
+  private saveToLocalStorage(settings: Record<string, string>, context: 'application' | 'anonymous' | 'authenticated' | 'unknown' = 'unknown'): void {
     try {
       const cacheData: CachedSettings = {
         data: settings,
         timestamp: Date.now(),
-        ttl: this.DEFAULT_TTL
+        ttl: this.DEFAULT_TTL,
+        context
       };
       localStorage.setItem(this.CACHE_KEY, JSON.stringify(cacheData));
       this.cache = cacheData;
+      this.lastCacheContext = context;
       
       // Emit change event when cache is updated with fresh data
       this.emitChange(settings);
@@ -130,9 +134,20 @@ class SettingsCacheService {
     }
   }
 
-  async getSettings(): Promise<Record<string, string>> {
-    // Return cached data if valid
-    if (this.cache && this.isCacheValid(this.cache)) {
+  /**
+   * Get settings from cache or fetch from backend
+   * Context-aware to prevent cache poisoning across auth state changes
+   */
+  async getSettings(isAuthenticated?: boolean): Promise<Record<string, string>> {
+    // Determine current context
+    const currentContext = this.determineContext(isAuthenticated);
+
+    // Check if we have a valid cache AND it matches the current context
+    if (
+      this.cache && 
+      this.isCacheValid(this.cache) &&
+      this.cache.context === currentContext
+    ) {
       // Emit change event with a small delay to ensure hooks are ready
       setTimeout(() => {
         this.emitChange(this.cache!.data);
@@ -141,13 +156,19 @@ class SettingsCacheService {
       return this.cache.data;
     }
 
+    // If context changed, invalidate cache
+    if (this.cache && this.cache.context !== currentContext) {
+      if (shouldLog('info')) console.log(`[SETTINGS-CACHE] Auth context changed from ${this.cache.context} to ${currentContext}, invalidating cache`);
+      this.cache = null;
+    }
+
     // If already fetching, return the existing promise
     if (this.fetchPromise) {
       return this.fetchPromise;
     }
 
     // Start new fetch with client readiness check
-    this.fetchPromise = this.fetchAndCacheSettings();
+    this.fetchPromise = this.fetchAndCacheSettings(currentContext);
     
     try {
       const settings = await this.fetchPromise;
@@ -160,7 +181,20 @@ class SettingsCacheService {
     }
   }
 
-  private async fetchAndCacheSettings(): Promise<Record<string, string>> {
+  /**
+   * Determine the current context based on authentication state
+   */
+  private determineContext(isAuthenticated?: boolean): 'application' | 'anonymous' | 'authenticated' | 'unknown' {
+    if (isAuthenticated === undefined) {
+      return 'unknown';
+    }
+    return isAuthenticated ? 'authenticated' : 'anonymous';
+  }
+
+  /**
+   * Fetch settings from backend and cache them with context tracking
+   */
+  private async fetchAndCacheSettings(context: 'application' | 'anonymous' | 'authenticated' | 'unknown'): Promise<Record<string, string>> {
     // Step 1: Check if client is ready
     const clientReady = await this.waitForClientReady();
     if (!clientReady) {
@@ -170,8 +204,8 @@ class SettingsCacheService {
     
     try {
       const settings = await fetchAppSettings();
-      if (shouldLog()) console.log('[SETTINGS-CACHE] Settings loaded successfully');
-      this.saveToLocalStorage(settings);
+      if (shouldLog()) console.log(`[SETTINGS-CACHE] Settings loaded successfully for context: ${context}`);
+      this.saveToLocalStorage(settings, context);
       return settings;
     } catch (error) {
       // Improved error logging with RLS context
