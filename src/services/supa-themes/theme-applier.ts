@@ -38,6 +38,13 @@ export class ThemeApplier {
     const mode = state.previewMode || state.mode;
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(mode);
+    
+    // Store current mode in sessionStorage for pre-React initialization
+    try {
+      sessionStorage.setItem('bootstrap_current_theme_mode', mode);
+    } catch (e) {
+      // Silent fail - not critical
+    }
   }
 
   private getCurrentTheme(state: SupaThemeState): ThemeColors {
