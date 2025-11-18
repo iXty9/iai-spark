@@ -144,16 +144,16 @@ export function AppSettings() {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="defaultAvatarUrl">Default Avatar URL</Label>
+                <Label htmlFor="defaultAvatarUrl">Avatar URL</Label>
                 <Input
                   id="defaultAvatarUrl"
                   value={defaultAvatarUrl}
                   onChange={(e) => setDefaultAvatarUrl(e.target.value)}
-                  placeholder="Enter default avatar URL (HTTPS required)"
+                  placeholder="Enter avatar URL (HTTPS required)"
                   type="url"
                 />
                 <p className="text-sm text-muted-foreground">
-                  This avatar is used as the default for AI messages and user fallbacks. Leave empty to use built-in fallback.
+                  This avatar is used for AI messages and user fallbacks. Leave empty to show initials.
                 </p>
               </div>
 

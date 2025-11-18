@@ -30,15 +30,12 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({ isUser, onAiIconEr
           const defaultAvatar = settings?.default_avatar_url || null;
           
           if (!isUser) {
-            // For AI messages, use avatar_url or default to default_avatar_url
-            const aiAvatar = (settings?.avatar_url && settings.avatar_url.trim()) 
-              ? settings.avatar_url 
-              : defaultAvatar;
-            setAiAvatarUrl(aiAvatar);
+            // For AI messages, always use default_avatar_url
+            setAiAvatarUrl(defaultAvatar);
             
             // Preload the avatar if it exists
-            if (aiAvatar) {
-              avatarCacheService.preloadImage(aiAvatar);
+            if (defaultAvatar) {
+              avatarCacheService.preloadImage(defaultAvatar);
             }
           } else {
             // For user messages, store the default for fallback
