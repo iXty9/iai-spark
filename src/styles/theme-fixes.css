@@ -39,24 +39,20 @@ html.dark body {
   color: var(--foreground, #fefefe);
 }
 
-/* Auth page dark mode readability (scoped, resilient) */
-.dark .auth-readable :is(h1,h2,h3,h4,h5,h6) {
-  color: #000 !important;
+/* Auth page dark-mode: force readable text via local tokens */
+.dark .auth-readable {
+  --foreground: 0 0% 0% !important;          /* black */
+  --card-foreground: 0 0% 0% !important;      /* black */
+  --muted-foreground: 0 0% 40% !important;    /* dark grey ~ #666 */
 }
-.dark .auth-readable :is(p, .auth-description, .text-muted-foreground) {
-  color: rgba(0, 0, 0, 0.72) !important;
-}
-.dark .auth-readable label,
-.dark .auth-readable .auth-disclaimer {
-  color: #000 !important;
-}
-/* Keep form field text white in dark mode */
+
+/* Inputs should stay white in dark mode */
 .dark .auth-readable input,
 .dark .auth-readable textarea,
 .dark .auth-readable select {
-  color: hsl(var(--foreground)) !important;
+  color: hsl(0 0% 100%) !important;
 }
 .dark .auth-readable input::placeholder,
 .dark .auth-readable textarea::placeholder {
-  color: hsl(var(--foreground) / 0.6) !important;
+  color: hsl(0 0% 100% / 0.6) !important;
 }
