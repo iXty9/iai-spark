@@ -12,11 +12,9 @@ import { AppContent } from '@/components/AppContent';
 import { ProductionErrorBoundary } from '@/components/error/ProductionErrorBoundary';
 import { coordinatedInitService } from '@/services/initialization/coordinated-init-service';
 import { logger } from '@/utils/logging';
-import { applySiteTitle } from '@/utils/site-utils';
 import './App.css';
 import { globalCleanupService } from '@/services/global/global-cleanup-service';
 import { versionService } from '@/services/pwa/versionService';
-import { settingsCacheService } from '@/services/settings-cache-service';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,10 +35,8 @@ function App() {
     // Initialize global cleanup service
     globalCleanupService.initialize();
     
-    // Apply site title on mount
-    applySiteTitle().catch(() => {
-      logger.warn('Failed to apply site title on mount', { module: 'app' });
-    });
+    // Site title is now applied during coordinated initialization
+    // No need to apply it on mount separately
     
     return () => {
       // Cleanup will be handled automatically by the service
@@ -68,20 +64,8 @@ function App() {
           setClientReady(true);
           logger.info('App initialized successfully', { module: 'app' });
           
-          // Apply site title after successful initialization
-          try {
-            await applySiteTitle();
-          } catch (error) {
-            logger.warn('Failed to apply site title', { module: 'app' });
-          }
-
-          // Warm app settings cache so all app-specific details are loaded early
-          try {
-            await settingsCacheService.getSettings();
-            logger.info('App settings cache warmed successfully', { module: 'app' });
-          } catch (error) {
-            logger.warn('Failed to pre-load app settings; will fall back to lazy loading', { module: 'app' });
-          }
+          // Site title is now applied during coordinated initialization
+          // No need to apply it again here
         } else if (initResult.error) {
           throw new Error(initResult.error);
         }

@@ -3,6 +3,7 @@ import { logger } from '@/utils/logging';
 import { clientManager } from '@/services/supabase/client-manager';
 import { supaThemes } from '@/services/supa-themes/core';
 import { fastConfig } from '@/services/config/fast-config-service';
+import { loadBootstrapSettings, applyBootstrapSiteTitle } from '@/services/config/bootstrap-settings-loader';
 
 export interface InitializationStatus {
   phase: 'starting' | 'config' | 'client' | 'theme' | 'complete' | 'error';
@@ -55,6 +56,11 @@ class CoordinatedInitService {
         this.notifySubscribers(errorStatus);
         return errorStatus;
       }
+
+      // Phase 1.5: Load PUBLIC bootstrap settings BEFORE client initialization
+      // This ensures branding/customization is available immediately
+      await loadBootstrapSettings(configResult.config.url, configResult.config.anonKey);
+      applyBootstrapSiteTitle();
 
       // Phase 2: Initialize client
       this.notifySubscribers({ phase: 'client', isComplete: false, details: 'Initializing Supabase client' });
