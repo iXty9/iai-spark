@@ -220,9 +220,23 @@ class SettingsCacheService {
     return defaultValue;
   }
 
-  invalidateCache(): void {
+  async invalidateCache(): Promise<void> {
+    if (shouldLog('info')) {
+      console.log('[SETTINGS-CACHE] Cache invalidated');
+    }
     this.cache = null;
-    localStorage.removeItem(this.CACHE_KEY);
+    this.fetchPromise = null;
+    try {
+      localStorage.removeItem(this.CACHE_KEY);
+      
+      // Also invalidate Service Worker cache for PWA sync
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        const { cacheInvalidationService } = await import('@/services/pwa/cache-invalidation-service');
+        await cacheInvalidationService.invalidateAppSettings();
+      }
+    } catch (error) {
+      console.error('[SETTINGS-CACHE] Failed to remove cache from localStorage:', error);
+    }
   }
 
   // Method to update cache when settings are changed in admin panel

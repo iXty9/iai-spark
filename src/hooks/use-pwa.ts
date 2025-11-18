@@ -249,7 +249,13 @@ export const usePWA = (): PWAHook => {
       
       supaToast.info('Preparing update...', { persistent: true });
       
-      // Perform cache cleanup first
+      // Import cache invalidation service
+      const { cacheInvalidationService } = await import('@/services/pwa/cache-invalidation-service');
+      
+      // Clear all dynamic caches first
+      await cacheInvalidationService.clearAllCaches();
+      
+      // Perform additional cache cleanup
       await versionService.performCacheCleanup();
       
       supaToast.info('Installing update...', { persistent: true });
@@ -259,12 +265,6 @@ export const usePWA = (): PWAHook => {
       if (remoteVersion) {
         await versionService.updateToVersion(remoteVersion);
         setCurrentVersion(remoteVersion.buildHash);
-      }
-
-      // Clear browser caches if available
-      if ('caches' in window) {
-        const cacheNames = await caches.keys();
-        await Promise.all(cacheNames.map(name => caches.delete(name)));
       }
 
       // Tell the service worker to skip waiting and activate

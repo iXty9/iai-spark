@@ -124,6 +124,34 @@ self.addEventListener('message', (event) => {
     });
   }
   
+  // Handle cache invalidation requests
+  if (event.data && event.data.type === 'INVALIDATE_CACHE') {
+    const patterns = event.data.patterns || [];
+    console.log('Service Worker: Cache invalidation requested for patterns:', patterns);
+    
+    caches.open(DYNAMIC_CACHE).then(cache => {
+      cache.keys().then(requests => {
+        const deletionPromises = requests
+          .filter(request => {
+            const url = request.url;
+            return patterns.some(pattern => url.includes(pattern));
+          })
+          .map(request => {
+            console.log('Service Worker: Deleting cached entry:', request.url);
+            return cache.delete(request);
+          });
+        
+        return Promise.all(deletionPromises);
+      }).then(() => {
+        console.log('Service Worker: Cache invalidation complete');
+        event.ports[0]?.postMessage({ success: true });
+      });
+    }).catch(error => {
+      console.error('Service Worker: Cache invalidation failed:', error);
+      event.ports[0]?.postMessage({ success: false, error: error.message });
+    });
+  }
+  
   if (event.data && event.data.type === 'UPDATE_MANIFEST') {
     // Cache the new manifest data with validation
     const manifest = event.data.manifest;
@@ -162,26 +190,64 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Fetch event - network-first for version and critical files, cache-first for others
+// Helper: Check if URL is a Supabase API call
+const isSupabaseApiCall = (url) => {
+  return url.hostname.includes('.supabase.co') || 
+         url.pathname.includes('/rest/v1/') ||
+         url.pathname.includes('/auth/v1/') ||
+         url.pathname.includes('/storage/v1/');
+};
+
+// Fetch event - network-first for API calls, cache-first for static assets
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests
-  if (event.request.method !== 'GET') {
-    return;
-  }
-
-  // Skip cross-origin requests except allowed domains
-  if (!event.request.url.startsWith(self.location.origin) && 
-      !event.request.url.startsWith('https://fonts.googleapis.com') &&
-      !event.request.url.startsWith('https://ixty9.com')) {
-    return;
-  }
-
-  const url = new URL(event.request.url);
+  const { request } = event;
+  const url = new URL(request.url);
   
-  // NEVER cache manifest.json - always fetch from network
+  // Skip non-GET requests
+  if (request.method !== 'GET') {
+    return;
+  }
+
+  // Skip cross-origin requests except for allowed domains
+  const allowedDomains = ['fonts.googleapis.com', 'fonts.gstatic.com', 'ixty9.com', 'supabase.co'];
+  if (url.origin !== self.location.origin && !allowedDomains.some(domain => url.hostname.includes(domain))) {
+    return;
+  }
+
+  // NETWORK-FIRST for Supabase API calls (dynamic data)
+  if (isSupabaseApiCall(url)) {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          // Only cache successful responses for short time (offline fallback)
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(DYNAMIC_CACHE).then(cache => {
+              // Cache with short expiration metadata
+              cache.put(request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(error => {
+          console.log('Service Worker: Network error for API call, trying cache:', url.pathname);
+          // Fallback to cache only if network fails (offline)
+          return caches.match(request).then(cachedResponse => {
+            if (cachedResponse) {
+              console.log('Service Worker: Serving stale API data from cache (offline)');
+              return cachedResponse;
+            }
+            throw error;
+          });
+        })
+    );
+    return;
+  }
+
+  // Always fetch manifest.json fresh from network
   if (url.pathname === '/manifest.json') {
     event.respondWith(
-      fetch(event.request.url + '?t=' + Date.now())
+      fetch(request.url + '?t=' + Date.now())
         .then((response) => {
           if (response && response.status === 200) {
             // Do NOT cache manifest.json
@@ -199,11 +265,11 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-  
-  // ALWAYS fetch version.json from network, NEVER from cache
+
+  // Always fetch version.json fresh from network
   if (url.pathname === '/version.json') {
     event.respondWith(
-      fetch(event.request.url + '?t=' + Date.now(), {
+      fetch(request.url + '?t=' + Date.now(), {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-store, no-cache, must-revalidate',
@@ -222,7 +288,8 @@ self.addEventListener('fetch', (event) => {
         // No fallback to cache - version checks should fail if offline
         return new Response(JSON.stringify({ 
           error: 'Offline', 
-          buildHash: 'offline' 
+          version: 'unknown',
+          buildHash: 'offline'
         }), {
           headers: { 'Content-Type': 'application/json' }
         });
@@ -230,75 +297,47 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-  
-  // Skip .ts/.tsx files - these shouldn't be fetched in production builds
-  // (they're compiled to .js by Vite)
-  if (url.pathname.endsWith('.tsx') || url.pathname.endsWith('.ts')) {
+
+  // Skip TypeScript files in development
+  if (url.pathname.endsWith('.ts') || url.pathname.endsWith('.tsx')) {
     return;
   }
 
-  // Cache-first strategy for other assets
+  // CACHE-FIRST strategy for static assets (JS, CSS, images, fonts)
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Return cached version if available
-        if (response) {
-          return response;
+    caches.match(request)
+      .then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
         }
 
-        // Otherwise fetch from network
-        return fetch(event.request)
-          .then((fetchResponse) => {
-            // Check if we received a valid response
-            if (!fetchResponse || fetchResponse.status !== 200 || fetchResponse.type !== 'basic') {
-              return fetchResponse;
+        return fetch(request)
+          .then((response) => {
+            // Don't cache non-successful responses
+            if (!response || response.status !== 200 || response.type === 'error') {
+              return response;
             }
 
-            // Clone the response for caching
-            const responseToCache = fetchResponse.clone();
-
-            // Cache dynamic content
+            const responseToCache = response.clone();
             caches.open(DYNAMIC_CACHE)
               .then((cache) => {
-                cache.put(event.request, responseToCache);
+                cache.put(request, responseToCache);
               });
 
-            return fetchResponse;
+            return response;
           })
           .catch((error) => {
-            console.log('Service Worker: Fetch failed, serving offline page:', error);
+            console.error('Service Worker: Fetch error:', error);
             
-            // For navigation requests, return a basic offline page
-            if (event.request.mode === 'navigate') {
+            // Return offline page for navigation requests
+            if (request.mode === 'navigate') {
               return new Response(
-                `<!DOCTYPE html>
-                <html>
-                <head>
-                  <title>Ixty AI - Offline</title>
-                  <meta name="viewport" content="width=device-width, initial-scale=1">
-                  <style>
-                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-                           text-align: center; padding: 2rem; background: #f8f9fa; }
-                    .container { max-width: 400px; margin: 0 auto; }
-                    h1 { color: #dd3333; }
-                    p { color: #666; line-height: 1.5; }
-                    button { background: #dd3333; color: white; border: none; padding: 10px 20px; 
-                            border-radius: 5px; cursor: pointer; margin-top: 1rem; }
-                  </style>
-                </head>
-                <body>
-                  <div class="container">
-                    <h1>Ixty AI</h1>
-                    <p>You're currently offline. Please check your internet connection and try again.</p>
-                    <button onclick="window.location.reload()">Retry</button>
-                  </div>
-                </body>
-                </html>`,
-                {
-                  headers: { 'Content-Type': 'text/html' }
-                }
+                '<html><body><h1>Offline</h1><p>Please check your internet connection.</p></body></html>',
+                { headers: { 'Content-Type': 'text/html' } }
               );
             }
+            
+            throw error;
           });
       })
   );
