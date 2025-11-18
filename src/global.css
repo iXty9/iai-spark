@@ -1,11 +1,11 @@
 
-/* Import theme customizations BEFORE Tailwind base to set up defaults */
-@import './styles/theme.css';
-@import './styles/theme-fixes.css';
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Import the unified theme styles */
+@import './styles/theme.css';
+@import './styles/theme-fixes.css';
 
 body {
   @apply bg-background text-foreground;
