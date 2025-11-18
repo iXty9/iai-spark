@@ -63,8 +63,12 @@ export function AppSettings() {
       // Save show AI in menu toggle
       await updateAppSetting('show_ai_in_menu', showAiInMenu ? 'true' : 'false');
       
-      // Invalidate cache to force fresh data load
-      settingsCacheService.invalidateCache();
+      // Import cache invalidation dynamically to avoid circular dependencies
+      const { cacheInvalidationService } = await import('@/services/pwa/cache-invalidation-service');
+      
+      // Force cache invalidation in both localStorage and Service Worker
+      await settingsCacheService.invalidateCache();
+      await cacheInvalidationService.invalidateAppSettings();
       
       supaToast.success("Application settings have been updated successfully.", {
         title: "Settings saved"
