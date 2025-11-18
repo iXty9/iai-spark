@@ -1,44 +1,7 @@
-/* Theme flash prevention and browser-specific fixes */
+/* Theme flash prevention */
 
 /* Prevent theme transitions during initialization */
 .theme-initializing,
 .theme-initializing * {
   transition: none !important;
-}
-
-/* Immediate background colors to prevent flash */
-body {
-  background-color: var(--background, #fefefe);
-  color: var(--foreground, #0a0a0a);
-}
-
-html.dark body {
-  background-color: var(--background, #0a0a0a);
-  color: var(--foreground, #fefefe);
-}
-
-/* Auth page dark-mode: force readable text via local tokens */
-.dark .auth-readable {
-  --foreground: 0 0% 0% !important;          /* black */
-  --card-foreground: 0 0% 0% !important;      /* black */
-  --muted-foreground: 0 0% 40% !important;    /* dark grey ~ #666 */
-}
-
-/* Inputs should stay white in dark mode */
-.dark .auth-readable input,
-.dark .auth-readable textarea,
-.dark .auth-readable select {
-  color: hsl(0 0% 100%) !important;
-}
-.dark .auth-readable input::placeholder,
-.dark .auth-readable textarea::placeholder {
-  color: hsl(0 0% 100% / 0.6) !important;
-}
-
-/* Auth-specific readability fixes in dark mode */
-.dark .auth-readable .auth-title {
-  color: hsl(var(--foreground)) !important; /* uses local override: black */
-}
-.dark .auth-readable .auth-description {
-  color: hsl(var(--muted-foreground)) !important; /* uses local override: dark gray */
 }
