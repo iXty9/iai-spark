@@ -16,6 +16,7 @@ import { applySiteTitle } from '@/utils/site-utils';
 import './App.css';
 import { globalCleanupService } from '@/services/global/global-cleanup-service';
 import { versionService } from '@/services/pwa/versionService';
+import { settingsCacheService } from '@/services/settings-cache-service';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -72,6 +73,14 @@ function App() {
             await applySiteTitle();
           } catch (error) {
             logger.warn('Failed to apply site title', { module: 'app' });
+          }
+
+          // Warm app settings cache so all app-specific details are loaded early
+          try {
+            await settingsCacheService.getSettings();
+            logger.info('App settings cache warmed successfully', { module: 'app' });
+          } catch (error) {
+            logger.warn('Failed to pre-load app settings; will fall back to lazy loading', { module: 'app' });
           }
         } else if (initResult.error) {
           throw new Error(initResult.error);

@@ -91,7 +91,7 @@ export const sendWebhookMessage = async (
   const webhookUrl = await getWebhookUrl(isAuthenticated);
   
   // Get configurable timeout
-  const timeoutMs = await getWebhookTimeout();
+  const timeoutMs = await getWebhookTimeout(isAuthenticated);
   
   // Validate URL again right before using
   if (!isValidWebhookUrl(webhookUrl)) {
