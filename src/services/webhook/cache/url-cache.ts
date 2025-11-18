@@ -6,6 +6,9 @@ let webhookUrlCache: Record<string, string> = {};
 let lastCacheUpdate = 0;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+// Track which auth context the cache corresponds to
+let lastCacheContext: 'anonymous' | 'authenticated' | 'unknown' = 'unknown';
+
 /**
  * Validate a webhook URL - must be HTTPS
  */
@@ -22,12 +25,21 @@ export const isValidWebhookUrl = (url: string): boolean => {
 };
 
 /**
- * Refresh the webhook URL cache if it has expired
+ * Refresh the webhook URL cache if it has expired or auth context changed
  */
-export const refreshWebhookCache = async (): Promise<void> => {
+export const refreshWebhookCache = async (isAuthenticated: boolean): Promise<void> => {
   const now = Date.now();
-  if (now - lastCacheUpdate < CACHE_TTL && Object.keys(webhookUrlCache).length > 0) {
-    return; // Use cached values if they're fresh
+  const currentContext: 'anonymous' | 'authenticated' = isAuthenticated ? 'authenticated' : 'anonymous';
+
+  // Only reuse cache if:
+  // - it's fresh AND
+  // - it was built for the same auth context (anon vs auth)
+  if (
+    now - lastCacheUpdate < CACHE_TTL &&
+    Object.keys(webhookUrlCache).length > 0 &&
+    lastCacheContext === currentContext
+  ) {
+    return;
   }
 
   try {
@@ -66,8 +78,10 @@ export const refreshWebhookCache = async (): Promise<void> => {
     };
     
     lastCacheUpdate = now;
+    lastCacheContext = currentContext;
     logger.info('Webhook cache refreshed successfully', { 
-      visibleKeys: visibleWebhookKeys 
+      visibleKeys: visibleWebhookKeys,
+      context: currentContext
     }, { module: 'webhook' });
   } catch (error) {
     logger.error('Error refreshing webhook cache:', error, { module: 'webhook' });

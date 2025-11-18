@@ -11,7 +11,8 @@ import {
  */
 export const getWebhookUrl = async (isAuthenticated: boolean): Promise<string> => {
   try {
-    await refreshWebhookCache();
+    // Refresh cache for the correct auth context
+    await refreshWebhookCache(isAuthenticated);
     const urlKey = isAuthenticated ? 'authenticated_webhook_url' : 'anonymous_webhook_url';
     const url = getWebhookUrlFromCache(urlKey);
       
@@ -33,7 +34,8 @@ export const getWebhookUrl = async (isAuthenticated: boolean): Promise<string> =
  */
 export const getDebugWebhookUrl = async (): Promise<string> => {
   try {
-    await refreshWebhookCache();
+    // Debug webhooks are only expected in authenticated/admin context
+    await refreshWebhookCache(true);
     const url = getWebhookUrlFromCache('debug_webhook_url');
     
     if (!url || !isValidWebhookUrl(url)) {
@@ -52,9 +54,10 @@ export const getDebugWebhookUrl = async (): Promise<string> => {
 /**
  * Get the configured webhook timeout
  */
-export const getWebhookTimeout = async (): Promise<number> => {
+export const getWebhookTimeout = async (isAuthenticated: boolean): Promise<number> => {
   try {
-    await refreshWebhookCache();
+    // Reuse the same context-aware cache refresh
+    await refreshWebhookCache(isAuthenticated);
     const timeoutStr = getWebhookUrlFromCache('webhook_timeout');
     return parseInt(timeoutStr || '300000'); // Default to 5 minutes
   } catch (error) {
