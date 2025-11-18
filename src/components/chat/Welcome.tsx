@@ -119,7 +119,10 @@ export const Welcome: React.FC<WelcomeProps> = ({ onStartChat, onProactiveTransi
       try {
       const settings = await fetchAppSettings();
       // Support both old (app_name) and new (tagline) keys for backwards compatibility
-      setTagline(settings.tagline || settings.app_name || DEFAULT_TAGLINE);
+      const rawTagline = settings.tagline || settings.app_name || DEFAULT_TAGLINE;
+      // Remove wrapping quotes from tagline if present
+      const cleanTagline = rawTagline.replace(/^"(.*)"$/, '$1').trim();
+      setTagline(cleanTagline);
         setAvatarUrl(settings.default_avatar_url || null);
         if (settings.site_title && typeof document !== 'undefined') {
           document.title = settings.site_title;
