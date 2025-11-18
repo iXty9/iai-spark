@@ -133,7 +133,7 @@ export const LoginForm = () => {
                   name={name as keyof LoginFormData}
                   render={({ field }) => (
                     <FormItem className="space-y-2">
-                      <Label htmlFor={name} className="text-sm font-medium text-foreground/80">
+                      <Label htmlFor={name} className="text-sm font-medium text-foreground">
                         {label}
                       </Label>
                       <div className="relative">
