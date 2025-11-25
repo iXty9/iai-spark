@@ -10,6 +10,7 @@ import {
   dispatchWebhookRequestError
 } from './utils/webhook-events';
 import { getWebhookAuthHeaders } from './auth-header-builder';
+import { getSessionId } from '@/services/chat/session-id-service';
 
 // Track webhook calls per tab session
 const webhookSessionTracker = {
@@ -161,7 +162,8 @@ export const sendWebhookMessage = async (
       timestamp: new Date().toISOString(),
       isAuthenticated: isAuthenticated,
       sessionCall: webhookSessionTracker.callsThisSession,
-      user_id: userInfo?.id || null
+      user_id: userInfo?.id || null,
+      sessionId: getSessionId(userInfo?.id || null)
     };
 
     if (attachments.length > 0) {
