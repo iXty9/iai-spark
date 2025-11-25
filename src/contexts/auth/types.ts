@@ -29,4 +29,5 @@ export type AuthContextType = {
   signUp: (email: string, password: string, username: string, options?: { phone_number?: string, first_name?: string, last_name?: string }) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<ProfileType>) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 };

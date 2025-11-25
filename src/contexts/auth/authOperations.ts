@@ -192,3 +192,25 @@ export const updateProfile = async (supabase: any, userId: string, data: Partial
     throw error;
   }
 };
+
+export const resetPassword = async (email: string) => {
+  try {
+    logger.info('Requesting password reset', { module: 'auth-operations', email: email.substring(0, 3) + '***' });
+    
+    await ensureClientReady();
+    
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth?mode=reset`,
+    });
+
+    if (error) {
+      logger.error('Password reset error', error, { module: 'auth-operations' });
+      throw error;
+    }
+    
+    logger.info('Password reset email sent', { module: 'auth-operations' });
+  } catch (error: any) {
+    logger.error('Error during password reset', error, { module: 'auth-operations' });
+    throw error;
+  }
+};

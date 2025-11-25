@@ -1,14 +1,18 @@
 
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AuthCard } from '@/components/auth/AuthCard';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { RegisterForm } from '@/components/auth/RegisterForm';
+import { ForgotPasswordForm } from '@/components/auth/ForgotPasswordForm';
+import { ResetPasswordForm } from '@/components/auth/ResetPasswordForm';
 import { getStoredConfig } from '@/config/supabase-config';
-import { LogIn, UserPlus } from 'lucide-react';
+import { LogIn, UserPlus, KeyRound } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logging';
 
 // Brute force protection - track failed login attempts
 const loginAttempts = {
@@ -24,6 +28,8 @@ const loginAttempts = {
 const Auth = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const mode = searchParams.get('mode');
 
   // If user is already logged in, redirect to home
   useEffect(() => {
@@ -70,6 +76,7 @@ const Auth = () => {
   
   // Use sessionStorage to remember the last active tab
   const [activeTab, setActiveTab] = React.useState(() => {
+    if (mode === 'reset') return 'reset';
     if (typeof window !== 'undefined') {
       return sessionStorage.getItem('authTab') || 'login';
     }
@@ -82,6 +89,18 @@ const Auth = () => {
       sessionStorage.setItem('authTab', value);
     }
   };
+
+  // Handle PASSWORD_RECOVERY event from Supabase
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        logger.info('Password recovery event detected', { module: 'auth-page' });
+        setActiveTab('reset');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-muted/30 relative overflow-hidden">
@@ -96,70 +115,82 @@ const Auth = () => {
             <AuthCard>
               <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
                 {/* Desktop Tabs */}
-                <div className="hidden sm:block">
-                  <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/30 p-1 rounded-lg">
-                    <TabsTrigger 
-                      value="login"
-                      className="flex items-center gap-2 py-2.5 px-4 rounded-md text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
-                    >
-                      <LogIn className="h-4 w-4" />
-                      <span>Sign In</span>
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="register"
-                      className="flex items-center gap-2 py-2.5 px-4 rounded-md text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
-                    >
-                      <UserPlus className="h-4 w-4" />
-                      <span>Register</span>
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
+                {activeTab !== 'forgot' && activeTab !== 'reset' && (
+                  <div className="hidden sm:block">
+                    <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/30 p-1 rounded-lg">
+                      <TabsTrigger 
+                        value="login"
+                        className="flex items-center gap-2 py-2.5 px-4 rounded-md text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
+                      >
+                        <LogIn className="h-4 w-4" />
+                        <span>Sign In</span>
+                      </TabsTrigger>
+                      <TabsTrigger 
+                        value="register"
+                        className="flex items-center gap-2 py-2.5 px-4 rounded-md text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
+                      >
+                        <UserPlus className="h-4 w-4" />
+                        <span>Register</span>
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+                )}
 
                 {/* Mobile Dropdown */}
-                <div className="sm:hidden mb-6">
-                  <Select value={activeTab} onValueChange={handleTabChange}>
-                    <SelectTrigger className="w-full h-11 bg-muted/30 border-border/50">
-                      <SelectValue>
-                        <div className="flex items-center gap-2">
-                          {activeTab === "login" && (
-                            <>
-                              <LogIn className="h-4 w-4" />
-                              <span>Sign In</span>
-                            </>
-                          )}
-                          {activeTab === "register" && (
-                            <>
-                              <UserPlus className="h-4 w-4" />
-                              <span>Create Account</span>
-                            </>
-                          )}
-                        </div>
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="login">
-                        <div className="flex items-center gap-2">
-                          <LogIn className="h-4 w-4" />
-                          <span>Sign In</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="register">
-                        <div className="flex items-center gap-2">
-                          <UserPlus className="h-4 w-4" />
-                          <span>Create Account</span>
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {activeTab !== 'forgot' && activeTab !== 'reset' && (
+                  <div className="sm:hidden mb-6">
+                    <Select value={activeTab} onValueChange={handleTabChange}>
+                      <SelectTrigger className="w-full h-11 bg-muted/30 border-border/50">
+                        <SelectValue>
+                          <div className="flex items-center gap-2">
+                            {activeTab === "login" && (
+                              <>
+                                <LogIn className="h-4 w-4" />
+                                <span>Sign In</span>
+                              </>
+                            )}
+                            {activeTab === "register" && (
+                              <>
+                                <UserPlus className="h-4 w-4" />
+                                <span>Create Account</span>
+                              </>
+                            )}
+                          </div>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="login">
+                          <div className="flex items-center gap-2">
+                            <LogIn className="h-4 w-4" />
+                            <span>Sign In</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="register">
+                          <div className="flex items-center gap-2">
+                            <UserPlus className="h-4 w-4" />
+                            <span>Create Account</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 
-                <TabsContent value="login" className="mt-0">
-                  <LoginForm />
-                </TabsContent>
-                
-                <TabsContent value="register" className="mt-0">
-                  <RegisterForm />
-                </TabsContent>
+                {activeTab === 'forgot' ? (
+                  <ForgotPasswordForm onBack={() => handleTabChange('login')} />
+                ) : activeTab === 'reset' ? (
+                  <ResetPasswordForm />
+                ) : (
+                  <>
+                    <TabsContent value="login" className="mt-0">
+                      <LoginForm />
+                    </TabsContent>
+                    
+                    <TabsContent value="register" className="mt-0">
+                      <RegisterForm />
+                    </TabsContent>
+                  </>
+                )}
               </Tabs>
             </AuthCard>
           </div>
