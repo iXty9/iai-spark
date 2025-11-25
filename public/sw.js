@@ -16,13 +16,38 @@ const STATIC_ASSETS = [
 // Load version info and update cache names
 const loadVersion = async () => {
   try {
+    // Try edge function first (always fresh, deployed with code updates)
+    const edgeFunctionUrl = 'https://ymtdtzkskjdqlzhjuesk.supabase.co/functions/v1/version-info';
+    
+    try {
+      const edgeResponse = await fetch(edgeFunctionUrl, {
+        cache: 'no-store'
+      });
+      
+      if (edgeResponse.ok) {
+        const version = await edgeResponse.json();
+        CACHE_VERSION = version.buildHash;
+        
+        if (version.cacheNames) {
+          STATIC_CACHE = version.cacheNames.static || STATIC_CACHE;
+          DYNAMIC_CACHE = version.cacheNames.dynamic || DYNAMIC_CACHE;
+        }
+        
+        console.log('Service Worker: Version loaded from edge function', version);
+        return;
+      }
+    } catch (edgeError) {
+      console.warn('Service Worker: Edge function unavailable, falling back to static file', edgeError);
+    }
+    
+    // Fallback to static version.json
     const response = await fetch('/version.json', { cache: 'no-cache' });
     if (response.ok) {
       const version = await response.json();
       CACHE_VERSION = version.buildHash;
       STATIC_CACHE = version.cacheNames.static;
       DYNAMIC_CACHE = version.cacheNames.dynamic;
-      console.log('Service Worker: Version loaded', version);
+      console.log('Service Worker: Version loaded from static file', version);
     }
   } catch (error) {
     console.error('Service Worker: Failed to load version', error);

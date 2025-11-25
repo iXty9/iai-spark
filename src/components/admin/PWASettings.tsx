@@ -31,7 +31,7 @@ interface PWASettingsState {
 
 export function PWASettings() {
   const { toast } = useToast();
-  const { isInstalled, currentVersion, needsUpdate } = usePWA();
+  const { isInstalled, currentVersion, needsUpdate, updateApp } = usePWA();
   const [settings, setSettings] = useState<PWASettingsState>({
     pwa_app_name: '',
     pwa_short_name: '',
@@ -216,6 +216,51 @@ export function PWASettings() {
               ? "App is installed and running in PWA mode with automatic updates enabled."
               : "App is running in browser mode. Install as PWA for better performance and offline access."
             }
+          </div>
+          <div className="pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                try {
+                  // Clear stored version to force fresh check
+                  localStorage.removeItem('ixty-app-version');
+                  
+                  // Import versionService dynamically
+                  const { versionService } = await import('@/services/pwa/versionService');
+                  
+                  // Force check for updates
+                  const hasUpdate = await versionService.checkForUpdates(true);
+                  
+                  if (hasUpdate) {
+                    toast({
+                      title: "Update Available",
+                      description: "A new version is available. Click to update.",
+                      action: (
+                        <Button size="sm" onClick={() => updateApp()}>
+                          Update Now
+                        </Button>
+                      ),
+                    });
+                  } else {
+                    toast({
+                      title: "Up to Date",
+                      description: "You're already on the latest version.",
+                    });
+                  }
+                } catch (error) {
+                  console.error('Force update check failed:', error);
+                  toast({
+                    title: "Check Failed",
+                    description: "Could not check for updates. Please try again.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Force Check for Updates
+            </Button>
           </div>
         </CardContent>
       </Card>
