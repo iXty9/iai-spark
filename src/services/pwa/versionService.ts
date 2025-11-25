@@ -63,11 +63,34 @@ class VersionService {
 
   async fetchRemoteVersion(): Promise<AppVersion | null> {
     try {
-      // Add timestamp to URL to bypass ALL caching layers
-      const cacheBuster = `?t=${Date.now()}`;
+      // Try edge function first (always fresh, deployed with code updates)
+      const edgeFunctionUrl = 'https://ymtdtzkskjdqlzhjuesk.supabase.co/functions/v1/version-info';
       
+      try {
+        const edgeResponse = await fetch(edgeFunctionUrl, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+          },
+        });
+
+        if (edgeResponse.ok) {
+          const version = await edgeResponse.json();
+          logger.info('Remote version fetched from edge function', { 
+            buildHash: version.buildHash,
+            environment: version.environment 
+          }, { module: 'version-service' });
+          return version;
+        }
+      } catch (edgeError) {
+        logger.warn('Edge function unavailable, falling back to static file', edgeError, { module: 'version-service' });
+      }
+
+      // Fallback to static version.json
+      const cacheBuster = `?t=${Date.now()}`;
       const response = await fetch(`/version.json${cacheBuster}`, { 
-        cache: 'no-store',  // Changed from 'no-cache'
+        cache: 'no-store',
         headers: { 
           'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
           'Pragma': 'no-cache',
@@ -80,7 +103,7 @@ class VersionService {
       }
       
       const version = await response.json();
-      logger.info('Remote version fetched', { 
+      logger.info('Remote version fetched from static file', { 
         buildHash: version.buildHash,
         environment: version.environment 
       }, { module: 'version-service' });
