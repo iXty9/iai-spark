@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { AuthContextType } from './auth/types';
 import { useAuthState } from './auth/useAuthState';
-import { signIn, signUp, signOut, updateProfile } from './auth/authOperations';
+import { signIn, signUp, signOut, updateProfile, resetPassword } from './auth/authOperations';
 import { logger } from '@/utils/logging';
 import { clientManager } from '@/services/supabase/client-manager';
 import { ProductionErrorBoundary } from '@/components/error/ProductionErrorBoundary';
@@ -274,6 +274,7 @@ export const AuthProvider = ({ children, clientReady }: AuthProviderProps) => {
     signUp,
     signOut,
     updateProfile: handleUpdateProfile,
+    resetPassword,
   };
 
   return (

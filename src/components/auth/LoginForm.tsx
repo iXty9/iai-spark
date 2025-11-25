@@ -154,6 +154,21 @@ export const LoginForm = () => {
                 />
               ))}
 
+              <div className="flex justify-end mb-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      sessionStorage.setItem('authTab', 'forgot');
+                      window.location.reload();
+                    }
+                  }}
+                  className="text-sm text-primary hover:underline transition-all"
+                >
+                  Forgot password?
+                </button>
+              </div>
+
               <div className="pt-2 space-y-3">
                 <Button
                   type="submit"
