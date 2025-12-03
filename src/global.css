@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -9,17 +8,16 @@
 
 body {
   @apply bg-background text-foreground;
-  /* Theme colors are now applied via CSS variables from theme.css */
 }
 
-/* CRITICAL: Enhanced link color inheritance with fallback */
+/* Links use primary color */
 a {
   color: hsl(var(--primary));
   transition: color 0.2s ease;
 }
 
 a:hover {
-  color: #dd3333;
+  color: hsl(var(--primary) / 0.8);
 }
 
 @layer base {
@@ -31,21 +29,6 @@ a:hover {
   .container {
     @apply mx-auto px-4;
     max-width: 1280px;
-  }
-  
-  /* COMPREHENSIVE TEXT COLOR ENFORCEMENT */
-  body, html {
-    color: hsl(var(--foreground));
-  }
-  
-  /* Force all text elements to respect theme text color */
-  h1, h2, h3, h4, h5, h6, p, span, div:not(.bg-primary):not(.bg-secondary), label, li, td, th {
-    color: inherit;
-  }
-  
-  /* Ensure components inherit text color properly */
-  .card, .card-header, .card-content, .card-footer {
-    color: inherit;
   }
   
   /* Dropdown content should have proper background and high z-index */
@@ -60,22 +43,14 @@ a:hover {
   }
 }
 
-/* Global loading styles with company color - ENHANCED */
+/* Loading spinner styles */
 .animate-spin {
-  color: #dd3333 !important;
-  border-color: #dd3333 !important;
+  color: hsl(var(--primary));
 }
 
-/* Force all loading spinners to use company color */
-.animate-spin svg, .animate-spin * {
-  color: #dd3333 !important;
-  stroke: #dd3333 !important;
-}
-
-/* Loading spinner animation with company color */
 .loading-spinner {
   border: 3px solid hsl(var(--muted));
-  border-top: 3px solid #dd3333;
+  border-top: 3px solid hsl(var(--primary));
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -85,32 +60,24 @@ a:hover {
   100% { transform: rotate(360deg); }
 }
 
-/* Ensure Lucide icons respect the color */
+/* Lucide icons inherit color */
 .lucide {
   color: inherit;
   transition: color 0.2s ease;
 }
 
-/* Override specific cases where color might be hardcoded */
-button:not(.bg-primary):not(.bg-secondary):not(.bg-destructive), 
-input:not([type="color"]), 
-textarea,
-select {
-  color: inherit !important;
-}
-
-/* Focus states with company color */
+/* Focus states */
 :focus-visible {
-  outline: 2px solid #dd3333;
+  outline: 2px solid hsl(var(--primary));
   outline-offset: 2px;
 }
 
-/* Ensure all progress bars use primary color */
+/* Progress bars */
 [data-state="indeterminate"] {
-  background-color: #dd3333 !important;
+  background-color: hsl(var(--primary));
 }
 
-/* Loading states consistency */
+/* Pulse animation */
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
@@ -124,7 +91,7 @@ select {
   }
 }
 
-/* Enhanced transitions for smoother interactions */
+/* Smooth transitions */
 button, a, [role="menuitem"] {
   transition: all 0.2s ease;
 }
