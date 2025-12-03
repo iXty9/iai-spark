@@ -1,37 +1,77 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts"
 
-interface ToastNotificationPayload {
-  title: string;
-  message: string;
-  type?: 'info' | 'success' | 'warning' | 'error';
-  user_id?: string;
-  target_users?: string[];
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+// Input validation schema
+const ToastNotificationSchema = z.object({
+  title: z.string().min(1).max(200),
+  message: z.string().min(1).max(5000),
+  type: z.enum(['info', 'success', 'warning', 'error']).optional().default('info'),
+  user_id: z.string().uuid().optional(),
+  target_users: z.array(z.string().uuid()).max(100).optional(),
+  sender: z.string().min(1).max(100).optional(),
+});
+
+type ToastNotificationPayload = z.infer<typeof ToastNotificationSchema>;
 
 serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      },
+      headers: corsHeaders,
     })
   }
 
   try {
     if (req.method !== 'POST') {
-      return new Response('Method not allowed', { status: 405 })
+      return new Response(
+        JSON.stringify({ error: 'Method not allowed' }), 
+        { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
-    const payload: ToastNotificationPayload = await req.json()
-    
-    if (!payload.title || !payload.message) {
-      return new Response('Missing required fields: title and message', { status: 400 })
+    // Parse and validate the incoming request
+    let rawBody: unknown;
+    try {
+      rawBody = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON body' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
+
+    const validation = ToastNotificationSchema.safeParse(rawBody);
+    
+    if (!validation.success) {
+      console.error('Validation failed:', validation.error.errors);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid input',
+          details: validation.error.errors.map(e => ({
+            field: e.path.join('.'),
+            message: e.message
+          }))
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    const payload: ToastNotificationPayload = validation.data;
 
     console.log('Received toast notification:', payload)
 
@@ -46,16 +86,12 @@ serve(async (req) => {
 
     console.log('Prepared notification data:', notificationData)
 
-    // Use Supabase Realtime to broadcast the toast notification
-    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
-    
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     // Store notification in database (server-side only, once per toast)
-    // Uses UPSERT to prevent duplicates if webhook is called multiple times
     const storeNotificationInDB = async (userId: string) => {
       try {
         const { error } = await supabase
@@ -177,7 +213,7 @@ serve(async (req) => {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
+        ...corsHeaders,
       },
     })
 
@@ -192,7 +228,7 @@ serve(async (req) => {
       status: 500,
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
+        ...corsHeaders,
       },
     })
   }
