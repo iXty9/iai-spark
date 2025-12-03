@@ -132,16 +132,12 @@ html.dark {
   }
 }
 
-/* Toast positioning - always above chat input with 3px spacing */
-[data-radix-toast-viewport] {
-  bottom: calc(var(--chat-input-height, 80px) + 3px) !important;
+/* Toast positioning - always above chat input with 5px spacing */
+[data-radix-toast-viewport],
+[data-sonner-toaster] {
+  bottom: calc(var(--chat-input-height, 88px) + 5px) !important;
+  right: 0 !important;
   transition: bottom 0.2s ease-out;
-}
-
-@media (max-width: 640px) {
-  [data-radix-toast-viewport] {
-    bottom: calc(var(--chat-input-height, 90px) + 3px) !important;
-  }
 }
 
 /* Enhanced UI elements */
