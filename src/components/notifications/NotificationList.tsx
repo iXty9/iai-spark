@@ -182,7 +182,7 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
           <p className="text-sm">No notifications yet</p>
         </div>
       ) : (
-        <ScrollArea className="max-h-[60vh] md:max-h-80">
+        <ScrollArea className="h-[min(60vh,400px)] md:h-[min(50vh,320px)]">
           <div className="divide-y divide-border">
             {notifications.map((notification) => (
               <NotificationItem
