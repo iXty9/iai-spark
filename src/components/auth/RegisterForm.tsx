@@ -131,7 +131,7 @@ export function RegisterForm() {
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Shield className="h-4 w-4 text-blue-500" />
-                <span className="text-sm font-medium text-foreground dark:text-black">Account Credentials</span>
+                <span className="text-sm font-medium text-foreground">Account Credentials</span>
                 <div className="flex-1 h-px bg-border"></div>
               </div>
               
@@ -232,8 +232,8 @@ export function RegisterForm() {
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Users className="h-4 w-4 text-green-500" />
-                <span className="text-sm font-medium text-foreground dark:text-black">Personal Information</span>
-                <span className="text-xs text-muted-foreground dark:text-black/70">(Optional)</span>
+                <span className="text-sm font-medium text-foreground">Personal Information</span>
+                <span className="text-xs text-muted-foreground">(Optional)</span>
                 <div className="flex-1 h-px bg-border"></div>
               </div>
               
@@ -308,7 +308,7 @@ export function RegisterForm() {
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <FileText className="h-4 w-4 text-amber-500" />
-                  <span className="text-sm font-medium text-foreground dark:text-black">Terms & Conditions</span>
+                  <span className="text-sm font-medium text-foreground">Terms & Conditions</span>
                   <div className="flex-1 h-px bg-border"></div>
                 </div>
                 
@@ -353,7 +353,7 @@ export function RegisterForm() {
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Sparkles className="h-4 w-4 text-purple-500" />
-                <span className="text-sm font-medium text-foreground dark:text-black">Create Your Account</span>
+                <span className="text-sm font-medium text-foreground">Create Your Account</span>
                 <div className="flex-1 h-px bg-border"></div>
               </div>
               
