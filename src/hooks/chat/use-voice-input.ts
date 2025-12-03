@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { logger } from '@/utils/logging';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +11,44 @@ export interface VoiceInputState {
   isSupported: boolean;
   hasPermission: boolean;
 }
+
+// Convert spoken punctuation words to actual punctuation symbols
+const convertSpokenPunctuation = (text: string): string => {
+  const replacements: [RegExp, string][] = [
+    // End punctuation
+    [/\s*\bperiod\b/gi, '.'],
+    [/\s*\bfull stop\b/gi, '.'],
+    [/\s*\bcomma\b/gi, ','],
+    [/\s*\bquestion mark\b/gi, '?'],
+    [/\s*\bexclamation point\b/gi, '!'],
+    [/\s*\bexclamation mark\b/gi, '!'],
+    
+    // Other punctuation
+    [/\s*\bcolon\b/gi, ':'],
+    [/\s*\bsemicolon\b/gi, ';'],
+    [/\s*\bhyphen\b/gi, '-'],
+    [/\s*\bdash\b/gi, '—'],
+    [/\s*\bellipsis\b/gi, '...'],
+    
+    // Quotes and brackets
+    [/\bopen quote\b/gi, '"'],
+    [/\bclose quote\b/gi, '"'],
+    [/\bquote\b/gi, '"'],
+    [/\bopen paren\b/gi, '('],
+    [/\bclose paren\b/gi, ')'],
+    
+    // Line breaks
+    [/\bnew line\b/gi, '\n'],
+    [/\bnew paragraph\b/gi, '\n\n'],
+  ];
+  
+  let result = text;
+  for (const [pattern, replacement] of replacements) {
+    result = result.replace(pattern, replacement);
+  }
+  
+  return result;
+};
 
 export const useVoiceInput = () => {
   const [voiceState, setVoiceState] = useState<VoiceInputState>({
@@ -57,7 +94,7 @@ export const useVoiceInput = () => {
       
       recognitionRef.current.onresult = (event) => {
         let finalTranscript = '';
-        let interimTranscript = '';
+        let currentInterimTranscript = '';
         
         for (let i = 0; i < event.results.length; i++) {
           const result = event.results[i];
@@ -66,7 +103,7 @@ export const useVoiceInput = () => {
           if (result.isFinal) {
             finalTranscript += transcriptText;
           } else {
-            interimTranscript += transcriptText;
+            currentInterimTranscript += transcriptText;
           }
         }
         
@@ -75,17 +112,23 @@ export const useVoiceInput = () => {
           accumulatedTranscriptRef.current = finalTranscript;
         }
         
-        // Update interim transcript for visual feedback only (not sent to parent)
+        // Show accumulated text + current interim for continuous display
+        // Apply punctuation conversion for real-time preview
+        const displayText = convertSpokenPunctuation(
+          accumulatedTranscriptRef.current + currentInterimTranscript
+        );
+        
         setVoiceState(prev => ({ 
           ...prev, 
-          interimTranscript: interimTranscript
+          interimTranscript: displayText
         }));
       };
       
       recognitionRef.current.onend = () => {
         logger.info('Speech recognition ended');
-        // Only set the final transcript when recording ends
-        const finalText = accumulatedTranscriptRef.current.trim();
+        // Apply punctuation conversion to final transcript
+        const rawText = accumulatedTranscriptRef.current.trim();
+        const finalText = convertSpokenPunctuation(rawText);
         setVoiceState(prev => ({ 
           ...prev, 
           isRecording: false,
@@ -231,12 +274,14 @@ export const useVoiceInput = () => {
       if (error) throw error;
       
       if (data?.text) {
+        // Apply punctuation conversion to Whisper results too
+        const finalText = convertSpokenPunctuation(data.text);
         setVoiceState(prev => ({ 
           ...prev, 
-          transcript: data.text,
+          transcript: finalText,
           isProcessing: false 
         }));
-        logger.info('Voice transcription completed', { transcript: data.text });
+        logger.info('Voice transcription completed', { transcript: finalText });
       } else {
         throw new Error('No transcription received');
       }
