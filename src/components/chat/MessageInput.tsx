@@ -1,5 +1,4 @@
-
-import React, { useRef, FormEvent, useState } from 'react';
+import React, { useRef, FormEvent, useState, useCallback } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -8,6 +7,8 @@ import { useIOSFixes } from '@/hooks/use-ios-fixes';
 import { InputButtons } from './message-input/InputButtons';
 import { ParsedAttachment, isImageMime, toDataUrl } from '@/utils/attachment-utils';
 import { X } from 'lucide-react';
+import { useFileUpload } from '@/hooks/chat/use-file-upload';
+import { toast } from '@/hooks/use-toast';
 
 interface MessageInputProps {
   message: string;
@@ -34,6 +35,42 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const [attachments, setAttachments] = useState<ParsedAttachment[]>([]);
   const [interimText, setInterimText] = useState('');
   const [isVoiceRecording, setIsVoiceRecording] = useState(false);
+  
+  const { uploadFile, isImageType, isAllowedType } = useFileUpload();
+
+  // Handle clipboard paste for images
+  const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          const dataUrl = await uploadFile(file);
+          if (dataUrl) {
+            // Parse the data URL to extract mime and base64
+            const match = /^data:([^;]+);base64,(.*)$/s.exec(dataUrl || '');
+            const mime = match ? match[1] : 'image/png';
+            const data = match ? match[2] : dataUrl;
+            
+            setAttachments(prev => [...prev, { 
+              name: `pasted-image-${Date.now()}.${mime.split('/')[1] || 'png'}`, 
+              mime, 
+              data 
+            }]);
+            
+            toast({
+              title: "Image pasted",
+              description: "Image added from clipboard",
+            });
+          }
+        }
+        return; // Only handle first image
+      }
+    }
+  }, [uploadFile]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -93,6 +130,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     const data = match ? match[2] : content;
     setAttachments(prev => [...prev, { name: fileName, mime, data }]);
   };
+
   const handleVoiceTranscript = (transcript: string) => {
     // Append voice transcript to current message
     const newMessage = message ? `${message} ${transcript}` : transcript;
@@ -121,8 +159,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                   {isImageMime(att.mime) ? (
                     <img src={toDataUrl(att)} alt={att.name} className="h-8 w-8 object-cover rounded" loading="lazy" />
                   ) : (
-                    <div className="h-8 w-8 rounded bg-muted flex items-center justify-center text-xs">
-                      {att.name.split('.').pop()?.toUpperCase()}
+                    <div className="h-8 w-8 rounded bg-muted flex items-center justify-center text-xs font-medium">
+                      {att.name.split('.').pop()?.toUpperCase().slice(0, 4)}
                     </div>
                   )}
                   <span className="text-xs max-w-[140px] truncate" title={att.name}>{att.name}</span>
@@ -145,6 +183,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             value={isVoiceRecording ? (message + (message && interimText ? ' ' : '') + interimText) : message}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             placeholder={isVoiceRecording ? "Listening..." : "How can I help you?"}
             className={`pr-10 resize-none min-h-[44px] max-h-[120px] rounded-2xl py-3 px-4 !scrollbar-none bg-background/80 backdrop-blur-sm border-border/50 focus:bg-background/90 focus:border-border transition-all duration-200 shadow-sm hover:shadow-md ${isVoiceRecording ? 'text-muted-foreground' : ''}`}
             disabled={isLoading || isVoiceRecording}
@@ -157,6 +196,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         <InputButtons 
           message={message}
           isLoading={isLoading}
+          hasAttachments={attachments.length > 0}
           onSendClick={() => {
             if ((message.trim() || attachments.length > 0) && !isLoading) {
               const blocks = attachments

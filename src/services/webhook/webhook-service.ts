@@ -60,11 +60,32 @@ const extractAttachmentsFromMessage = (msg: string): { text: string; attachments
       }
     }
 
-    attachments.push({ name, mime: parsedMime || 'application/octet-stream', data: base64 });
+    // Estimate size from base64
+    const size = Math.round((base64.length * 3) / 4);
+
+    attachments.push({ name, mime: parsedMime || 'application/octet-stream', data: base64, size });
     return '';
   });
 
   return { text: clean.trim(), attachments };
+};
+
+/**
+ * Separate attachments into images and non-image data for n8n payload
+ */
+const categorizeAttachments = (attachments: ParsedAttachment[]) => {
+  const images: ParsedAttachment[] = [];
+  const documents: ParsedAttachment[] = [];
+
+  for (const att of attachments) {
+    if (att.mime.startsWith('image/')) {
+      images.push(att);
+    } else {
+      documents.push(att);
+    }
+  }
+
+  return { images, documents };
 };
 
 /**
@@ -155,8 +176,11 @@ export const sendWebhookMessage = async (
       senderName = 'Anonymous';
     }
     
-    // Prepare message - keep it compact but include proper sender info and user_id
+    // Prepare message - extract attachments and categorize them
     const { text: cleanMessage, attachments } = extractAttachmentsFromMessage(message);
+    const { images, documents } = categorizeAttachments(attachments);
+    
+    // Build payload with separated image and document fields for n8n
     const payload: any = {
       message: cleanMessage,
       sender: senderName,
@@ -167,8 +191,26 @@ export const sendWebhookMessage = async (
       sessionId: getSessionId(userInfo?.id || null)
     };
 
-    if (attachments.length > 0) {
-      payload.attachments = attachments;
+    // Add images array for n8n's AI vision passthrough
+    // Format: [{ name, mime, data (base64) }]
+    if (images.length > 0) {
+      payload.images = images.map(img => ({
+        name: img.name,
+        mime: img.mime,
+        data: img.data,
+        size: img.size
+      }));
+    }
+
+    // Add data field for non-image attachments (PDFs, text, JSON, etc.)
+    // n8n can process these through binary data handling
+    if (documents.length > 0) {
+      payload.data = documents.map(doc => ({
+        name: doc.name,
+        mime: doc.mime,
+        data: doc.data,
+        size: doc.size
+      }));
     }
 
     // Include location if available (authenticated users only for privacy)
