@@ -1,3 +1,10 @@
+/**
+ * Theme Utilities - SupaThemes specific only
+ * 
+ * IMPORTANT: This file only modifies SupaThemes user-customizable variables.
+ * Tailwind's core design tokens (--background, --foreground, --primary, etc.)
+ * are defined in index.css and should NOT be overwritten here.
+ */
 
 export const reloadTheme = () => {
   if (typeof window !== 'undefined') {
@@ -39,115 +46,68 @@ const performThemeApplication = (themeColors: any) => {
   
   const root = document.documentElement;
   
-  if (themeColors) {
-    const colorMappings = {
-      primaryColor: '--primary',
-      accentColor: '--accent', 
-      backgroundColor: '--background',
-      
-      textColor: [
-        '--foreground',
-        '--card-foreground', 
-        '--popover-foreground',
-        '--secondary-foreground',
-        '--accent-foreground',
-        '--muted-foreground',
-        '--text-color'
-      ],
-      
-      userBubbleColor: '--user-bubble-color',
-      aiBubbleColor: '--ai-bubble-color',
-      userTextColor: '--user-text-color',
-      aiTextColor: '--ai-text-color',
-      userNameColor: '--user-name-color',
-      aiNameColor: '--ai-name-color',
-      
-      userBubbleOpacity: '--user-bubble-opacity',
-      aiBubbleOpacity: '--ai-bubble-opacity',
-      
-      // ENHANCED: Complete markup color mapping with text color support
-      codeBlockBackground: '--markup-code-bg',
-      linkColor: '--markup-link',
-      blockquoteColor: '--markup-blockquote',
-      tableHeaderBackground: '--markup-table-header',
-      
-      // NEW: Text color mappings for markup elements
-      codeBlockTextColor: '--markup-code-text',
-      linkTextColor: '--markup-link-text',
-      blockquoteTextColor: '--markup-blockquote-text',
-      tableHeaderTextColor: '--markup-table-header-text',
-      
-      // NEW: Proactive highlight color mapping
-      proactiveHighlightColor: '--proactive-highlight-color'
-    };
+  if (!themeColors) return;
 
-    Object.entries(themeColors).forEach(([key, value]) => {
-      if (key.includes('Opacity')) {
-        root.style.setProperty(`--${kebabCase(key)}`, String(value));
-      } 
-      else if (colorMappings[key]) {
-        const mappings = Array.isArray(colorMappings[key]) ? colorMappings[key] : [colorMappings[key]];
-        
-        mappings.forEach(cssVar => {
-          if (key.includes('Color') || key.includes('Background')) {
-            const hslValue = hexToHsl(String(value));
-            root.style.setProperty(cssVar, hslValue);
-            
-            if (key === 'textColor') {
-              root.style.setProperty('--text-color-hex', String(value));
-            }
-            
-            // ENHANCED: Set raw hex values for all markup colors for direct inline style usage
-            if (key.startsWith('codeBlock') || key.startsWith('link') || key.startsWith('blockquote') || key.startsWith('tableHeader') || key === 'proactiveHighlightColor') {
-              root.style.setProperty(`--${kebabCase(key)}-hex`, String(value));
-            }
-          } else {
-            root.style.setProperty(cssVar, String(value));
-          }
-        });
-        
-        root.style.setProperty(`--${kebabCase(key)}`, String(value));
-      } 
-      else {
-        root.style.setProperty(`--${kebabCase(key)}`, String(value));
-      }
+  // SupaThemes-specific color mappings ONLY
+  // DO NOT add Tailwind core variables (--background, --foreground, --primary, etc.)
+  const colorMappings: Record<string, string> = {
+    // Message bubble colors - USER CUSTOMIZABLE
+    userBubbleColor: '--user-bubble-color',
+    aiBubbleColor: '--ai-bubble-color',
+    userTextColor: '--user-text-color',
+    aiTextColor: '--ai-text-color',
+    
+    // Name tag colors - USER CUSTOMIZABLE
+    userNameColor: '--user-name-color',
+    aiNameColor: '--ai-name-color',
+    
+    // Markup element background colors - USER CUSTOMIZABLE
+    codeBlockBackground: '--markup-code-bg',
+    linkColor: '--markup-link',
+    blockquoteColor: '--markup-blockquote',
+    tableHeaderBackground: '--markup-table-header',
+    
+    // Markup element text colors - USER CUSTOMIZABLE
+    codeBlockTextColor: '--markup-code-text',
+    linkTextColor: '--markup-link-text',
+    blockquoteTextColor: '--markup-blockquote-text',
+    tableHeaderTextColor: '--markup-table-header-text',
+    
+    // Proactive message highlight - USER CUSTOMIZABLE
+    proactiveHighlightColor: '--proactive-highlight-color'
+  };
+
+  // Opacity mappings
+  const opacityMappings: Record<string, string> = {
+    userBubbleOpacity: '--user-bubble-opacity',
+    aiBubbleOpacity: '--ai-bubble-opacity'
+  };
+
+  // Apply color mappings
+  Object.entries(colorMappings).forEach(([key, cssVar]) => {
+    const value = themeColors[key];
+    if (value) {
+      // Set the raw hex value for direct usage
+      root.style.setProperty(cssVar, value);
+      root.style.setProperty(`${cssVar}-hex`, value);
+    }
+  });
+
+  // Apply opacity mappings
+  Object.entries(opacityMappings).forEach(([key, cssVar]) => {
+    const value = themeColors[key];
+    if (value !== undefined) {
+      root.style.setProperty(cssVar, String(value));
+    }
+  });
+
+  // Log only in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Applied SupaThemes customizations', { 
+      bubbleColors: !!(themeColors.userBubbleColor || themeColors.aiBubbleColor),
+      markupColors: !!(themeColors.codeBlockBackground || themeColors.linkColor),
+      proactiveColor: !!themeColors.proactiveHighlightColor
     });
-
-    if (themeColors.textColor) {
-      document.body.style.color = themeColors.textColor;
-      
-      const textElements = document.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, div, label, a, button, input, textarea, select');
-      textElements.forEach(element => {
-        const htmlElement = element as HTMLElement;
-        if (!htmlElement.style.color || htmlElement.style.color === '' || htmlElement.style.color === 'inherit') {
-          htmlElement.style.color = 'inherit';
-        }
-      });
-      
-      document.body.offsetHeight;
-    }
-
-    // ENHANCED: Check for markup colors to determine if they're applied
-    const markupColorsApplied = !!(
-      themeColors.codeBlockBackground || 
-      themeColors.linkColor || 
-      themeColors.blockquoteColor || 
-      themeColors.tableHeaderBackground ||
-      themeColors.codeBlockTextColor ||
-      themeColors.linkTextColor ||
-      themeColors.blockquoteTextColor ||
-      themeColors.tableHeaderTextColor ||
-      themeColors.proactiveHighlightColor
-    );
-
-    // Reduce console noise - only log in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Applied theme changes', { 
-        textColorApplied: !!themeColors.textColor,
-        markupColorsApplied,
-        proactiveColorApplied: !!themeColors.proactiveHighlightColor
-      });
-    }
   }
 };
 
@@ -217,7 +177,8 @@ const kebabCase = (str: string): string => {
   return str.replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '$1-$2').toLowerCase();
 };
 
-const hexToHsl = (hex: string): string => {
+// Exported for potential use in other modules
+export const hexToHsl = (hex: string): string => {
   hex = hex.replace('#', '');
   
   const r = parseInt(hex.substring(0, 2), 16) / 255;
