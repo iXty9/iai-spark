@@ -8,6 +8,7 @@ export interface VoiceInputState {
   isProcessing: boolean;
   error: string | null;
   transcript: string;
+  interimTranscript: string;
   isSupported: boolean;
   hasPermission: boolean;
 }
@@ -18,6 +19,7 @@ export const useVoiceInput = () => {
     isProcessing: false,
     error: null,
     transcript: '',
+    interimTranscript: '',
     isSupported: false,
     hasPermission: false
   });
@@ -26,8 +28,9 @@ export const useVoiceInput = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  const accumulatedTranscriptRef = useRef<string>('');
 
-  // Check for speech recognition support
+  // Check for speech recognition support and set up handlers
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const isSupported = !!SpeechRecognition || !!navigator.mediaDevices?.getUserMedia;
@@ -36,30 +39,68 @@ export const useVoiceInput = () => {
     
     if (SpeechRecognition) {
       recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
+      recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = 'en-US';
       
       recognitionRef.current.onstart = () => {
         logger.info('Speech recognition started');
-        setVoiceState(prev => ({ ...prev, isRecording: true, error: null }));
+        accumulatedTranscriptRef.current = '';
+        setVoiceState(prev => ({ 
+          ...prev, 
+          isRecording: true, 
+          error: null,
+          transcript: '',
+          interimTranscript: ''
+        }));
       };
       
       recognitionRef.current.onresult = (event) => {
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
+        let finalTranscript = '';
+        let interimTranscript = '';
+        
+        for (let i = 0; i < event.results.length; i++) {
+          const result = event.results[i];
+          const transcriptText = result[0].transcript;
+          
+          if (result.isFinal) {
+            finalTranscript += transcriptText;
+          } else {
+            interimTranscript += transcriptText;
+          }
         }
         
-        setVoiceState(prev => ({ ...prev, transcript }));
+        // Accumulate final results
+        if (finalTranscript) {
+          accumulatedTranscriptRef.current = finalTranscript;
+        }
+        
+        // Update interim transcript for visual feedback only (not sent to parent)
+        setVoiceState(prev => ({ 
+          ...prev, 
+          interimTranscript: interimTranscript
+        }));
       };
       
       recognitionRef.current.onend = () => {
         logger.info('Speech recognition ended');
-        setVoiceState(prev => ({ ...prev, isRecording: false }));
+        // Only set the final transcript when recording ends
+        const finalText = accumulatedTranscriptRef.current.trim();
+        setVoiceState(prev => ({ 
+          ...prev, 
+          isRecording: false,
+          interimTranscript: '',
+          transcript: finalText
+        }));
       };
       
       recognitionRef.current.onerror = (event) => {
+        // Ignore 'no-speech' and 'aborted' errors - they're not real errors
+        if (event.error === 'no-speech' || event.error === 'aborted') {
+          logger.info('Speech recognition ended without speech', event.error);
+          return;
+        }
+        
         logger.error('Speech recognition error', event.error);
         setVoiceState(prev => ({ 
           ...prev, 
@@ -68,6 +109,29 @@ export const useVoiceInput = () => {
         }));
       };
     }
+    
+    // Cleanup on unmount
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch (e) {
+          // Ignore abort errors
+        }
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+      if (mediaRecorderRef.current) {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch (e) {
+          // Ignore stop errors
+        }
+        mediaRecorderRef.current = null;
+      }
+    };
   }, []);
 
   const requestPermission = useCallback(async () => {
@@ -91,6 +155,7 @@ export const useVoiceInput = () => {
     if (!recognitionRef.current) return false;
     
     try {
+      accumulatedTranscriptRef.current = '';
       recognitionRef.current.start();
       return true;
     } catch (error) {
@@ -186,6 +251,15 @@ export const useVoiceInput = () => {
   };
 
   const startRecording = useCallback(async () => {
+    // Clear previous transcript when starting new recording
+    setVoiceState(prev => ({ 
+      ...prev, 
+      transcript: '', 
+      interimTranscript: '',
+      error: null 
+    }));
+    accumulatedTranscriptRef.current = '';
+    
     if (!voiceState.hasPermission) {
       const hasPermission = await requestPermission();
       if (!hasPermission) return;
@@ -203,22 +277,31 @@ export const useVoiceInput = () => {
 
   const stopRecording = useCallback(() => {
     if (recognitionRef.current && voiceState.isRecording) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        // Ignore stop errors
+      }
     }
     
     if (mediaRecorderRef.current && voiceState.isRecording) {
-      mediaRecorderRef.current.stop();
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (e) {
+        // Ignore stop errors
+      }
       mediaRecorderRef.current = null;
     }
     
-    setVoiceState(prev => ({ ...prev, isRecording: false }));
     logger.info('Voice recording stopped');
   }, [voiceState.isRecording]);
 
   const clearTranscript = useCallback(() => {
+    accumulatedTranscriptRef.current = '';
     setVoiceState(prev => ({
       ...prev,
       transcript: '',
+      interimTranscript: '',
       error: null
     }));
   }, []);

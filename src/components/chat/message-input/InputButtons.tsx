@@ -104,27 +104,27 @@ export const InputButtons: React.FC<InputButtonsProps> = ({
     }
   };
 
-  // Handle voice transcript when it's available
+  const lastErrorRef = React.useRef<string | null>(null);
+
+  // Handle voice transcript when it's available - no toast needed
   React.useEffect(() => {
     if (voiceState.transcript && onVoiceTranscript) {
       onVoiceTranscript(voiceState.transcript);
       clearTranscript();
-      
-      toast({
-        title: "Voice input complete",
-        description: "Your speech has been transcribed."
-      });
     }
-  }, [voiceState.transcript, onVoiceTranscript, clearTranscript, toast]);
+  }, [voiceState.transcript, onVoiceTranscript, clearTranscript]);
 
-  // Handle voice errors
+  // Handle voice errors - prevent duplicate toasts
   React.useEffect(() => {
-    if (voiceState.error) {
+    if (voiceState.error && voiceState.error !== lastErrorRef.current) {
+      lastErrorRef.current = voiceState.error;
       toast({
         variant: "destructive",
         title: "Voice input error",
         description: voiceState.error
       });
+    } else if (!voiceState.error) {
+      lastErrorRef.current = null;
     }
   }, [voiceState.error, toast]);
 
