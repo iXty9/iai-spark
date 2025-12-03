@@ -18,15 +18,15 @@ export const MarkupControlCard: React.FC<MarkupControlCardProps> = ({
   onTextChange
 }) => {
   return (
-    <Card className="p-4">
+    <Card className="p-4 bg-background/80">
       <div className="flex items-start gap-4">
-        <div className="flex-shrink-0 p-2 bg-muted rounded-lg">
+        <div className="flex-shrink-0 p-2 bg-background/60 border border-border/20 rounded-lg">
           <element.icon className="h-4 w-4" />
         </div>
         
         <div className="flex-1 space-y-3">
           <div className="flex items-center justify-between">
-            <Label className="font-medium">
+            <Label className="font-medium text-foreground">
               {element.label}
             </Label>
           </div>

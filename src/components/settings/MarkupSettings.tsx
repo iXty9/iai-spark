@@ -56,7 +56,7 @@ export const MarkupSettings: React.FC<MarkupSettingsProps> = ({
   return (
     <div className="space-y-6">
       {/* Modern Header with Mobile-First Design */}
-      <Card className="glass-panel border-0 shadow-sm">
+      <Card className="glass-panel border-0 shadow-sm bg-background/80">
         <CardContent className="p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="space-y-1">
@@ -85,7 +85,7 @@ export const MarkupSettings: React.FC<MarkupSettingsProps> = ({
       </Card>
 
       {/* Enhanced Theme Mode Tabs */}
-      <Card className="glass-panel border-0 shadow-sm overflow-hidden">
+      <Card className="glass-panel border-0 shadow-sm overflow-hidden bg-background/80">
         <Tabs value={currentMode} onValueChange={(value) => onModeChange(value as 'light' | 'dark')} className="w-full">
           <div className="border-b border-border/50 bg-muted/30">
             <TabsList className="grid grid-cols-2 w-full h-auto p-1 bg-transparent">
@@ -118,7 +118,7 @@ export const MarkupSettings: React.FC<MarkupSettingsProps> = ({
               {renderMarkupControls(lightTheme, 'light')}
               
               {/* Preview Section */}
-              <Card className="bg-muted/30 border-border/50">
+              <Card className="bg-background/50 border-border/50">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center gap-2 mb-4">
                     <Eye className="h-4 w-4 text-blue-500" />
@@ -139,7 +139,7 @@ export const MarkupSettings: React.FC<MarkupSettingsProps> = ({
               {renderMarkupControls(darkTheme, 'dark')}
               
               {/* Preview Section */}
-              <Card className="bg-muted/30 border-border/50">
+              <Card className="bg-background/50 border-border/50">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center gap-2 mb-4">
                     <Eye className="h-4 w-4 text-blue-500" />
