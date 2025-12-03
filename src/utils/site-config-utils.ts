@@ -10,29 +10,48 @@ export interface BuildInfo {
 }
 
 /**
- * Extract build information from site-config.json
+ * Format build date from ISO string
+ */
+function formatBuildDate(isoString: string | undefined): string {
+  if (!isoString) return 'Unknown';
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  } catch {
+    return isoString;
+  }
+}
+
+/**
+ * Extract build information - prioritizes version.json (generated at build time)
+ * Falls back to site-config.json if version.json is unavailable
  */
 export async function getBuildInfoFromSiteConfig(): Promise<BuildInfo> {
+  // First, try version.json (generated at build time - most accurate source of truth)
+  try {
+    const versionResponse = await fetch('/version.json', { cache: 'no-store' });
+    if (versionResponse.ok) {
+      const versionData = await versionResponse.json();
+      return {
+        version: versionData.version || '1.0.0',
+        buildDate: formatBuildDate(versionData.buildTime),
+        commitHash: versionData.buildHash || 'unknown',
+        environment: versionData.environment || 'unknown'
+      };
+    }
+  } catch (error) {
+    logger.warn('Failed to fetch version.json, falling back to site-config', error, { module: 'site-config-utils' });
+  }
+
+  // Fallback to site-config.json
   try {
     const siteConfig = await fetchStaticSiteConfig();
     
     if (siteConfig) {
-      // Calculate build date from lastUpdated or use current fallback
-      let buildDate = 'Unknown';
-      if (siteConfig.lastUpdated) {
-        try {
-          const date = new Date(siteConfig.lastUpdated);
-          buildDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-        } catch (dateError) {
-          logger.warn('Failed to parse lastUpdated date', dateError, { module: 'site-config-utils' });
-          buildDate = siteConfig.lastUpdated;
-        }
-      }
-      
       return {
-        version: siteConfig.version || '0.9.0-beta.1',
-        buildDate,
-        commitHash: siteConfig.commitHash || generatePseudoCommitHash(siteConfig),
+        version: siteConfig.version || '1.0.0',
+        buildDate: formatBuildDate(siteConfig.lastUpdated),
+        commitHash: siteConfig.commitHash || siteConfig.buildHash || generatePseudoCommitHash(siteConfig),
         environment: siteConfig.environment || 'unknown'
       };
     }
@@ -40,10 +59,10 @@ export async function getBuildInfoFromSiteConfig(): Promise<BuildInfo> {
     logger.warn('Failed to fetch site config for build info', error, { module: 'site-config-utils' });
   }
   
-  // Fallback to defaults with updated version
+  // Final fallback
   return {
-    version: '0.9.0-beta.1',
-    buildDate: new Date().toLocaleDateString(),
+    version: '1.0.0',
+    buildDate: 'Unknown',
     commitHash: 'dev-build',
     environment: import.meta.env.MODE || 'development'
   };
@@ -60,16 +79,15 @@ function generatePseudoCommitHash(siteConfig: any): string {
       environment: siteConfig.environment
     });
     
-    // Simple hash generation for pseudo commit hash
     let hash = 0;
     for (let i = 0; i < configString.length; i++) {
       const char = configString.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
+      hash = hash & hash;
     }
     
     return Math.abs(hash).toString(16).substring(0, 8);
-  } catch (error) {
+  } catch {
     return 'unknown';
   }
 }
