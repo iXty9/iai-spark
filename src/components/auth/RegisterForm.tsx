@@ -102,7 +102,7 @@ export function RegisterForm() {
   return (
     <div className="space-y-6">
       {/* Register Header */}
-      <Card className="glass-panel border-0 shadow-sm">
+      <Card className="glass-panel border-0 shadow-sm bg-background/80">
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
@@ -127,7 +127,7 @@ export function RegisterForm() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
           {/* Account Credentials Section */}
-          <Card className="glass-panel border-0 shadow-sm">
+          <Card className="glass-panel border-0 shadow-sm bg-background/80">
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Shield className="h-4 w-4 text-blue-500" />
@@ -228,7 +228,7 @@ export function RegisterForm() {
           </Card>
 
           {/* Personal Information Section */}
-          <Card className="glass-panel border-0 shadow-sm">
+          <Card className="glass-panel border-0 shadow-sm bg-background/80">
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Users className="h-4 w-4 text-green-500" />
@@ -304,7 +304,7 @@ export function RegisterForm() {
 
           {/* Terms & Conditions Disclaimer */}
           {authSettings.disclaimerRequired && (
-            <Card className="glass-panel border-0 shadow-sm">
+            <Card className="glass-panel border-0 shadow-sm bg-background/80">
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <FileText className="h-4 w-4 text-amber-500" />
@@ -349,7 +349,7 @@ export function RegisterForm() {
           )}
 
           {/* Submit Section */}
-          <Card className="glass-panel border-0 shadow-sm">
+          <Card className="glass-panel border-0 shadow-sm bg-background/80">
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Sparkles className="h-4 w-4 text-purple-500" />
