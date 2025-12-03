@@ -118,9 +118,9 @@ export function ThemeSettings() {
   }
 
   return (
-    <Card>
+    <Card className="bg-background/80">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-foreground">
           <Crown className="h-5 w-5 text-amber-600" />
           System Theme Management
         </CardTitle>
@@ -134,7 +134,7 @@ export function ThemeSettings() {
           </AlertDescription>
         </Alert>
 
-        <div className="flex items-center justify-between p-4 border rounded-lg">
+        <div className="flex items-center justify-between p-4 border border-border/30 rounded-lg bg-background/60">
           <div>
             <h4 className="font-medium text-foreground">Set Current Theme as Default</h4>
             <p className="text-sm text-muted-foreground">
@@ -160,8 +160,8 @@ export function ThemeSettings() {
           </Button>
         </div>
 
-        <div className="text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
-          <strong>How it works:</strong>
+        <div className="text-sm text-muted-foreground p-3 bg-background/50 border border-border/20 rounded-lg">
+          <strong className="text-foreground">How it works:</strong>
           <ul className="mt-2 space-y-1 list-disc list-inside">
             <li>Your current theme (colors, background, mode) becomes the system default</li>
             <li>New users will see this theme when they first visit</li>
@@ -171,13 +171,13 @@ export function ThemeSettings() {
         </div>
 
         {/* Sound Management Section */}
-        <div className="border-t pt-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+        <div className="border-t border-border/30 pt-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-foreground">
             <Crown className="h-5 w-5 text-amber-600" />
             System Sound Management
           </h3>
           
-          <div className="flex items-center justify-between p-4 border rounded-lg">
+          <div className="flex items-center justify-between p-4 border border-border/30 rounded-lg bg-background/60">
             <div>
               <h4 className="font-medium text-foreground">Set Current Sounds as Default</h4>
               <p className="text-sm text-muted-foreground">
@@ -203,8 +203,8 @@ export function ThemeSettings() {
             </Button>
           </div>
 
-          <div className="text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg mt-4">
-            <strong>Sound defaults include:</strong>
+          <div className="text-sm text-muted-foreground p-3 bg-background/50 border border-border/20 rounded-lg mt-4">
+            <strong className="text-foreground">Sound defaults include:</strong>
             <ul className="mt-2 space-y-1 list-disc list-inside">
               <li>Custom notification and chat message sounds</li>
               <li>Volume levels and enabled/disabled state</li>
