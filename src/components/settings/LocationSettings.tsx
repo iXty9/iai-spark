@@ -141,9 +141,9 @@ export const LocationSettings: React.FC = () => {
 
   if (!isSupported) {
     return (
-      <Card>
+      <Card className="bg-background/80">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-foreground">
             <MapPin className="h-5 w-5" />
             Location Services
           </CardTitle>
@@ -160,9 +160,9 @@ export const LocationSettings: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="bg-background/80">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-foreground">
             <MapPin className="h-5 w-5" />
             Location Services
           </CardTitle>
@@ -172,7 +172,7 @@ export const LocationSettings: React.FC = () => {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <p className="font-medium">Location Access</p>
+                <p className="font-medium text-foreground">Location Access</p>
                 <p className="text-sm text-muted-foreground">
                   Allow location access for personalized assistance
                 </p>
@@ -215,9 +215,9 @@ export const LocationSettings: React.FC = () => {
           {hasPermission && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="font-medium">Current Location</p>
-                  <p className="text-sm text-muted-foreground">
+              <div className="space-y-1">
+                <p className="font-medium text-foreground">Current Location</p>
+                <p className="text-sm text-muted-foreground">
                     {getLocationDisplay()}
                   </p>
                   {lastUpdated && (
@@ -249,9 +249,9 @@ export const LocationSettings: React.FC = () => {
           {hasPermission && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="font-medium">Automatic Updates</p>
-                  <p className="text-sm text-muted-foreground">
+              <div className="space-y-1">
+                <p className="font-medium text-foreground">Automatic Updates</p>
+                <p className="text-sm text-muted-foreground">
                     Automatically update location when you move significantly
                   </p>
                 </div>
@@ -266,9 +266,9 @@ export const LocationSettings: React.FC = () => {
       </Card>
 
       {/* Privacy Information */}
-      <Card>
+      <Card className="bg-background/80">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-foreground">
             <Shield className="h-5 w-5" />
             Privacy & Security
           </CardTitle>
@@ -278,7 +278,7 @@ export const LocationSettings: React.FC = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <p className="font-medium">Coarse Location</p>
+                <p className="font-medium text-foreground">Coarse Location</p>
                 <p className="text-sm text-muted-foreground">Round coordinates to city-level for extra privacy</p>
               </div>
               <Switch
@@ -288,7 +288,7 @@ export const LocationSettings: React.FC = () => {
             </div>
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <p className="font-medium">Include Address Details</p>
+                <p className="font-medium text-foreground">Include Address Details</p>
                 <p className="text-sm text-muted-foreground">Save address/city/country alongside coordinates</p>
               </div>
               <Switch
@@ -298,7 +298,7 @@ export const LocationSettings: React.FC = () => {
             </div>
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <p className="font-medium">Clear Saved Location</p>
+                <p className="font-medium text-foreground">Clear Saved Location</p>
                 <p className="text-sm text-muted-foreground">Remove stored location details from your profile</p>
               </div>
               <Button variant="outline" size="sm" onClick={handleClearSaved}>Clear</Button>
