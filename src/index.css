@@ -9,6 +9,7 @@
 /* Immediate theme application to prevent flash */
 :root {
   --theme-mode: light;
+  --chat-input-height: 20px; /* Default for non-chat pages */
 }
 
 html.dark {
@@ -135,7 +136,8 @@ html.dark {
 /* Toast positioning - always above chat input with 5px spacing */
 [data-radix-toast-viewport],
 [data-sonner-toaster] {
-  bottom: calc(var(--chat-input-height, 88px) + 5px) !important;
+  top: auto !important;
+  bottom: calc(var(--chat-input-height, 20px) + 5px) !important;
   right: 0 !important;
   transition: bottom 0.2s ease-out;
 }
