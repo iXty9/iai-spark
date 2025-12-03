@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 interface InputButtonsProps {
   message: string;
   isLoading: boolean;
+  hasAttachments?: boolean;
   onSendClick: () => void;
   onFileAttached?: (content: string, fileName: string) => void;
   onVoiceTranscript?: (transcript: string) => void;
@@ -20,6 +21,7 @@ interface InputButtonsProps {
 export const InputButtons: React.FC<InputButtonsProps> = ({
   message,
   isLoading,
+  hasAttachments = false,
   onSendClick,
   onFileAttached,
   onVoiceTranscript,
@@ -232,7 +234,7 @@ export const InputButtons: React.FC<InputButtonsProps> = ({
         type="button" 
         variant="default" 
         size="icon" 
-        disabled={!message.trim() || isLoading}
+        disabled={(!message.trim() && !hasAttachments) || isLoading}
         aria-label="Send message"
         className="rounded-full shrink-0 h-11 w-11 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:hover:scale-100"
         onClick={onSendClick}
