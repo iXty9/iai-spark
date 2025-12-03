@@ -1,30 +1,36 @@
 export interface ThemeColors {
-  backgroundColor: string;
-  primaryColor: string;
-  textColor: string;
-  accentColor: string;
+  // DEPRECATED: These are kept for backward compatibility but no longer applied to Tailwind
+  // Tailwind's design tokens in index.css are the source of truth for base colors
+  backgroundColor?: string;
+  primaryColor?: string;
+  textColor?: string;
+  accentColor?: string;
+  
+  // Message bubble colors - USER CUSTOMIZABLE via Settings > Appearance
   userBubbleColor: string;
   aiBubbleColor: string;
   userBubbleOpacity: number;
   aiBubbleOpacity: number;
   userTextColor: string;
   aiTextColor: string;
+  
+  // Name tag colors - USER CUSTOMIZABLE via Settings > Appearance
   userNameColor: string;
   aiNameColor: string;
   
-  // ENHANCED: Complete markup styling fields with text color support
+  // Markup element background colors - USER CUSTOMIZABLE via Settings > Markup
   codeBlockBackground?: string;
   linkColor?: string;
   blockquoteColor?: string;
   tableHeaderBackground?: string;
   
-  // NEW: Text color properties for markup elements
+  // Markup element text colors - USER CUSTOMIZABLE via Settings > Markup
   codeBlockTextColor?: string;
   linkTextColor?: string;
   blockquoteTextColor?: string;
   tableHeaderTextColor?: string;
   
-  // NEW: Proactive message highlight color
+  // Proactive message highlight color
   proactiveHighlightColor?: string;
 }
 
