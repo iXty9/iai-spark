@@ -187,9 +187,9 @@ export function PWASettings() {
   return (
     <div className="space-y-6">
       {/* PWA Status */}
-      <Card>
+      <Card className="bg-background/80">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-foreground">
             <Zap className="h-5 w-5" />
             PWA Status
           </CardTitle>
@@ -274,9 +274,9 @@ export function PWASettings() {
       </Card>
 
       {/* App Information */}
-      <Card>
+      <Card className="bg-background/80">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-foreground">
             <Smartphone className="h-5 w-5" />
             App Information
           </CardTitle>
@@ -287,7 +287,7 @@ export function PWASettings() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="app_name">App Name</Label>
+              <Label htmlFor="app_name" className="text-foreground">App Name</Label>
               <Input
                 id="app_name"
                 value={settings.pwa_app_name}
@@ -296,7 +296,7 @@ export function PWASettings() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="short_name">Short Name</Label>
+              <Label htmlFor="short_name" className="text-foreground">Short Name</Label>
               <Input
                 id="short_name"
                 value={settings.pwa_short_name}
@@ -307,7 +307,7 @@ export function PWASettings() {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description" className="text-foreground">Description</Label>
             <Textarea
               id="description"
               value={settings.pwa_description}
@@ -320,9 +320,9 @@ export function PWASettings() {
       </Card>
 
       {/* Branding */}
-      <Card>
+      <Card className="bg-background/80">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-foreground">
             <Palette className="h-5 w-5" />
             Branding
           </CardTitle>
@@ -333,7 +333,7 @@ export function PWASettings() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="theme_color">Theme Color</Label>
+              <Label htmlFor="theme_color" className="text-foreground">Theme Color</Label>
               <div className="flex gap-2">
                 <Input
                   id="theme_color"
@@ -350,7 +350,7 @@ export function PWASettings() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="background_color">Background Color</Label>
+              <Label htmlFor="background_color" className="text-foreground">Background Color</Label>
               <div className="flex gap-2">
                 <Input
                   id="background_color"
@@ -368,7 +368,7 @@ export function PWASettings() {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="icon_url">App Icon URL</Label>
+            <Label htmlFor="icon_url" className="text-foreground">App Icon URL</Label>
             <Input
               id="icon_url"
               value={settings.pwa_icon_url}
@@ -383,9 +383,9 @@ export function PWASettings() {
       </Card>
 
       {/* Behavior */}
-      <Card>
+      <Card className="bg-background/80">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-foreground">
             <Settings className="h-5 w-5" />
             App Behavior
           </CardTitle>
@@ -396,7 +396,7 @@ export function PWASettings() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="display_mode">Display Mode</Label>
+              <Label htmlFor="display_mode" className="text-foreground">Display Mode</Label>
               <Select value={settings.pwa_display_mode} onValueChange={(value) => handleInputChange('pwa_display_mode', value)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -410,7 +410,7 @@ export function PWASettings() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="orientation">Orientation</Label>
+              <Label htmlFor="orientation" className="text-foreground">Orientation</Label>
               <Select value={settings.pwa_orientation} onValueChange={(value) => handleInputChange('pwa_orientation', value)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -425,7 +425,7 @@ export function PWASettings() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="start_url">Start URL</Label>
+              <Label htmlFor="start_url" className="text-foreground">Start URL</Label>
               <Input
                 id="start_url"
                 value={settings.pwa_start_url}
@@ -434,7 +434,7 @@ export function PWASettings() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="scope">Scope</Label>
+              <Label htmlFor="scope" className="text-foreground">Scope</Label>
               <Input
                 id="scope"
                 value={settings.pwa_scope}
@@ -447,9 +447,9 @@ export function PWASettings() {
       </Card>
 
       {/* Manifest Preview */}
-      <Card>
+      <Card className="bg-background/80">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-foreground">
             <Eye className="h-5 w-5" />
             Manifest Preview
           </CardTitle>
@@ -458,7 +458,7 @@ export function PWASettings() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <pre className="bg-muted p-4 rounded-lg text-sm overflow-auto max-h-64">
+          <pre className="bg-background/60 border border-border/30 p-4 rounded-lg text-sm overflow-auto max-h-64 text-foreground">
 {JSON.stringify(generateManifestPreview(), null, 2)}
           </pre>
         </CardContent>
