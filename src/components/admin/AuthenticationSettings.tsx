@@ -117,16 +117,16 @@ export const AuthenticationSettings = () => {
   return (
     <div className="space-y-6">
       {/* General Settings */}
-      <Card className="glass-panel border-0 shadow-sm">
+      <Card className="glass-panel border-0 shadow-sm bg-background/80">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4 text-blue-500" />
-            <CardTitle className="text-base">General Text</CardTitle>
+            <CardTitle className="text-base text-foreground">General Text</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label htmlFor="auth_tagline" className="text-sm font-medium">Main Tagline</Label>
+            <Label htmlFor="auth_tagline" className="text-sm font-medium text-foreground">Main Tagline</Label>
             <div className="flex gap-2">
               <Input
                 id="auth_tagline"
@@ -164,7 +164,7 @@ export const AuthenticationSettings = () => {
             </div>
           </div>
           <div>
-            <Label htmlFor="auth_welcome_description" className="text-sm font-medium">Welcome Description</Label>
+            <Label htmlFor="auth_welcome_description" className="text-sm font-medium text-foreground">Welcome Description</Label>
             <Textarea
               id="auth_welcome_description"
               value={settings.auth_welcome_description}
@@ -177,16 +177,16 @@ export const AuthenticationSettings = () => {
       </Card>
 
       {/* Login Settings */}
-      <Card className="glass-panel border-0 shadow-sm">
+      <Card className="glass-panel border-0 shadow-sm bg-background/80">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-green-500" />
-            <CardTitle className="text-base">Login Form</CardTitle>
+            <CardTitle className="text-base text-foreground">Login Form</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label htmlFor="auth_login_title" className="text-sm font-medium">Login Title</Label>
+            <Label htmlFor="auth_login_title" className="text-sm font-medium text-foreground">Login Title</Label>
             <Input
               id="auth_login_title"
               value={settings.auth_login_title}
@@ -196,7 +196,7 @@ export const AuthenticationSettings = () => {
             />
           </div>
           <div>
-            <Label htmlFor="auth_login_description" className="text-sm font-medium">Login Description</Label>
+            <Label htmlFor="auth_login_description" className="text-sm font-medium text-foreground">Login Description</Label>
             <Textarea
               id="auth_login_description"
               value={settings.auth_login_description}
@@ -209,16 +209,16 @@ export const AuthenticationSettings = () => {
       </Card>
 
       {/* Registration Settings */}
-      <Card className="glass-panel border-0 shadow-sm">
+      <Card className="glass-panel border-0 shadow-sm bg-background/80">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-purple-500" />
-            <CardTitle className="text-base">Registration Form</CardTitle>
+            <CardTitle className="text-base text-foreground">Registration Form</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label htmlFor="auth_register_title" className="text-sm font-medium">Registration Title</Label>
+            <Label htmlFor="auth_register_title" className="text-sm font-medium text-foreground">Registration Title</Label>
             <Input
               id="auth_register_title"
               value={settings.auth_register_title}
@@ -228,7 +228,7 @@ export const AuthenticationSettings = () => {
             />
           </div>
           <div>
-            <Label htmlFor="auth_register_description" className="text-sm font-medium">Registration Description</Label>
+            <Label htmlFor="auth_register_description" className="text-sm font-medium text-foreground">Registration Description</Label>
             <Textarea
               id="auth_register_description"
               value={settings.auth_register_description}
@@ -241,16 +241,16 @@ export const AuthenticationSettings = () => {
       </Card>
 
       {/* Disclaimer Settings */}
-      <Card className="glass-panel border-0 shadow-sm">
+      <Card className="glass-panel border-0 shadow-sm bg-background/80">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
             <Settings className="h-4 w-4 text-orange-500" />
-            <CardTitle className="text-base">Terms & Conditions Disclaimer</CardTitle>
+            <CardTitle className="text-base text-foreground">Terms & Conditions Disclaimer</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label htmlFor="auth_disclaimer_text" className="text-sm font-medium">Disclaimer Text (Markdown Supported)</Label>
+            <Label htmlFor="auth_disclaimer_text" className="text-sm font-medium text-foreground">Disclaimer Text (Markdown Supported)</Label>
             <p className="text-xs text-muted-foreground mt-1 mb-2">
               Use **bold**, *italic*, or [clickable links](https://example.com) in your disclaimer
             </p>
@@ -264,7 +264,7 @@ export const AuthenticationSettings = () => {
           </div>
           <div className="flex items-center justify-between">
             <div>
-              <Label className="text-sm font-medium">Require Disclaimer Acceptance</Label>
+              <Label className="text-sm font-medium text-foreground">Require Disclaimer Acceptance</Label>
               <p className="text-xs text-muted-foreground mt-1">
                 When enabled, users must check the disclaimer box to register
               </p>
