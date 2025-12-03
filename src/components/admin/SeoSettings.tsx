@@ -112,14 +112,14 @@ export function SeoSettings() {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="bg-background/80">
         <CardHeader>
-          <CardTitle>SEO Settings</CardTitle>
+          <CardTitle className="text-foreground">SEO Settings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="seo_site_title">Site Title</Label>
+              <Label htmlFor="seo_site_title" className="text-foreground">Site Title</Label>
               <Input
                 id="seo_site_title"
                 value={settings.seo_site_title}
@@ -129,7 +129,7 @@ export function SeoSettings() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="seo_site_author">Site Author</Label>
+              <Label htmlFor="seo_site_author" className="text-foreground">Site Author</Label>
               <Input
                 id="seo_site_author"
                 value={settings.seo_site_author}
@@ -140,7 +140,7 @@ export function SeoSettings() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="seo_site_description">Site Description</Label>
+            <Label htmlFor="seo_site_description" className="text-foreground">Site Description</Label>
             <Textarea
               id="seo_site_description"
               value={settings.seo_site_description}
@@ -152,7 +152,7 @@ export function SeoSettings() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="seo_og_image_url">Open Graph Image URL</Label>
+              <Label htmlFor="seo_og_image_url" className="text-foreground">Open Graph Image URL</Label>
               <Input
                 id="seo_og_image_url"
                 value={settings.seo_og_image_url}
@@ -162,7 +162,7 @@ export function SeoSettings() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="seo_favicon_url">Favicon URL</Label>
+              <Label htmlFor="seo_favicon_url" className="text-foreground">Favicon URL</Label>
               <Input
                 id="seo_favicon_url"
                 value={settings.seo_favicon_url}
@@ -174,7 +174,7 @@ export function SeoSettings() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="seo_twitter_handle">Twitter Handle</Label>
+              <Label htmlFor="seo_twitter_handle" className="text-foreground">Twitter Handle</Label>
               <Input
                 id="seo_twitter_handle"
                 value={settings.seo_twitter_handle}
@@ -184,7 +184,7 @@ export function SeoSettings() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="seo_og_type">Open Graph Type</Label>
+              <Label htmlFor="seo_og_type" className="text-foreground">Open Graph Type</Label>
               <Input
                 id="seo_og_type"
                 value={settings.seo_og_type}
