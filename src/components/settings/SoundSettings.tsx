@@ -153,7 +153,7 @@ export function SoundSettings() {
       : !!settings?.chat_message_sound;
 
     return (
-      <Card className="glass-panel border-0 shadow-sm">
+      <Card className="glass-panel border-0 shadow-sm bg-background/80">
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             {soundType === 'toast_notification' ? (
@@ -237,7 +237,7 @@ export function SoundSettings() {
   return (
     <div className="space-y-6">
       {/* Modern Header with Mobile-First Design */}
-      <Card className="glass-panel border-0 shadow-sm">
+      <Card className="glass-panel border-0 shadow-sm bg-background/80">
         <CardContent className="p-4 sm:p-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2 mb-1">
@@ -254,7 +254,7 @@ export function SoundSettings() {
       </Card>
 
       {/* Global Sound Toggle */}
-      <Card className="glass-panel border-0 shadow-sm">
+      <Card className="glass-panel border-0 shadow-sm bg-background/80">
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="h-4 w-4 text-purple-500" />
@@ -264,7 +264,7 @@ export function SoundSettings() {
           
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <Label htmlFor="sounds-enabled" className="text-base font-medium">
+              <Label htmlFor="sounds-enabled" className="text-base font-medium text-foreground">
                 Enable Sounds
               </Label>
               <p className="text-sm text-muted-foreground">
