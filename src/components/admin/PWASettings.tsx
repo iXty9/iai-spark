@@ -217,30 +217,19 @@ export function PWASettings() {
               : "App is running in browser mode. Install as PWA for better performance and offline access."
             }
           </div>
-          <div className="pt-2">
+          <div className="pt-2 flex gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={async () => {
                 try {
-                  // Clear stored version to force fresh check
-                  localStorage.removeItem('ixty-app-version');
-                  
-                  // Import versionService dynamically
                   const { versionService } = await import('@/services/pwa/versionService');
-                  
-                  // Force check for updates
-                  const hasUpdate = await versionService.checkForUpdates(true);
+                  const hasUpdate = await versionService.checkForUpdates();
                   
                   if (hasUpdate) {
                     toast({
                       title: "Update Available",
-                      description: "A new version is available. Click to update.",
-                      action: (
-                        <Button size="sm" onClick={() => updateApp()}>
-                          Update Now
-                        </Button>
-                      ),
+                      description: "A new version is available. Use 'Force Refresh' to update.",
                     });
                   } else {
                     toast({
@@ -249,17 +238,36 @@ export function PWASettings() {
                     });
                   }
                 } catch (error) {
-                  console.error('Force update check failed:', error);
+                  console.error('Update check failed:', error);
                   toast({
                     title: "Check Failed",
-                    description: "Could not check for updates. Please try again.",
+                    description: "Could not check for updates.",
                     variant: "destructive",
                   });
                 }
               }}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
-              Force Check for Updates
+              Check for Updates
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={async () => {
+                toast({
+                  title: "Refreshing...",
+                  description: "Clearing all caches and reloading app.",
+                });
+                
+                // Small delay so toast shows
+                await new Promise(r => setTimeout(r, 500));
+                
+                const { versionService } = await import('@/services/pwa/versionService');
+                await versionService.forceCacheRefresh();
+              }}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Force Refresh App
             </Button>
           </div>
         </CardContent>

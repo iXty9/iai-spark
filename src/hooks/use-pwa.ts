@@ -1,10 +1,8 @@
-
 import { useState, useEffect } from 'react';
 import { logger } from '@/utils/logging';
 import { versionService } from '@/services/pwa/versionService';
 import { supaToast } from '@/services/supa-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { useApplicationMode } from '@/hooks/use-application-mode';
 
 interface PWAInstallPrompt {
   prompt: () => Promise<void>;
@@ -24,7 +22,6 @@ interface PWAHook {
 
 export const usePWA = (): PWAHook => {
   const { user } = useAuth();
-  const { isDevelopmentMode } = useApplicationMode();
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -71,9 +68,11 @@ export const usePWA = (): PWAHook => {
     // Listen for online/offline changes
     const handleOnline = () => {
       setIsOnline(true);
-      // Check for updates when coming back online, but only for authenticated users
+      // Check for updates when coming back online
       if (user) {
-        versionService.checkForUpdates(true);
+        versionService.checkForUpdates().then(hasUpdate => {
+          if (hasUpdate) setNeedsUpdate(true);
+        });
       }
     };
     
@@ -83,12 +82,11 @@ export const usePWA = (): PWAHook => {
     const handleServiceWorkerMessage = (event: MessageEvent) => {
       if (event.data && event.data.type === 'SW_UPDATED') {
         logger.info('Service worker updated, refresh needed', { module: 'pwa' });
-        // Don't set needsUpdate here - let version service handle it to avoid duplicates
+        setNeedsUpdate(true);
       }
     };
 
-    // Register service worker - delayed until window load to avoid race conditions
-    // Skip registration if ?no-sw=1 is in URL (emergency debug mode)
+    // Register service worker
     const registerServiceWorker = () => {
       if ('serviceWorker' in navigator) {
         const urlParams = new URLSearchParams(window.location.search);
@@ -102,14 +100,17 @@ export const usePWA = (): PWAHook => {
             setRegistration(reg);
             logger.info('Service Worker registered successfully', { module: 'pwa' });
 
-            // Check for updates
+            // Check for updates when new SW is found
             reg.addEventListener('updatefound', () => {
               const newWorker = reg.installing;
               if (newWorker) {
                 newWorker.addEventListener('statechange', () => {
                   if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                     logger.info('New service worker available', { module: 'pwa' });
-                    // Let version service handle update detection to avoid duplicates
+                    // Only notify authenticated users
+                    if (user) {
+                      setNeedsUpdate(true);
+                    }
                   }
                 });
               }
@@ -131,40 +132,6 @@ export const usePWA = (): PWAHook => {
       window.addEventListener('load', registerServiceWorker);
     }
 
-    // Set up version service update listener
-    versionService.onUpdateAvailable((hasUpdate) => {
-      // In development mode: don't show notifications (silent updates only)
-      // In production mode: only show to authenticated users
-      const shouldShowNotification = isDevelopmentMode ? false : !!user;
-      
-      if (!shouldShowNotification) {
-        logger.info('Update notification suppressed', { 
-          reason: isDevelopmentMode ? 'development mode - silent updates' : 'production mode - anonymous user',
-          user: !!user,
-          isDevelopmentMode
-        }, { module: 'use-pwa' });
-        return;
-      }
-      
-      setNeedsUpdate(hasUpdate);
-      // Only show update notification if app is installed as PWA and user is authenticated
-      if (hasUpdate) {
-        // Check current installed state at the time of update
-        const currentIsStandalone = window.matchMedia('(display-mode: standalone)').matches;
-        const currentIsIOSStandalone = (window.navigator as any).standalone === true;
-        const currentIsInstalled = currentIsStandalone || currentIsIOSStandalone;
-        
-        if (currentIsInstalled) {
-          showUpdateNotification();
-        }
-      }
-    });
-
-    // Start periodic version checks only for authenticated users
-    if (user) {
-      versionService.startPeriodicChecks();
-    }
-
     // Add event listeners
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
@@ -181,10 +148,8 @@ export const usePWA = (): PWAHook => {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
       }
-      
-      versionService.stopPeriodicChecks();
     };
-  }, []);
+  }, [user]);
 
   const promptInstall = async (): Promise<boolean> => {
     if (!deferredPrompt) {
@@ -207,100 +172,19 @@ export const usePWA = (): PWAHook => {
     }
   };
 
-  const showUpdateNotification = () => {
-    let toastId: string;
-    
-    toastId = supaToast.show({
-      type: 'info',
-      title: 'Update Available',
-      message: 'A new version is ready with improvements and fixes. Your preferences will be preserved.',
-      persistent: true,
-      actions: [
-        {
-          label: 'Update Now',
-          action: () => {
-            supaToast.dismiss(toastId);
-            updateApp();
-          }
-        },
-        {
-          label: 'Later',
-          action: () => supaToast.dismiss(toastId)
-        }
-      ]
-    });
-  };
-
   const updateApp = async (): Promise<void> => {
-    // Try to get current registration if not available
-    let currentRegistration = registration;
-    if (!currentRegistration && 'serviceWorker' in navigator) {
-      currentRegistration = await navigator.serviceWorker.getRegistration();
-    }
-
-    if (!currentRegistration) {
-      logger.warn('No service worker registration available', { module: 'pwa' });
-      supaToast.error('Update failed: Service worker not available');
-      return;
-    }
-
     try {
       setIsUpdating(true);
       
-      supaToast.info('Preparing update...', { persistent: true });
+      supaToast.info('Updating app...', { persistent: true });
       
-      // Import cache invalidation service
-      const { cacheInvalidationService } = await import('@/services/pwa/cache-invalidation-service');
+      // Use the force cache refresh which clears everything and reloads
+      await versionService.forceCacheRefresh();
       
-      // Clear all dynamic caches first
-      await cacheInvalidationService.clearAllCaches();
-      
-      // Perform additional cache cleanup
-      await versionService.performCacheCleanup();
-      
-      supaToast.info('Installing update...', { persistent: true });
-      
-      // Get the latest version info
-      const remoteVersion = await versionService.fetchRemoteVersion();
-      if (remoteVersion) {
-        await versionService.updateToVersion(remoteVersion);
-        setCurrentVersion(remoteVersion.buildHash);
-      }
-
-      // Tell the service worker to skip waiting and activate
-      if (currentRegistration.waiting) {
-        currentRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
-        
-        // Wait for the service worker to activate
-        await new Promise<void>((resolve) => {
-          const handleControllerChange = () => {
-            navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
-            resolve();
-          };
-          navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
-          
-          // Fallback timeout
-          setTimeout(resolve, 3000);
-        });
-      } else {
-        // If no waiting worker, force update check
-        await currentRegistration.update();
-        
-        // Wait a bit for the new worker to be installed
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-      
+      // Note: forceCacheRefresh will reload the page, so this code won't run
       setNeedsUpdate(false);
       setIsUpdating(false);
       
-      supaToast.success('Update complete! Reloading with latest version...', { duration: 3000 });
-      
-      // Reload the page with cache bypass after a short delay
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-      
-      logger.info('App update completed successfully', { module: 'pwa' });
     } catch (error) {
       logger.error('Error updating app:', error, { module: 'pwa' });
       setIsUpdating(false);
@@ -308,16 +192,12 @@ export const usePWA = (): PWAHook => {
       supaToast.show({
         type: 'error',
         title: 'Update Failed',
-        message: 'Trying alternative update method...',
+        message: 'Please try again or manually refresh the page.',
         persistent: true,
         actions: [
           {
-            label: 'Force Update',
+            label: 'Force Refresh',
             action: () => versionService.forceCacheRefresh()
-          },
-          {
-            label: 'Try Again',
-            action: () => updateApp()
           }
         ]
       });

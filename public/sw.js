@@ -1,229 +1,80 @@
-// Dynamic cache names based on version
-let CACHE_VERSION = 'dev-build';
-let STATIC_CACHE = `ixty-ai-static-${CACHE_VERSION}`;
-let DYNAMIC_CACHE = `ixty-ai-dynamic-${CACHE_VERSION}`;
+// BUILD_HASH is replaced at build time - when this changes, browser downloads new sw.js
+const BUILD_HASH = '__BUILD_HASH__';
 
-// Cache static assets
-const STATIC_ASSETS = [
+// Single cache for offline fallback only
+const OFFLINE_CACHE = `ixty-offline-${BUILD_HASH}`;
+
+// Minimal assets for offline fallback
+const OFFLINE_ASSETS = [
   '/',
-  '/src/main.tsx',
-  '/src/index.css',
-  '/src/App.css',
-  'https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap',
-  'https://ixty9.com/wp-content/uploads/2024/05/faviconV4.png'
+  '/offline.html'
 ];
 
-// Load version info and update cache names
-const loadVersion = async () => {
-  try {
-    // Try edge function first (always fresh, deployed with code updates)
-    const edgeFunctionUrl = 'https://ymtdtzkskjdqlzhjuesk.supabase.co/functions/v1/version-info';
-    
-    try {
-      const edgeResponse = await fetch(edgeFunctionUrl, {
-        cache: 'no-store'
-      });
-      
-      if (edgeResponse.ok) {
-        const version = await edgeResponse.json();
-        CACHE_VERSION = version.buildHash;
-        
-        if (version.cacheNames) {
-          STATIC_CACHE = version.cacheNames.static || STATIC_CACHE;
-          DYNAMIC_CACHE = version.cacheNames.dynamic || DYNAMIC_CACHE;
-        }
-        
-        console.log('Service Worker: Version loaded from edge function', version);
-        return;
-      }
-    } catch (edgeError) {
-      console.warn('Service Worker: Edge function unavailable, falling back to static file', edgeError);
-    }
-    
-    // Fallback to static version.json
-    const response = await fetch('/version.json', { cache: 'no-cache' });
-    if (response.ok) {
-      const version = await response.json();
-      CACHE_VERSION = version.buildHash;
-      STATIC_CACHE = version.cacheNames.static;
-      DYNAMIC_CACHE = version.cacheNames.dynamic;
-      console.log('Service Worker: Version loaded from static file', version);
-    }
-  } catch (error) {
-    console.error('Service Worker: Failed to load version', error);
-  }
-};
+console.log('Service Worker: Loading with BUILD_HASH:', BUILD_HASH);
 
-// Install event - cache static assets with versioned cache names
+// Install event - cache minimal offline assets
 self.addEventListener('install', (event) => {
-  console.log('Service Worker: Installing...');
+  console.log('Service Worker: Installing with hash:', BUILD_HASH);
   event.waitUntil(
-    loadVersion().then(() => {
-      return caches.open(STATIC_CACHE)
-        .then((cache) => {
-          console.log('Service Worker: Caching static assets with cache:', STATIC_CACHE);
-          return cache.addAll(STATIC_ASSETS);
-        })
-        .catch((error) => {
-          console.error('Service Worker: Error caching static assets:', error);
-        });
-    })
+    caches.open(OFFLINE_CACHE)
+      .then((cache) => {
+        console.log('Service Worker: Caching offline assets');
+        // Only cache what exists, ignore failures
+        return Promise.allSettled(
+          OFFLINE_ASSETS.map(url => 
+            cache.add(url).catch(() => console.log('Could not cache:', url))
+          )
+        );
+      })
   );
+  // Take over immediately
   self.skipWaiting();
 });
 
-// Validate manifest structure
-const isValidManifest = (manifest) => {
-  if (!manifest || typeof manifest !== 'object') {
-    return false;
-  }
-  
-  // Check required fields
-  const requiredFields = ['name', 'short_name', 'icons'];
-  for (const field of requiredFields) {
-    if (!manifest[field]) {
-      return false;
-    }
-  }
-  
-  // Validate icons array
-  if (!Array.isArray(manifest.icons) || manifest.icons.length === 0) {
-    return false;
-  }
-  
-  return true;
-};
-
-// Activate event - clean up old caches AND corrupted manifests
+// Activate event - clean up ALL old caches
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker: Activating...');
+  console.log('Service Worker: Activating with hash:', BUILD_HASH);
   event.waitUntil(
-    loadVersion().then(() => {
-      return caches.keys().then((cacheNames) => {
-        return Promise.all(
-          cacheNames.map((cacheName) => {
-            // Delete old caches that don't match current version
-            if (cacheName.startsWith('ixty-ai-') && 
-                cacheName !== STATIC_CACHE && 
-                cacheName !== DYNAMIC_CACHE) {
-              console.log('Service Worker: Deleting old cache:', cacheName);
-              return caches.delete(cacheName);
-            }
-          })
-        ).then(() => {
-          // Also check and clean corrupted manifest from current cache
-          return caches.open(DYNAMIC_CACHE).then(cache => {
-            return cache.match('/manifest.json').then(response => {
-              if (response) {
-                return response.json().then(manifest => {
-                  if (!isValidManifest(manifest)) {
-                    console.log('Service Worker: Removing corrupted manifest from cache');
-                    return cache.delete('/manifest.json');
-                  }
-                }).catch(() => {
-                  // Invalid JSON, delete it
-                  console.log('Service Worker: Removing invalid manifest (parse error)');
-                  return cache.delete('/manifest.json');
-                });
-              }
-            });
-          });
-        });
-      });
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          // Delete ALL caches except current offline cache
+          if (cacheName !== OFFLINE_CACHE) {
+            console.log('Service Worker: Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => {
+      console.log('Service Worker: Claiming clients');
+      return self.clients.claim();
     })
   );
-  self.clients.claim();
 });
 
-// Handle skip waiting message from update prompt
+// Handle messages from the app
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     console.log('Service Worker: Skip waiting requested');
     self.skipWaiting();
-    
-    // Notify all clients that update is ready
-    self.clients.matchAll().then(clients => {
-      clients.forEach(client => {
-        client.postMessage({ type: 'SW_UPDATED' });
-      });
+  }
+  
+  if (event.data && event.data.type === 'CLEAR_ALL_CACHES') {
+    console.log('Service Worker: Clear all caches requested');
+    caches.keys().then((names) => {
+      return Promise.all(names.map(name => caches.delete(name)));
+    }).then(() => {
+      console.log('Service Worker: All caches cleared');
+      event.ports[0]?.postMessage({ success: true });
     });
   }
   
-  // Handle cache invalidation requests
-  if (event.data && event.data.type === 'INVALIDATE_CACHE') {
-    const patterns = event.data.patterns || [];
-    console.log('Service Worker: Cache invalidation requested for patterns:', patterns);
-    
-    caches.open(DYNAMIC_CACHE).then(cache => {
-      cache.keys().then(requests => {
-        const deletionPromises = requests
-          .filter(request => {
-            const url = request.url;
-            return patterns.some(pattern => url.includes(pattern));
-          })
-          .map(request => {
-            console.log('Service Worker: Deleting cached entry:', request.url);
-            return cache.delete(request);
-          });
-        
-        return Promise.all(deletionPromises);
-      }).then(() => {
-        console.log('Service Worker: Cache invalidation complete');
-        event.ports[0]?.postMessage({ success: true });
-      });
-    }).catch(error => {
-      console.error('Service Worker: Cache invalidation failed:', error);
-      event.ports[0]?.postMessage({ success: false, error: error.message });
-    });
-  }
-  
-  if (event.data && event.data.type === 'UPDATE_MANIFEST') {
-    // Cache the new manifest data with validation
-    const manifest = event.data.manifest;
-    console.log('Service Worker: Received manifest update request:', manifest);
-    
-    // Validate manifest before caching
-    if (!isValidManifest(manifest)) {
-      console.error('Service Worker: Manifest validation failed, rejecting update', manifest);
-      // Notify sender of failure
-      if (event.source) {
-        event.source.postMessage({ 
-          type: 'MANIFEST_UPDATE_FAILED', 
-          error: 'Invalid manifest structure' 
-        });
-      }
-      return;
-    }
-    
-    // Store validated manifest in cache
-    caches.open(DYNAMIC_CACHE).then(cache => {
-      const manifestResponse = new Response(JSON.stringify(manifest), {
-        headers: { 'Content-Type': 'application/json' }
-      });
-      cache.put('/manifest.json', manifestResponse);
-      console.log('Service Worker: Manifest cached successfully');
-    }).catch(error => {
-      console.error('Service Worker: Failed to cache manifest', error);
-    });
-    
-    // Notify clients about successful manifest update
-    self.clients.matchAll().then(clients => {
-      clients.forEach(client => {
-        client.postMessage({ type: 'MANIFEST_UPDATED', manifest });
-      });
-    });
+  if (event.data && event.data.type === 'GET_VERSION') {
+    event.ports[0]?.postMessage({ buildHash: BUILD_HASH });
   }
 });
 
-// Helper: Check if URL is a Supabase API call
-const isSupabaseApiCall = (url) => {
-  return url.hostname.includes('.supabase.co') || 
-         url.pathname.includes('/rest/v1/') ||
-         url.pathname.includes('/auth/v1/') ||
-         url.pathname.includes('/storage/v1/');
-};
-
-// Fetch event - network-first for API calls, cache-first for static assets
+// NETWORK-FIRST for everything - cache only as offline fallback
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -234,92 +85,8 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Skip cross-origin requests except for allowed domains
-  const allowedDomains = ['fonts.googleapis.com', 'fonts.gstatic.com', 'ixty9.com', 'supabase.co'];
+  const allowedDomains = ['fonts.googleapis.com', 'fonts.gstatic.com', 'supabase.co'];
   if (url.origin !== self.location.origin && !allowedDomains.some(domain => url.hostname.includes(domain))) {
-    return;
-  }
-
-  // NETWORK-FIRST for Supabase API calls (dynamic data)
-  if (isSupabaseApiCall(url)) {
-    event.respondWith(
-      fetch(request)
-        .then(response => {
-          // Only cache successful responses for short time (offline fallback)
-          if (response && response.status === 200) {
-            const responseToCache = response.clone();
-            caches.open(DYNAMIC_CACHE).then(cache => {
-              // Cache with short expiration metadata
-              cache.put(request, responseToCache);
-            });
-          }
-          return response;
-        })
-        .catch(error => {
-          console.log('Service Worker: Network error for API call, trying cache:', url.pathname);
-          // Fallback to cache only if network fails (offline)
-          return caches.match(request).then(cachedResponse => {
-            if (cachedResponse) {
-              console.log('Service Worker: Serving stale API data from cache (offline)');
-              return cachedResponse;
-            }
-            throw error;
-          });
-        })
-    );
-    return;
-  }
-
-  // Always fetch manifest.json fresh from network
-  if (url.pathname === '/manifest.json') {
-    event.respondWith(
-      fetch(request.url + '?t=' + Date.now())
-        .then((response) => {
-          if (response && response.status === 200) {
-            // Do NOT cache manifest.json
-            return response;
-          }
-          throw new Error('Manifest fetch failed');
-        })
-        .catch((error) => {
-          console.error('Failed to fetch manifest.json:', error);
-          return new Response('{}', {
-            status: 404,
-            headers: { 'Content-Type': 'application/manifest+json' }
-          });
-        })
-    );
-    return;
-  }
-
-  // Always fetch version.json fresh from network
-  if (url.pathname === '/version.json') {
-    event.respondWith(
-      fetch(request.url + '?t=' + Date.now(), {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      })
-      .then((response) => {
-        if (response && response.status === 200) {
-          // Do NOT cache version.json at all
-          return response;
-        }
-        throw new Error('Network response was not ok');
-      })
-      .catch((error) => {
-        console.error('Failed to fetch version.json:', error);
-        // No fallback to cache - version checks should fail if offline
-        return new Response(JSON.stringify({ 
-          error: 'Offline', 
-          version: 'unknown',
-          buildHash: 'offline'
-        }), {
-          headers: { 'Content-Type': 'application/json' }
-        });
-      })
-    );
     return;
   }
 
@@ -328,47 +95,47 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // CACHE-FIRST strategy for static assets (JS, CSS, images, fonts)
+  // NETWORK-FIRST strategy for ALL requests
   event.respondWith(
-    caches.match(request)
-      .then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
+    fetch(request)
+      .then((response) => {
+        // Only cache successful responses for offline fallback
+        if (response && response.status === 200 && response.type === 'basic') {
+          const responseToCache = response.clone();
+          caches.open(OFFLINE_CACHE).then((cache) => {
+            cache.put(request, responseToCache);
+          });
         }
-
-        return fetch(request)
-          .then((response) => {
-            // Don't cache non-successful responses
-            if (!response || response.status !== 200 || response.type === 'error') {
-              return response;
-            }
-
-            const responseToCache = response.clone();
-            caches.open(DYNAMIC_CACHE)
-              .then((cache) => {
-                cache.put(request, responseToCache);
-              });
-
-            return response;
-          })
-          .catch((error) => {
-            console.error('Service Worker: Fetch error:', error);
-            
-            // Return offline page for navigation requests
-            if (request.mode === 'navigate') {
+        return response;
+      })
+      .catch((error) => {
+        console.log('Service Worker: Network failed, trying cache:', url.pathname);
+        
+        // Network failed - serve from cache (offline mode)
+        return caches.match(request).then((cachedResponse) => {
+          if (cachedResponse) {
+            console.log('Service Worker: Serving from cache (offline):', url.pathname);
+            return cachedResponse;
+          }
+          
+          // Return offline page for navigation requests
+          if (request.mode === 'navigate') {
+            return caches.match('/').then((indexResponse) => {
+              if (indexResponse) return indexResponse;
               return new Response(
                 '<html><body><h1>Offline</h1><p>Please check your internet connection.</p></body></html>',
                 { headers: { 'Content-Type': 'text/html' } }
               );
-            }
-            
-            throw error;
-          });
+            });
+          }
+          
+          throw error;
+        });
       })
   );
 });
 
-// Handle push notifications (for future use)
+// Handle push notifications
 self.addEventListener('push', (event) => {
   if (event.data) {
     const data = event.data.json();
@@ -389,7 +156,6 @@ self.addEventListener('push', (event) => {
 // Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  
   event.waitUntil(
     clients.openWindow('/')
   );

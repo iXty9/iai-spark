@@ -29,8 +29,8 @@ class SmartUpdateService {
       // Wait for coordinated initialization to complete (especially theme)
       await this.waitForInitializationComplete();
       
-      // Now it's safe to start version checks
-      this.startVersionChecks();
+      // Check for updates once after initialization
+      await versionService.checkForUpdates();
       
       this.isInitialized = true;
       logger.info('Smart update service initialized', { module: 'smart-update' });
@@ -60,21 +60,11 @@ class SmartUpdateService {
     });
   }
 
-  private startVersionChecks(): void {
-    // Start periodic version checks
-    // This will handle silent updates for anonymous users
-    // and show notifications for authenticated users
-    versionService.startPeriodicChecks();
-    
-    logger.info('Version checks started after theme initialization', { module: 'smart-update' });
-  }
-
   /**
    * Reset the service state
    */
   reset(): void {
     this.isInitialized = false;
-    versionService.stopPeriodicChecks();
   }
 }
 
