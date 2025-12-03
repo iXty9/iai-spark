@@ -1,7 +1,6 @@
 
 import { useCallback, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLocationContext } from '@/contexts/LocationContext';
 import { useMessageState } from '@/hooks/chat/use-message-state';
 import { useChatApi } from '@/hooks/chat/use-chat-api';
 import { useChatWebSocket } from '@/hooks/chat/use-chat-websocket';
@@ -12,13 +11,18 @@ import { logger } from '@/utils/logging';
 import { UserLocation } from '@/services/types/messageTypes';
 
 export const useChat = () => {
-  const { user } = useAuth();
-  const { hasPermission, currentLocation } = useLocationContext();
+  const { user, profile } = useAuth();
   const [currentRequest, setCurrentRequest] = useState<{ cancel: () => void } | null>(null);
   
-  // Get location if user has granted permission
-  const location: UserLocation | null = (hasPermission && currentLocation) 
-    ? { latitude: currentLocation.latitude, longitude: currentLocation.longitude }
+  // Get location from profile (already updated by location service periodically)
+  const location: UserLocation | null = (
+    profile?.location_permission_granted && 
+    profile?.location_latitude != null && 
+    profile?.location_longitude != null
+  ) ? { 
+      latitude: profile.location_latitude, 
+      longitude: profile.location_longitude 
+    } 
     : null;
   const {
     messages,
