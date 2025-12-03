@@ -26,7 +26,7 @@ const Info = ({ label, value, badgeVariant, className = '', mono }: {
   mono?: boolean;
 }) => (
   <div className={`flex items-center justify-between ${className}`}>
-    <span className="text-sm font-medium">{label}</span>
+    <span className="text-sm font-medium text-foreground">{label}</span>
     {badgeVariant ? (
       <Badge variant={badgeVariant as any}>{value}</Badge>
     ) : (
@@ -157,16 +157,16 @@ export default function Environment() {
   return (
     <div className="space-y-6">
       {/* Application Mode Control */}
-      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-secondary/5">
+      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-secondary/5 bg-background/80">
         <CardHeader className="flex flex-row items-center space-y-0 pb-4">
           <Zap className="h-5 w-5 mr-2 text-primary" />
-          <CardTitle className="text-lg">Application Mode</CardTitle>
+          <CardTitle className="text-lg text-foreground">Application Mode</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="space-y-1">
-                <h3 className="text-sm font-medium">Current Mode: {applicationMode === 'development' ? 'Development' : 'Production'}</h3>
+                <h3 className="text-sm font-medium text-foreground">Current Mode: {applicationMode === 'development' ? 'Development' : 'Production'}</h3>
                 <p className="text-xs text-muted-foreground">
                   {applicationMode === 'development' 
                     ? 'Silent PWA updates, enhanced debugging, immediate updates during initialization'
@@ -191,8 +191,8 @@ export default function Environment() {
             </div>
             
             <div className="text-xs text-muted-foreground space-y-1">
-              <div><strong>Development Mode:</strong> Silent updates for everyone, immediate updates during init, enhanced debugging</div>
-              <div><strong>Production Mode:</strong> Updates shown to authenticated users only, anonymous users get silent updates</div>
+              <div><strong className="text-foreground">Development Mode:</strong> Silent updates for everyone, immediate updates during init, enhanced debugging</div>
+              <div><strong className="text-foreground">Production Mode:</strong> Updates shown to authenticated users only, anonymous users get silent updates</div>
             </div>
           </div>
         </CardContent>
@@ -201,7 +201,7 @@ export default function Environment() {
       {/* Header */}
       <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold">Environment Information</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-foreground">Environment Information</h2>
           <p className="text-sm md:text-base text-muted-foreground">Detailed information about the current environment and system status</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
@@ -219,9 +219,9 @@ export default function Environment() {
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Environment Detection */}
-        <Card>
+        <Card className="bg-background/80 border-border/50">
           <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-            <Globe className="h-5 w-5 mr-2" /><CardTitle className="text-lg">Environment Detection</CardTitle>
+            <Globe className="h-5 w-5 mr-2" /><CardTitle className="text-lg text-foreground">Environment Detection</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <Info label="Environment Type:" value={e.type || 'Unknown'} badgeVariant={e.isDevelopment ? "secondary" : "default"} />
@@ -230,18 +230,18 @@ export default function Environment() {
             <Info label="Has Override:" value={e.hasOverride ? 'Yes' : 'No'} badgeVariant={boolBadge(e.hasOverride, "outline", "secondary")} />
             <Separator />
             <div className="space-y-2">
-              <label className="text-sm font-medium">Environment Override</label>
+              <label className="text-sm font-medium text-foreground">Environment Override</label>
               <div className="flex items-center space-x-2">
-                <input type="text" placeholder="e.g., staging, production" value={envOverride} onChange={e => setEnvOverride(e.target.value)} className="flex-1 px-3 py-1 text-sm border rounded-md" />
+                <input type="text" placeholder="e.g., staging, production" value={envOverride} onChange={e => setEnvOverride(e.target.value)} className="flex-1 px-3 py-1 text-sm border border-border/50 rounded-md bg-background/60 text-foreground placeholder:text-muted-foreground" />
                 <Switch checked={e.hasOverride} onCheckedChange={handleOverride} />
               </div>
             </div>
           </CardContent>
         </Card>
         {/* Host Information */}
-        <Card>
+        <Card className="bg-background/80 border-border/50">
           <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-            <Server className="h-5 w-5 mr-2" /><CardTitle className="text-lg">Host Information</CardTitle>
+            <Server className="h-5 w-5 mr-2" /><CardTitle className="text-lg text-foreground">Host Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <Info label="Timezone:" value={Intl.DateTimeFormat().resolvedOptions().timeZone} />
@@ -253,9 +253,9 @@ export default function Environment() {
           </CardContent>
         </Card>
         {/* Supabase Information */}
-        <Card>
+        <Card className="bg-background/80 border-border/50">
           <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-            <Database className="h-5 w-5 mr-2" /><CardTitle className="text-lg">Supabase Connection</CardTitle>
+            <Database className="h-5 w-5 mr-2" /><CardTitle className="text-lg text-foreground">Supabase Connection</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <Info label="Connection Status:" value={s.connectionStatus || 'Unknown'} badgeVariant={boolBadge(s.connectionStatus === 'connected', "default", "destructive")} />
@@ -272,9 +272,9 @@ export default function Environment() {
           </CardContent>
         </Card>
         {/* Performance Metrics */}
-        <Card>
+        <Card className="bg-background/80 border-border/50">
           <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-            <Activity className="h-5 w-5 mr-2" /><CardTitle className="text-lg">Performance Metrics</CardTitle>
+            <Activity className="h-5 w-5 mr-2" /><CardTitle className="text-lg text-foreground">Performance Metrics</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <Info label="FPS:" value={fps || 'Calculating...'} />
@@ -288,9 +288,9 @@ export default function Environment() {
         </Card>
       </div>
       {/* Build Information */}
-      <Card>
+      <Card className="bg-background/80 border-border/50">
         <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-          <Code className="h-5 w-5 mr-2" /><CardTitle className="text-lg">Build & Version Information</CardTitle>
+          <Code className="h-5 w-5 mr-2" /><CardTitle className="text-lg text-foreground">Build & Version Information</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -302,28 +302,28 @@ export default function Environment() {
         </CardContent>
       </Card>
       {/* Debug Configuration */}
-      <Card>
+      <Card className="bg-background/80 border-border/50">
         <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-          <Settings2 className="h-5 w-5 mr-2" /><CardTitle className="text-lg">Debug Configuration</CardTitle>
+          <Settings2 className="h-5 w-5 mr-2" /><CardTitle className="text-lg text-foreground">Debug Configuration</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <label className="text-sm font-medium">Debug Mode</label>
+              <label className="text-sm font-medium text-foreground">Debug Mode</label>
               <p className="text-xs text-muted-foreground">Enable additional logging and debug information</p>
             </div>
             <Switch checked={false} onCheckedChange={() => {}} />
           </div>
           <Separator />
           <div className="space-y-2">
-            <span className="text-sm font-medium">Storage Information</span>
+            <span className="text-sm font-medium text-foreground">Storage Information</span>
             <div className="grid grid-cols-2 gap-4 text-xs">
               <div>
-                <span className="font-medium">LocalStorage Items:</span>
+                <span className="font-medium text-foreground">LocalStorage Items:</span>
                 <p className="text-muted-foreground">{Object.keys(localStorage).length}</p>
               </div>
               <div>
-                <span className="font-medium">SessionStorage Items:</span>
+                <span className="font-medium text-foreground">SessionStorage Items:</span>
                 <p className="text-muted-foreground">{Object.keys(sessionStorage).length}</p>
               </div>
             </div>
