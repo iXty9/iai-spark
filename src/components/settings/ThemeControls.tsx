@@ -86,7 +86,7 @@ const ColorInputRow = React.memo(({
         {icon}
         {label}
       </Label>
-      <div className="flex items-center space-x-4 p-3 rounded-lg border border-border/20 bg-card/60 hover:bg-card/80 transition-all duration-200">
+      <div className="flex items-center space-x-4 p-3 rounded-lg border border-border/20 bg-background/60 hover:bg-background/80 transition-all duration-200">
         <div 
           className="w-10 h-10 rounded-lg border-2 cursor-pointer transition-all hover:scale-105 shadow-sm" 
           style={{
@@ -133,7 +133,7 @@ const OpacitySliderRow = React.memo(({
   }, [name, onChange]);
 
   return (
-    <div className="space-y-4 p-4 rounded-lg border border-border/20 bg-card/60">
+    <div className="space-y-4 p-4 rounded-lg border border-border/20 bg-background/60">
       <div className="flex justify-between items-center">
         <Label htmlFor={name} className="text-sm font-medium flex items-center gap-2">
           {icon}
@@ -176,7 +176,7 @@ const ContrastCheckBlock = React.memo(({
   }, [colorName, suggestedColor, onApplySuggestion]);
 
   return (
-    <div className="p-3 border rounded-md bg-card/50">
+    <div className="p-3 border rounded-md bg-background/50">
       <div className="flex justify-between items-start mb-2">
         <span className="text-sm font-medium">{title}</span>
         <ContrastBadge rating={rating} />
@@ -300,8 +300,8 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
 
       {/* Enhanced Color Sections */}
       <div className="space-y-6">
-        <div className="bg-card/60 rounded-xl p-6 border border-border/20 space-y-6">
-          <h4 className="font-semibold text-lg border-b border-border/30 pb-3 flex items-center gap-2">
+        <div className="bg-background/60 rounded-xl p-6 border border-border/20 space-y-6">
+          <h4 className="font-semibold text-lg border-b border-border/30 pb-3 flex items-center gap-2 text-foreground">
             <Palette className="h-5 w-5 text-primary" />
             Base Colors
           </h4>
@@ -326,8 +326,8 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
         </div>
 
         {/* NEW: Proactive Message Settings Section */}
-        <div className="bg-card/60 rounded-xl p-6 border border-border/20 space-y-6">
-          <h4 className="font-semibold text-lg border-b border-border/30 pb-3 flex items-center gap-2">
+        <div className="bg-background/60 rounded-xl p-6 border border-border/20 space-y-6">
+          <h4 className="font-semibold text-lg border-b border-border/30 pb-3 flex items-center gap-2 text-foreground">
             <MessageSquare className="h-5 w-5 text-primary" />
             Proactive Message Settings
           </h4>
@@ -342,8 +342,8 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
         </div>
 
         {/* NEW: Name Tag Colors Section */}
-        <div className="bg-card/60 rounded-xl p-6 border border-border/20 space-y-6">
-          <h4 className="font-semibold text-lg border-b border-border/30 pb-3 flex items-center gap-2">
+        <div className="bg-background/60 rounded-xl p-6 border border-border/20 space-y-6">
+          <h4 className="font-semibold text-lg border-b border-border/30 pb-3 flex items-center gap-2 text-foreground">
             <MessageSquare className="h-5 w-5 text-primary" />
             Name Tag Colors
           </h4>
@@ -369,8 +369,8 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
 
         {/* Enhanced Message Settings */}
         {msgConfigs.map(({ heading, bubbleColor, bubbleOpacity, textColor, msgLabel }) => (
-          <div className="bg-card/60 rounded-xl p-6 border border-border/20 space-y-6" key={heading}>
-            <h4 className="font-semibold text-lg border-b border-border/30 pb-3 flex items-center gap-2">
+          <div className="bg-background/60 rounded-xl p-6 border border-border/20 space-y-6" key={heading}>
+            <h4 className="font-semibold text-lg border-b border-border/30 pb-3 flex items-center gap-2 text-foreground">
               <MessageSquare className="h-5 w-5 text-primary" />
               {heading}
             </h4>
