@@ -25,27 +25,47 @@ const getBuildHash = () => {
 
 const BUILD_HASH = getBuildHash();
 
-// Plugin to generate version.json and inject build hash into sw.js
+// App version - can be configured via environment variable
+const APP_VERSION = process.env.VITE_APP_VERSION || '1.0.0';
+
+// Plugin to generate version.json, update site-config.json, and inject build hash into sw.js
 const generateVersionPlugin = () => {
   return {
     name: 'generate-version',
     buildStart() {
       const buildTime = new Date().toISOString();
+      const environment = process.env.NODE_ENV === 'production' ? 'production' : 'development';
       
-      const version = {
-        version: "1.0.0",
+      const versionData = {
+        version: APP_VERSION,
         buildTime,
         buildHash: BUILD_HASH,
-        environment: process.env.NODE_ENV === 'production' ? 'production' : 'development'
+        environment
       };
       
       // Write version.json to public directory
       fs.writeFileSync(
         path.resolve(__dirname, 'public/version.json'),
-        JSON.stringify(version, null, 2)
+        JSON.stringify(versionData, null, 2)
       );
       
-      console.log('✅ Generated version.json:', version);
+      console.log('✅ Generated version.json:', versionData);
+      
+      // Also update site-config.json with build info
+      const siteConfigPath = path.resolve(__dirname, 'public/site-config.json');
+      if (fs.existsSync(siteConfigPath)) {
+        try {
+          const siteConfig = JSON.parse(fs.readFileSync(siteConfigPath, 'utf-8'));
+          siteConfig.version = APP_VERSION;
+          siteConfig.lastUpdated = buildTime;
+          siteConfig.buildHash = BUILD_HASH;
+          siteConfig.environment = environment;
+          fs.writeFileSync(siteConfigPath, JSON.stringify(siteConfig, null, 2));
+          console.log('✅ Updated site-config.json with build info');
+        } catch (err) {
+          console.warn('⚠️ Could not update site-config.json:', err);
+        }
+      }
     },
     writeBundle() {
       // Inject build hash into sw.js after build

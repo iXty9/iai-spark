@@ -11,7 +11,7 @@ export const VersionBadge: React.FC = () => {
         setVersion(buildInfo.version);
       } catch (error) {
         // Fallback to default version
-        setVersion('0.9.0-beta.1');
+        setVersion('1.0.0');
       }
     };
 
