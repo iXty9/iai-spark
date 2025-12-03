@@ -28,16 +28,19 @@ export const useChatActions = ({
   sendMessageToApi
 }: UseChatActionsProps) => {
   
-  const handleSubmit = useCallback(async (e?: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e?: React.FormEvent, overrideMessage?: string) => {
     if (e) e.preventDefault();
     
-    if (!message.trim() || isLoading) {
+    // Use overrideMessage if provided (for attachments), otherwise use state
+    const messageToSend = overrideMessage ?? message;
+    
+    if (!messageToSend.trim() || isLoading) {
       return;
     }
 
     const userMessage: Message = {
       id: uuidv4(),
-      content: message.trim(),
+      content: messageToSend.trim(),
       sender: 'user',
       timestamp: new Date().toISOString()
     };
