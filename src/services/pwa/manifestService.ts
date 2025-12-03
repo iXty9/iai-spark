@@ -1,7 +1,5 @@
-
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { logger } from '@/utils/logging';
-import { versionService } from './versionService';
 
 export interface PWAManifest {
   name: string;
@@ -162,17 +160,6 @@ export const updateManifestFile = async (): Promise<boolean> => {
         logger.info('Manifest update message sent to service worker', { manifest }, { module: 'pwa-manifest' });
       } else {
         logger.warn('Service worker not available, manifest update skipped', null, { module: 'pwa-manifest' });
-      }
-      
-      // Also trigger a version update to ensure PWA users get the changes
-      const currentVersion = await versionService.getCurrentVersion();
-      if (currentVersion) {
-        const newVersion = {
-          ...currentVersion,
-          buildTime: new Date().toISOString(),
-          manifestVersion: Date.now().toString()
-        };
-        await versionService.updateToVersion(newVersion);
       }
       
       logger.info('Manifest update completed successfully', null, { module: 'pwa-manifest' });
