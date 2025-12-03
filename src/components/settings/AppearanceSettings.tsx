@@ -53,7 +53,7 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
   return (
     <div className="space-y-6">
       {/* Modern Header with Mobile-First Design */}
-      <Card className="glass-panel border-0 shadow-sm">
+      <Card className="glass-panel border-0 shadow-sm bg-background/80">
         <CardContent className="p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="space-y-1">
@@ -82,7 +82,7 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
       </Card>
 
       {/* Enhanced Theme Mode Tabs */}
-      <Card className="glass-panel border-0 shadow-sm overflow-hidden">
+      <Card className="glass-panel border-0 shadow-sm overflow-hidden bg-background/80">
         <Tabs value={theme} onValueChange={handleThemeModeChange} className="w-full">
           <div className="border-b border-border/50 bg-muted/30">
             <TabsList className="grid grid-cols-2 w-full h-auto p-1 bg-transparent">
