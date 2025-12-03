@@ -32,6 +32,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   useIOSFixes(formRef, message, isIOSSafari);
 
   const [attachments, setAttachments] = useState<ParsedAttachment[]>([]);
+  const [interimText, setInterimText] = useState('');
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -140,12 +142,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           )}
           <Textarea
             ref={textareaRef}
-            value={message}
+            value={isVoiceRecording ? (message + (message && interimText ? ' ' : '') + interimText) : message}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            placeholder="How can I help you?"
-            className="pr-10 resize-none min-h-[44px] max-h-[120px] rounded-2xl py-3 px-4 !scrollbar-none bg-background/80 backdrop-blur-sm border-border/50 focus:bg-background/90 focus:border-border transition-all duration-200 shadow-sm hover:shadow-md"
-            disabled={isLoading}
+            placeholder={isVoiceRecording ? "Listening..." : "How can I help you?"}
+            className={`pr-10 resize-none min-h-[44px] max-h-[120px] rounded-2xl py-3 px-4 !scrollbar-none bg-background/80 backdrop-blur-sm border-border/50 focus:bg-background/90 focus:border-border transition-all duration-200 shadow-sm hover:shadow-md ${isVoiceRecording ? 'text-muted-foreground' : ''}`}
+            disabled={isLoading || isVoiceRecording}
             aria-label="Message input"
             rows={1}
             spellCheck="true"
@@ -171,6 +173,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           }}
           onFileAttached={handleFileAttached}
           onVoiceTranscript={handleVoiceTranscript}
+          onInterimTranscript={setInterimText}
+          onRecordingStateChange={setIsVoiceRecording}
         />
       </div>
     </form>
