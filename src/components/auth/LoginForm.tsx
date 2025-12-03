@@ -76,9 +76,9 @@ export const LoginForm = () => {
             <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
               <User className="h-4 w-4" />
             </div>
-            <h3 className="text-lg font-semibold auth-title">{authSettings.loginTitle}</h3>
+            <h3 className="text-lg font-semibold text-foreground">{authSettings.loginTitle}</h3>
           </div>
-          <p className="text-sm auth-description leading-relaxed">
+          <p className="text-sm text-muted-foreground leading-relaxed">
             {authSettings.loginDescription}
           </p>
         </CardContent>
