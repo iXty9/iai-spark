@@ -1,6 +1,7 @@
 
 import { useCallback, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLocationContext } from '@/contexts/LocationContext';
 import { useMessageState } from '@/hooks/chat/use-message-state';
 import { useChatApi } from '@/hooks/chat/use-chat-api';
 import { useChatWebSocket } from '@/hooks/chat/use-chat-websocket';
@@ -8,10 +9,17 @@ import { useChatActions } from '@/hooks/chat/use-chat-actions';
 import { Message } from '@/types/chat';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/utils/logging';
+import { UserLocation } from '@/services/types/messageTypes';
 
 export const useChat = () => {
   const { user } = useAuth();
+  const { hasPermission, currentLocation } = useLocationContext();
   const [currentRequest, setCurrentRequest] = useState<{ cancel: () => void } | null>(null);
+  
+  // Get location if user has granted permission
+  const location: UserLocation | null = (hasPermission && currentLocation) 
+    ? { latitude: currentLocation.latitude, longitude: currentLocation.longitude }
+    : null;
   const {
     messages,
     message,
@@ -40,7 +48,8 @@ export const useChat = () => {
     user,
     addMessage,
     onError: handleError,
-    setCurrentRequest
+    setCurrentRequest,
+    location
   });
 
   // Pass messages array to WebSocket hook to prevent duplicate processing

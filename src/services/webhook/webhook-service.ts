@@ -75,7 +75,8 @@ export const sendWebhookMessage = async (
   message: string,
   isAuthenticated: boolean,
   userInfo?: { id?: string; username?: string; first_name?: string; last_name?: string } | null,
-  externalController?: AbortController
+  externalController?: AbortController,
+  location?: { latitude: number; longitude: number } | null
 ): Promise<{ request: any; response: any; cancel: () => void }> => {
   
   // Apply rate limiting based on authentication status
@@ -169,6 +170,15 @@ export const sendWebhookMessage = async (
     if (attachments.length > 0) {
       payload.attachments = attachments;
     }
+
+    // Include location if available (authenticated users only for privacy)
+    if (isAuthenticated && location) {
+      payload.location = {
+        latitude: location.latitude,
+        longitude: location.longitude
+      };
+    }
+
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {

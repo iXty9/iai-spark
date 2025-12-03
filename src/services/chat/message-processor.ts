@@ -16,6 +16,7 @@ export async function processMessage({
   onError,
   isAuthenticated = false,
   userProfile = null,
+  location = null,
 }: SendMessageParams): Promise<Message & { cancel?: () => void }> {
   let canceled = false;
   let controller = new AbortController();
@@ -50,7 +51,7 @@ export async function processMessage({
     let webhookData, responseText;
     try {
       // Get both request and response from webhook
-      webhookData = await sendWebhookMessage(message, isAuthenticated, userProfile, controller);
+      webhookData = await sendWebhookMessage(message, isAuthenticated, userProfile, controller, location);
       responseText = parseWebhookResponse(webhookData.response);
       debug({ lastAction: 'API: Successfully parsed webhook response' });
     } catch (error) {
