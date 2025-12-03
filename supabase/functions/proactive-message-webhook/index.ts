@@ -1,19 +1,23 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface ProactiveMessageRequest {
-  user_id?: string;
-  username?: string;
-  message: string;
-  sender?: string;
-  metadata?: Record<string, any>;
-}
+// Input validation schema
+const ProactiveMessageSchema = z.object({
+  user_id: z.string().uuid().optional(),
+  username: z.string().min(1).max(100).optional(),
+  message: z.string().min(1).max(10000),
+  sender: z.string().min(1).max(100).optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+
+type ProactiveMessageRequest = z.infer<typeof ProactiveMessageSchema>;
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -22,23 +26,45 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    // Parse the incoming request
-    const body: ProactiveMessageRequest = await req.json();
-    
-    if (!body.message) {
+    // Parse and validate the incoming request
+    let rawBody: unknown;
+    try {
+      rawBody = await req.json();
+    } catch {
       return new Response(
-        JSON.stringify({ error: 'Message is required' }),
+        JSON.stringify({ error: 'Invalid JSON body' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
+
+    const validation = ProactiveMessageSchema.safeParse(rawBody);
+    
+    if (!validation.success) {
+      console.error('Validation failed:', validation.error.errors);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid input',
+          details: validation.error.errors.map(e => ({
+            field: e.path.join('.'),
+            message: e.message
+          }))
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    const body: ProactiveMessageRequest = validation.data;
+
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
     let targetUserId = body.user_id;
 
@@ -58,7 +84,7 @@ serve(async (req) => {
     // Create the message object with correct field names for client
     const messageData = {
       id: crypto.randomUUID(),
-      content: body.message, // Use 'content' not 'message'
+      content: body.message,
       sender: body.sender || 'System',
       timestamp: new Date().toISOString(),
       metadata: {
@@ -87,7 +113,7 @@ serve(async (req) => {
 
     const result = await channel.send({
       type: 'broadcast',
-      event: 'proactive_message', // Consistent event name
+      event: 'proactive_message',
       payload: payload
     });
 
