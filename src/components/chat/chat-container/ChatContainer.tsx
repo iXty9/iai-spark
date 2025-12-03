@@ -51,28 +51,6 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     };
   }, []);
 
-  // Set chat input height as CSS variable for toast positioning
-  useEffect(() => {
-    const updateInputHeight = () => {
-      const height = inputContainerRef.current?.offsetHeight || 88;
-      document.documentElement.style.setProperty('--chat-input-height', `${height}px`);
-    };
-    
-    updateInputHeight();
-    // Update on resize and after a short delay to catch dynamic changes
-    window.addEventListener('resize', updateInputHeight);
-    const observer = new ResizeObserver(updateInputHeight);
-    if (inputContainerRef.current) {
-      observer.observe(inputContainerRef.current);
-    }
-    
-    return () => {
-      window.removeEventListener('resize', updateInputHeight);
-      observer.disconnect();
-      document.documentElement.style.removeProperty('--chat-input-height');
-    };
-  }, [messages.length]);
-
   // Messages are already in the correct format from useChat hook
   const convertedMessages: Message[] = messages;
   
@@ -147,7 +125,8 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
             minHeight: '88px',
             zIndex: 100,
             paddingBottom: `calc(0.75rem + var(--safe-area-inset-bottom, 0px))`,
-          }}
+            '--chat-input-height': inputContainerRef.current?.offsetHeight ? `${inputContainerRef.current.offsetHeight}px` : '88px'
+          } as React.CSSProperties}
         >
           <MessageInput
             message={message}
