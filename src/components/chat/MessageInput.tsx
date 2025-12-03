@@ -13,7 +13,7 @@ import { toast } from '@/hooks/use-toast';
 interface MessageInputProps {
   message: string;
   onChange: (value: string) => void;
-  onSubmit: (e?: FormEvent) => void;
+  onSubmit: (e?: FormEvent, overrideMessage?: string) => void;
   isLoading: boolean;
 }
 
@@ -72,26 +72,25 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     }
   }, [uploadFile]);
 
+  const composeWithAttachments = useCallback(() => {
+    if (attachments.length === 0) return message;
+    const blocks = attachments
+      .map(att => `\n[attachment name="${att.name}" mime="${att.mime}"]\ndata:${att.mime};base64,${att.data}\n[/attachment]\n`)
+      .join('');
+    return message ? `${message}\n${blocks}` : blocks;
+  }, [message, attachments]);
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
-    const composeWithAttachments = () => {
-      if (attachments.length === 0) return message;
-      const blocks = attachments
-        .map(att => `\n[attachment name="${att.name}" mime="${att.mime}"]\ndata:${att.mime};base64,${att.data}\n[/attachment]\n`)
-        .join('');
-      return message ? `${message}\n${blocks}` : blocks;
-    };
-
     if ((message.trim() || attachments.length > 0) && !isLoading) {
       const composed = composeWithAttachments();
-      onChange(composed);
-      // Ensure state update flushes before submit handler reads it
-      setTimeout(() => onSubmit(), 0);
+      // Pass composed message directly to avoid race condition
+      onSubmit(e, composed);
+      onChange(''); // Clear input after
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
-      // Clear local attachments after sending
       setAttachments([]);
     }
   };
@@ -105,13 +104,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     // Only submit on plain Enter key (no Shift)
     if (e.key === 'Enter' && !e.shiftKey && !isMobile && (message.trim() || attachments.length > 0) && !isLoading) {
       e.preventDefault();
-      // Build and send with attachments
-      const blocks = attachments
-        .map(att => `\n[attachment name="${att.name}" mime="${att.mime}"]\ndata:${att.mime};base64,${att.data}\n[/attachment]\n`)
-        .join('');
-      const composed = attachments.length > 0 ? (message ? `${message}\n${blocks}` : blocks) : message;
-      onChange(composed);
-      setTimeout(() => onSubmit(), 0);
+      const composed = composeWithAttachments();
+      // Pass composed message directly to avoid race condition
+      onSubmit(undefined, composed);
+      onChange('');
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
@@ -199,12 +195,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           hasAttachments={attachments.length > 0}
           onSendClick={() => {
             if ((message.trim() || attachments.length > 0) && !isLoading) {
-              const blocks = attachments
-                .map(att => `\n[attachment name="${att.name}" mime="${att.mime}"]\ndata:${att.mime};base64,${att.data}\n[/attachment]\n`)
-                .join('');
-              const composed = attachments.length > 0 ? (message ? `${message}\n${blocks}` : blocks) : message;
-              onChange(composed);
-              setTimeout(() => onSubmit(), 0);
+              const composed = composeWithAttachments();
+              // Pass composed message directly to avoid race condition
+              onSubmit(undefined, composed);
+              onChange('');
               if (textareaRef.current) {
                 textareaRef.current.style.height = 'auto';
               }
