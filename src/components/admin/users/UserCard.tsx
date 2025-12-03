@@ -79,17 +79,17 @@ export function UserCard({
   };
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="hover:shadow-md transition-shadow bg-background/80 border-border/50">
       <CardContent className="p-3">
         <div className="space-y-3">
           {/* Header with avatar and role */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="h-10 w-10 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center border flex-shrink-0">
+              <div className="h-10 w-10 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center border border-border/50 flex-shrink-0">
                 <User className="h-5 w-5 text-primary" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-medium text-sm truncate">
+                <p className="font-medium text-sm truncate text-foreground">
                   {user.username || 'No username'}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -129,11 +129,11 @@ export function UserCard({
             "space-y-2 transition-all duration-200 overflow-hidden",
             isExpanded ? "block" : "hidden"
           )}>
-            <div className="bg-muted/30 rounded-md p-2 space-y-2">
+            <div className="bg-background/60 rounded-md p-2 space-y-2 border border-border/30">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">User ID:</span>
                 <div className="flex items-center gap-1">
-                  <code className="text-xs bg-background px-1 py-0.5 rounded font-mono border">
+                  <code className="text-xs bg-background/80 px-1 py-0.5 rounded font-mono border border-border/50 text-foreground">
                     {user.id.slice(0, 8)}...
                   </code>
                   <TooltipProvider>
@@ -157,7 +157,7 @@ export function UserCard({
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">Last Login:</span>
-                <span className="text-right">{formatDate(user.last_sign_in_at)}</span>
+                <span className="text-right text-foreground">{formatDate(user.last_sign_in_at)}</span>
               </div>
             </div>
           </div>
