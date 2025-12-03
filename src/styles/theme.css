@@ -1,21 +1,17 @@
-/* Enhanced theme styles with comprehensive text color mapping, glass effect support, and markup customization */
+/* SupaThemes-specific styles - User-customizable theme elements only */
+/* Base design tokens are defined in index.css (Tailwind) - DO NOT duplicate here */
 
 :root {
-
   /* Glass effect variables */
   --bg-opacity: 0.5;
   --bg-image-url: none;
   --card-bg-opacity: 1;
   --card-backdrop-blur: 0px;
 
-  /* Custom theme color variables for direct mapping */
+  /* Brand color reference (for non-Tailwind contexts like loading spinners) */
   --primary-color: #dd3333;
-  --accent-color: #9b87f5;
-  --background-color: #ffffff;
-  --text-color: #000000;
-  --text-color-hex: #000000;
   
-  /* Message bubble color variables */
+  /* Message bubble color variables - USER CUSTOMIZABLE */
   --user-bubble-color: #dd3333;
   --ai-bubble-color: #9b87f5;
   --user-text-color: #000000;
@@ -23,27 +19,29 @@
   --user-bubble-opacity: 0.3;
   --ai-bubble-opacity: 0.3;
   
-  /* Name tag color variables */
+  /* Name tag color variables - USER CUSTOMIZABLE */
   --user-name-color: #666666;
   --ai-name-color: #666666;
   
-  /* NEW: Markup element color variables */
+  /* Markup element color variables - USER CUSTOMIZABLE */
   --markup-code-bg: #f3f4f6;
   --markup-link: #2563eb;
   --markup-blockquote: #d1d5db;
   --markup-table-header: #f9fafb;
+  --markup-code-text: #1f2937;
+  --markup-link-text: #2563eb;
+  --markup-blockquote-text: #4b5563;
+  --markup-table-header-text: #111827;
+  
+  /* Proactive message highlight - USER CUSTOMIZABLE */
+  --proactive-highlight-color: #3b82f6;
 }
 
 .dark {
-
-  /* Custom theme color variables for dark mode */
+  /* Brand color reference for dark mode */
   --primary-color: #dd3333;
-  --accent-color: #9b87f5;
-  --background-color: #121212;
-  --text-color: #ffffff;
-  --text-color-hex: #ffffff;
   
-  /* Message bubble color variables for dark mode */
+  /* Message bubble color variables for dark mode - USER CUSTOMIZABLE */
   --user-bubble-color: #dd3333;
   --ai-bubble-color: #9b87f5;
   --user-text-color: #ffffff;
@@ -51,63 +49,29 @@
   --user-bubble-opacity: 0.3;
   --ai-bubble-opacity: 0.3;
   
-  /* Name tag color variables for dark mode */
+  /* Name tag color variables for dark mode - USER CUSTOMIZABLE */
   --user-name-color: #cccccc;
   --ai-name-color: #cccccc;
   
-  /* NEW: Markup element color variables for dark mode */
+  /* Markup element color variables for dark mode - USER CUSTOMIZABLE */
   --markup-code-bg: #374151;
   --markup-link: #60a5fa;
   --markup-blockquote: #6b7280;
   --markup-table-header: #374151;
+  --markup-code-text: #f9fafb;
+  --markup-link-text: #60a5fa;
+  --markup-blockquote-text: #d1d5db;
+  --markup-table-header-text: #f3f4f6;
+  
+  /* Proactive message highlight for dark mode */
+  --proactive-highlight-color: #60a5fa;
 }
 
-/* COMPREHENSIVE TEXT COLOR INHERITANCE - CRITICAL FOR TEXT COLOR SETTING */
-body {
-  color: hsl(var(--foreground));
-  background-color: hsl(var(--background));
-}
+/* ============================================
+   GLASS EFFECT STYLES
+   These need !important to override component styles
+   ============================================ */
 
-/* Force ALL text elements to inherit from CSS variables */
-h1, h2, h3, h4, h5, h6 {
-  color: hsl(var(--foreground));
-}
-
-p, span, div, label, li, td, th {
-  color: inherit;
-}
-
-/* Navigation and menu items use proper text colors */
-nav, .nav, .menu, .navigation {
-  color: hsl(var(--foreground));
-}
-
-/* Card content uses proper text colors */
-.card, .card-content, .card-header, .card-footer {
-  color: hsl(var(--card-foreground));
-}
-
-/* Form elements inherit text color */
-input, textarea, select {
-  color: hsl(var(--foreground));
-}
-
-/* Button text colors */
-button {
-  color: inherit;
-}
-
-/* Links use primary color but inherit if not overridden */
-a {
-  color: hsl(var(--primary));
-}
-
-/* Ensure muted text uses muted foreground */
-.text-muted-foreground {
-  color: hsl(var(--muted-foreground)) !important;
-}
-
-/* Enhanced glass effect styles */
 body.with-bg-image .card {
   background: rgba(255, 255, 255, var(--card-bg-opacity, 0.8)) !important;
   backdrop-filter: blur(var(--card-backdrop-blur, 12px)) !important;
@@ -122,7 +86,6 @@ body.with-bg-image.dark .card {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
 }
 
-/* Ensure glass effect works on other components too */
 body.with-bg-image .bg-card {
   background: rgba(255, 255, 255, var(--card-bg-opacity, 0.8)) !important;
   backdrop-filter: blur(var(--card-backdrop-blur, 12px)) !important;
@@ -133,7 +96,6 @@ body.with-bg-image.dark .bg-card {
   background: rgba(17, 24, 39, var(--card-bg-opacity, 0.8)) !important;
 }
 
-/* Make sure tabs and other elements also get glass effect */
 body.with-bg-image .bg-muted {
   background: rgba(255, 255, 255, 0.6) !important;
   backdrop-filter: blur(8px) !important;
@@ -144,7 +106,7 @@ body.with-bg-image.dark .bg-muted {
   background: rgba(17, 24, 39, 0.6) !important;
 }
 
-/* Debug styles to verify glass effect is working */
+/* Background image overlay */
 body.with-bg-image::before {
   content: '';
   position: fixed;
@@ -161,14 +123,17 @@ body.with-bg-image::before {
   pointer-events: none;
 }
 
-/* Ensure background attachment works on mobile */
 @media (max-width: 768px) {
   body.with-bg-image::before {
     background-attachment: scroll;
   }
 }
 
-/* Force slider components to use the primary color */
+/* ============================================
+   COMPONENT-SPECIFIC THEME STYLES
+   ============================================ */
+
+/* Radix slider components */
 [data-radix-slider-track] {
   background-color: hsl(var(--secondary));
 }
@@ -186,7 +151,7 @@ body.with-bg-image::before {
   box-shadow: 0 0 0 2px hsl(var(--ring));
 }
 
-/* Ensure color inputs and sliders reflect theme colors */
+/* Color input styling */
 input[type="color"] {
   border-color: hsl(var(--border));
 }
@@ -195,9 +160,9 @@ input[type="color"]:focus {
   ring-color: hsl(var(--ring));
 }
 
-/* Loading spinner animation with company color */
+/* Loading spinner with brand color */
 .loading-spinner {
-  border: 3px solid #f3f3f3;
+  border: 3px solid hsl(var(--muted));
   border-top: 3px solid var(--primary-color);
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -206,10 +171,4 @@ input[type="color"]:focus {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
-}
-
-/* Focus states with company color */
-:focus-visible {
-  outline: 2px solid hsl(var(--primary));
-  outline-offset: 2px;
 }
