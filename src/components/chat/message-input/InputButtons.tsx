@@ -13,6 +13,8 @@ interface InputButtonsProps {
   onSendClick: () => void;
   onFileAttached?: (content: string, fileName: string) => void;
   onVoiceTranscript?: (transcript: string) => void;
+  onInterimTranscript?: (text: string) => void;
+  onRecordingStateChange?: (isRecording: boolean) => void;
 }
 
 export const InputButtons: React.FC<InputButtonsProps> = ({
@@ -20,7 +22,9 @@ export const InputButtons: React.FC<InputButtonsProps> = ({
   isLoading,
   onSendClick,
   onFileAttached,
-  onVoiceTranscript
+  onVoiceTranscript,
+  onInterimTranscript,
+  onRecordingStateChange
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -113,6 +117,20 @@ export const InputButtons: React.FC<InputButtonsProps> = ({
       clearTranscript();
     }
   }, [voiceState.transcript, onVoiceTranscript, clearTranscript]);
+
+  // Pass interim transcript to parent for real-time display
+  React.useEffect(() => {
+    if (onInterimTranscript) {
+      onInterimTranscript(voiceState.interimTranscript || '');
+    }
+  }, [voiceState.interimTranscript, onInterimTranscript]);
+
+  // Notify parent of recording state changes
+  React.useEffect(() => {
+    if (onRecordingStateChange) {
+      onRecordingStateChange(voiceState.isRecording);
+    }
+  }, [voiceState.isRecording, onRecordingStateChange]);
 
   // Handle voice errors - prevent duplicate toasts
   React.useEffect(() => {
