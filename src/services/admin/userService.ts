@@ -1,9 +1,10 @@
 
 import { logger } from '@/utils/logging';
-import { UserWithRole, UserRole, UsersFetchOptions, UsersSearchOptions, UsersFetchResult, ApiResponse } from './types/userTypes';
+import { UserWithRole, UserRole, UsersFetchOptions, UsersSearchOptions, UsersFetchResult } from './types/userTypes';
 import { supabase } from '@/integrations/supabase/client';
 import { validateSearchParams, sanitizeSearchQuery, normalizeRole } from '@/utils/validation';
 import { sanitizeInput } from '@/utils/security';
+import { invokeAdminFunction } from './utils/adminFunctionUtils';
 
 /**
  * Enhanced error handling wrapper
@@ -63,50 +64,8 @@ export async function checkAdminConnectionStatus(): Promise<any> {
 }
 
 /**
- * Enhanced function to fetch auth user emails with better error handling
- */
-const fetchAuthUserEmails = async (): Promise<Record<string, string>> => {
-  const emailMap: Record<string, string> = {};
-  
-  try {
-    logger.info('Attempting to fetch auth user data...');
-    
-    // Check if we have admin permissions by testing the admin API
-    const { data: authUsersData, error: authError } = await supabase.auth.admin.listUsers({
-      page: 1,
-      perPage: 1000 // Adjust based on your needs
-    });
-    
-    if (authError) {
-      logger.error('Failed to fetch auth users - Admin API error:', authError);
-      console.error('Auth admin API error:', authError);
-      return emailMap;
-    }
-    
-    if (!authUsersData?.users) {
-      logger.warn('Auth admin API returned no users data');
-      return emailMap;
-    }
-    
-    logger.info(`Successfully fetched ${authUsersData.users.length} auth users`);
-    
-    // Build email mapping
-    authUsersData.users.forEach(authUser => {
-      if (authUser.id && authUser.email) {
-        emailMap[authUser.id] = authUser.email;
-      }
-    });
-    
-    return emailMap;
-  } catch (error) {
-    logger.error('Exception in fetchAuthUserEmails:', error);
-    console.error('Failed to fetch auth user emails:', error);
-    return emailMap;
-  }
-};
-
-/**
- * Fetch users with enhanced validation and error handling
+ * Fetch users via the secure admin-users edge function
+ * This replaces direct supabase.auth.admin.listUsers() calls
  */
 export async function fetchUsers(options: UsersFetchOptions = {}): Promise<UsersFetchResult> {
   return withErrorHandling(async () => {
@@ -121,75 +80,38 @@ export async function fetchUsers(options: UsersFetchOptions = {}): Promise<Users
     }
     
     const { page = 1, pageSize = 10, roleFilter } = validation.data!;
-    const offset = (page - 1) * pageSize;
     
-    // Get profiles with proper error handling
-    let profileQuery = supabase
-      .from('profiles')
-      .select('id, username, updated_at', { count: 'exact' })
-      .range(offset, offset + pageSize - 1)
-      .order('updated_at', { ascending: false });
-
-    const { data: profiles, error: profileError, count } = await profileQuery;
+    // Use the edge function instead of direct admin API calls
+    const result = await invokeAdminFunction('listUsers', {
+      page,
+      pageSize,
+      roleFilter: roleFilter !== 'all' ? roleFilter : undefined
+    });
     
-    if (profileError) {
-      logger.error('Error fetching profiles:', profileError);
-      throw new Error(`Database error: ${profileError.message}`);
+    if (result?.error) {
+      throw new Error(result.error);
     }
-
-    if (!profiles || profiles.length === 0) {
-      return { users: [], totalCount: count || 0 };
-    }
-
-    // Get user roles for these profiles
-    const profileIds = profiles.map(p => p.id);
-    const { data: userRoles, error: rolesError } = await supabase
-      .from('user_roles')
-      .select('user_id, role')
-      .in('user_id', profileIds);
-
-    if (rolesError) {
-      logger.error('Error fetching user roles:', rolesError);
-      // Don't throw here, continue with default roles
-    }
-
-    // Get auth users data for emails with enhanced error handling
-    const authEmailMap = await fetchAuthUserEmails();
     
-    // Combine the data with validation
-    const users: UserWithRole[] = profiles.map(profile => {
-      const userRole = userRoles?.find(ur => ur.user_id === profile.id);
-      const userEmail = authEmailMap[profile.id];
-      
-      const role = normalizeRole(userRole?.role || 'user');
-      
-      // Apply role filter if specified
-      if (roleFilter && roleFilter !== 'all' && role !== roleFilter) {
-        return null;
-      }
-
-      // Use real email if available, otherwise show a clear indication that email couldn't be fetched
-      const displayEmail = userEmail || `[Email not accessible for ${profile.id}]`;
-
-      return {
-        id: profile.id,
-        email: sanitizeInput(displayEmail),
-        created_at: profile.updated_at || new Date().toISOString(),
-        role: role as UserRole,
-        username: sanitizeInput(profile.username || ''),
-        last_sign_in_at: undefined // We'll need additional logic to get this from auth
-      };
-    }).filter(Boolean) as UserWithRole[];
+    // Map response to expected format with sanitization
+    const users: UserWithRole[] = (result?.users || []).map((user: any) => ({
+      id: user.id,
+      email: sanitizeInput(user.email || ''),
+      created_at: user.created_at || new Date().toISOString(),
+      role: normalizeRole(user.role || 'user') as UserRole,
+      username: sanitizeInput(user.username || ''),
+      last_sign_in_at: user.last_sign_in_at
+    }));
     
     return { 
       users,
-      totalCount: count || 0
+      totalCount: result?.totalCount || 0
     };
   }, 'fetchUsers');
 }
 
 /**
- * Search users with enhanced validation and sanitization
+ * Search users via the secure admin-users edge function
+ * This replaces direct supabase.auth.admin.listUsers() calls
  */
 export async function searchUsers(options: UsersSearchOptions): Promise<UsersFetchResult> {
   return withErrorHandling(async () => {
@@ -206,74 +128,36 @@ export async function searchUsers(options: UsersSearchOptions): Promise<UsersFet
     
     const { searchQuery, page = 1, pageSize = 10, roleFilter } = validation.data!;
     
+    // If no search query, fall back to list
     if (!searchQuery?.trim()) {
       return fetchUsers({ page, pageSize, roleFilter });
     }
     
-    const sanitizedQuery = sanitizeSearchQuery(searchQuery);
-    const offset = (page - 1) * pageSize;
+    // Use the edge function for search
+    const result = await invokeAdminFunction('searchUsers', {
+      searchQuery: sanitizeSearchQuery(searchQuery),
+      page,
+      pageSize,
+      roleFilter: roleFilter !== 'all' ? roleFilter : undefined
+    });
     
-    // Search in profiles by username with sanitized input
-    let profileQuery = supabase
-      .from('profiles')
-      .select('id, username, updated_at', { count: 'exact' })
-      .ilike('username', `%${sanitizedQuery}%`)
-      .range(offset, offset + pageSize - 1)
-      .order('updated_at', { ascending: false });
-
-    const { data: profiles, error: profileError, count } = await profileQuery;
+    if (result?.error) {
+      throw new Error(result.error);
+    }
     
-    if (profileError) {
-      logger.error('Error searching profiles:', profileError);
-      throw new Error(`Search failed: ${profileError.message}`);
-    }
-
-    if (!profiles || profiles.length === 0) {
-      return { users: [], totalCount: count || 0 };
-    }
-
-    // Get user roles for these profiles
-    const profileIds = profiles.map(p => p.id);
-    const { data: userRoles, error: rolesError } = await supabase
-      .from('user_roles')
-      .select('user_id, role')
-      .in('user_id', profileIds);
-
-    if (rolesError) {
-      logger.error('Error fetching user roles:', rolesError);
-    }
-
-    // Get auth users data for emails with enhanced error handling
-    const authEmailMap = await fetchAuthUserEmails();
-
-    // Combine the data with proper validation
-    const users: UserWithRole[] = profiles.map(profile => {
-      const userRole = userRoles?.find(ur => ur.user_id === profile.id);
-      const userEmail = authEmailMap[profile.id];
-      
-      const role = normalizeRole(userRole?.role || 'user');
-      
-      // Apply role filter if specified
-      if (roleFilter && roleFilter !== 'all' && role !== roleFilter) {
-        return null;
-      }
-
-      // Use real email if available, otherwise show a clear indication that email couldn't be fetched
-      const displayEmail = userEmail || `[Email not accessible for ${profile.id}]`;
-
-      return {
-        id: profile.id,
-        email: sanitizeInput(displayEmail),
-        created_at: profile.updated_at || new Date().toISOString(),
-        role: role as UserRole,
-        username: sanitizeInput(profile.username || ''),
-        last_sign_in_at: undefined
-      };
-    }).filter(Boolean) as UserWithRole[];
+    // Map response with sanitization
+    const users: UserWithRole[] = (result?.users || []).map((user: any) => ({
+      id: user.id,
+      email: sanitizeInput(user.email || ''),
+      created_at: user.created_at || new Date().toISOString(),
+      role: normalizeRole(user.role || 'user') as UserRole,
+      username: sanitizeInput(user.username || ''),
+      last_sign_in_at: user.last_sign_in_at
+    }));
     
     return {
       users,
-      totalCount: count || 0
+      totalCount: result?.totalCount || 0
     };
   }, 'searchUsers');
 }
