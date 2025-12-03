@@ -22,8 +22,8 @@ export function BackgroundOpacityControl({
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <Label htmlFor="opacity">Background Opacity</Label>
-        <span className="text-sm font-mono bg-muted px-2 py-1 rounded">
+        <Label htmlFor="opacity" className="text-foreground">Background Opacity</Label>
+        <span className="text-sm font-mono bg-background/60 border border-border/20 px-2 py-1 rounded text-foreground">
           {Math.round(backgroundOpacity * 100)}%
         </span>
       </div>
@@ -39,9 +39,9 @@ export function BackgroundOpacityControl({
       />
       
       {onAutoDimChange && (
-        <div className="flex items-center justify-between pt-2 border-t">
+        <div className="flex items-center justify-between pt-2 border-t border-border/30">
           <div className="space-y-1">
-            <Label htmlFor="auto-dim">Auto-dim in dark mode</Label>
+            <Label htmlFor="auto-dim" className="text-foreground">Auto-dim in dark mode</Label>
             <p className="text-xs text-muted-foreground">
               Automatically reduce opacity in dark mode for better readability
             </p>

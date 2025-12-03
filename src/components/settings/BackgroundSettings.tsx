@@ -43,7 +43,7 @@ export function BackgroundSettings({
   return (
     <div className="space-y-6">
       {/* Modern Header with Mobile-First Design */}
-      <Card className="glass-panel border-0 shadow-sm">
+      <Card className="glass-panel border-0 shadow-sm bg-background/80">
         <CardContent className="p-4 sm:p-6">
           <div className="flex flex-col gap-4">
             <div className="space-y-1">
@@ -65,7 +65,7 @@ export function BackgroundSettings({
       </Card>
       
       {/* Image Management Section */}
-      <Card className="glass-panel border-0 shadow-sm overflow-hidden">
+      <Card className="glass-panel border-0 shadow-sm overflow-hidden bg-background/80">
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="h-4 w-4 text-blue-500" />
@@ -103,7 +103,7 @@ export function BackgroundSettings({
       </Card>
 
       {/* Opacity Control Section */}
-      <Card className="glass-panel border-0 shadow-sm">
+      <Card className="glass-panel border-0 shadow-sm bg-background/80">
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="h-4 w-4 text-purple-500" />
@@ -122,7 +122,7 @@ export function BackgroundSettings({
       </Card>
       
       {/* Tips Section */}
-      <Card className="glass-panel border-0 shadow-sm">
+      <Card className="glass-panel border-0 shadow-sm bg-background/80">
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="h-4 w-4 text-green-500" />
