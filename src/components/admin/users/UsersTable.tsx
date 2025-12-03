@@ -107,7 +107,7 @@ export function UsersTable({
   return (
     <>
       {/* Desktop table view */}
-      <div className="hidden md:block rounded-md border bg-card">
+      <div className="hidden md:block rounded-md border border-border/50 bg-background/80">
         <Table>
           <TableCaption className="text-xs text-muted-foreground py-2">
             {isLoading ? (
@@ -120,13 +120,13 @@ export function UsersTable({
             )}
           </TableCaption>
           <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="font-semibold">User ID</TableHead>
-              <TableHead className="font-semibold">Username</TableHead>
-              <TableHead className="font-semibold">Role</TableHead>
-              <TableHead className="font-semibold">Created</TableHead>
-              <TableHead className="font-semibold">Last Login</TableHead>
-              <TableHead className="text-right font-semibold">Actions</TableHead>
+            <TableRow className="hover:bg-transparent border-border/50">
+              <TableHead className="font-semibold text-foreground">User ID</TableHead>
+              <TableHead className="font-semibold text-foreground">Username</TableHead>
+              <TableHead className="font-semibold text-foreground">Role</TableHead>
+              <TableHead className="font-semibold text-foreground">Created</TableHead>
+              <TableHead className="font-semibold text-foreground">Last Login</TableHead>
+              <TableHead className="text-right font-semibold text-foreground">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -140,7 +140,7 @@ export function UsersTable({
               />
             ) : (
               users.map(user => (
-                <TableRow key={user.id} className="hover:bg-muted/50 transition-colors">
+                <TableRow key={user.id} className="hover:bg-muted/30 transition-colors border-border/50">
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-3">
                       <div className="h-8 w-8 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center border">

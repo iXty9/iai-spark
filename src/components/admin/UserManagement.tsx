@@ -54,10 +54,10 @@ function UserManagementContent() {
         </div>
       </div>
       
-      <div className="rounded-md border bg-card">
+      <div className="rounded-md border border-border/50 bg-background/80">
         <div className="p-8 flex flex-col items-center justify-center">
           <Loader className="h-8 w-8 animate-spin mb-4 text-primary" />
-          <h3 className="text-lg font-medium mb-2">Loading users</h3>
+          <h3 className="text-lg font-medium mb-2 text-foreground">Loading users</h3>
           <p className="text-muted-foreground">Please wait while we fetch the user data...</p>
         </div>
       </div>
