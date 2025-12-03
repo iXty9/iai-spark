@@ -70,7 +70,7 @@ export const LoginForm = () => {
   return (
     <div className="space-y-6">
       {/* Login Header */}
-      <Card className="glass-panel border-0 shadow-sm">
+      <Card className="glass-panel border-0 shadow-sm bg-background/80">
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
@@ -116,7 +116,7 @@ export const LoginForm = () => {
       )}
 
       {/* Login Form */}
-      <Card className="glass-panel border-0 shadow-sm">
+      <Card className="glass-panel border-0 shadow-sm bg-background/80">
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <Shield className="h-4 w-4 text-blue-500" />
