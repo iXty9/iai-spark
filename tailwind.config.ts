@@ -77,15 +77,16 @@ export default {
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
 			},
-			typography: {
+		typography: {
 				DEFAULT: {
 					css: {
 						maxWidth: '100%',
 						color: 'hsl(var(--foreground))',
 						a: {
-							color: 'hsl(var(--primary))',
+							color: 'inherit',
+							textDecoration: 'underline',
 							'&:hover': {
-								color: 'hsl(var(--primary))',
+								color: 'inherit',
 							},
 						},
 						p: {
@@ -109,8 +110,8 @@ export default {
 							marginBottom: '0.75rem',
 						},
 						blockquote: {
-							color: 'hsl(var(--muted-foreground))',
-							borderLeftColor: 'hsl(var(--primary) / 0.3)',
+							color: 'inherit',
+							borderLeftColor: 'inherit',
 						},
 						pre: {
 							backgroundColor: 'hsl(var(--muted))',

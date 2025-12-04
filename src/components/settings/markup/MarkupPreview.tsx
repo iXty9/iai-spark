@@ -8,8 +8,29 @@ interface MarkupPreviewProps {
 }
 
 export const MarkupPreview: React.FC<MarkupPreviewProps> = ({ colors }) => {
+  // Use AI bubble color as background
+  const bgColor = colors.aiBubbleColor || '#9b87f5';
+  const bgOpacity = colors.aiBubbleOpacity ?? 0.3;
+  
+  // Convert hex to rgba for proper opacity
+  const hexToRgba = (hex: string, opacity: number) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (result) {
+      const r = parseInt(result[1], 16);
+      const g = parseInt(result[2], 16);
+      const b = parseInt(result[3], 16);
+      return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+    }
+    return `rgba(155, 135, 245, ${opacity})`; // fallback
+  };
+
   return (
-    <div className="bg-muted/50 p-4 rounded-lg">
+    <div 
+      className="p-4 rounded-lg"
+      style={{ 
+        backgroundColor: hexToRgba(bgColor, bgOpacity)
+      }}
+    >
       <h4 className="font-medium mb-2 flex items-center gap-2">
         <Code className="h-4 w-4" />
         Preview

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import DOMPurify from 'dompurify';
 import { ThemeColors } from '@/types/theme';
+import { Copy, Check } from 'lucide-react';
 
 // Create a trusted types policy if available
 let trustedTypesPolicy: any = null;
@@ -35,6 +36,96 @@ const sanitizerConfig = {
   RETURN_TRUSTED_TYPE: !!trustedTypesPolicy
 };
 
+// Helper to extract text from React children
+const extractTextFromChildren = (children: any): string => {
+  if (typeof children === 'string') return children;
+  if (Array.isArray(children)) {
+    return children.map(extractTextFromChildren).join('');
+  }
+  if (children?.props?.children) {
+    return extractTextFromChildren(children.props.children);
+  }
+  return '';
+};
+
+// Inline code component with click-to-copy
+const InlineCode = ({ children, themeColors }: { children: any; themeColors?: ThemeColors }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    const text = extractTextFromChildren(children);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  return (
+    <code 
+      className="px-1.5 py-0.5 rounded text-sm font-mono border cursor-pointer hover:opacity-80 transition-opacity inline-flex items-center gap-1"
+      style={{
+        backgroundColor: themeColors?.codeBlockBackground || '#f3f4f6',
+        color: themeColors?.codeBlockTextColor || 'inherit'
+      }}
+      onClick={handleCopy}
+      title="Click to copy"
+    >
+      {children}
+      {copied && <Check className="h-3 w-3 text-green-500" />}
+    </code>
+  );
+};
+
+// Block code component with copy button
+const CodeBlock = ({ children, themeColors }: { children: any; themeColors?: ThemeColors }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    const text = extractTextFromChildren(children);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  return (
+    <div className="relative group mb-4">
+      <pre 
+        className="p-4 rounded-lg overflow-x-auto border pr-12"
+        style={{
+          backgroundColor: themeColors?.codeBlockBackground || '#f3f4f6'
+        }}
+      >
+        <code 
+          className="text-sm font-mono"
+          style={{
+            color: themeColors?.codeBlockTextColor || 'inherit'
+          }}
+        >
+          {children}
+        </code>
+      </pre>
+      <button
+        onClick={handleCopy}
+        className="absolute top-2 right-2 p-1.5 rounded-md bg-background/80 border border-border/50 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
+        title="Copy to clipboard"
+      >
+        {copied ? (
+          <Check className="h-4 w-4 text-green-500" />
+        ) : (
+          <Copy className="h-4 w-4 text-muted-foreground" />
+        )}
+      </button>
+    </div>
+  );
+};
+
 // Factory function to create markdown components with theme support
 export const createMarkdownComponents = (themeColors?: ThemeColors) => {
   return {
@@ -62,42 +153,12 @@ export const createMarkdownComponents = (themeColors?: ThemeColors) => {
     ),
     code: ({ inline, children }: any) => 
       inline ? (
-        <code 
-          className="px-1.5 py-0.5 rounded text-sm font-mono border"
-          style={{
-            backgroundColor: themeColors?.codeBlockBackground || '#f3f4f6',
-            color: themeColors?.codeBlockTextColor || 'inherit'
-          }}
-        >
-          {children}
-        </code>
+        <InlineCode themeColors={themeColors}>{children}</InlineCode>
       ) : (
-        <pre 
-          className="p-4 rounded-lg overflow-x-auto mb-4 border"
-          style={{
-            backgroundColor: themeColors?.codeBlockBackground || '#f3f4f6'
-          }}
-        >
-          <code 
-            className="text-sm font-mono"
-            style={{
-              color: themeColors?.codeBlockTextColor || 'inherit'
-            }}
-          >
-            {children}
-          </code>
-        </pre>
+        <CodeBlock themeColors={themeColors}>{children}</CodeBlock>
       ),
     pre: ({ children }: any) => (
-      <pre 
-        className="p-4 rounded-lg overflow-x-auto mb-4 border"
-        style={{
-          backgroundColor: themeColors?.codeBlockBackground || '#f3f4f6',
-          color: themeColors?.codeBlockTextColor || 'inherit'
-        }}
-      >
-        {children}
-      </pre>
+      <CodeBlock themeColors={themeColors}>{children}</CodeBlock>
     ),
     a: ({ href, children }: any) => (
       <a 
