@@ -261,31 +261,38 @@ export const createMarkdownComponents = (themeColors?: ThemeColors) => {
         {children}
       </blockquote>
     ),
-    // pre just passes through - code handles the rendering
-    pre: ({ children }: any) => <>{children}</>,
-    // code handles both inline and block code
-    code: ({ inline, className, children }: any) => {
-      const language = extractLanguage(className);
-      
-      if (inline) {
-        return <InlineCode>{children}</InlineCode>;
-      }
-
-      // Handle mermaid diagrams
-      if (language === 'mermaid') {
-        const codeText = extractTextFromChildren(children).trim();
-        return (
-          <Suspense fallback={<MermaidLoading />}>
-            <MermaidBlock code={codeText} />
-          </Suspense>
-        );
-      }
-      
-      return (
-        <CodeBlock language={language}>
-          {children}
-        </CodeBlock>
+    // pre handles ALL fenced code blocks (```code```)
+    pre: ({ children }: any) => {
+      // Extract the code element from children
+      const codeElement = React.Children.toArray(children).find(
+        (child: any) => React.isValidElement(child) && (child as any).type === 'code'
       );
+      
+      if (codeElement && React.isValidElement(codeElement)) {
+        const codeProps = (codeElement as any).props;
+        const className = codeProps?.className || '';
+        const language = extractLanguage(className);
+        const codeContent = extractTextFromChildren(codeProps?.children).trim();
+        
+        // Handle mermaid diagrams
+        if (language === 'mermaid') {
+          return (
+            <Suspense fallback={<MermaidLoading />}>
+              <MermaidBlock code={codeContent} />
+            </Suspense>
+          );
+        }
+        
+        // Handle regular code blocks
+        return <CodeBlock language={language}>{codeProps?.children}</CodeBlock>;
+      }
+      
+      // Fallback for unexpected structure
+      return <pre className="overflow-x-auto">{children}</pre>;
+    },
+    // code ONLY handles inline code (standalone `code` without pre wrapper)
+    code: ({ children }: any) => {
+      return <InlineCode>{children}</InlineCode>;
     },
     a: ({ href, children }: any) => (
       <a 
