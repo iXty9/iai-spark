@@ -17,20 +17,28 @@ export class PreviewManager {
   exitPreviewMode(state: SupaThemeState, save: boolean = false): void {
     if (!state.isInPreview) return;
     
-    if (!save) {
-      // Revert to original state
-      this.themeApplier.applyCurrentTheme(state);
-      this.themeApplier.applyCurrentBackground(state);
-    }
+    // Capture original values BEFORE clearing preview state
+    const originalImage = state.backgroundImage;
+    const originalOpacity = state.backgroundOpacity;
+    const originalAutoDim = state.autoDimDarkMode;
+    const originalMode = state.mode;
     
-    state.isInPreview = false;
+    // Clear preview values FIRST
     state.previewMode = null;
     state.previewLightTheme = null;
     state.previewDarkTheme = null;
     state.previewBackgroundImage = undefined;
     state.previewBackgroundOpacity = null;
     state.previewAutoDimDarkMode = null;
+    state.isInPreview = false;
     state.hasUnsavedChanges = false;
+    
+    if (!save) {
+      // NOW apply original state (preview values are already cleared)
+      this.themeApplier.applyCurrentTheme(state);
+      // Explicitly apply original background values
+      applyBackgroundImage(originalImage, originalOpacity, originalAutoDim);
+    }
   }
 
   previewMode(state: SupaThemeState, mode: 'light' | 'dark'): void {

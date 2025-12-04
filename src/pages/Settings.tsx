@@ -181,13 +181,12 @@ export default function Settings() {
   };
 
   const handleCancelSettings = () => {
+    // discardChanges() already calls exitSettingsMode(false) internally
     discardChanges();
     toast({
       title: "Changes discarded",
       description: "Your unsaved changes have been reverted",
     });
-    // Navigate back after canceling changes
-    exitSettingsMode(false);
     navigate('/');
   };
 
