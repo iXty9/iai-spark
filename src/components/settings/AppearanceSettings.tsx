@@ -122,6 +122,7 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
                 isActive={theme === 'light'}
                 backgroundImage={backgroundImage}
                 backgroundOpacity={backgroundOpacity}
+                themeMode="light"
               />
             </TabsContent>
             
@@ -137,6 +138,7 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
                 isActive={theme === 'dark'}
                 backgroundImage={backgroundImage}
                 backgroundOpacity={backgroundOpacity}
+                themeMode="dark"
               />
             </TabsContent>
           </CardContent>
