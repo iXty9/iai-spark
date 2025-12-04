@@ -147,7 +147,7 @@ export function ThemeControls({ colors, onColorChange, isActive = true, backgrou
         </div>
         <div 
           className="p-4 space-y-3 min-h-[160px] relative"
-          style={{ backgroundColor: c.backgroundColor }}
+          style={{ backgroundColor: themeMode === 'dark' ? '#1a1a2e' : '#ffffff' }}
         >
           {/* Background Image Layer */}
           {backgroundImage && (
