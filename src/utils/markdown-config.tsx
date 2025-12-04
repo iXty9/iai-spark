@@ -261,42 +261,32 @@ export const createMarkdownComponents = (themeColors?: ThemeColors) => {
         {children}
       </blockquote>
     ),
-    // pre handles ALL fenced code blocks (```code```)
-    pre: ({ children, node }: any) => {
-      // Use the AST node to detect code blocks and language
-      // This bypasses React's component resolution which fails in react-markdown v10
-      const codeNode = node?.children?.[0];
+    // pre just passes through - code component handles everything
+    pre: ({ children }: any) => children,
+
+    // code handles both fenced code blocks and inline code
+    code: ({ className, children }: any) => {
+      // Extract language from className (e.g., "language-javascript")
+      const match = className?.match(/language-(\w+)/);
+      const language = match ? match[1] : '';
+      const codeText = String(children).replace(/\n$/, '');
       
-      if (codeNode?.tagName === 'code') {
-        // Extract language from AST properties (e.g., ['language-javascript'])
-        const classNames = codeNode?.properties?.className || [];
-        const langClass = Array.isArray(classNames) 
-          ? classNames.find((c: string) => typeof c === 'string' && c.startsWith('language-'))
-          : '';
-        const language = langClass ? langClass.replace('language-', '') : '';
-        
-        // Extract code content from AST text node
-        const codeContent = codeNode?.children?.[0]?.value || 
-                            extractTextFromChildren(children);
-        
+      // Block code (fenced code blocks have language-* className)
+      if (language) {
         // Handle mermaid diagrams
         if (language === 'mermaid') {
           return (
             <Suspense fallback={<MermaidLoading />}>
-              <MermaidBlock code={codeContent.trim()} />
+              <MermaidBlock code={codeText} />
             </Suspense>
           );
         }
         
         // Handle regular code blocks with syntax highlighting
-        return <CodeBlock language={language}>{codeContent}</CodeBlock>;
+        return <CodeBlock language={language}>{codeText}</CodeBlock>;
       }
       
-      // Fallback for unexpected structure
-      return <pre className="overflow-x-auto">{children}</pre>;
-    },
-    // code ONLY handles inline code (standalone `code` without pre wrapper)
-    code: ({ children }: any) => {
+      // Inline code (no language class)
       return <InlineCode>{children}</InlineCode>;
     },
     a: ({ href, children }: any) => (
