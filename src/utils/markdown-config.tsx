@@ -159,7 +159,7 @@ const CodeBlock = ({
   const displayLanguage = language ? formatLanguageName(language) : '';
 
   return (
-    <div className="not-prose my-4 rounded-lg overflow-hidden shadow-lg" style={{ backgroundColor: '#282c34' }}>
+    <div className="not-prose my-4 rounded-lg overflow-hidden shadow-lg syntax-highlighted-code" style={{ backgroundColor: '#282c34' }}>
       {/* Header with language label and copy button */}
       <div 
         className="flex items-center justify-between px-4 py-2"
