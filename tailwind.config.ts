@@ -113,9 +113,7 @@ export default {
 							color: 'inherit',
 							borderLeftColor: 'inherit',
 						},
-						pre: {
-							backgroundColor: 'hsl(var(--muted))',
-						},
+						// pre background handled by SyntaxHighlighter - no override needed
 					},
 				},
 			},
