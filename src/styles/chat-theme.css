@@ -34,6 +34,18 @@
   color: var(--user-text-color, white) !important;
 }
 
+/* List marker colors - ensure numbers/bullets are visible */
+.user-message-bubble ol,
+.user-message-bubble ul {
+  color: var(--user-text-color, white) !important;
+}
+
+.user-message-bubble ol::marker,
+.user-message-bubble ul::marker,
+.user-message-bubble li::marker {
+  color: var(--user-text-color, white) !important;
+}
+
 .ai-message-bubble p,
 .ai-message-bubble span:not(.syntax-highlighted-code span),
 .ai-message-bubble strong,
@@ -45,6 +57,18 @@
 .ai-message-bubble h4,
 .ai-message-bubble h5,
 .ai-message-bubble h6 {
+  color: var(--ai-text-color, var(--text-color)) !important;
+}
+
+/* List marker colors - ensure numbers/bullets are visible */
+.ai-message-bubble ol,
+.ai-message-bubble ul {
+  color: var(--ai-text-color, var(--text-color)) !important;
+}
+
+.ai-message-bubble ol::marker,
+.ai-message-bubble ul::marker,
+.ai-message-bubble li::marker {
   color: var(--ai-text-color, var(--text-color)) !important;
 }
 
