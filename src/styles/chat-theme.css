@@ -60,13 +60,11 @@
   color: var(--ai-text-color, var(--text-color)) !important;
 }
 
-/* Allow syntax highlighting styles to apply without interference */
+/* Completely isolate syntax-highlighted code from all color overrides */
+/* Do NOT use !important here - let inline styles from SyntaxHighlighter take precedence */
 .syntax-highlighted-code,
-.syntax-highlighted-code *,
-.syntax-highlighted-code code,
-.syntax-highlighted-code span,
-.syntax-highlighted-code pre {
-  color: inherit !important;
+.syntax-highlighted-code * {
+  color: unset;
 }
 
 /* Name tag colors - NEW: Theme-based name tag styling */
