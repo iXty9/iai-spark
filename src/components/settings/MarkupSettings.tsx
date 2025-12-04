@@ -110,14 +110,7 @@ export const MarkupSettings: React.FC<MarkupSettingsProps> = ({
           
           <CardContent className="p-4 sm:p-6">
             <TabsContent value="light" className="mt-0 space-y-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Sparkles className="h-4 w-4 text-amber-500" />
-                <span className="text-sm font-medium text-foreground">Light Theme Markup</span>
-                <div className="flex-1 h-px bg-border"></div>
-              </div>
-              {renderMarkupControls(lightTheme, 'light')}
-              
-              {/* Preview Section */}
+              {/* Preview Section - FIRST */}
               <Card className="bg-background/50 border-border/50">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center gap-2 mb-4">
@@ -128,17 +121,18 @@ export const MarkupSettings: React.FC<MarkupSettingsProps> = ({
                   <MarkupPreview colors={lightTheme} />
                 </CardContent>
               </Card>
+
+              {/* Controls - SECOND */}
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles className="h-4 w-4 text-amber-500" />
+                <span className="text-sm font-medium text-foreground">Light Theme Markup</span>
+                <div className="flex-1 h-px bg-border"></div>
+              </div>
+              {renderMarkupControls(lightTheme, 'light')}
             </TabsContent>
             
             <TabsContent value="dark" className="mt-0 space-y-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Sparkles className="h-4 w-4 text-blue-400" />
-                <span className="text-sm font-medium text-foreground">Dark Theme Markup</span>
-                <div className="flex-1 h-px bg-border"></div>
-              </div>
-              {renderMarkupControls(darkTheme, 'dark')}
-              
-              {/* Preview Section */}
+              {/* Preview Section - FIRST */}
               <Card className="bg-background/50 border-border/50">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center gap-2 mb-4">
@@ -149,6 +143,14 @@ export const MarkupSettings: React.FC<MarkupSettingsProps> = ({
                   <MarkupPreview colors={darkTheme} />
                 </CardContent>
               </Card>
+
+              {/* Controls - SECOND */}
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles className="h-4 w-4 text-blue-400" />
+                <span className="text-sm font-medium text-foreground">Dark Theme Markup</span>
+                <div className="flex-1 h-px bg-border"></div>
+              </div>
+              {renderMarkupControls(darkTheme, 'dark')}
             </TabsContent>
           </CardContent>
         </Tabs>
