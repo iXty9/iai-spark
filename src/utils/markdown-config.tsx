@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import DOMPurify from 'dompurify';
 import { ThemeColors } from '@/types/theme';
 import { Copy, Check } from 'lucide-react';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 // Create a trusted types policy if available
 let trustedTypesPolicy: any = null;
@@ -48,6 +50,60 @@ const extractTextFromChildren = (children: any): string => {
   return '';
 };
 
+// Extract language from className (e.g., "language-javascript" -> "javascript")
+const extractLanguage = (className?: string): string => {
+  if (!className) return '';
+  const match = className.match(/language-(\w+)/);
+  return match ? match[1] : '';
+};
+
+// Format language name for display
+const formatLanguageName = (lang: string): string => {
+  const languageMap: Record<string, string> = {
+    js: 'JavaScript',
+    javascript: 'JavaScript',
+    ts: 'TypeScript',
+    typescript: 'TypeScript',
+    tsx: 'TypeScript React',
+    jsx: 'JavaScript React',
+    py: 'Python',
+    python: 'Python',
+    rb: 'Ruby',
+    ruby: 'Ruby',
+    go: 'Go',
+    rust: 'Rust',
+    java: 'Java',
+    cpp: 'C++',
+    c: 'C',
+    cs: 'C#',
+    csharp: 'C#',
+    php: 'PHP',
+    swift: 'Swift',
+    kotlin: 'Kotlin',
+    sql: 'SQL',
+    html: 'HTML',
+    css: 'CSS',
+    scss: 'SCSS',
+    sass: 'Sass',
+    less: 'Less',
+    json: 'JSON',
+    yaml: 'YAML',
+    yml: 'YAML',
+    xml: 'XML',
+    md: 'Markdown',
+    markdown: 'Markdown',
+    bash: 'Bash',
+    shell: 'Shell',
+    sh: 'Shell',
+    zsh: 'Zsh',
+    powershell: 'PowerShell',
+    dockerfile: 'Dockerfile',
+    graphql: 'GraphQL',
+    regex: 'Regex',
+  };
+  return languageMap[lang.toLowerCase()] || lang.toUpperCase();
+};
+
 // Inline code component with click-to-copy
 const InlineCode = ({ children, themeColors }: { children: any; themeColors?: ThemeColors }) => {
   const [copied, setCopied] = useState(false);
@@ -79,14 +135,22 @@ const InlineCode = ({ children, themeColors }: { children: any; themeColors?: Th
   );
 };
 
-// Block code component with copy button
-const CodeBlock = ({ children, themeColors }: { children: any; themeColors?: ThemeColors }) => {
+// Block code component with syntax highlighting and copy button
+const CodeBlock = ({ 
+  children, 
+  language,
+  themeColors 
+}: { 
+  children: any; 
+  language?: string;
+  themeColors?: ThemeColors 
+}) => {
   const [copied, setCopied] = useState(false);
+  const codeText = extractTextFromChildren(children);
 
   const handleCopy = async () => {
-    const text = extractTextFromChildren(children);
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(codeText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -94,34 +158,64 @@ const CodeBlock = ({ children, themeColors }: { children: any; themeColors?: The
     }
   };
 
+  const displayLanguage = language ? formatLanguageName(language) : '';
+
+  // Custom style overrides for the syntax highlighter
+  const customStyle: React.CSSProperties = {
+    margin: 0,
+    padding: '1rem',
+    borderRadius: '0 0 0.5rem 0.5rem',
+    fontSize: '0.875rem',
+    backgroundColor: themeColors?.codeBlockBackground || '#282c34',
+  };
+
   return (
-    <div className="relative group mb-4">
-      <pre 
-        className="p-4 rounded-lg overflow-x-auto border pr-12"
+    <div className="mb-4 rounded-lg overflow-hidden border border-border/50 shadow-sm">
+      {/* Header with language label and copy button */}
+      <div 
+        className="flex items-center justify-between px-4 py-2 border-b border-border/30"
         style={{
-          backgroundColor: themeColors?.codeBlockBackground || '#f3f4f6'
+          backgroundColor: themeColors?.codeBlockBackground 
+            ? `color-mix(in srgb, ${themeColors.codeBlockBackground} 80%, black)` 
+            : '#21252b'
         }}
       >
-        <code 
-          className="text-sm font-mono"
-          style={{
-            color: themeColors?.codeBlockTextColor || 'inherit'
-          }}
+        <span 
+          className="text-xs font-medium"
+          style={{ color: themeColors?.codeBlockTextColor || '#abb2bf' }}
         >
-          {children}
-        </code>
-      </pre>
-      <button
-        onClick={handleCopy}
-        className="absolute top-2 right-2 p-1.5 rounded-md bg-background/80 border border-border/50 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
-        title="Copy to clipboard"
+          {displayLanguage || 'Code'}
+        </span>
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors hover:bg-white/10"
+          style={{ color: themeColors?.codeBlockTextColor || '#abb2bf' }}
+          title="Copy to clipboard"
+        >
+          {copied ? (
+            <>
+              <Check className="h-3.5 w-3.5 text-green-400" />
+              <span>Copied!</span>
+            </>
+          ) : (
+            <>
+              <Copy className="h-3.5 w-3.5" />
+              <span>Copy</span>
+            </>
+          )}
+        </button>
+      </div>
+      
+      {/* Code content with syntax highlighting */}
+      <SyntaxHighlighter
+        language={language || 'text'}
+        style={oneDark}
+        customStyle={customStyle}
+        showLineNumbers={false}
+        wrapLongLines={true}
       >
-        {copied ? (
-          <Check className="h-4 w-4 text-green-500" />
-        ) : (
-          <Copy className="h-4 w-4 text-muted-foreground" />
-        )}
-      </button>
+        {codeText}
+      </SyntaxHighlighter>
     </div>
   );
 };
@@ -151,15 +245,22 @@ export const createMarkdownComponents = (themeColors?: ThemeColors) => {
         {children}
       </blockquote>
     ),
-    code: ({ inline, children }: any) => 
-      inline ? (
-        <InlineCode themeColors={themeColors}>{children}</InlineCode>
-      ) : (
-        <CodeBlock themeColors={themeColors}>{children}</CodeBlock>
-      ),
-    pre: ({ children }: any) => (
-      <CodeBlock themeColors={themeColors}>{children}</CodeBlock>
-    ),
+    // pre just passes through - code handles the rendering
+    pre: ({ children }: any) => <>{children}</>,
+    // code handles both inline and block code
+    code: ({ inline, className, children }: any) => {
+      const language = extractLanguage(className);
+      
+      if (inline) {
+        return <InlineCode themeColors={themeColors}>{children}</InlineCode>;
+      }
+      
+      return (
+        <CodeBlock language={language} themeColors={themeColors}>
+          {children}
+        </CodeBlock>
+      );
+    },
     a: ({ href, children }: any) => (
       <a 
         href={href} 
