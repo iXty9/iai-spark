@@ -1,10 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import DOMPurify from 'dompurify';
 import { ThemeColors } from '@/types/theme';
 import { Copy, Check } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
+// Lazy load MermaidBlock to avoid loading mermaid.js until needed
+const MermaidBlock = lazy(() => import('@/components/chat/markdown/MermaidBlock'));
+
+// Loading placeholder for mermaid diagrams
+const MermaidLoading = () => (
+  <div className="not-prose my-4 rounded-lg overflow-hidden shadow-lg" style={{ backgroundColor: '#282c34' }}>
+    <div className="flex items-center justify-between px-4 py-2" style={{ backgroundColor: '#21252b' }}>
+      <span className="text-xs font-medium text-gray-400">Mermaid Diagram</span>
+    </div>
+    <div className="p-4 flex justify-center items-center min-h-[100px]">
+      <div className="animate-pulse text-gray-400 text-sm">Loading diagram...</div>
+    </div>
+  </div>
+);
 // Create a trusted types policy if available
 let trustedTypesPolicy: any = null;
 
@@ -247,21 +261,43 @@ export const createMarkdownComponents = (themeColors?: ThemeColors) => {
         {children}
       </blockquote>
     ),
-    // pre just passes through - code handles the rendering
-    pre: ({ children }: any) => <>{children}</>,
-    // code handles both inline and block code
-    code: ({ inline, className, children }: any) => {
-      const language = extractLanguage(className);
+    // pre handles ALL fenced code blocks (```code```)
+    pre: ({ children, node }: any) => {
+      // Use the AST node to detect code blocks and language
+      // This bypasses React's component resolution which fails in react-markdown v10
+      const codeNode = node?.children?.[0];
       
-      if (inline) {
-        return <InlineCode>{children}</InlineCode>;
+      if (codeNode?.tagName === 'code') {
+        // Extract language from AST properties (e.g., ['language-javascript'])
+        const classNames = codeNode?.properties?.className || [];
+        const langClass = Array.isArray(classNames) 
+          ? classNames.find((c: string) => typeof c === 'string' && c.startsWith('language-'))
+          : '';
+        const language = langClass ? langClass.replace('language-', '') : '';
+        
+        // Extract code content from AST text node
+        const codeContent = codeNode?.children?.[0]?.value || 
+                            extractTextFromChildren(children);
+        
+        // Handle mermaid diagrams
+        if (language === 'mermaid') {
+          return (
+            <Suspense fallback={<MermaidLoading />}>
+              <MermaidBlock code={codeContent.trim()} />
+            </Suspense>
+          );
+        }
+        
+        // Handle regular code blocks with syntax highlighting
+        return <CodeBlock language={language}>{codeContent}</CodeBlock>;
       }
       
-      return (
-        <CodeBlock language={language}>
-          {children}
-        </CodeBlock>
-      );
+      // Fallback for unexpected structure
+      return <pre className="overflow-x-auto">{children}</pre>;
+    },
+    // code ONLY handles inline code (standalone `code` without pre wrapper)
+    code: ({ children }: any) => {
+      return <InlineCode>{children}</InlineCode>;
     },
     a: ({ href, children }: any) => (
       <a 
