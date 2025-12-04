@@ -232,9 +232,9 @@ export const createMarkdownComponents = (themeColors?: ThemeColors) => {
     h4: ({ children }: any) => <h4 className="text-base font-bold mb-2 mt-3 first:mt-0 leading-tight">{children}</h4>,
     h5: ({ children }: any) => <h5 className="text-sm font-bold mb-2 mt-2 first:mt-0 leading-tight">{children}</h5>,
     h6: ({ children }: any) => <h6 className="text-xs font-bold mb-2 mt-2 first:mt-0 leading-tight">{children}</h6>,
-    ul: ({ children }: any) => <ul className="list-disc list-inside mb-4 space-y-2 pl-2">{children}</ul>,
-    ol: ({ children }: any) => <ol className="list-decimal list-inside mb-4 space-y-2 pl-2">{children}</ol>,
-    li: ({ children }: any) => <li className="ml-2 leading-relaxed">{children}</li>,
+    ul: ({ children }: any) => <ul className="list-disc list-outside mb-4 space-y-1 pl-6">{children}</ul>,
+    ol: ({ children }: any) => <ol className="list-decimal list-outside mb-4 space-y-1 pl-6">{children}</ol>,
+    li: ({ children }: any) => <li className="leading-relaxed">{children}</li>,
     blockquote: ({ children }: any) => (
       <blockquote 
         className="pl-4 italic mb-4 py-2 rounded-r-md"
