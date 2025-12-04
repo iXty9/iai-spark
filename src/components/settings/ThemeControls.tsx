@@ -11,10 +11,11 @@ export interface ThemeControlsProps {
   isActive?: boolean;
   backgroundImage?: string | null;
   backgroundOpacity?: number;
+  themeMode?: 'light' | 'dark';
 }
 
 // Default colors from production theme service
-const defaultColors = {
+const lightDefaultColors = {
   backgroundColor: '#ffffff',
   primaryColor: '#dd3333',
   textColor: '#000000',
@@ -27,6 +28,22 @@ const defaultColors = {
   aiTextColor: '#000000',
   userNameColor: '#666666',
   aiNameColor: '#666666',
+  proactiveHighlightColor: '#3b82f6',
+};
+
+const darkDefaultColors = {
+  backgroundColor: '#1a1a2e',
+  primaryColor: '#dd3333',
+  textColor: '#ffffff',
+  accentColor: '#9b87f5',
+  userBubbleColor: '#dd3333',
+  aiBubbleColor: '#9b87f5',
+  userBubbleOpacity: 0.3,
+  aiBubbleOpacity: 0.3,
+  userTextColor: '#ffffff',
+  aiTextColor: '#ffffff',
+  userNameColor: '#a0a0a0',
+  aiNameColor: '#a0a0a0',
   proactiveHighlightColor: '#3b82f6',
 };
 
@@ -110,12 +127,13 @@ const OpacitySlider = React.memo(({
   );
 });
 
-export function ThemeControls({ colors, onColorChange, isActive = true, backgroundImage, backgroundOpacity = 1 }: ThemeControlsProps) {
+export function ThemeControls({ colors, onColorChange, isActive = true, backgroundImage, backgroundOpacity = 1, themeMode = 'light' }: ThemeControlsProps) {
   const handleSliderChange = useCallback((name: string, value: number) => {
     onColorChange({ name, value });
   }, [onColorChange]);
   
-  const c = useMemo(() => ({ ...defaultColors, ...colors }), [colors]);
+  const defaultColors = themeMode === 'dark' ? darkDefaultColors : lightDefaultColors;
+  const c = useMemo(() => ({ ...defaultColors, ...colors }), [colors, defaultColors]);
 
   return (
     <div className="space-y-6">
