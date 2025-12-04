@@ -105,7 +105,7 @@ const formatLanguageName = (lang: string): string => {
 };
 
 // Inline code component with click-to-copy
-const InlineCode = ({ children, themeColors }: { children: any; themeColors?: ThemeColors }) => {
+const InlineCode = ({ children }: { children: any }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -121,10 +121,10 @@ const InlineCode = ({ children, themeColors }: { children: any; themeColors?: Th
 
   return (
     <code 
-      className="px-1.5 py-0.5 rounded text-sm font-mono border cursor-pointer hover:opacity-80 transition-opacity inline-flex items-center gap-1"
+      className="px-1.5 py-0.5 rounded text-sm font-mono cursor-pointer hover:opacity-80 transition-opacity inline-flex items-center gap-1"
       style={{
-        backgroundColor: themeColors?.codeBlockBackground || '#f3f4f6',
-        color: themeColors?.codeBlockTextColor || 'inherit'
+        backgroundColor: 'rgba(110, 118, 129, 0.4)',
+        color: '#e6e6e6',
       }}
       onClick={handleCopy}
       title="Click to copy"
@@ -138,15 +138,13 @@ const InlineCode = ({ children, themeColors }: { children: any; themeColors?: Th
 // Block code component with syntax highlighting and copy button
 const CodeBlock = ({ 
   children, 
-  language,
-  themeColors 
+  language
 }: { 
   children: any; 
   language?: string;
-  themeColors?: ThemeColors 
 }) => {
   const [copied, setCopied] = useState(false);
-  const codeText = extractTextFromChildren(children);
+  const codeText = extractTextFromChildren(children).trim();
 
   const handleCopy = async () => {
     try {
@@ -160,42 +158,25 @@ const CodeBlock = ({
 
   const displayLanguage = language ? formatLanguageName(language) : '';
 
-  // Custom style overrides for the syntax highlighter
-  const customStyle: React.CSSProperties = {
-    margin: 0,
-    padding: '1rem',
-    borderRadius: '0 0 0.5rem 0.5rem',
-    fontSize: '0.875rem',
-    backgroundColor: themeColors?.codeBlockBackground || '#282c34',
-  };
-
   return (
-    <div className="mb-4 rounded-lg overflow-hidden border border-border/50 shadow-sm">
+    <div className="not-prose my-4 rounded-lg overflow-hidden shadow-lg" style={{ backgroundColor: '#282c34' }}>
       {/* Header with language label and copy button */}
       <div 
-        className="flex items-center justify-between px-4 py-2 border-b border-border/30"
-        style={{
-          backgroundColor: themeColors?.codeBlockBackground 
-            ? `color-mix(in srgb, ${themeColors.codeBlockBackground} 80%, black)` 
-            : '#21252b'
-        }}
+        className="flex items-center justify-between px-4 py-2"
+        style={{ backgroundColor: '#21252b' }}
       >
-        <span 
-          className="text-xs font-medium"
-          style={{ color: themeColors?.codeBlockTextColor || '#abb2bf' }}
-        >
+        <span className="text-xs font-medium text-gray-400">
           {displayLanguage || 'Code'}
         </span>
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors hover:bg-white/10"
-          style={{ color: themeColors?.codeBlockTextColor || '#abb2bf' }}
+          className="flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors hover:bg-white/10 text-gray-400"
           title="Copy to clipboard"
         >
           {copied ? (
             <>
               <Check className="h-3.5 w-3.5 text-green-400" />
-              <span>Copied!</span>
+              <span className="text-green-400">Copied!</span>
             </>
           ) : (
             <>
@@ -206,13 +187,34 @@ const CodeBlock = ({
         </button>
       </div>
       
-      {/* Code content with syntax highlighting */}
+      {/* Code content with syntax highlighting and line numbers */}
       <SyntaxHighlighter
         language={language || 'text'}
         style={oneDark}
-        customStyle={customStyle}
-        showLineNumbers={false}
-        wrapLongLines={true}
+        showLineNumbers={true}
+        wrapLongLines={false}
+        customStyle={{
+          margin: 0,
+          padding: '1rem',
+          fontSize: '0.875rem',
+          lineHeight: '1.5',
+          backgroundColor: '#282c34',
+          overflow: 'auto',
+        }}
+        codeTagProps={{
+          style: {
+            fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+          }
+        }}
+        lineNumberStyle={{
+          minWidth: '2.5em',
+          paddingRight: '1em',
+          color: '#636d83',
+          textAlign: 'right',
+          userSelect: 'none',
+          borderRight: '1px solid #3e4451',
+          marginRight: '1em',
+        }}
       >
         {codeText}
       </SyntaxHighlighter>
@@ -252,11 +254,11 @@ export const createMarkdownComponents = (themeColors?: ThemeColors) => {
       const language = extractLanguage(className);
       
       if (inline) {
-        return <InlineCode themeColors={themeColors}>{children}</InlineCode>;
+        return <InlineCode>{children}</InlineCode>;
       }
       
       return (
-        <CodeBlock language={language} themeColors={themeColors}>
+        <CodeBlock language={language}>
           {children}
         </CodeBlock>
       );
