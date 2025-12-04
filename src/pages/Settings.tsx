@@ -372,6 +372,8 @@ export default function Settings() {
                 onLightThemeChange={handleLightThemeChange}
                 onDarkThemeChange={handleDarkThemeChange}
                 onResetTheme={handleResetSettings}
+                backgroundImage={backgroundImage}
+                backgroundOpacity={backgroundOpacity}
                 onThemeModeChange={updatePreviewMode}
               />
             </TabsContent>

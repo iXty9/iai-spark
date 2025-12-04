@@ -15,6 +15,8 @@ export interface AppearanceSettingsProps {
   onDarkThemeChange: (colorKey: string, value: string | number) => void;
   onResetTheme: () => void;
   onThemeModeChange?: (mode: 'light' | 'dark') => void;
+  backgroundImage?: string | null;
+  backgroundOpacity?: number;
 }
 
 export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
@@ -24,7 +26,9 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
   onLightThemeChange,
   onDarkThemeChange,
   onResetTheme,
-  onThemeModeChange
+  onThemeModeChange,
+  backgroundImage,
+  backgroundOpacity = 1
 }) => {
   // Create wrapper functions to adapt the event-based interface to the colorKey/value interface
   const handleLightThemeChange = (e: React.ChangeEvent<HTMLInputElement> | { name: string; value: any }) => {
@@ -116,6 +120,8 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
                 colors={lightTheme}
                 onColorChange={handleLightThemeChange}
                 isActive={theme === 'light'}
+                backgroundImage={backgroundImage}
+                backgroundOpacity={backgroundOpacity}
               />
             </TabsContent>
             
@@ -129,6 +135,8 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
                 colors={darkTheme}
                 onColorChange={handleDarkThemeChange}
                 isActive={theme === 'dark'}
+                backgroundImage={backgroundImage}
+                backgroundOpacity={backgroundOpacity}
               />
             </TabsContent>
           </CardContent>

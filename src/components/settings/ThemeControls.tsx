@@ -9,6 +9,8 @@ export interface ThemeControlsProps {
   colors: ThemeColors;
   onColorChange: (e: React.ChangeEvent<HTMLInputElement> | { name: string; value: any }) => void;
   isActive?: boolean;
+  backgroundImage?: string | null;
+  backgroundOpacity?: number;
 }
 
 // Default colors from production theme service
@@ -108,7 +110,7 @@ const OpacitySlider = React.memo(({
   );
 });
 
-export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeControlsProps) {
+export function ThemeControls({ colors, onColorChange, isActive = true, backgroundImage, backgroundOpacity = 1 }: ThemeControlsProps) {
   const handleSliderChange = useCallback((name: string, value: number) => {
     onColorChange({ name, value });
   }, [onColorChange]);
@@ -126,11 +128,21 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
           </div>
         </div>
         <div 
-          className="p-4 space-y-3 min-h-[160px]"
+          className="p-4 space-y-3 min-h-[160px] relative"
           style={{ backgroundColor: c.backgroundColor }}
         >
+          {/* Background Image Layer */}
+          {backgroundImage && (
+            <div 
+              className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+              style={{ 
+                backgroundImage: `url(${backgroundImage})`,
+                opacity: backgroundOpacity
+              }}
+            />
+          )}
           {/* AI Message */}
-          <div className="flex gap-2 items-start max-w-[85%]">
+          <div className="flex gap-2 items-start max-w-[85%] relative z-10">
             <div className="w-6 h-6 rounded-full bg-muted/50 flex items-center justify-center flex-shrink-0">
               <Bot className="h-3.5 w-3.5 text-muted-foreground" />
             </div>
@@ -152,7 +164,7 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
           </div>
           
           {/* User Message */}
-          <div className="flex gap-2 items-start justify-end max-w-[85%] ml-auto">
+          <div className="flex gap-2 items-start justify-end max-w-[85%] ml-auto relative z-10">
             <div className="text-right">
               <span className="text-[10px] font-medium mb-1 block" style={{ color: c.userNameColor }}>
                 You
@@ -174,7 +186,7 @@ export function ThemeControls({ colors, onColorChange, isActive = true }: ThemeC
           </div>
           
           {/* Proactive AI Message */}
-          <div className="flex gap-2 items-start max-w-[85%]">
+          <div className="flex gap-2 items-start max-w-[85%] relative z-10">
             <div className="w-6 h-6 rounded-full bg-muted/50 flex items-center justify-center flex-shrink-0">
               <Bot className="h-3.5 w-3.5 text-muted-foreground" />
             </div>
