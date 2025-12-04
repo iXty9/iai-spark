@@ -1,24 +1,10 @@
-import React, { useState, lazy, Suspense } from 'react';
+import React, { useState } from 'react';
 import DOMPurify from 'dompurify';
 import { ThemeColors } from '@/types/theme';
 import { Copy, Check } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
-// Lazy load MermaidBlock to avoid loading mermaid.js until needed
-const MermaidBlock = lazy(() => import('@/components/chat/markdown/MermaidBlock'));
-
-// Loading placeholder for mermaid diagrams
-const MermaidLoading = () => (
-  <div className="not-prose my-4 rounded-lg overflow-hidden shadow-lg" style={{ backgroundColor: '#282c34' }}>
-    <div className="flex items-center justify-between px-4 py-2" style={{ backgroundColor: '#21252b' }}>
-      <span className="text-xs font-medium text-gray-400">Mermaid Diagram</span>
-    </div>
-    <div className="p-4 flex justify-center items-center min-h-[100px]">
-      <div className="animate-pulse text-gray-400 text-sm">Loading diagram...</div>
-    </div>
-  </div>
-);
 // Create a trusted types policy if available
 let trustedTypesPolicy: any = null;
 
@@ -261,33 +247,21 @@ export const createMarkdownComponents = (themeColors?: ThemeColors) => {
         {children}
       </blockquote>
     ),
-    // pre just passes through - code component handles everything
-    pre: ({ children }: any) => children,
-
-    // code handles both fenced code blocks and inline code
-    code: ({ className, children }: any) => {
-      // Extract language from className (e.g., "language-javascript")
-      const match = className?.match(/language-(\w+)/);
-      const language = match ? match[1] : '';
-      const codeText = String(children).replace(/\n$/, '');
+    // pre just passes through - code handles the rendering
+    pre: ({ children }: any) => <>{children}</>,
+    // code handles both inline and block code
+    code: ({ inline, className, children }: any) => {
+      const language = extractLanguage(className);
       
-      // Block code (fenced code blocks have language-* className)
-      if (language) {
-        // Handle mermaid diagrams
-        if (language === 'mermaid') {
-          return (
-            <Suspense fallback={<MermaidLoading />}>
-              <MermaidBlock code={codeText} />
-            </Suspense>
-          );
-        }
-        
-        // Handle regular code blocks with syntax highlighting
-        return <CodeBlock language={language}>{codeText}</CodeBlock>;
+      if (inline) {
+        return <InlineCode>{children}</InlineCode>;
       }
       
-      // Inline code (no language class)
-      return <InlineCode>{children}</InlineCode>;
+      return (
+        <CodeBlock language={language}>
+          {children}
+        </CodeBlock>
+      );
     },
     a: ({ href, children }: any) => (
       <a 
