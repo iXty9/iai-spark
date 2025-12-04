@@ -18,53 +18,53 @@
   border-left: 2px solid var(--proactive-highlight-color, #3b82f6) !important;
 }
 
-/* Ensure ALL text within message bubbles inherits the correct colors */
-/* EXCLUDE syntax-highlighted code blocks to preserve syntax coloring */
-.user-message-bubble p,
-.user-message-bubble span:not(.syntax-highlighted-code span),
-.user-message-bubble strong,
-.user-message-bubble em,
-.user-message-bubble li,
-.user-message-bubble h1,
-.user-message-bubble h2,
-.user-message-bubble h3,
-.user-message-bubble h4,
-.user-message-bubble h5,
-.user-message-bubble h6 {
+/* Ensure text within message bubbles inherits the correct colors */
+/* DO NOT include span - it breaks SyntaxHighlighter inline styles */
+.user-message-bubble > p,
+.user-message-bubble > strong,
+.user-message-bubble > em,
+.user-message-bubble > li,
+.user-message-bubble > h1,
+.user-message-bubble > h2,
+.user-message-bubble > h3,
+.user-message-bubble > h4,
+.user-message-bubble > h5,
+.user-message-bubble > h6 {
   color: var(--user-text-color, white) !important;
 }
 
-.ai-message-bubble p,
-.ai-message-bubble span:not(.syntax-highlighted-code span),
-.ai-message-bubble strong,
-.ai-message-bubble em,
-.ai-message-bubble li,
-.ai-message-bubble h1,
-.ai-message-bubble h2,
-.ai-message-bubble h3,
-.ai-message-bubble h4,
-.ai-message-bubble h5,
-.ai-message-bubble h6 {
+.ai-message-bubble > p,
+.ai-message-bubble > strong,
+.ai-message-bubble > em,
+.ai-message-bubble > li,
+.ai-message-bubble > h1,
+.ai-message-bubble > h2,
+.ai-message-bubble > h3,
+.ai-message-bubble > h4,
+.ai-message-bubble > h5,
+.ai-message-bubble > h6 {
   color: var(--ai-text-color, var(--text-color)) !important;
 }
 
-/* Ensure markdown prose elements respect bubble text colors */
-/* EXCLUDE syntax-highlighted code blocks */
-.user-message-bubble .prose:not(.syntax-highlighted-code),
-.user-message-bubble .prose *:not(.syntax-highlighted-code *) {
+/* Nested text elements within paragraphs - but NOT in code blocks */
+.user-message-bubble p strong,
+.user-message-bubble p em,
+.user-message-bubble li strong,
+.user-message-bubble li em {
   color: var(--user-text-color, white) !important;
 }
 
-.ai-message-bubble .prose:not(.syntax-highlighted-code),
-.ai-message-bubble .prose *:not(.syntax-highlighted-code *) {
+.ai-message-bubble p strong,
+.ai-message-bubble p em,
+.ai-message-bubble li strong,
+.ai-message-bubble li em {
   color: var(--ai-text-color, var(--text-color)) !important;
 }
 
-/* Completely isolate syntax-highlighted code from all color overrides */
-/* Do NOT use !important here - let inline styles from SyntaxHighlighter take precedence */
-.syntax-highlighted-code,
-.syntax-highlighted-code * {
-  color: unset;
+/* Syntax highlighted code blocks - no color overrides needed */
+/* SyntaxHighlighter inline styles will apply naturally */
+.syntax-highlighted-code {
+  /* Isolation context for the code block */
 }
 
 /* Name tag colors - NEW: Theme-based name tag styling */
