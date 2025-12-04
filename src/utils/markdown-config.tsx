@@ -262,29 +262,34 @@ export const createMarkdownComponents = (themeColors?: ThemeColors) => {
       </blockquote>
     ),
     // pre handles ALL fenced code blocks (```code```)
-    pre: ({ children }: any) => {
-      // Extract the code element from children
-      const codeElement = React.Children.toArray(children).find(
-        (child: any) => React.isValidElement(child) && (child as any).type === 'code'
-      );
+    pre: ({ children, node }: any) => {
+      // Use the AST node to detect code blocks and language
+      // This bypasses React's component resolution which fails in react-markdown v10
+      const codeNode = node?.children?.[0];
       
-      if (codeElement && React.isValidElement(codeElement)) {
-        const codeProps = (codeElement as any).props;
-        const className = codeProps?.className || '';
-        const language = extractLanguage(className);
-        const codeContent = extractTextFromChildren(codeProps?.children).trim();
+      if (codeNode?.tagName === 'code') {
+        // Extract language from AST properties (e.g., ['language-javascript'])
+        const classNames = codeNode?.properties?.className || [];
+        const langClass = Array.isArray(classNames) 
+          ? classNames.find((c: string) => typeof c === 'string' && c.startsWith('language-'))
+          : '';
+        const language = langClass ? langClass.replace('language-', '') : '';
+        
+        // Extract code content from AST text node
+        const codeContent = codeNode?.children?.[0]?.value || 
+                            extractTextFromChildren(children);
         
         // Handle mermaid diagrams
         if (language === 'mermaid') {
           return (
             <Suspense fallback={<MermaidLoading />}>
-              <MermaidBlock code={codeContent} />
+              <MermaidBlock code={codeContent.trim()} />
             </Suspense>
           );
         }
         
-        // Handle regular code blocks
-        return <CodeBlock language={language}>{codeProps?.children}</CodeBlock>;
+        // Handle regular code blocks with syntax highlighting
+        return <CodeBlock language={language}>{codeContent}</CodeBlock>;
       }
       
       // Fallback for unexpected structure
