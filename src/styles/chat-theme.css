@@ -19,12 +19,11 @@
 }
 
 /* Ensure ALL text within message bubbles inherits the correct colors */
-.user-message-bubble *,
+/* EXCLUDE syntax-highlighted code blocks to preserve syntax coloring */
 .user-message-bubble p,
-.user-message-bubble span,
+.user-message-bubble span:not(.syntax-highlighted-code span),
 .user-message-bubble strong,
 .user-message-bubble em,
-.user-message-bubble code,
 .user-message-bubble li,
 .user-message-bubble h1,
 .user-message-bubble h2,
@@ -35,12 +34,10 @@
   color: var(--user-text-color, white) !important;
 }
 
-.ai-message-bubble *,
 .ai-message-bubble p,
-.ai-message-bubble span,
+.ai-message-bubble span:not(.syntax-highlighted-code span),
 .ai-message-bubble strong,
 .ai-message-bubble em,
-.ai-message-bubble code,
 .ai-message-bubble li,
 .ai-message-bubble h1,
 .ai-message-bubble h2,
@@ -52,14 +49,24 @@
 }
 
 /* Ensure markdown prose elements respect bubble text colors */
-.user-message-bubble .prose,
-.user-message-bubble .prose * {
+/* EXCLUDE syntax-highlighted code blocks */
+.user-message-bubble .prose:not(.syntax-highlighted-code),
+.user-message-bubble .prose *:not(.syntax-highlighted-code *) {
   color: var(--user-text-color, white) !important;
 }
 
-.ai-message-bubble .prose,
-.ai-message-bubble .prose * {
+.ai-message-bubble .prose:not(.syntax-highlighted-code),
+.ai-message-bubble .prose *:not(.syntax-highlighted-code *) {
   color: var(--ai-text-color, var(--text-color)) !important;
+}
+
+/* Allow syntax highlighting styles to apply without interference */
+.syntax-highlighted-code,
+.syntax-highlighted-code *,
+.syntax-highlighted-code code,
+.syntax-highlighted-code span,
+.syntax-highlighted-code pre {
+  color: inherit !important;
 }
 
 /* Name tag colors - NEW: Theme-based name tag styling */
