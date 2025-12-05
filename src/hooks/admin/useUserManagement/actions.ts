@@ -1,5 +1,5 @@
 
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { UserRole } from '@/services/admin/types/userTypes';
 import { 
@@ -31,19 +31,17 @@ export function useUserManagementActions(
   const { toast } = useToast();
   const { validateParams, normalizeRole } = useValidation(dispatch);
   
-  // Request deduplication
-  let currentRequestId = 0;
+  // Request deduplication - useRef persists across renders
+  const currentRequestIdRef = useRef(0);
 
   // Fetch ALL users for client-side filtering
   const executeSearch = useCallback(async (_isSearch: boolean = false) => {
-    const requestId = ++currentRequestId;
+    const requestId = ++currentRequestIdRef.current;
     
     dispatch({ type: 'SET_LOADING', payload: true });
     dispatch({ type: 'SET_ERROR', payload: null });
     
     try {
-      if (requestId !== currentRequestId) return;
-      
       // Load all users at once for client-side filtering
       // FUTURE: If totalCount > MAX_USERS_FOR_CLIENT_SIDE, switch to server-side search
       const result = await fetchUsers({
@@ -52,7 +50,8 @@ export function useUserManagementActions(
         roleFilter: undefined, // Load all roles, filter client-side
       });
 
-      if (requestId !== currentRequestId) return;
+      // Check if this request is still current (prevents stale updates)
+      if (requestId !== currentRequestIdRef.current) return;
 
       dispatch({ type: 'SET_USERS', payload: result.users });
       // Total pages calculated client-side in useUserManagement hook
@@ -66,6 +65,9 @@ export function useUserManagementActions(
         );
       }
     } catch (e: any) {
+      // Check if this request is still current before setting error
+      if (requestId !== currentRequestIdRef.current) return;
+      
       const errorMessage = e?.message || 'Failed to load users.';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       toast({
@@ -74,9 +76,12 @@ export function useUserManagementActions(
         description: errorMessage,
       });
     } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
+      // Only clear loading if this is still the current request
+      if (requestId === currentRequestIdRef.current) {
+        dispatch({ type: 'SET_LOADING', payload: false });
+      }
     }
-  }, [state.pageSize]);
+  }, [state.pageSize, dispatch, toast]);
 
   const checkConnection = useCallback(async () => {
     try {
