@@ -76,7 +76,7 @@ export default function AdminUserProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <div className="container max-w-2xl py-8 px-4">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
@@ -92,7 +92,7 @@ export default function AdminUserProfile() {
         </div>
 
         {loading ? (
-          <Card className="bg-background/80">
+          <Card className="bg-background/80 backdrop-blur-sm">
             <CardHeader>
               <Skeleton className="h-8 w-48" />
               <Skeleton className="h-4 w-32" />
@@ -107,7 +107,7 @@ export default function AdminUserProfile() {
             </CardContent>
           </Card>
         ) : !profile ? (
-          <Card className="bg-background/80">
+          <Card className="bg-background/80 backdrop-blur-sm">
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">
                 Profile not found. The user may not exist or you don't have permission to view it.
@@ -118,7 +118,7 @@ export default function AdminUserProfile() {
             </CardContent>
           </Card>
         ) : (
-          <Card className="bg-background/80">
+          <Card className="bg-background/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle>{displayName}</CardTitle>
               <CardDescription>
