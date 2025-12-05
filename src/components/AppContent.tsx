@@ -1,4 +1,5 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { useAuthThemeSync } from '@/hooks/use-auth-theme-sync';
 import Index from '@/pages/Index';
 import Auth from '@/pages/Auth';
@@ -18,8 +19,23 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
  * stays synchronized with authentication state changes
  */
 export const AppContent = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  
   // Sync theme system with authentication changes
   useAuthThemeSync();
+
+  // Handle URL-encoded paths (Lovable dev workspace quirk where ? becomes %3F)
+  useEffect(() => {
+    const { pathname, search, hash } = location;
+    
+    // Check if pathname contains encoded query string (e.g., %3F = ?, %26 = &)
+    if (pathname.includes('%3F') || pathname.includes('%26')) {
+      const decodedPath = decodeURIComponent(pathname);
+      const newUrl = decodedPath + search + hash;
+      navigate(newUrl, { replace: true });
+    }
+  }, [location.pathname, navigate]);
 
   return (
     <Routes>
