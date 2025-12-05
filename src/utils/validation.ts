@@ -32,9 +32,11 @@ export const searchQuerySchema = z
   .optional();
 
 // Pagination validation
+// NOTE: Max 500 supports client-side filtering approach in User Management
+// See useUserManagementActions.ts for scalability notes
 export const paginationSchema = z.object({
   page: z.number().min(1, 'Page must be at least 1').default(1),
-  pageSize: z.number().min(5).max(100, 'Page size must be between 5 and 100').default(10),
+  pageSize: z.number().min(5).max(500, 'Page size must be between 5 and 500').default(10),
 });
 
 // Role filter validation
