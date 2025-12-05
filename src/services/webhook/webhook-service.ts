@@ -119,10 +119,22 @@ export const sendWebhookMessage = async (
   let webhookUrl = globalWebhookUrl;
   let isCustomWebhook = false;
   
+  logger.debug('[Webhook] Starting URL resolution', {
+    isAuthenticated,
+    hasUserId: !!userInfo?.id,
+    userIdPrefix: userInfo?.id?.slice(0, 8),
+    globalUrlPrefix: globalWebhookUrl.slice(0, 40)
+  }, { module: 'webhook' });
+  
   if (isAuthenticated && userInfo?.id) {
     const resolved = await resolveUserWebhookUrl(userInfo.id, globalWebhookUrl);
     webhookUrl = resolved.url;
     isCustomWebhook = resolved.isCustom;
+    
+    logger.debug('[Webhook] URL resolution complete', {
+      isCustomWebhook,
+      finalUrlPrefix: webhookUrl.slice(0, 40)
+    }, { module: 'webhook' });
   }
   
   // Get configurable timeout
@@ -154,11 +166,18 @@ export const sendWebhookMessage = async (
   // Get auth headers - use user-specific headers for custom webhooks, otherwise global
   let authHeaders: Record<string, string> = {};
   if (isCustomWebhook && userInfo?.id) {
+    logger.debug('[Webhook] Getting custom auth headers', { userIdPrefix: userInfo.id.slice(0, 8) }, { module: 'webhook' });
     authHeaders = await getUserWebhookAuthHeaders(userInfo.id);
   } else {
     const webhookType = isAuthenticated ? 'authenticated_webhook_url' : 'anonymous_webhook_url';
+    logger.debug('[Webhook] Getting global auth headers', { webhookType }, { module: 'webhook' });
     authHeaders = await getWebhookAuthHeaders(webhookType);
   }
+  
+  logger.debug('[Webhook] Auth headers resolved', {
+    headerCount: Object.keys(authHeaders).length,
+    headerNames: Object.keys(authHeaders)
+  }, { module: 'webhook' });
   
   try {
     // Use external controller if provided, otherwise create new one
@@ -238,6 +257,14 @@ export const sendWebhookMessage = async (
       };
     }
 
+    // Log right before sending
+    logger.info('[Webhook] Sending request', {
+      isCustomWebhook,
+      urlPrefix: webhookUrl.slice(0, 50),
+      hasAuthHeaders: Object.keys(authHeaders).length > 0,
+      payloadKeys: Object.keys(payload)
+    }, { module: 'webhook' });
+
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
@@ -247,6 +274,12 @@ export const sendWebhookMessage = async (
       body: JSON.stringify(payload),
       signal: controller.signal
     });
+    
+    logger.debug('[Webhook] Response received', {
+      status: response.status,
+      ok: response.ok,
+      isCustomWebhook
+    }, { module: 'webhook' });
     
     clearTimeout(timeoutId);
     
