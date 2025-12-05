@@ -23,6 +23,7 @@ interface UsersTableProps {
   users: UserWithRole[];
   onPromoteUser: (user: UserWithRole) => void;
   onDemoteUser: (user: UserWithRole) => void;
+  onViewProfile?: (user: UserWithRole) => void;
   isLoading?: boolean;
   searchQuery?: string;
   roleFilter?: string;
@@ -34,6 +35,7 @@ export function UsersTable({
   users, 
   onPromoteUser, 
   onDemoteUser, 
+  onViewProfile,
   isLoading = false,
   searchQuery = '',
   roleFilter = 'all',
@@ -196,6 +198,7 @@ export function UsersTable({
                       user={user}
                       onPromoteUser={onPromoteUser}
                       onDemoteUser={onDemoteUser}
+                      onViewProfile={onViewProfile}
                       isUpdating={updatingUserId === user.id}
                     />
                   </TableCell>
@@ -240,6 +243,7 @@ export function UsersTable({
                 user={user}
                 onPromoteUser={onPromoteUser}
                 onDemoteUser={onDemoteUser}
+                onViewProfile={onViewProfile}
                 updatingUserId={updatingUserId}
                 isExpanded={expandedCards.has(user.id)}
                 onToggleExpanded={() => toggleCardExpanded(user.id)}

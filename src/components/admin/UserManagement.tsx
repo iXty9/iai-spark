@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { UserManagementHeader } from './users/UserManagementHeader';
 import { UsersTable } from './users/UsersTable';
@@ -6,10 +7,15 @@ import { ConnectionStatusPanel } from './users/ConnectionStatusPanel';
 import { EnvironmentSettingsDialog } from './users/EnvironmentSettingsDialog';
 import { PromoteDialog, DemoteDialog } from './users/RoleDialogs';
 import { UserManagementErrorBoundary } from './users/UserManagementErrorBoundary';
+import { UserProfileModal } from './users/UserProfileModal';
 import { Loader } from 'lucide-react';
 import { useUserManagement } from '@/hooks/admin/useUserManagement';
+import { UserWithRole } from '@/services/admin/types/userTypes';
 
 function UserManagementContent() {
+  const [profileUser, setProfileUser] = useState<UserWithRole | null>(null);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  
   const {
     users,
     loading,
@@ -113,6 +119,7 @@ function UserManagementContent() {
           users={users}
           onPromoteUser={u => { setSelectedUser(u); setDialog("promote"); }}
           onDemoteUser={u => { setSelectedUser(u); setDialog("demote"); }}
+          onViewProfile={u => { setProfileUser(u); setProfileModalOpen(true); }}
           isLoading={loading}
           searchQuery={searchQuery}
           roleFilter={roleFilter}
@@ -155,6 +162,13 @@ function UserManagementContent() {
         connectionStatus={connectionStatus}
         onResetConfig={resetEnvironmentConfig}
         onReinitialize={reinitializeConnection}
+      />
+
+      {/* User Profile Modal */}
+      <UserProfileModal
+        user={profileUser}
+        open={profileModalOpen}
+        onOpenChange={setProfileModalOpen}
       />
     </div>
   );

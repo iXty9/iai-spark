@@ -14,6 +14,7 @@ interface UserCardProps {
   user: UserWithRole;
   onPromoteUser: (user: UserWithRole) => void;
   onDemoteUser: (user: UserWithRole) => void;
+  onViewProfile?: (user: UserWithRole) => void;
   updatingUserId?: string;
   isExpanded?: boolean;
   onToggleExpanded?: () => void;
@@ -23,6 +24,7 @@ export function UserCard({
   user, 
   onPromoteUser, 
   onDemoteUser, 
+  onViewProfile,
   updatingUserId,
   isExpanded = false,
   onToggleExpanded 
@@ -106,6 +108,7 @@ export function UserCard({
                 user={user}
                 onPromoteUser={onPromoteUser}
                 onDemoteUser={onDemoteUser}
+                onViewProfile={onViewProfile}
                 isUpdating={updatingUserId === user.id}
               />
             </div>
