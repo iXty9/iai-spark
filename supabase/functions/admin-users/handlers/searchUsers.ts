@@ -1,4 +1,19 @@
 
+/**
+ * SERVER-SIDE SEARCH HANDLER
+ * 
+ * CURRENT STATUS: Not actively used - client-side filtering is preferred for < 500 users.
+ * 
+ * FUTURE UPGRADE: When user count exceeds 500, this handler should be enhanced:
+ * 1. Use database-level text search (pg_trgm or full-text search) instead of loading all users
+ * 2. Implement cursor-based pagination for better performance
+ * 3. Add proper indexing on email and username columns
+ * 4. Consider caching frequently searched users
+ * 
+ * Example database optimization:
+ *   CREATE INDEX idx_users_email_gin ON profiles USING gin(email gin_trgm_ops);
+ *   CREATE INDEX idx_users_username_gin ON profiles USING gin(username gin_trgm_ops);
+ */
 import { createSupabaseAdminClient } from "../auth.ts";
 import { createJsonResponse } from "../cors.ts";
 

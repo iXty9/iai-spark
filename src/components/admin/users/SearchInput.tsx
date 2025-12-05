@@ -56,7 +56,7 @@ export function SearchInput({
         onBlur={() => setIsFocused(false)}
         onKeyDown={handleKeyDown}
         className="pl-9 pr-9 transition-all duration-200"
-        disabled={loading}
+        // Note: disabled removed to allow typing during search - filtering is now client-side
       />
       
       <div className="absolute left-2.5 top-2.5 flex items-center">

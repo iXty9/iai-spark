@@ -4,7 +4,6 @@ import { useToast } from '@/hooks/use-toast';
 import { UserRole } from '@/services/admin/types/userTypes';
 import { 
   fetchUsers, 
-  searchUsers, 
   updateUserRole, 
   checkAdminConnectionStatus 
 } from '@/services/admin/edgeFunctionUserService';
@@ -12,65 +11,59 @@ import { clearAllEnvironmentConfigs } from '@/config/supabase-config';
 import { UserManagementState, UserManagementAction } from './types';
 import { useValidation } from './validation';
 
+/**
+ * SCALABILITY NOTE:
+ * Currently loads ALL users (up to 500) for client-side filtering.
+ * 
+ * If user count exceeds 500, re-enable server-side search:
+ * 1. Import searchUsers from edgeFunctionUserService
+ * 2. Restore debouncedSearchQuery parameter usage
+ * 3. Call searchUsers API when query is present
+ * 4. Update MAX_USERS_FOR_CLIENT_SIDE below
+ */
+const MAX_USERS_FOR_CLIENT_SIDE = 500;
+
 export function useUserManagementActions(
   state: UserManagementState,
   dispatch: React.Dispatch<UserManagementAction>,
-  debouncedSearchQuery: string
+  _debouncedSearchQuery: string // Kept for future server-side search upgrade
 ) {
   const { toast } = useToast();
-  const { validateParams, sanitizeSearchQuery, normalizeRole } = useValidation(dispatch);
+  const { validateParams, normalizeRole } = useValidation(dispatch);
   
   // Request deduplication
   let currentRequestId = 0;
 
-  const executeSearch = useCallback(async (isSearch: boolean = false) => {
-    // Request deduplication - cancel if a newer request comes in
+  // Fetch ALL users for client-side filtering
+  const executeSearch = useCallback(async (_isSearch: boolean = false) => {
     const requestId = ++currentRequestId;
     
     dispatch({ type: 'SET_LOADING', payload: true });
     dispatch({ type: 'SET_ERROR', payload: null });
     
     try {
-      // Check if this request is still current
       if (requestId !== currentRequestId) return;
-      const params = {
-        searchQuery: debouncedSearchQuery,
-        page: isSearch ? 1 : state.currentPage,
-        pageSize: state.pageSize,
-        roleFilter: state.roleFilter !== 'all' ? state.roleFilter : undefined,
-      };
-
-      if (!validateParams(params)) {
-        dispatch({ type: 'SET_LOADING', payload: false });
-        return;
-      }
-
-      const options = {
-        page: isSearch ? 1 : state.currentPage,
-        pageSize: state.pageSize,
-        roleFilter: state.roleFilter !== 'all' ? normalizeRole(state.roleFilter) : undefined,
-      };
-
-      let result;
       
-      if (debouncedSearchQuery.trim()) {
-        const sanitizedQuery = sanitizeSearchQuery(debouncedSearchQuery);
-        result = await searchUsers({
-          ...options,
-          searchQuery: sanitizedQuery,
-        });
-      } else {
-        result = await fetchUsers(options);
-      }
+      // Load all users at once for client-side filtering
+      // FUTURE: If totalCount > MAX_USERS_FOR_CLIENT_SIDE, switch to server-side search
+      const result = await fetchUsers({
+        page: 1,
+        pageSize: MAX_USERS_FOR_CLIENT_SIDE,
+        roleFilter: undefined, // Load all roles, filter client-side
+      });
 
-      // Check if this request is still current before updating state
       if (requestId !== currentRequestId) return;
 
       dispatch({ type: 'SET_USERS', payload: result.users });
+      // Total pages calculated client-side in useUserManagement hook
       dispatch({ type: 'SET_TOTAL_PAGES', payload: Math.ceil(result.totalCount / state.pageSize) || 1 });
       
-      if (isSearch) {
-        dispatch({ type: 'SET_CURRENT_PAGE', payload: 1 });
+      // Log warning if approaching limit
+      if (result.totalCount > MAX_USERS_FOR_CLIENT_SIDE * 0.8) {
+        console.warn(
+          `[UserManagement] User count (${result.totalCount}) approaching client-side limit (${MAX_USERS_FOR_CLIENT_SIDE}). ` +
+          `Consider upgrading to server-side search. See useUserManagementActions.ts for instructions.`
+        );
       }
     } catch (e: any) {
       const errorMessage = e?.message || 'Failed to load users.';
@@ -83,7 +76,7 @@ export function useUserManagementActions(
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [debouncedSearchQuery, state.currentPage, state.pageSize, state.roleFilter]);
+  }, [state.pageSize]);
 
   const checkConnection = useCallback(async () => {
     try {
