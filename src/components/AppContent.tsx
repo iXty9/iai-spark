@@ -6,6 +6,7 @@ import Auth from '@/pages/Auth';
 import Settings from '@/pages/Settings';
 import Profile from '@/pages/Profile';
 import Admin from '@/pages/Admin';
+import AdminUserProfile from '@/pages/AdminUserProfile';
 import Initialize from '@/pages/Initialize';
 import { ErrorPage } from '@/pages/ErrorPage';
 import NotFound from '@/pages/NotFound';
@@ -67,6 +68,14 @@ export const AppContent = () => {
         element={
           <ProtectedRoute>
             <Admin />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/user/:userId"
+        element={
+          <ProtectedRoute>
+            <AdminUserProfile />
           </ProtectedRoute>
         }
       />
