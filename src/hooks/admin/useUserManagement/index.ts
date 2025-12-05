@@ -1,5 +1,5 @@
 
-import { useEffect, useReducer, useMemo, useRef } from 'react';
+import { useEffect, useReducer, useMemo, useRef, useCallback } from 'react';
 import { userManagementReducer } from './reducer';
 import { initialState } from './types';
 import { useUserManagementActions } from './actions';
@@ -26,6 +26,7 @@ import { useSetters } from './setters';
 export function useUserManagement() {
   const [state, dispatch] = useReducer(userManagementReducer, initialState);
   const hasFetchedInitialUsers = useRef(false);
+  const isFetchingRef = useRef(false);
 
   // Get action handlers - pass empty string since we do client-side filtering now
   const {
@@ -85,25 +86,29 @@ export function useUserManagement() {
     if (state.currentPage > calculatedTotalPages) {
       dispatch({ type: 'SET_CURRENT_PAGE', payload: 1 });
     }
-  }, [state.searchQuery, state.roleFilter, calculatedTotalPages]);
+  }, [state.searchQuery, state.roleFilter, calculatedTotalPages, state.currentPage]);
 
   // Universal fetcher - now only used for refresh
-  const fetchAndSetUsers = async (_isSearch = false) => {
+  const fetchAndSetUsers = useCallback(async (_isSearch = false) => {
     await executeSearch(false);
-  };
+  }, [executeSearch]);
 
   // RACE CONDITION FIX: Fetch users when connection becomes available
+  // Uses refs to prevent double-fetching and stale closure issues
   useEffect(() => {
     if (
       state.connectionStatus?.isConnected && 
       state.connectionStatus?.functionAvailable && 
       !hasFetchedInitialUsers.current &&
-      !state.loading
+      !isFetchingRef.current
     ) {
       hasFetchedInitialUsers.current = true;
-      executeSearch(false);
+      isFetchingRef.current = true;
+      executeSearch(false).finally(() => {
+        isFetchingRef.current = false;
+      });
     }
-  }, [state.connectionStatus?.isConnected, state.connectionStatus?.functionAvailable]);
+  }, [state.connectionStatus?.isConnected, state.connectionStatus?.functionAvailable, executeSearch]);
 
   // Check connection status on component mount
   useEffect(() => {
