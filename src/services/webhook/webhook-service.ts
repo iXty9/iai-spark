@@ -11,6 +11,7 @@ import {
 } from './utils/webhook-events';
 import { getWebhookAuthHeaders } from './auth-header-builder';
 import { getSessionId } from '@/services/chat/session-id-service';
+import { resolveUserWebhookUrl, getUserWebhookAuthHeaders } from './user-webhook-resolver';
 
 // Track webhook calls per tab session
 const webhookSessionTracker = {
@@ -111,7 +112,18 @@ export const sendWebhookMessage = async (
   // Track calls per session
   webhookSessionTracker.callsThisSession++;
   
-  const webhookUrl = await getWebhookUrl(isAuthenticated);
+  // Get the base global webhook URL
+  const globalWebhookUrl = await getWebhookUrl(isAuthenticated);
+  
+  // For authenticated users, check if they have a custom webhook configured
+  let webhookUrl = globalWebhookUrl;
+  let isCustomWebhook = false;
+  
+  if (isAuthenticated && userInfo?.id) {
+    const resolved = await resolveUserWebhookUrl(userInfo.id, globalWebhookUrl);
+    webhookUrl = resolved.url;
+    isCustomWebhook = resolved.isCustom;
+  }
   
   // Get configurable timeout
   const timeoutMs = await getWebhookTimeout(isAuthenticated);
@@ -139,9 +151,14 @@ export const sendWebhookMessage = async (
   // Log webhook activity
   logWebhookActivity(webhookUrl, 'REQUEST_SENT');
   
-  // Get auth headers for this webhook type
-  const webhookType = isAuthenticated ? 'authenticated_webhook_url' : 'anonymous_webhook_url';
-  const authHeaders = await getWebhookAuthHeaders(webhookType);
+  // Get auth headers - use user-specific headers for custom webhooks, otherwise global
+  let authHeaders: Record<string, string> = {};
+  if (isCustomWebhook && userInfo?.id) {
+    authHeaders = await getUserWebhookAuthHeaders(userInfo.id);
+  } else {
+    const webhookType = isAuthenticated ? 'authenticated_webhook_url' : 'anonymous_webhook_url';
+    authHeaders = await getWebhookAuthHeaders(webhookType);
+  }
   
   try {
     // Use external controller if provided, otherwise create new one

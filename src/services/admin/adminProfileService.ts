@@ -20,6 +20,11 @@ export interface AdminProfileData {
   location_permission_granted?: boolean | null;
   location_auto_update?: boolean | null;
   updated_at?: string | null;
+  // Custom webhook fields
+  custom_webhook_enabled?: boolean | null;
+  custom_webhook_auth_header_name?: string | null;
+  custom_webhook_auth_header_value?: string | null;
+  custom_webhook_use_auth?: boolean | null;
 }
 
 export interface AdminProfileUpdateData {
@@ -29,6 +34,11 @@ export interface AdminProfileUpdateData {
   phone_number?: string;
   phone_country_code?: string;
   webhook_url?: string;
+  // Custom webhook fields
+  custom_webhook_enabled?: boolean;
+  custom_webhook_auth_header_name?: string;
+  custom_webhook_auth_header_value?: string;
+  custom_webhook_use_auth?: boolean;
 }
 
 /**
@@ -94,6 +104,23 @@ export async function updateUserProfile(
       sanitizedUpdates.webhook_url = updates.webhook_url;
     } else if (updates.webhook_url === '') {
       sanitizedUpdates.webhook_url = null;
+    }
+
+    // Handle custom webhook fields
+    if (updates.custom_webhook_enabled !== undefined) {
+      sanitizedUpdates.custom_webhook_enabled = updates.custom_webhook_enabled;
+    }
+
+    if (updates.custom_webhook_auth_header_name !== undefined) {
+      sanitizedUpdates.custom_webhook_auth_header_name = updates.custom_webhook_auth_header_name || null;
+    }
+
+    if (updates.custom_webhook_auth_header_value !== undefined) {
+      sanitizedUpdates.custom_webhook_auth_header_value = updates.custom_webhook_auth_header_value || null;
+    }
+
+    if (updates.custom_webhook_use_auth !== undefined) {
+      sanitizedUpdates.custom_webhook_use_auth = updates.custom_webhook_use_auth;
     }
 
     const { error } = await supabase

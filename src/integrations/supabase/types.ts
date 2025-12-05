@@ -41,6 +41,10 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          custom_webhook_auth_header_name: string | null
+          custom_webhook_auth_header_value: string | null
+          custom_webhook_enabled: boolean | null
+          custom_webhook_use_auth: boolean | null
           first_name: string | null
           id: string
           last_name: string | null
@@ -63,6 +67,10 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          custom_webhook_auth_header_name?: string | null
+          custom_webhook_auth_header_value?: string | null
+          custom_webhook_enabled?: boolean | null
+          custom_webhook_use_auth?: boolean | null
           first_name?: string | null
           id: string
           last_name?: string | null
@@ -85,6 +93,10 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          custom_webhook_auth_header_name?: string | null
+          custom_webhook_auth_header_value?: string | null
+          custom_webhook_enabled?: boolean | null
+          custom_webhook_use_auth?: boolean | null
           first_name?: string | null
           id?: string
           last_name?: string | null

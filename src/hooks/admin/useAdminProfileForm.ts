@@ -10,6 +10,7 @@ import {
   AdminProfileData 
 } from '@/services/admin/adminProfileService';
 import { uploadAvatar, deleteOldAvatar } from '@/utils/avatar-utils';
+import { UserWebhookSettings } from '@/components/admin/users/UserWebhookConfig';
 
 const adminProfileFormSchema = z.object({
   username: z.string()
@@ -34,6 +35,17 @@ export function useAdminProfileForm(userId: string) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  
+  // Webhook settings state (managed separately from react-hook-form)
+  const [webhookSettings, setWebhookSettings] = useState<UserWebhookSettings>({
+    webhook_url: '',
+    custom_webhook_enabled: false,
+    custom_webhook_auth_header_name: '',
+    custom_webhook_auth_header_value: '',
+    custom_webhook_use_auth: false,
+  });
+  const [webhookUrlError, setWebhookUrlError] = useState<string | undefined>();
+  const [webhookDirty, setWebhookDirty] = useState(false);
 
   const form = useForm<AdminProfileFormValues>({
     resolver: zodResolver(adminProfileFormSchema),
@@ -62,6 +74,16 @@ export function useAdminProfileForm(userId: string) {
             phone_country_code: data.phone_country_code || '+1',
             phone_number: data.phone_number || '',
           });
+          
+          // Set webhook settings from profile
+          setWebhookSettings({
+            webhook_url: data.webhook_url || '',
+            custom_webhook_enabled: data.custom_webhook_enabled ?? false,
+            custom_webhook_auth_header_name: data.custom_webhook_auth_header_name || '',
+            custom_webhook_auth_header_value: data.custom_webhook_auth_header_value || '',
+            custom_webhook_use_auth: data.custom_webhook_use_auth ?? false,
+          });
+          setWebhookDirty(false);
         }
       })
       .finally(() => setLoading(false));
@@ -70,10 +92,15 @@ export function useAdminProfileForm(userId: string) {
   // Watch for form changes
   useEffect(() => {
     const subscription = form.watch(() => {
-      setIsDirty(form.formState.isDirty);
+      setIsDirty(form.formState.isDirty || webhookDirty);
     });
     return () => subscription.unsubscribe();
-  }, [form]);
+  }, [form, webhookDirty]);
+
+  // Update isDirty when webhook changes
+  useEffect(() => {
+    setIsDirty(form.formState.isDirty || webhookDirty);
+  }, [webhookDirty, form.formState.isDirty]);
 
   const showToast = useCallback((type: 'success' | 'error', title: string, description: string) => {
     toast({
@@ -83,8 +110,41 @@ export function useAdminProfileForm(userId: string) {
     });
   }, [toast]);
 
+  const handleWebhookChange = useCallback((newSettings: UserWebhookSettings) => {
+    setWebhookSettings(newSettings);
+    setWebhookDirty(true);
+    
+    // Clear URL error when user types
+    if (webhookUrlError) {
+      setWebhookUrlError(undefined);
+    }
+  }, [webhookUrlError]);
+
+  const validateWebhookSettings = (): boolean => {
+    // Only validate URL if custom webhook is enabled and URL is provided
+    if (webhookSettings.custom_webhook_enabled && webhookSettings.webhook_url) {
+      try {
+        const url = new URL(webhookSettings.webhook_url);
+        if (url.protocol !== 'https:') {
+          setWebhookUrlError('Webhook URL must use HTTPS');
+          return false;
+        }
+      } catch {
+        setWebhookUrlError('Invalid URL format');
+        return false;
+      }
+    }
+    return true;
+  };
+
   const onSubmit = async (data: AdminProfileFormValues) => {
     if (!userId) return;
+
+    // Validate webhook settings
+    if (!validateWebhookSettings()) {
+      showToast('error', 'Validation failed', 'Please fix the webhook URL error before saving.');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -94,10 +154,17 @@ export function useAdminProfileForm(userId: string) {
         last_name: data.last_name || undefined,
         phone_country_code: data.phone_country_code,
         phone_number: data.phone_number || undefined,
+        // Webhook fields
+        webhook_url: webhookSettings.webhook_url || undefined,
+        custom_webhook_enabled: webhookSettings.custom_webhook_enabled,
+        custom_webhook_auth_header_name: webhookSettings.custom_webhook_auth_header_name || undefined,
+        custom_webhook_auth_header_value: webhookSettings.custom_webhook_auth_header_value || undefined,
+        custom_webhook_use_auth: webhookSettings.custom_webhook_use_auth,
       });
 
       if (result.success) {
         setIsDirty(false);
+        setWebhookDirty(false);
         // Refresh profile data
         const updated = await fetchUserProfile(userId);
         setProfile(updated);
@@ -131,9 +198,6 @@ export function useAdminProfileForm(userId: string) {
       }
 
       // Update profile with new avatar URL
-      const updateResult = await updateUserProfile(userId, {});
-      // Actually we need to update avatar_url which is not in our update interface
-      // We'll need to use supabase directly for avatar
       const { supabase } = await import('@/integrations/supabase/client');
       await supabase
         .from('profiles')
@@ -163,5 +227,9 @@ export function useAdminProfileForm(userId: string) {
     onSubmit: form.handleSubmit(onSubmit),
     uploadAvatarFile,
     showToast,
+    // Webhook-specific
+    webhookSettings,
+    webhookUrlError,
+    handleWebhookChange,
   };
 }
