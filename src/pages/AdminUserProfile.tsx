@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AvatarUpload } from '@/components/profile/AvatarUpload';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { UnsavedChangesDialog } from '@/components/profile/UnsavedChangesDialog';
+import { UserWebhookConfig } from '@/components/admin/users/UserWebhookConfig';
 import { useAdminProfileForm } from '@/hooks/admin/useAdminProfileForm';
 import { formatUserDisplayName } from '@/services/admin/adminProfileService';
 import { useState, useEffect } from 'react';
@@ -26,6 +27,9 @@ export default function AdminUserProfile() {
     isDirty,
     onSubmit,
     uploadAvatarFile,
+    webhookSettings,
+    webhookUrlError,
+    handleWebhookChange,
   } = useAdminProfileForm(userId || '');
 
   // Warn before leaving with unsaved changes
@@ -118,125 +122,135 @@ export default function AdminUserProfile() {
             </CardContent>
           </Card>
         ) : (
-          <Card className="bg-background/80 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle>{displayName}</CardTitle>
-              <CardDescription>
-                Manage this user's profile information
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={onSubmit} className="space-y-6">
-                  {/* Avatar Section */}
-                  <div className="flex flex-col items-center gap-4">
-                    <AvatarUpload
-                      currentAvatar={profile.avatar_url || undefined}
-                      displayName={displayName}
-                      initials={getInitials(displayName)}
-                      onUpload={uploadAvatarFile}
-                      uploading={uploadingAvatar}
-                    />
-                  </div>
+          <div className="space-y-6">
+            {/* Profile Info Card */}
+            <Card className="bg-background/80 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle>{displayName}</CardTitle>
+                <CardDescription>
+                  Manage this user's profile information
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <form onSubmit={onSubmit} className="space-y-6">
+                    {/* Avatar Section */}
+                    <div className="flex flex-col items-center gap-4">
+                      <AvatarUpload
+                        currentAvatar={profile.avatar_url || undefined}
+                        displayName={displayName}
+                        initials={getInitials(displayName)}
+                        onUpload={uploadAvatarFile}
+                        uploading={uploadingAvatar}
+                      />
+                    </div>
 
-                  {/* User ID (read-only) */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">User ID</label>
-                    <Input
-                      value={userId}
-                      disabled
-                      className="font-mono text-sm bg-muted"
-                    />
-                  </div>
+                    {/* User ID (read-only) */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-muted-foreground">User ID</label>
+                      <Input
+                        value={userId}
+                        disabled
+                        className="font-mono text-sm bg-muted"
+                      />
+                    </div>
 
-                  {/* Username */}
-                  <FormField
-                    control={form.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Username</FormLabel>
-                        <FormControl>
-                          <Input placeholder="username" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Name Fields */}
-                  <div className="grid grid-cols-2 gap-4">
+                    {/* Username */}
                     <FormField
                       control={form.control}
-                      name="first_name"
+                      name="username"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>First Name</FormLabel>
+                          <FormLabel>Username</FormLabel>
                           <FormControl>
-                            <Input placeholder="First name" {...field} />
+                            <Input placeholder="username" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
+
+                    {/* Name Fields */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="first_name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>First Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="First name" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="last_name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Last Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Last name" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    {/* Phone */}
                     <FormField
                       control={form.control}
-                      name="last_name"
+                      name="phone_number"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Last Name</FormLabel>
+                          <FormLabel>Phone Number</FormLabel>
                           <FormControl>
-                            <Input placeholder="Last name" {...field} />
+                            <PhoneInput
+                              value={field.value || ''}
+                              onChange={field.onChange}
+                              countryCode={form.watch('phone_country_code')}
+                              onCountryCodeChange={(code) => form.setValue('phone_country_code', code)}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  </div>
 
-                  {/* Phone */}
-                  <FormField
-                    control={form.control}
-                    name="phone_number"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Phone Number</FormLabel>
-                        <FormControl>
-                          <PhoneInput
-                            value={field.value || ''}
-                            onChange={field.onChange}
-                            countryCode={form.watch('phone_country_code')}
-                            onCountryCodeChange={(code) => form.setValue('phone_country_code', code)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    {/* Custom Webhook Settings */}
+                    <UserWebhookConfig
+                      settings={webhookSettings}
+                      onChange={handleWebhookChange}
+                      urlError={webhookUrlError}
+                    />
 
-                  {/* Actions */}
-                  <div className="flex gap-3 pt-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="flex-1"
-                      onClick={handleBack}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      className="flex-1"
-                      disabled={isSubmitting || !isDirty}
-                    >
-                      {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Save Changes
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+                    {/* Actions */}
+                    <div className="flex gap-3 pt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={handleBack}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        className="flex-1"
+                        disabled={isSubmitting || !isDirty}
+                      >
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Save Changes
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         <UnsavedChangesDialog
