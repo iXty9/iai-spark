@@ -38,6 +38,66 @@ export type Database = {
         }
         Relationships: []
       }
+      ghl_installations: {
+        Row: {
+          access_token_encrypted: string | null
+          company_id: string | null
+          company_name: string | null
+          connected_at: string
+          connection_status: Database["public"]["Enums"]["ghl_connection_status"]
+          created_at: string
+          ghl_user_id: string | null
+          id: string
+          last_refresh_at: string | null
+          location_id: string | null
+          location_name: string | null
+          refresh_error: string | null
+          refresh_token_encrypted: string | null
+          scopes: string | null
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token_encrypted?: string | null
+          company_id?: string | null
+          company_name?: string | null
+          connected_at?: string
+          connection_status?: Database["public"]["Enums"]["ghl_connection_status"]
+          created_at?: string
+          ghl_user_id?: string | null
+          id?: string
+          last_refresh_at?: string | null
+          location_id?: string | null
+          location_name?: string | null
+          refresh_error?: string | null
+          refresh_token_encrypted?: string | null
+          scopes?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token_encrypted?: string | null
+          company_id?: string | null
+          company_name?: string | null
+          connected_at?: string
+          connection_status?: Database["public"]["Enums"]["ghl_connection_status"]
+          created_at?: string
+          ghl_user_id?: string | null
+          id?: string
+          last_refresh_at?: string | null
+          location_id?: string | null
+          location_name?: string | null
+          refresh_error?: string | null
+          refresh_token_encrypted?: string | null
+          scopes?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -239,6 +299,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      ghl_connection_status: "connected" | "expired" | "error" | "disconnected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -367,6 +428,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      ghl_connection_status: ["connected", "expired", "error", "disconnected"],
     },
   },
 } as const

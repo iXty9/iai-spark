@@ -12,6 +12,7 @@ import { ErrorPage } from '@/pages/ErrorPage';
 import NotFound from '@/pages/NotFound';
 import Reconnect from '@/pages/Reconnect';
 import SupabaseAuth from '@/pages/SupabaseAuth';
+import OAuth from '@/pages/OAuth';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
 /**
@@ -76,6 +77,14 @@ export const AppContent = () => {
         element={
           <ProtectedRoute>
             <AdminUserProfile />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/oauth"
+        element={
+          <ProtectedRoute>
+            <OAuth />
           </ProtectedRoute>
         }
       />
