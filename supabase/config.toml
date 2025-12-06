@@ -1,4 +1,3 @@
-
 project_id = "ymtdtzkskjdqlzhjuesk"
 
 [api]
@@ -43,4 +42,13 @@ port = 8089
 multi_project = false
 
 [functions.reverse-geocode]
+verify_jwt = true
+
+[functions.ghl-oauth-callback]
+verify_jwt = false
+
+[functions.ghl-token-refresh]
+verify_jwt = true
+
+[functions.ghl-disconnect]
 verify_jwt = true

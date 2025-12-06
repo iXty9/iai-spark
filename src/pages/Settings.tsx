@@ -4,7 +4,7 @@ import { useSupaThemes } from '@/hooks/use-supa-themes';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Palette, Image, AlertCircle, Code, Volume2, MapPin } from 'lucide-react';
+import { ArrowLeft, Palette, Image, AlertCircle, Code, Volume2, MapPin, Plug } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate } from 'react-router-dom';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
@@ -12,6 +12,7 @@ import { BackgroundSettings } from '@/components/settings/BackgroundSettings';
 import { MarkupSettings } from '@/components/settings/MarkupSettings';
 import { SoundSettings } from '@/components/settings/SoundSettings';
 import { LocationSettings } from '@/components/settings/LocationSettings';
+import { IntegrationSettings } from '@/components/settings/IntegrationSettings';
 import { SettingsFooter } from '@/components/settings/SettingsFooter';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
@@ -265,7 +266,7 @@ export default function Settings() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             {/* Desktop tabs */}
             <div className="hidden md:block">
-              <TabsList className="w-full grid grid-cols-5 mb-6">
+              <TabsList className="w-full grid grid-cols-6 mb-6">
                 <TabsTrigger value="appearance" className="flex items-center gap-2">
                   <Palette className="h-4 w-4" />
                   <span className="hidden lg:inline">Appearance</span>
@@ -286,6 +287,10 @@ export default function Settings() {
                 <TabsTrigger value="markup" className="flex items-center gap-2">
                   <Code className="h-4 w-4" />
                   <span>Markup</span>
+                </TabsTrigger>
+                <TabsTrigger value="integrations" className="flex items-center gap-2">
+                  <Plug className="h-4 w-4" />
+                  <span>Integrations</span>
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -326,6 +331,12 @@ export default function Settings() {
                           <span>Markup</span>
                         </>
                       )}
+                      {activeTab === "integrations" && (
+                        <>
+                          <Plug className="h-4 w-4" />
+                          <span>Integrations</span>
+                        </>
+                      )}
                     </div>
                   </SelectValue>
                 </SelectTrigger>
@@ -358,6 +369,12 @@ export default function Settings() {
                     <div className="flex items-center gap-2">
                       <Code className="h-4 w-4" />
                       <span>Markup</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="integrations">
+                    <div className="flex items-center gap-2">
+                      <Plug className="h-4 w-4" />
+                      <span>Integrations</span>
                     </div>
                   </SelectItem>
                 </SelectContent>
@@ -410,6 +427,10 @@ export default function Settings() {
                 onModeChange={updatePreviewMode}
                 onReset={handleResetSettings}
               />
+            </TabsContent>
+            
+            <TabsContent value="integrations" className="space-y-6">
+              <IntegrationSettings />
             </TabsContent>
           </Tabs>
           
