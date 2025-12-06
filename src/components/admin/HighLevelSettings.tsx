@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { RefreshCw, Copy, CheckCircle, XCircle, Clock, AlertTriangle, ExternalLink, Info } from 'lucide-react';
+import { RefreshCw, Copy, CheckCircle, XCircle, Clock, AlertTriangle, ExternalLink, Info, Save } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow, format } from 'date-fns';
+import { updateAppSetting } from '@/services/admin/settingsService';
 
 interface GHLInstallation {
   id: string;
@@ -35,37 +36,67 @@ export function HighLevelSettings() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshingUserId, setRefreshingUserId] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [clientId, setClientId] = useState('');
+  const [isSavingClientId, setIsSavingClientId] = useState(false);
 
   // OAuth callback URL for GHL app configuration
   const callbackUrl = `${window.location.origin}/oauth`;
 
   useEffect(() => {
-    fetchInstallations();
+    fetchData();
   }, []);
 
-  const fetchInstallations = async () => {
+  const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Fetch installations - admins can see all due to RLS
-      const { data, error } = await supabase
-        .from('ghl_installations')
-        .select('*')
-        .order('connected_at', { ascending: false });
+      // Fetch installations and client_id in parallel
+      const [installationsResult, clientIdResult] = await Promise.all([
+        supabase
+          .from('ghl_installations')
+          .select('*')
+          .order('connected_at', { ascending: false }),
+        supabase
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'ghl_client_id')
+          .maybeSingle()
+      ]);
 
-      if (error) throw error;
+      if (installationsResult.error) throw installationsResult.error;
+      setInstallations(installationsResult.data || []);
       
-      // We'll display installations without joining to auth.users
-      // since that table isn't accessible via public API
-      setInstallations(data || []);
+      if (clientIdResult.data?.value) {
+        setClientId(clientIdResult.data.value);
+      }
     } catch (error) {
-      console.error('Error fetching installations:', error);
+      console.error('Error fetching data:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to load HighLevel installations',
+        description: 'Failed to load HighLevel settings',
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSaveClientId = async () => {
+    setIsSavingClientId(true);
+    try {
+      await updateAppSetting('ghl_client_id', clientId);
+      toast({
+        title: 'Saved',
+        description: 'HighLevel Client ID has been updated',
+      });
+    } catch (error) {
+      console.error('Error saving client ID:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to save Client ID',
+      });
+    } finally {
+      setIsSavingClientId(false);
     }
   };
 
@@ -84,7 +115,7 @@ export function HighLevelSettings() {
       });
 
       // Reload installations
-      await fetchInstallations();
+      await fetchData();
     } catch (error) {
       console.error('Error refreshing token:', error);
       toast({
@@ -161,6 +192,38 @@ export function HighLevelSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Client ID Configuration */}
+          <div className="space-y-2">
+            <Label htmlFor="client-id">GHL Client ID</Label>
+            <div className="flex gap-2">
+              <Input
+                id="client-id"
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                placeholder="Enter your HighLevel Client ID"
+                className="font-mono text-sm"
+              />
+              <Button
+                variant="outline"
+                onClick={handleSaveClientId}
+                disabled={isSavingClientId}
+              >
+                {isSavingClientId ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save
+                  </>
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Get this from your HighLevel Marketplace Developer settings
+            </p>
+          </div>
+
+          {/* OAuth Callback URL */}
           <div className="space-y-2">
             <Label htmlFor="callback-url">OAuth Callback URL</Label>
             <div className="flex gap-2">
@@ -168,7 +231,7 @@ export function HighLevelSettings() {
                 id="callback-url"
                 value={callbackUrl}
                 readOnly
-                className="font-mono text-sm"
+                className="font-mono text-sm bg-muted/50"
               />
               <Button
                 variant="outline"
@@ -190,7 +253,7 @@ export function HighLevelSettings() {
           <Alert>
             <Info className="h-4 w-4" />
             <AlertDescription>
-              GHL Client ID and Secret are stored securely as Supabase Edge Function secrets. 
+              GHL Client Secret is stored securely as a Supabase Edge Function secret (GHL_CLIENT_SECRET). 
               <a 
                 href="https://supabase.com/dashboard/project/ymtdtzkskjdqlzhjuesk/settings/functions" 
                 target="_blank" 
@@ -236,7 +299,7 @@ export function HighLevelSettings() {
               {installations.length} user{installations.length !== 1 ? 's' : ''} connected to HighLevel
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={fetchInstallations}>
+          <Button variant="outline" size="sm" onClick={fetchData}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>

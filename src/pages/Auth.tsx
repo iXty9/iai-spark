@@ -31,10 +31,11 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const mode = searchParams.get('mode');
 
-  // If user is already logged in, redirect to home
+  // If user is already logged in, redirect to returnTo or home
   useEffect(() => {
     if (user) {
-      navigate('/');
+      const returnTo = searchParams.get('returnTo');
+      navigate(returnTo || '/');
     }
     
     // Reset login attempts counter when component mounts

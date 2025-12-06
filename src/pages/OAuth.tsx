@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,53 +10,94 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function OAuth() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const { user, isLoading: authLoading } = useAuth();
+  const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'awaiting-auth'>('loading');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [locationName, setLocationName] = useState<string | null>(null);
+  const hasProcessed = useRef(false);
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+    // Prevent double processing
+    if (hasProcessed.current) return;
+
     const handleOAuthCallback = async () => {
       const code = searchParams.get('code');
       const error = searchParams.get('error');
       const errorDescription = searchParams.get('error_description');
       const state = searchParams.get('state');
 
-      // Check for OAuth error
+      // Check for OAuth error from GHL
       if (error) {
+        hasProcessed.current = true;
         setStatus('error');
         setErrorMessage(errorDescription || error);
         return;
       }
 
-      // Verify state (CSRF protection)
+      // Check for authorization code
+      if (!code) {
+        // Check if we're returning after auth with a stored code
+        const storedCode = sessionStorage.getItem('ghl_pending_code');
+        if (!storedCode) {
+          hasProcessed.current = true;
+          setStatus('error');
+          setErrorMessage('No authorization code received. Please try connecting again.');
+          return;
+        }
+        // We have a stored code, continue with that
+        if (!user) {
+          // Still not logged in after returning, show error
+          hasProcessed.current = true;
+          setStatus('error');
+          setErrorMessage('You must be logged in to connect HighLevel.');
+          return;
+        }
+        // Process stored code
+        await processOAuthCode(storedCode);
+        return;
+      }
+
+      // Verify state (CSRF protection) - only if state was provided
       const savedState = sessionStorage.getItem('ghl_oauth_state');
       if (state && savedState && state !== savedState) {
+        hasProcessed.current = true;
         setStatus('error');
         setErrorMessage('Invalid state parameter. Please try connecting again.');
         return;
       }
       sessionStorage.removeItem('ghl_oauth_state');
 
-      // Check for authorization code
-      if (!code) {
-        setStatus('error');
-        setErrorMessage('No authorization code received. Please try connecting again.');
-        return;
-      }
-
-      // Check if user is logged in
+      // If user is not logged in, store code and redirect to auth
       if (!user) {
-        setStatus('error');
-        setErrorMessage('You must be logged in to connect HighLevel.');
+        // Store the OAuth code for after authentication
+        sessionStorage.setItem('ghl_pending_code', code);
+        if (state) {
+          sessionStorage.setItem('ghl_pending_state', state);
+        }
+        setStatus('awaiting-auth');
+        // Redirect to auth with returnTo parameter
+        navigate('/auth?returnTo=/oauth');
         return;
       }
 
+      // User is logged in, process the code
+      await processOAuthCode(code);
+    };
+
+    const processOAuthCode = async (code: string) => {
+      hasProcessed.current = true;
+      
       try {
         // Exchange code for tokens via edge function
         const { data, error: invokeError } = await supabase.functions.invoke('ghl-oauth-callback', {
-          body: { code, userId: user.id },
+          body: { code, userId: user!.id },
         });
+
+        // Clear stored code after processing
+        sessionStorage.removeItem('ghl_pending_code');
+        sessionStorage.removeItem('ghl_pending_state');
 
         if (invokeError) {
           throw new Error(invokeError.message || 'Failed to complete OAuth flow');
@@ -76,7 +117,7 @@ export default function OAuth() {
     };
 
     handleOAuthCallback();
-  }, [searchParams, user]);
+  }, [searchParams, user, authLoading, navigate]);
 
   const handleContinue = () => {
     navigate('/settings?tab=integrations');

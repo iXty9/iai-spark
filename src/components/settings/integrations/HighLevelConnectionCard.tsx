@@ -12,15 +12,15 @@ import {
   RefreshCw,
   Clock,
   AlertTriangle,
-  Building2
+  Building2,
+  Settings
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 
-// GHL OAuth configuration
-const GHL_CLIENT_ID = 'YOUR_CLIENT_ID'; // This will be replaced at runtime
+// GHL OAuth scopes - adjust based on your app's needs
 const GHL_SCOPES = 'locations.readonly contacts.readonly contacts.write opportunities.readonly opportunities.write users.readonly';
 
 interface GHLInstallation {
@@ -42,34 +42,62 @@ export function HighLevelConnectionCard() {
   const [installation, setInstallation] = useState<GHLInstallation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [clientId, setClientId] = useState<string | null>(null);
+  const [configError, setConfigError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
-      fetchInstallation();
+      fetchData();
     }
   }, [user]);
 
-  const fetchInstallation = async () => {
+  const fetchData = async () => {
     if (!user) return;
     
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('ghl_installations')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      // Fetch both installation and client_id in parallel
+      const [installationResult, clientIdResult] = await Promise.all([
+        supabase
+          .from('ghl_installations')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'ghl_client_id')
+          .maybeSingle()
+      ]);
 
-      if (error) throw error;
-      setInstallation(data);
+      if (installationResult.error) throw installationResult.error;
+      setInstallation(installationResult.data);
+
+      // Check if client_id is configured
+      if (clientIdResult.data?.value) {
+        setClientId(clientIdResult.data.value);
+        setConfigError(null);
+      } else {
+        setClientId(null);
+        setConfigError('HighLevel integration not configured. Contact your administrator.');
+      }
     } catch (error) {
-      console.error('Error fetching GHL installation:', error);
+      console.error('Error fetching GHL data:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleConnect = () => {
+    if (!clientId) {
+      toast({
+        variant: 'destructive',
+        title: 'Configuration Error',
+        description: 'HighLevel Client ID is not configured. Contact your administrator.',
+      });
+      return;
+    }
+
     // Build OAuth URL
     const redirectUri = `${window.location.origin}/oauth`;
     const state = crypto.randomUUID(); // CSRF protection
@@ -80,12 +108,11 @@ export function HighLevelConnectionCard() {
     // Redirect to GHL OAuth
     const authUrl = new URL('https://marketplace.gohighlevel.com/oauth/chooselocation');
     authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('redirect_uri', redirectUri);
     authUrl.searchParams.set('scope', GHL_SCOPES);
     authUrl.searchParams.set('state', state);
     
-    // Note: client_id will need to be fetched from app_settings or hardcoded
-    // For now, we'll fetch it from app_settings if stored there
     window.location.href = authUrl.toString();
   };
 
@@ -190,7 +217,13 @@ export function HighLevelConnectionCard() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {!installation ? (
+        {configError && !installation ? (
+          // Configuration error state
+          <Alert>
+            <Settings className="h-4 w-4" />
+            <AlertDescription>{configError}</AlertDescription>
+          </Alert>
+        ) : !installation ? (
           // Not connected state
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
@@ -202,7 +235,7 @@ export function HighLevelConnectionCard() {
               <Badge variant="secondary">Locations</Badge>
               <Badge variant="secondary">Users</Badge>
             </div>
-            <Button onClick={handleConnect} className="w-full sm:w-auto">
+            <Button onClick={handleConnect} className="w-full sm:w-auto" disabled={!clientId}>
               <ExternalLink className="h-4 w-4 mr-2" />
               Connect HighLevel
             </Button>
