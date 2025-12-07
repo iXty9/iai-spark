@@ -17,10 +17,28 @@ export default function OAuth() {
   const hasProcessed = useRef(false);
 
   useEffect(() => {
+    const storedCode = sessionStorage.getItem('ghl_pending_code');
+    
+    console.log('[OAuth] Effect triggered:', {
+      authLoading,
+      hasUser: !!user,
+      userId: user?.id,
+      hasProcessed: hasProcessed.current,
+      storedCode: storedCode ? `${storedCode.substring(0, 10)}...` : null,
+      searchParams: Object.fromEntries(searchParams.entries())
+    });
+
     // Wait for auth to finish loading
-    if (authLoading) return;
+    if (authLoading) {
+      console.log('[OAuth] Auth still loading, waiting...');
+      return;
+    }
+    
     // Prevent double processing
-    if (hasProcessed.current) return;
+    if (hasProcessed.current) {
+      console.log('[OAuth] Already processed, skipping');
+      return;
+    }
 
     const handleOAuthCallback = async () => {
       const code = searchParams.get('code');
@@ -28,11 +46,13 @@ export default function OAuth() {
       const errorDescription = searchParams.get('error_description');
       const state = searchParams.get('state');
 
-      console.log('[OAuth] Processing callback:', { 
+      console.log('[OAuth] handleOAuthCallback started:', { 
         hasCode: !!code, 
+        codePreview: code ? `${code.substring(0, 10)}...` : null,
         hasError: !!error, 
         hasUser: !!user,
-        hasStoredCode: !!sessionStorage.getItem('ghl_pending_code')
+        userId: user?.id,
+        hasStoredCode: !!storedCode
       });
 
       // Check for OAuth error from GHL
@@ -96,10 +116,24 @@ export default function OAuth() {
     const processOAuthCode = async (code: string) => {
       hasProcessed.current = true;
       
+      console.log('[OAuth] processOAuthCode starting:', {
+        codePreview: `${code.substring(0, 10)}...`,
+        userId: user?.id
+      });
+      
       try {
+        console.log('[OAuth] Invoking ghl-oauth-callback edge function...');
+        
         // Exchange code for tokens via edge function
         const { data, error: invokeError } = await supabase.functions.invoke('ghl-oauth-callback', {
           body: { code, userId: user!.id },
+        });
+
+        console.log('[OAuth] Edge function response:', {
+          hasData: !!data,
+          hasError: !!invokeError,
+          data: data,
+          error: invokeError
         });
 
         // Clear stored code after processing
@@ -107,17 +141,20 @@ export default function OAuth() {
         sessionStorage.removeItem('ghl_pending_state');
 
         if (invokeError) {
+          console.error('[OAuth] Edge function invoke error:', invokeError);
           throw new Error(invokeError.message || 'Failed to complete OAuth flow');
         }
 
         if (data?.error) {
+          console.error('[OAuth] Edge function returned error:', data.error);
           throw new Error(data.error);
         }
 
+        console.log('[OAuth] Success! Installation:', data?.installation);
         setLocationName(data?.installation?.location_name || null);
         setStatus('success');
       } catch (err) {
-        console.error('OAuth callback error:', err);
+        console.error('[OAuth] processOAuthCode error:', err);
         setStatus('error');
         setErrorMessage(err instanceof Error ? err.message : 'An unexpected error occurred');
       }
