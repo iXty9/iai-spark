@@ -8,11 +8,21 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { RefreshCw, Copy, CheckCircle, XCircle, Clock, AlertTriangle, ExternalLink, Info, Save, Trash2 } from 'lucide-react';
+import { RefreshCw, Copy, CheckCircle, XCircle, Clock, AlertTriangle, ExternalLink, Info, Save, Trash2, Eye, EyeOff, Key } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow, format } from 'date-fns';
 import { updateAppSetting } from '@/services/admin/settingsService';
+
+// Generate a secure random proxy secret
+function generateProxySecret(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let secret = 'ixty_';
+  for (let i = 0; i < 32; i++) {
+    secret += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return secret;
+}
 
 interface GHLInstallation {
   id: string;
@@ -39,6 +49,9 @@ export function HighLevelSettings() {
   const [deletingInstallationId, setDeletingInstallationId] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [clientId, setClientId] = useState('');
+  const [proxySecret, setProxySecret] = useState('');
+  const [showProxySecret, setShowProxySecret] = useState(false);
+  const [isSavingProxySecret, setIsSavingProxySecret] = useState(false);
   const [isSavingClientId, setIsSavingClientId] = useState(false);
 
   // OAuth callback URL for GHL app configuration
@@ -51,8 +64,8 @@ export function HighLevelSettings() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Fetch installations and client_id in parallel
-      const [installationsResult, clientIdResult] = await Promise.all([
+      // Fetch installations, client_id, and proxy_secret in parallel
+      const [installationsResult, clientIdResult, proxySecretResult] = await Promise.all([
         supabase
           .from('ghl_installations')
           .select('*')
@@ -61,6 +74,11 @@ export function HighLevelSettings() {
           .from('app_settings')
           .select('value')
           .eq('key', 'ghl_client_id')
+          .maybeSingle(),
+        supabase
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'ghl_proxy_secret')
           .maybeSingle()
       ]);
 
@@ -69,6 +87,10 @@ export function HighLevelSettings() {
       
       if (clientIdResult.data?.value) {
         setClientId(clientIdResult.data.value);
+      }
+      
+      if (proxySecretResult.data?.value) {
+        setProxySecret(proxySecretResult.data.value);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -100,6 +122,35 @@ export function HighLevelSettings() {
     } finally {
       setIsSavingClientId(false);
     }
+  };
+
+  const handleGenerateProxySecret = async () => {
+    setIsSavingProxySecret(true);
+    try {
+      const newSecret = generateProxySecret();
+      await updateAppSetting('ghl_proxy_secret', newSecret);
+      setProxySecret(newSecret);
+      setShowProxySecret(true); // Show the new secret immediately
+      toast({
+        title: 'Secret Generated',
+        description: 'New proxy secret has been generated. Update your n8n workflows.',
+      });
+    } catch (error) {
+      console.error('Error generating proxy secret:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to generate proxy secret',
+      });
+    } finally {
+      setIsSavingProxySecret(false);
+    }
+  };
+
+  const getMaskedSecret = (secret: string) => {
+    if (!secret) return '';
+    const prefix = secret.slice(0, 5); // "ixty_"
+    return `${prefix}${'•'.repeat(Math.min(secret.length - 5, 16))}`;
   };
 
   const handleRefreshToken = async (userId: string) => {
@@ -303,6 +354,87 @@ export function HighLevelSettings() {
               </a>
             </AlertDescription>
           </Alert>
+        </CardContent>
+      </Card>
+
+      {/* API Proxy Configuration */}
+      <Card className="bg-background/60">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Key className="h-5 w-5" />
+            API Proxy Configuration
+          </CardTitle>
+          <CardDescription>
+            Configure the shared secret for n8n workflow integration
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="proxy-secret">Proxy Secret</Label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Input
+                  id="proxy-secret"
+                  value={showProxySecret ? proxySecret : getMaskedSecret(proxySecret)}
+                  readOnly
+                  placeholder="No secret configured"
+                  className="font-mono text-sm bg-muted/50 pr-10"
+                />
+                {proxySecret && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full"
+                    onClick={() => setShowProxySecret(!showProxySecret)}
+                  >
+                    {showProxySecret ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </Button>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleCopy(proxySecret, 'Proxy Secret')}
+                disabled={!proxySecret}
+              >
+                {copiedField === 'Proxy Secret' ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleGenerateProxySecret}
+                disabled={isSavingProxySecret}
+              >
+                {isSavingProxySecret ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Key className="h-4 w-4 mr-2" />
+                    {proxySecret ? 'Rotate' : 'Generate'}
+                  </>
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Use this secret in the <code className="bg-muted px-1 rounded">X-Ixty-Proxy-Secret</code> header when calling the GHL API proxy from n8n
+            </p>
+          </div>
+
+          {proxySecret && (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Rotating this secret will require updating the header in all n8n workflows that use the GHL API proxy.
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
 
