@@ -68,7 +68,7 @@ export function HighLevelSettings() {
       const [installationsResult, clientIdResult, proxySecretResult] = await Promise.all([
         supabase
           .from('ghl_installations')
-          .select('*')
+          .select('id, user_id, location_id, location_name, company_id, company_name, scopes, connection_status, connected_at, last_refresh_at, token_expires_at, refresh_error')
           .order('connected_at', { ascending: false }),
         supabase
           .from('app_settings')

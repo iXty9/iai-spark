@@ -60,7 +60,7 @@ export function HighLevelConnectionCard() {
       const [installationResult, clientIdResult] = await Promise.all([
         supabase
           .from('ghl_installations')
-          .select('*')
+          .select('id, location_id, location_name, company_id, company_name, scopes, connection_status, connected_at, token_expires_at, refresh_error')
           .eq('user_id', user.id)
           .maybeSingle(),
         supabase
