@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Palette, Image, AlertCircle, Code, Volume2, MapPin, Plug } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
 import { BackgroundSettings } from '@/components/settings/BackgroundSettings';
 import { MarkupSettings } from '@/components/settings/MarkupSettings';
@@ -19,11 +19,17 @@ import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/utils/logging';
 import { useEffect, useState } from 'react';
 
+const VALID_TABS = ['appearance', 'background', 'sounds', 'location', 'markup', 'integrations'] as const;
+
 export default function Settings() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("appearance");
+  const [activeTab, setActiveTab] = useState(() => {
+    const tabParam = searchParams.get('tab');
+    return VALID_TABS.includes(tabParam as typeof VALID_TABS[number]) ? tabParam! : 'appearance';
+  });
 
   const {
     isLoading,
