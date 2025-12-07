@@ -152,17 +152,47 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Validate proxy secret
-    const proxySecret = req.headers.get('x-ixty-proxy-secret');
-    const expectedSecret = Deno.env.get('GHL_PROXY_SECRET');
+    // Get Supabase client early to fetch proxy secret from database
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('[ghl-api-proxy] Missing Supabase configuration');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Fetch proxy secret from app_settings table
+    const { data: secretSetting, error: secretError } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'ghl_proxy_secret')
+      .maybeSingle();
+
+    if (secretError) {
+      console.error('[ghl-api-proxy] Failed to fetch proxy secret:', secretError);
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const expectedSecret = secretSetting?.value;
     
     if (!expectedSecret) {
-      console.error('[ghl-api-proxy] GHL_PROXY_SECRET not configured');
+      console.error('[ghl-api-proxy] ghl_proxy_secret not configured in app_settings');
       return new Response(
         JSON.stringify({ error: 'Proxy not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Validate proxy secret from request header
+    const proxySecret = req.headers.get('x-ixty-proxy-secret');
 
     if (!proxySecret || proxySecret !== expectedSecret) {
       console.error('[ghl-api-proxy] Invalid or missing proxy secret');
@@ -191,12 +221,10 @@ Deno.serve(async (req) => {
 
     console.log(`[ghl-api-proxy] Request: ${method} ${endpoint} for user ${user_id}`);
 
-    // Get environment variables
+    // Get environment variables for GHL
     const clientId = Deno.env.get('GHL_CLIENT_ID');
     const clientSecret = Deno.env.get('GHL_CLIENT_SECRET');
     const encryptionKey = Deno.env.get('GHL_TOKEN_ENCRYPTION_KEY');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!clientId || !clientSecret || !encryptionKey) {
       console.error('[ghl-api-proxy] Missing required environment variables');
@@ -206,7 +234,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+    if (!clientId || !clientSecret || !encryptionKey) {
+      console.error('[ghl-api-proxy] Missing required environment variables');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Fetch the user's GHL installation
     const { data: installation, error: fetchError } = await supabase
