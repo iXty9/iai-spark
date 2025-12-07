@@ -28,6 +28,13 @@ export default function OAuth() {
       const errorDescription = searchParams.get('error_description');
       const state = searchParams.get('state');
 
+      console.log('[OAuth] Processing callback:', { 
+        hasCode: !!code, 
+        hasError: !!error, 
+        hasUser: !!user,
+        hasStoredCode: !!sessionStorage.getItem('ghl_pending_code')
+      });
+
       // Check for OAuth error from GHL
       if (error) {
         hasProcessed.current = true;
@@ -46,14 +53,14 @@ export default function OAuth() {
           setErrorMessage('No authorization code received. Please try connecting again.');
           return;
         }
-        // We have a stored code, continue with that
+        // We have a stored code - verify we have a user
         if (!user) {
-          // Still not logged in after returning, show error
-          hasProcessed.current = true;
-          setStatus('error');
-          setErrorMessage('You must be logged in to connect HighLevel.');
+          console.log('[OAuth] Stored code exists but no user yet - waiting for session');
+          // Don't error yet - give auth a moment to resolve
+          // The useEffect will re-run once user is populated
           return;
         }
+        console.log('[OAuth] Processing stored code for user:', user.id);
         // Process stored code
         await processOAuthCode(storedCode);
         return;
