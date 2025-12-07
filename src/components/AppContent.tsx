@@ -80,14 +80,7 @@ export const AppContent = () => {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/oauth"
-        element={
-          <ProtectedRoute>
-            <OAuth />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/oauth" element={<OAuth />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
