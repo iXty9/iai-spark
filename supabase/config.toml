@@ -55,3 +55,6 @@ verify_jwt = true
 
 [functions.ghl-install-webhook]
 verify_jwt = false
+
+[functions.ghl-api-proxy]
+verify_jwt = false
