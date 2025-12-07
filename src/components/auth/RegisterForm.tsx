@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -45,6 +45,7 @@ type FormValues = z.infer<typeof formSchema>;
 export function RegisterForm() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { authSettings } = useAuthSettings();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -91,7 +92,8 @@ export function RegisterForm() {
         title: "Account created"
       });
       
-      navigate('/');
+      const returnTo = searchParams.get('returnTo') || '/';
+      navigate(returnTo);
     } catch (error: any) {
       setError(error.message);
     } finally {

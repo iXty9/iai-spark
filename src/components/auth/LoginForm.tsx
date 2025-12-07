@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,6 +30,7 @@ const FIELD_CONFIG = [
 
 export const LoginForm = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { signIn } = useAuth();
   const { isDevMode } = useDevMode();
   const { authSettings } = useAuthSettings();
@@ -47,7 +48,8 @@ export const LoginForm = () => {
     setServerError(null);
     try {
       await signIn(DOMPurify.sanitize(email), password);
-      navigate('/');
+      const returnTo = searchParams.get('returnTo') || '/';
+      navigate(returnTo);
     } catch (error: any) {
       // Clean, user-friendly error messages for production
       let message = 'Authentication failed. Please check your credentials and try again.';

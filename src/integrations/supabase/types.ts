@@ -56,7 +56,7 @@ export type Database = {
           scopes: string | null
           token_expires_at: string | null
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           access_token_encrypted?: string | null
@@ -75,7 +75,7 @@ export type Database = {
           scopes?: string | null
           token_expires_at?: string | null
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           access_token_encrypted?: string | null
@@ -94,7 +94,7 @@ export type Database = {
           scopes?: string | null
           token_expires_at?: string | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -299,7 +299,12 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
-      ghl_connection_status: "connected" | "expired" | "error" | "disconnected"
+      ghl_connection_status:
+        | "connected"
+        | "expired"
+        | "error"
+        | "disconnected"
+        | "pending"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -428,7 +433,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
-      ghl_connection_status: ["connected", "expired", "error", "disconnected"],
+      ghl_connection_status: [
+        "connected",
+        "expired",
+        "error",
+        "disconnected",
+        "pending",
+      ],
     },
   },
 } as const

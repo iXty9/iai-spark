@@ -52,3 +52,6 @@ verify_jwt = true
 
 [functions.ghl-disconnect]
 verify_jwt = true
+
+[functions.ghl-install-webhook]
+verify_jwt = false

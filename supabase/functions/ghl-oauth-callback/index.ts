@@ -162,28 +162,78 @@ Deno.serve(async (req) => {
     // Store in database using service role
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
-    const { data, error: dbError } = await supabase
-      .from('ghl_installations')
-      .upsert({
-        user_id: userId,
-        location_id: locationId || null,
-        company_id: companyId || null,
-        ghl_user_id: ghlUserId || null,
-        access_token_encrypted: encryptedAccessToken,
-        refresh_token_encrypted: encryptedRefreshToken,
-        token_expires_at: expiresAt.toISOString(),
-        scopes: scope || null,
-        connection_status: 'connected',
-        connected_at: new Date().toISOString(),
-        last_refresh_at: new Date().toISOString(),
-        location_name: locationName,
-        company_name: companyName,
-        refresh_error: null,
-      }, {
-        onConflict: 'user_id',
-      })
-      .select()
-      .single();
+    // Check if there's a pending installation for this location (created by install webhook)
+    let installationId: string | null = null;
+    if (locationId) {
+      const { data: pendingInstall } = await supabase
+        .from('ghl_installations')
+        .select('id')
+        .eq('location_id', locationId)
+        .eq('connection_status', 'pending')
+        .is('user_id', null)
+        .maybeSingle();
+
+      if (pendingInstall) {
+        console.log('[ghl-oauth-callback] Found pending installation to link:', pendingInstall.id);
+        installationId = pendingInstall.id;
+      }
+    }
+
+    // If we found a pending installation, update it; otherwise upsert by user_id
+    let data;
+    let dbError;
+
+    if (installationId) {
+      // Update the pending installation with user and tokens
+      const result = await supabase
+        .from('ghl_installations')
+        .update({
+          user_id: userId,
+          access_token_encrypted: encryptedAccessToken,
+          refresh_token_encrypted: encryptedRefreshToken,
+          token_expires_at: expiresAt.toISOString(),
+          scopes: scope || null,
+          connection_status: 'connected',
+          connected_at: new Date().toISOString(),
+          last_refresh_at: new Date().toISOString(),
+          location_name: locationName,
+          company_name: companyName,
+          refresh_error: null,
+        })
+        .eq('id', installationId)
+        .select()
+        .single();
+      
+      data = result.data;
+      dbError = result.error;
+    } else {
+      // No pending installation found, upsert by user_id
+      const result = await supabase
+        .from('ghl_installations')
+        .upsert({
+          user_id: userId,
+          location_id: locationId || null,
+          company_id: companyId || null,
+          ghl_user_id: ghlUserId || null,
+          access_token_encrypted: encryptedAccessToken,
+          refresh_token_encrypted: encryptedRefreshToken,
+          token_expires_at: expiresAt.toISOString(),
+          scopes: scope || null,
+          connection_status: 'connected',
+          connected_at: new Date().toISOString(),
+          last_refresh_at: new Date().toISOString(),
+          location_name: locationName,
+          company_name: companyName,
+          refresh_error: null,
+        }, {
+          onConflict: 'user_id',
+        })
+        .select()
+        .single();
+      
+      data = result.data;
+      dbError = result.error;
+    }
 
     if (dbError) {
       console.error('[ghl-oauth-callback] Database error:', dbError);
