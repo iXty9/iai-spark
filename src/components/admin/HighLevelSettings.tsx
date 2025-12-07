@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { RefreshCw, Copy, CheckCircle, XCircle, Clock, AlertTriangle, ExternalLink, Info, Save } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { RefreshCw, Copy, CheckCircle, XCircle, Clock, AlertTriangle, ExternalLink, Info, Save, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -35,6 +36,7 @@ export function HighLevelSettings() {
   const [installations, setInstallations] = useState<GHLInstallation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshingUserId, setRefreshingUserId] = useState<string | null>(null);
+  const [deletingInstallationId, setDeletingInstallationId] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [clientId, setClientId] = useState('');
   const [isSavingClientId, setIsSavingClientId] = useState(false);
@@ -125,6 +127,35 @@ export function HighLevelSettings() {
       });
     } finally {
       setRefreshingUserId(null);
+    }
+  };
+
+  const handleDeleteInstallation = async (installationId: string) => {
+    setDeletingInstallationId(installationId);
+    try {
+      const { error } = await supabase
+        .from('ghl_installations')
+        .delete()
+        .eq('id', installationId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Installation deleted',
+        description: 'The HighLevel connection record has been removed',
+      });
+
+      // Reload installations
+      await fetchData();
+    } catch (error) {
+      console.error('Error deleting installation:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Delete failed',
+        description: 'Failed to delete the installation record',
+      });
+    } finally {
+      setDeletingInstallationId(null);
     }
   };
 
@@ -354,25 +385,62 @@ export function HighLevelSettings() {
                         {formatDistanceToNow(new Date(installation.connected_at), { addSuffix: true })}
                       </TableCell>
                       <TableCell className="text-right">
-                        {installation.user_id && installation.connection_status !== 'pending' ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRefreshToken(installation.user_id!)}
-                            disabled={refreshingUserId === installation.user_id}
-                          >
-                            {refreshingUserId === installation.user_id ? (
-                              <RefreshCw className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <RefreshCw className="h-4 w-4 mr-1" />
-                                Refresh
-                              </>
-                            )}
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Awaiting user</span>
-                        )}
+                        <div className="flex items-center justify-end gap-1">
+                          {installation.user_id && installation.connection_status !== 'pending' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRefreshToken(installation.user_id!)}
+                              disabled={refreshingUserId === installation.user_id}
+                            >
+                              {refreshingUserId === installation.user_id ? (
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <RefreshCw className="h-4 w-4 mr-1" />
+                                  Refresh
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                disabled={deletingInstallationId === installation.id}
+                              >
+                                {deletingInstallationId === installation.id ? (
+                                  <RefreshCw className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Installation?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will remove the HighLevel connection record for{' '}
+                                  <span className="font-medium">{installation.location_name || installation.location_id || 'this location'}</span>.
+                                  {installation.user_id && (
+                                    <> The user will need to reinstall from the HighLevel Marketplace to reconnect.</>
+                                  )}
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteInstallation(installation.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
