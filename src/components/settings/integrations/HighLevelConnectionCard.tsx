@@ -30,7 +30,7 @@ interface GHLInstallation {
   company_id: string | null;
   company_name: string | null;
   scopes: string | null;
-  connection_status: 'connected' | 'expired' | 'error' | 'disconnected';
+  connection_status: 'connected' | 'expired' | 'error' | 'disconnected' | 'pending';
   connected_at: string;
   token_expires_at: string;
   refresh_error: string | null;
@@ -179,6 +179,20 @@ export function HighLevelConnectionCard() {
           <Badge variant="outline" className="bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400">
             <AlertTriangle className="h-3 w-3 mr-1" />
             Error
+          </Badge>
+        );
+      case 'disconnected':
+        return (
+          <Badge variant="outline" className="bg-muted text-muted-foreground">
+            <XCircle className="h-3 w-3 mr-1" />
+            Disconnected
+          </Badge>
+        );
+      case 'pending':
+        return (
+          <Badge variant="outline" className="bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
+            <Clock className="h-3 w-3 mr-1" />
+            Pending
           </Badge>
         );
       default:

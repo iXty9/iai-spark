@@ -148,26 +148,23 @@ Deno.serve(async (req) => {
 
       console.log('[ghl-install-webhook] Processing UNINSTALL for location:', locationId);
 
-      // Mark installation as disconnected
-      const { error: updateError } = await supabase
+      // DELETE the installation record entirely
+      const { error: deleteError } = await supabase
         .from('ghl_installations')
-        .update({
-          connection_status: 'disconnected',
-          updated_at: new Date().toISOString(),
-        })
+        .delete()
         .eq('location_id', locationId);
 
-      if (updateError) {
-        console.error('[ghl-install-webhook] Failed to update installation:', updateError);
+      if (deleteError) {
+        console.error('[ghl-install-webhook] Failed to delete installation:', deleteError);
         return new Response(
-          JSON.stringify({ error: 'Failed to process uninstall', details: updateError.message }),
+          JSON.stringify({ error: 'Failed to process uninstall', details: deleteError.message }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      console.log('[ghl-install-webhook] Marked installation as disconnected');
+      console.log('[ghl-install-webhook] Deleted installation for location:', locationId);
       return new Response(
-        JSON.stringify({ success: true, message: 'Installation marked as disconnected' }),
+        JSON.stringify({ success: true, message: 'Installation deleted' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
 
