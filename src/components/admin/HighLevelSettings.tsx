@@ -15,16 +15,16 @@ import { updateAppSetting } from '@/services/admin/settingsService';
 
 interface GHLInstallation {
   id: string;
-  user_id: string;
+  user_id: string | null;
   location_id: string | null;
   location_name: string | null;
   company_id: string | null;
   company_name: string | null;
   scopes: string | null;
-  connection_status: 'connected' | 'expired' | 'error' | 'disconnected';
+  connection_status: 'connected' | 'expired' | 'error' | 'disconnected' | 'pending';
   connected_at: string;
   last_refresh_at: string | null;
-  token_expires_at: string;
+  token_expires_at: string | null;
   refresh_error: string | null;
   // Joined user email
   user_email?: string;
@@ -139,9 +139,15 @@ export function HighLevelSettings() {
   };
 
   const getStatusBadge = (installation: GHLInstallation) => {
+    // Handle pending status first
+    if (installation.connection_status === 'pending') {
+      return <Badge variant="outline" className="bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400"><Clock className="h-3 w-3 mr-1" />Pending Link</Badge>;
+    }
+
+    // Check expiry only if token_expires_at exists
     const now = new Date();
-    const expiresAt = new Date(installation.token_expires_at);
-    const isExpiringSoon = expiresAt.getTime() - now.getTime() < 60 * 60 * 1000; // 1 hour
+    const expiresAt = installation.token_expires_at ? new Date(installation.token_expires_at) : null;
+    const isExpiringSoon = expiresAt ? expiresAt.getTime() - now.getTime() < 60 * 60 * 1000 : false;
 
     switch (installation.connection_status) {
       case 'connected':
@@ -160,14 +166,16 @@ export function HighLevelSettings() {
 
   const getHealthSummary = () => {
     const healthy = installations.filter(i => i.connection_status === 'connected').length;
+    const pending = installations.filter(i => i.connection_status === 'pending').length;
     const expiring = installations.filter(i => {
+      if (!i.token_expires_at) return false;
       const expiresAt = new Date(i.token_expires_at);
       const now = new Date();
       return i.connection_status === 'connected' && expiresAt.getTime() - now.getTime() < 60 * 60 * 1000;
     }).length;
     const failed = installations.filter(i => i.connection_status === 'error' || i.connection_status === 'expired').length;
     
-    return { healthy: healthy - expiring, expiring, failed };
+    return { healthy: healthy - expiring, expiring, failed, pending };
   };
 
   if (isLoading) {
@@ -273,7 +281,7 @@ export function HighLevelSettings() {
           <CardTitle className="text-lg">Connection Health</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-4 text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
             <div className="p-4 rounded-lg bg-green-100 dark:bg-green-900/20">
               <div className="text-2xl font-bold text-green-700 dark:text-green-400">{health.healthy}</div>
               <div className="text-sm text-green-600 dark:text-green-500">Healthy</div>
@@ -285,6 +293,10 @@ export function HighLevelSettings() {
             <div className="p-4 rounded-lg bg-red-100 dark:bg-red-900/20">
               <div className="text-2xl font-bold text-red-700 dark:text-red-400">{health.failed}</div>
               <div className="text-sm text-red-600 dark:text-red-500">Failed</div>
+            </div>
+            <div className="p-4 rounded-lg bg-blue-100 dark:bg-blue-900/20">
+              <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">{health.pending}</div>
+              <div className="text-sm text-blue-600 dark:text-blue-500">Pending</div>
             </div>
           </div>
         </CardContent>
@@ -326,34 +338,41 @@ export function HighLevelSettings() {
                   {installations.map((installation) => (
                     <TableRow key={installation.id}>
                       <TableCell className="font-mono text-xs">
-                        {installation.user_id.slice(0, 8)}...
+                        {installation.user_id ? `${installation.user_id.slice(0, 8)}...` : <span className="text-muted-foreground italic">Pending</span>}
                       </TableCell>
                       <TableCell>
                         {installation.location_name || installation.location_id || '-'}
                       </TableCell>
                       <TableCell>{getStatusBadge(installation)}</TableCell>
                       <TableCell className="text-sm">
-                        {format(new Date(installation.token_expires_at), 'MMM d, HH:mm')}
+                        {installation.token_expires_at 
+                          ? format(new Date(installation.token_expires_at), 'MMM d, HH:mm')
+                          : <span className="text-muted-foreground">-</span>
+                        }
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {formatDistanceToNow(new Date(installation.connected_at), { addSuffix: true })}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRefreshToken(installation.user_id)}
-                          disabled={refreshingUserId === installation.user_id}
-                        >
-                          {refreshingUserId === installation.user_id ? (
-                            <RefreshCw className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <>
-                              <RefreshCw className="h-4 w-4 mr-1" />
-                              Refresh
-                            </>
-                          )}
-                        </Button>
+                        {installation.user_id && installation.connection_status !== 'pending' ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRefreshToken(installation.user_id!)}
+                            disabled={refreshingUserId === installation.user_id}
+                          >
+                            {refreshingUserId === installation.user_id ? (
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-1" />
+                                Refresh
+                              </>
+                            )}
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Awaiting user</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
