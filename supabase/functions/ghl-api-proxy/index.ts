@@ -347,19 +347,38 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Normalize endpoint - ensure proper trailing slashes for endpoints that require them
+    let normalizedEndpoint = endpoint;
+    
+    // Endpoints that require trailing slashes (GHL API quirk)
+    const trailingSlashEndpoints = ['/invoices', '/payments', '/subscriptions'];
+    const endpointLower = endpoint.toLowerCase().replace(/\/$/, ''); // Remove any existing trailing slash for comparison
+    
+    for (const pattern of trailingSlashEndpoints) {
+      // Check if endpoint matches the pattern (exact match or starts with pattern/)
+      if (endpointLower === pattern || endpointLower.startsWith(`${pattern}/`)) {
+        // Ensure trailing slash if endpoint ends with the base pattern (no sub-resource)
+        if (endpointLower === pattern && !endpoint.endsWith('/')) {
+          normalizedEndpoint = endpoint + '/';
+          console.log(`[ghl-api-proxy] Auto-added trailing slash: ${endpoint} -> ${normalizedEndpoint}`);
+        }
+        break;
+      }
+    }
+    
     // Build GHL API URL with query parameters
-    let ghlUrl = `${GHL_BASE_URL}${endpoint}`;
-    const normalizedEndpoint = endpoint.toLowerCase();
+    let ghlUrl = `${GHL_BASE_URL}${normalizedEndpoint}`;
+    const endpointForMatching = normalizedEndpoint.toLowerCase();
     
     // Determine which endpoints need locationId auto-injection
     // Invoices API uses altId/altType instead of locationId - do NOT inject locationId
-    const usesAltIdPattern = normalizedEndpoint.startsWith('/invoices');
+    const usesAltIdPattern = endpointForMatching.startsWith('/invoices');
     const needsLocationIdInQuery = !usesAltIdPattern && (
-      normalizedEndpoint.startsWith('/contacts') ||
-      normalizedEndpoint.startsWith('/opportunities') ||
-      normalizedEndpoint.startsWith('/tasks') ||
-      normalizedEndpoint.startsWith('/calendars') ||
-      normalizedEndpoint.startsWith('/conversations')
+      endpointForMatching.startsWith('/contacts') ||
+      endpointForMatching.startsWith('/opportunities') ||
+      endpointForMatching.startsWith('/tasks') ||
+      endpointForMatching.startsWith('/calendars') ||
+      endpointForMatching.startsWith('/conversations')
     );
     
     // Build final query - only inject locationId for endpoints that use it
@@ -371,13 +390,13 @@ Deno.serve(async (req) => {
     // Process body with endpoint-specific rules for Contacts API
     // Note: Invoices API uses altId/altType in query params, not body, so body processing is fine
     const finalBody = processBodyForEndpoint(
-      endpoint,
+      normalizedEndpoint,
       method,
       body,
       usesAltIdPattern ? null : installation.location_id // Don't inject locationId in body for invoices
     );
     
-    console.log(`[ghl-api-proxy] Endpoint pattern: ${getEndpointPattern(endpoint, method)}${usesAltIdPattern ? ' (uses altId/altType)' : ''}`);
+    console.log(`[ghl-api-proxy] Endpoint pattern: ${getEndpointPattern(normalizedEndpoint, method)}${usesAltIdPattern ? ' (uses altId/altType)' : ''}`);
     if (finalBody) {
       console.log(`[ghl-api-proxy] Processed body keys: ${Object.keys(finalBody).join(', ')}`);
     }
