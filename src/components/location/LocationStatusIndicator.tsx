@@ -156,25 +156,16 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
   };
 
   const getTooltipText = () => {
-    if (!isSupported) return 'Location services are not supported in your browser';
-    if (error) return `Location error: ${error}`;
-    if (!hasPermission) return 'Click to enable location services';
+    if (!isSupported) return 'Location not supported';
+    if (error) return 'Location error';
+    if (!hasPermission) return 'Click to enable location';
     if (!currentLocation) return 'Location not available';
     
-    // Has permission and location - show status based on auto-update
     if (!isAutoUpdateEnabled) {
-      const locationInfo = currentLocation.city 
-        ? `${currentLocation.city}${currentLocation.country ? `, ${currentLocation.country}` : ''}`
-        : `${currentLocation.latitude.toFixed(4)}, ${currentLocation.longitude.toFixed(4)}`;
-      return `Location updates paused\n${locationInfo}\n\nClick to enable updates`;
+      return 'Location Service Disabled';
     }
     
-    const lastUpdate = lastUpdated ? `Last updated: ${lastUpdated.toLocaleString()}` : '';
-    const locationInfo = currentLocation.city 
-      ? `${currentLocation.city}${currentLocation.country ? `, ${currentLocation.country}` : ''}`
-      : `${currentLocation.latitude.toFixed(4)}, ${currentLocation.longitude.toFixed(4)}`;
-    
-    return `Location updates active\n${locationInfo}\n${lastUpdate}\n\nClick to pause updates`;
+    return lastUpdated ? `Last Updated: ${lastUpdated.toLocaleString()}` : 'Location active';
   };
 
   const getButtonClassName = () => {
