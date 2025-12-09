@@ -349,22 +349,35 @@ Deno.serve(async (req) => {
 
     // Build GHL API URL with query parameters
     let ghlUrl = `${GHL_BASE_URL}${endpoint}`;
+    const normalizedEndpoint = endpoint.toLowerCase();
     
-    // Auto-fill locationId for query params (safe for all endpoints)
-    const finalQuery = { ...query };
-    if (installation.location_id && finalQuery && !finalQuery.locationId) {
+    // Determine which endpoints need locationId auto-injection
+    // Invoices API uses altId/altType instead of locationId - do NOT inject locationId
+    const usesAltIdPattern = normalizedEndpoint.startsWith('/invoices');
+    const needsLocationIdInQuery = !usesAltIdPattern && (
+      normalizedEndpoint.startsWith('/contacts') ||
+      normalizedEndpoint.startsWith('/opportunities') ||
+      normalizedEndpoint.startsWith('/tasks') ||
+      normalizedEndpoint.startsWith('/calendars') ||
+      normalizedEndpoint.startsWith('/conversations')
+    );
+    
+    // Build final query - only inject locationId for endpoints that use it
+    const finalQuery: Record<string, any> = { ...(query || {}) };
+    if (installation.location_id && needsLocationIdInQuery && finalQuery.locationId === undefined) {
       finalQuery.locationId = installation.location_id;
     }
 
     // Process body with endpoint-specific rules for Contacts API
+    // Note: Invoices API uses altId/altType in query params, not body, so body processing is fine
     const finalBody = processBodyForEndpoint(
       endpoint,
       method,
       body,
-      installation.location_id
+      usesAltIdPattern ? null : installation.location_id // Don't inject locationId in body for invoices
     );
     
-    console.log(`[ghl-api-proxy] Endpoint pattern: ${getEndpointPattern(endpoint, method)}`);
+    console.log(`[ghl-api-proxy] Endpoint pattern: ${getEndpointPattern(endpoint, method)}${usesAltIdPattern ? ' (uses altId/altType)' : ''}`);
     if (finalBody) {
       console.log(`[ghl-api-proxy] Processed body keys: ${Object.keys(finalBody).join(', ')}`);
     }
