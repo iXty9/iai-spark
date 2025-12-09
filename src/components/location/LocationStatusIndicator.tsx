@@ -1,11 +1,10 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { MapPin, MapPinOff, RefreshCw, AlertCircle } from 'lucide-react';
 import { useLocationContext } from '@/contexts/LocationContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useDevMode } from '@/store/use-dev-mode';
 import { LocationPermissionDialog } from './LocationPermissionDialog';
 import { useToast } from '@/hooks/use-toast';
 
@@ -28,12 +27,17 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
     handleAutoUpdateToggle,
   } = useLocationContext();
   const { profile } = useAuth();
-  const { isDevMode } = useDevMode();
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   const [localAutoUpdate, setLocalAutoUpdate] = useState<boolean | null>(null);
   const lastClickTime = useRef<number>(0);
   const { toast } = useToast();
+
+  // Unified auto-update state - use local optimistic state if available, otherwise profile
+  const isAutoUpdateEnabled = useMemo(() => {
+    if (localAutoUpdate !== null) return localAutoUpdate;
+    return profile?.location_auto_update !== false;
+  }, [localAutoUpdate, profile?.location_auto_update]);
 
   // Debounced click handler with rate limiting
   const handleLocationClick = useCallback(async () => {
@@ -48,7 +52,6 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
     if (isToggling) {
       return;
     }
-    // No-op: keep UX responsive without clearing errors here
     
     if (!isSupported) {
       toast({
@@ -74,11 +77,7 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
       return;
     }
 
-    // Determine current state - use local state if available, otherwise fall back to profile
-    const currentAutoUpdate = localAutoUpdate !== null 
-      ? localAutoUpdate 
-      : (profile?.location_auto_update !== false);
-    const newAutoUpdate = !currentAutoUpdate;
+    const newAutoUpdate = !isAutoUpdateEnabled;
     
     setIsToggling(true);
     
@@ -89,32 +88,31 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
       const result = await handleAutoUpdateToggle(newAutoUpdate);
       if (result.success) {
         toast({
-          title: newAutoUpdate ? "Auto-updates enabled" : "Auto-updates disabled",
+          title: newAutoUpdate ? "Location updates enabled" : "Location updates paused",
           description: newAutoUpdate 
             ? "Location will update automatically when you move"
-            : "Location updates have been disabled"
+            : "Location updates have been paused"
         });
         
-        // Clear local state after successful update - let profile state take over
-        setTimeout(() => setLocalAutoUpdate(null), 1000);
+        // Keep local state for a short period to avoid flicker, then let profile take over
+        setTimeout(() => setLocalAutoUpdate(null), 2000);
       } else {
         // Revert optimistic update on failure
-        setLocalAutoUpdate(currentAutoUpdate);
+        setLocalAutoUpdate(isAutoUpdateEnabled);
         throw new Error("Toggle operation failed");
       }
     } catch (error) {
       // Revert optimistic update on error
-      setLocalAutoUpdate(currentAutoUpdate);
+      setLocalAutoUpdate(isAutoUpdateEnabled);
       toast({
         variant: "destructive",
         title: "Toggle failed",
-        description: "Failed to toggle location auto-updates"
+        description: "Failed to toggle location updates"
       });
     } finally {
       setIsToggling(false);
     }
-  }, [isSupported, hasPermission, profile?.location_auto_update, localAutoUpdate, 
-       isToggling, handleAutoUpdateToggle, toast]);
+  }, [isSupported, hasPermission, profile, isAutoUpdateEnabled, isToggling, handleAutoUpdateToggle, toast]);
 
   const getStatusIcon = () => {
     if (isLoading || isToggling) {
@@ -123,51 +121,70 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
     if (error) {
       return <AlertCircle className="h-4 w-4" />;
     }
-    if (hasPermission && currentLocation) {
+    if (!hasPermission || !currentLocation) {
+      return <MapPinOff className="h-4 w-4" />;
+    }
+    // Has permission and location - show based on auto-update state
+    if (isAutoUpdateEnabled) {
       return <MapPin className="h-4 w-4" />;
     }
-    return <MapPinOff className="h-4 w-4" />;
+    return <MapPinOff className="h-4 w-4 text-muted-foreground" />;
   };
 
   const getStatusText = () => {
     if (!isSupported) return 'Not supported';
     if (isLoading || isToggling) return isToggling ? 'Updating...' : 'Getting location...';
     if (error) return 'Location error';
-    if (hasPermission && currentLocation) {
-      if (currentLocation.city) {
-        return `${currentLocation.city}${currentLocation.country ? `, ${currentLocation.country}` : ''}`;
-      }
-      return `${currentLocation.latitude.toFixed(4)}, ${currentLocation.longitude.toFixed(4)}`;
+    if (!hasPermission) return 'Location disabled';
+    if (!currentLocation) return 'No location';
+    
+    // Has permission and location
+    if (!isAutoUpdateEnabled) {
+      return 'Updates paused';
     }
-    return 'Location disabled';
+    
+    if (currentLocation.city) {
+      return `${currentLocation.city}${currentLocation.country ? `, ${currentLocation.country}` : ''}`;
+    }
+    return `${currentLocation.latitude.toFixed(4)}, ${currentLocation.longitude.toFixed(4)}`;
   };
 
   const getStatusVariant = () => {
     if (error) return 'destructive' as const;
-    if (hasPermission && currentLocation) return 'default' as const;
+    if (hasPermission && currentLocation && isAutoUpdateEnabled) return 'default' as const;
     return 'secondary' as const;
   };
 
   const getTooltipText = () => {
     if (!isSupported) return 'Location services are not supported in your browser';
     if (error) return `Location error: ${error}`;
-    if (hasPermission && currentLocation) {
-      const lastUpdate = `Last updated: ${lastUpdated?.toLocaleString() || 'Unknown'}`;
-      
-      if (isDevMode) {
-        // Use local state if available for immediate feedback, otherwise use profile state
-        const currentState = localAutoUpdate !== null 
-          ? localAutoUpdate 
-          : (profile?.location_auto_update !== false);
-        const autoUpdateStatus = currentState ? 'Auto-updates: ON' : 'Auto-updates: OFF';
-        const addressInfo = currentLocation.address ? `\nAddress: ${currentLocation.address}` : '';
-        const toggleText = isToggling ? '\n\nUpdating...' : '\n\nClick to toggle auto-updates';
-        return `${autoUpdateStatus}\n${lastUpdate}${addressInfo}${toggleText}`;
-      }
-      
-      return lastUpdate;
+    if (!hasPermission) return 'Click to enable location services';
+    if (!currentLocation) return 'Location not available';
+    
+    // Has permission and location - show status based on auto-update
+    if (!isAutoUpdateEnabled) {
+      const locationInfo = currentLocation.city 
+        ? `${currentLocation.city}${currentLocation.country ? `, ${currentLocation.country}` : ''}`
+        : `${currentLocation.latitude.toFixed(4)}, ${currentLocation.longitude.toFixed(4)}`;
+      return `Location updates paused\n${locationInfo}\n\nClick to enable updates`;
     }
-    return 'Click to enable location services';
+    
+    const lastUpdate = lastUpdated ? `Last updated: ${lastUpdated.toLocaleString()}` : '';
+    const locationInfo = currentLocation.city 
+      ? `${currentLocation.city}${currentLocation.country ? `, ${currentLocation.country}` : ''}`
+      : `${currentLocation.latitude.toFixed(4)}, ${currentLocation.longitude.toFixed(4)}`;
+    
+    return `Location updates active\n${locationInfo}\n${lastUpdate}\n\nClick to pause updates`;
+  };
+
+  const getButtonClassName = () => {
+    const baseClass = variant === 'compact' ? 'h-8 w-8' : 'h-auto p-2 flex items-center gap-2';
+    
+    // Add visual indication for disabled state
+    if (hasPermission && currentLocation && !isAutoUpdateEnabled) {
+      return `${baseClass} opacity-60`;
+    }
+    return baseClass;
   };
 
   if (variant === 'compact') {
@@ -180,7 +197,7 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
               size="icon"
               onClick={handleLocationClick}
               disabled={isLoading || isToggling}
-              className="h-8 w-8"
+              className={getButtonClassName()}
             >
               {getStatusIcon()}
             </Button>
@@ -206,7 +223,7 @@ export const LocationStatusIndicator: React.FC<LocationStatusIndicatorProps> = (
             size="sm"
             onClick={handleLocationClick}
             disabled={isLoading || isToggling}
-            className="h-auto p-2 flex items-center gap-2"
+            className={getButtonClassName()}
           >
             {getStatusIcon()}
             {showLabel && (

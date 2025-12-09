@@ -10,7 +10,7 @@ import { useLocationContext } from '@/contexts/LocationContext';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 export const LocationSettings: React.FC = () => {
-  const { profile, updateProfile } = useAuth();
+  const { profile } = useAuth();
   const { 
     isSupported, 
     hasPermission, 
@@ -55,18 +55,19 @@ export const LocationSettings: React.FC = () => {
 
   const handleAutoUpdateToggle = async (enabled: boolean) => {
     try {
-      await locationContextToggle(enabled);
+      // locationContextToggle already handles the profile update internally
+      const result = await locationContextToggle(enabled);
       
-      if (updateProfile) {
-        await updateProfile({ location_auto_update: enabled });
+      if (result.success) {
+        toast({
+          title: enabled ? "Auto-update Enabled" : "Auto-update Disabled",
+          description: enabled 
+            ? "Your location will be updated automatically when you move."
+            : "Your location will only update when manually refreshed.",
+        });
+      } else {
+        throw new Error('Toggle failed');
       }
-      
-      toast({
-        title: enabled ? "Auto-update Enabled" : "Auto-update Disabled",
-        description: enabled 
-          ? "Your location will be updated automatically when you move."
-          : "Your location will only update when manually refreshed.",
-      });
     } catch (error) {
       toast({
         variant: "destructive",
