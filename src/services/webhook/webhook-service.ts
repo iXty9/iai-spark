@@ -12,7 +12,7 @@ import {
 import { getWebhookAuthHeaders } from './auth-header-builder';
 import { getSessionId } from '@/services/chat/session-id-service';
 import { resolveUserWebhookUrl, getUserWebhookAuthHeaders } from './user-webhook-resolver';
-
+import { getGhlInstallationInfo } from './ghl-installation-resolver';
 // Track webhook calls per tab session
 const webhookSessionTracker = {
   callsThisSession: 0,
@@ -255,6 +255,17 @@ export const sendWebhookMessage = async (
         latitude: location.latitude,
         longitude: location.longitude
       };
+    }
+
+    // Include GHL installation info for authenticated users with connected HighLevel
+    if (isAuthenticated && userInfo?.id) {
+      const ghlInfo = await getGhlInstallationInfo(userInfo.id);
+      if (ghlInfo) {
+        payload.ghl = ghlInfo;
+        logger.debug('[Webhook] Added GHL info to payload', { 
+          location_id: ghlInfo.location_id 
+        }, { module: 'webhook' });
+      }
     }
 
     // Log right before sending
