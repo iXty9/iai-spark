@@ -7,6 +7,73 @@ const corsHeaders = {
 
 const GHL_BASE_URL = 'https://services.leadconnectorhq.com';
 
+/**
+ * Detect endpoint pattern for logging
+ */
+function getEndpointPattern(endpoint: string, method: string): string {
+  const upperMethod = method.toUpperCase();
+  const normalizedEndpoint = endpoint.toLowerCase();
+  
+  if (normalizedEndpoint === '/contacts' && upperMethod === 'POST') return 'contacts-create';
+  if (normalizedEndpoint === '/contacts/upsert' && upperMethod === 'POST') return 'contacts-upsert';
+  if (/^\/contacts\/[^\/]+$/.test(normalizedEndpoint) && upperMethod === 'PUT') return 'contacts-update';
+  return 'generic';
+}
+
+/**
+ * Process request body based on endpoint-specific requirements.
+ * Different GHL API endpoints have different rules for fields like locationId and id.
+ * 
+ * - POST /contacts: Strip 'id', inject locationId (required for create)
+ * - POST /contacts/upsert: Strip 'id', inject locationId (required for upsert)
+ * - PUT /contacts/{id}: Strip both 'id' and 'locationId' (v2 API rejects them)
+ * - All other endpoints: Inject locationId if missing (existing behavior)
+ */
+function processBodyForEndpoint(
+  endpoint: string,
+  method: string,
+  body: Record<string, any> | undefined,
+  locationId: string | null
+): Record<string, any> | undefined {
+  if (!body) return undefined;
+  
+  const upperMethod = method.toUpperCase();
+  const normalizedEndpoint = endpoint.toLowerCase();
+  
+  // Clone the body to avoid mutating the original
+  const processedBody = { ...body };
+  
+  // Detect Contacts endpoint patterns
+  const isContactsCreate = normalizedEndpoint === '/contacts' && upperMethod === 'POST';
+  const isContactsUpsert = normalizedEndpoint === '/contacts/upsert' && upperMethod === 'POST';
+  const isContactsUpdate = /^\/contacts\/[^\/]+$/.test(normalizedEndpoint) && upperMethod === 'PUT';
+  
+  if (isContactsCreate || isContactsUpsert) {
+    // POST /contacts or POST /contacts/upsert:
+    // - Strip 'id' (not allowed on create/upsert)
+    // - Inject locationId (required)
+    delete processedBody.id;
+    if (locationId && !processedBody.locationId) {
+      processedBody.locationId = locationId;
+    }
+    console.log(`[ghl-api-proxy] Contacts create/upsert: stripped 'id', ensured locationId`);
+  } else if (isContactsUpdate) {
+    // PUT /contacts/{id}:
+    // - Strip 'id' (id is in URL path, not body)
+    // - Strip 'locationId' (v2 API rejects it on update)
+    delete processedBody.id;
+    delete processedBody.locationId;
+    console.log(`[ghl-api-proxy] Contacts update: stripped 'id' and 'locationId' from body`);
+  } else {
+    // All other endpoints: inject locationId if missing (existing behavior)
+    if (locationId && !processedBody.locationId) {
+      processedBody.locationId = locationId;
+    }
+  }
+  
+  return processedBody;
+}
+
 // Decrypt token using Web Crypto API
 async function decryptToken(encryptedData: string, key: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -283,20 +350,23 @@ Deno.serve(async (req) => {
     // Build GHL API URL with query parameters
     let ghlUrl = `${GHL_BASE_URL}${endpoint}`;
     
-    // Auto-fill locationId from installation if not provided
+    // Auto-fill locationId for query params (safe for all endpoints)
     const finalQuery = { ...query };
-    const finalBody = body ? { ...body } : undefined;
+    if (installation.location_id && finalQuery && !finalQuery.locationId) {
+      finalQuery.locationId = installation.location_id;
+    }
+
+    // Process body with endpoint-specific rules for Contacts API
+    const finalBody = processBodyForEndpoint(
+      endpoint,
+      method,
+      body,
+      installation.location_id
+    );
     
-    // Inject locationId where it might be needed
-    if (installation.location_id) {
-      // For query params
-      if (finalQuery && !finalQuery.locationId) {
-        finalQuery.locationId = installation.location_id;
-      }
-      // For body
-      if (finalBody && !finalBody.locationId) {
-        finalBody.locationId = installation.location_id;
-      }
+    console.log(`[ghl-api-proxy] Endpoint pattern: ${getEndpointPattern(endpoint, method)}`);
+    if (finalBody) {
+      console.log(`[ghl-api-proxy] Processed body keys: ${Object.keys(finalBody).join(', ')}`);
     }
 
     // Add query parameters to URL
