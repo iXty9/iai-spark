@@ -203,7 +203,7 @@ RLS policies use explicit key allowlists for each context rather than shared pol
 ## Known Limitations
 
 ### Current Constraints
-- Debug panel only available in development
+- Debug panel available in all environments via Dev Mode toggle (More Actions menu)
 - Local storage size limits for chat history
 - Browser compatibility for advanced features (Web Speech API)
 - GHL native n8n nodes not usable due to per-user scaling limitations
