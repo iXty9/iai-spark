@@ -48,6 +48,7 @@ function processBodyForEndpoint(
   const isContactsUpsert = normalizedEndpoint === '/contacts/upsert' && upperMethod === 'POST';
   const isContactsUpdate = /^\/contacts\/[^\/]+$/.test(normalizedEndpoint) && upperMethod === 'PUT';
   const isConversationsEndpoint = normalizedEndpoint.startsWith('/conversations');
+  const isInvoicesEndpoint = normalizedEndpoint.startsWith('/invoices');
   
   if (isContactsCreate || isContactsUpsert) {
     // POST /contacts or POST /contacts/upsert:
@@ -74,6 +75,13 @@ function processBodyForEndpoint(
     // GHL returns 400 Bad Request if locationId is in the body
     delete processedBody.locationId;
     console.log(`[ghl-api-proxy] Conversations endpoint: stripped 'locationId' from body (uses query string)`);
+  } else if (isInvoicesEndpoint) {
+    // Invoice endpoints: altId/altType go in query string only, NOT in body
+    // GHL returns 403 Forbidden if these are in the body
+    delete processedBody.altId;
+    delete processedBody.altType;
+    delete processedBody.locationId;
+    console.log(`[ghl-api-proxy] Invoice endpoint: stripped 'altId', 'altType', 'locationId' from body (uses query string)`);
   } else {
     // All other endpoints: ALWAYS use the correct locationId - don't trust caller's value
     if (locationId) {
