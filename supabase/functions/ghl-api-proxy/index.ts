@@ -444,7 +444,7 @@ Deno.serve(async (req) => {
       normalizedEndpoint,
       method,
       body,
-      usesAltIdPattern ? null : installation.location_id // Don't inject locationId in body for invoices
+      installation.location_id // Always pass location_id - function handles endpoint-specific logic
     );
     
     console.log(`[ghl-api-proxy] Endpoint pattern: ${getEndpointPattern(normalizedEndpoint, method)}${usesAltIdPattern ? ' (uses altId/altType)' : ''}`);
