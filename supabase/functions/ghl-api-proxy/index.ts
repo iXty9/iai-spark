@@ -387,10 +387,24 @@ Deno.serve(async (req) => {
       endpointForMatching.startsWith('/conversations')
     );
     
-    // Build final query - only inject locationId for endpoints that use it
+    // Build final query - inject correct location parameters based on endpoint pattern
     const finalQuery: Record<string, any> = { ...(query || {}) };
-    if (installation.location_id && needsLocationIdInQuery && finalQuery.locationId === undefined) {
-      finalQuery.locationId = installation.location_id;
+    
+    if (installation.location_id) {
+      if (usesAltIdPattern) {
+        // Invoice endpoints use altId/altType instead of locationId
+        // Auto-inject from user's installation to ensure correct location
+        if (finalQuery.altId === undefined) {
+          finalQuery.altId = installation.location_id;
+          console.log(`[ghl-api-proxy] Auto-injected altId for invoice endpoint: ${installation.location_id}`);
+        }
+        if (finalQuery.altType === undefined) {
+          finalQuery.altType = 'location';
+        }
+      } else if (needsLocationIdInQuery && finalQuery.locationId === undefined) {
+        // Other endpoints use locationId in query
+        finalQuery.locationId = installation.location_id;
+      }
     }
 
     // Process body with endpoint-specific rules for Contacts API
