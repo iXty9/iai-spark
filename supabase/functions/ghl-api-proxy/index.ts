@@ -43,10 +43,11 @@ function processBodyForEndpoint(
   // Clone the body to avoid mutating the original
   const processedBody = { ...body };
   
-  // Detect Contacts endpoint patterns
+  // Detect endpoint patterns
   const isContactsCreate = normalizedEndpoint === '/contacts' && upperMethod === 'POST';
   const isContactsUpsert = normalizedEndpoint === '/contacts/upsert' && upperMethod === 'POST';
   const isContactsUpdate = /^\/contacts\/[^\/]+$/.test(normalizedEndpoint) && upperMethod === 'PUT';
+  const isConversationsEndpoint = normalizedEndpoint.startsWith('/conversations');
   
   if (isContactsCreate || isContactsUpsert) {
     // POST /contacts or POST /contacts/upsert:
@@ -64,6 +65,11 @@ function processBodyForEndpoint(
     delete processedBody.id;
     delete processedBody.locationId;
     console.log(`[ghl-api-proxy] Contacts update: stripped 'id' and 'locationId' from body`);
+  } else if (isConversationsEndpoint) {
+    // Conversations API: locationId goes in query string only, NOT in body
+    // GHL returns 400 Bad Request if locationId is in the body
+    delete processedBody.locationId;
+    console.log(`[ghl-api-proxy] Conversations endpoint: stripped 'locationId' from body (uses query string)`);
   } else {
     // All other endpoints: inject locationId if missing (existing behavior)
     if (locationId && !processedBody.locationId) {
