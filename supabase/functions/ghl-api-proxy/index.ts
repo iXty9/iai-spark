@@ -76,12 +76,24 @@ function processBodyForEndpoint(
     delete processedBody.locationId;
     console.log(`[ghl-api-proxy] Conversations endpoint: stripped 'locationId' from body (uses query string)`);
   } else if (isInvoicesEndpoint) {
-    // Invoice endpoints: altId/altType go in query string only, NOT in body
-    // GHL returns 403 Forbidden if these are in the body
-    delete processedBody.altId;
-    delete processedBody.altType;
-    delete processedBody.locationId;
-    console.log(`[ghl-api-proxy] Invoice endpoint: stripped 'altId', 'altType', 'locationId' from body (uses query string)`);
+    // Invoice endpoints behavior depends on HTTP method:
+    // - GET: altId/altType in query string only, not in body
+    // - POST/PUT (record-payment, send, void): altId/altType REQUIRED in body
+    if (upperMethod === 'GET') {
+      delete processedBody.altId;
+      delete processedBody.altType;
+      delete processedBody.locationId;
+      console.log(`[ghl-api-proxy] Invoice GET endpoint: stripped altId/altType from body (uses query string)`);
+    } else {
+      // POST/PUT invoice endpoints need altId/altType in body - INJECT correct values
+      if (processedBody.altId && processedBody.altId !== locationId) {
+        console.log(`[ghl-api-proxy] Overriding incorrect altId in invoice body: ${processedBody.altId} -> ${locationId}`);
+      }
+      processedBody.altId = locationId;
+      processedBody.altType = 'location';
+      delete processedBody.locationId; // Not used for invoice endpoints
+      console.log(`[ghl-api-proxy] Invoice POST/PUT endpoint: injected altId=${locationId}, altType=location into body`);
+    }
   } else {
     // All other endpoints: ALWAYS use the correct locationId - don't trust caller's value
     if (locationId) {
