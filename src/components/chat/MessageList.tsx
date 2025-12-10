@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
 import { Message as MessageType } from '@/types/chat';
 import { Message } from './Message';
 import { TypingIndicator } from './TypingIndicator';
@@ -12,14 +12,20 @@ interface MessageListProps {
   isLoading: boolean;
   scrollRef?: React.RefObject<HTMLDivElement>;
   onAbortRequest?: () => void;
+  onScrollStateChange?: (hasScrolledUp: boolean) => void;
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ 
+export interface MessageListHandle {
+  scrollToBottom: () => void;
+}
+
+export const MessageList = forwardRef<MessageListHandle, MessageListProps>(({ 
   messages, 
   isLoading,
   scrollRef,
-  onAbortRequest
-}) => {
+  onAbortRequest,
+  onScrollStateChange
+}, ref) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [userHasScrolled, setUserHasScrolled] = useState(false);
@@ -27,6 +33,24 @@ export const MessageList: React.FC<MessageListProps> = ({
   const prevMessagesLengthRef = useRef(messages.length);
   const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
                      /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+  // Expose scrollToBottom method via ref
+  useImperativeHandle(ref, () => ({
+    scrollToBottom: () => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ 
+          behavior: isIOSSafari ? 'auto' : 'smooth',
+          block: 'end' 
+        });
+        setUserHasScrolled(false);
+      }
+    }
+  }), [isIOSSafari]);
+
+  // Notify parent when scroll state changes
+  useEffect(() => {
+    onScrollStateChange?.(userHasScrolled);
+  }, [userHasScrolled, onScrollStateChange]);
 
   // Restore scroll position whenever component mounts or messages are available
   useEffect(() => {
@@ -145,4 +169,6 @@ export const MessageList: React.FC<MessageListProps> = ({
       </div>
     </ScrollArea>
   );
-};
+});
+
+MessageList.displayName = 'MessageList';
