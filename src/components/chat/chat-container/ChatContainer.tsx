@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageList } from '../MessageList';
+import { MessageList, MessageListHandle } from '../MessageList';
 import { MessageInput } from '../MessageInput';
 import { Welcome } from '../Welcome';
 import { useChat } from '@/hooks/use-chat';
@@ -14,6 +14,8 @@ import { cn } from '@/lib/utils';
 import { logger } from '@/utils/logging';
 import { WebSocketStatusIndicator } from '@/components/websocket/WebSocketStatusIndicator';
 import { ProactiveMessage } from '@/contexts/WebSocketContext';
+import { Button } from '@/components/ui/button';
+import { ChevronDown } from 'lucide-react';
 
 interface ChatContainerProps {
   className?: string;
@@ -32,7 +34,6 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     setMessages,
     addMessage,
     handleAbortRequest,
-    // Remove the WebSocket returns from useChat since we'll handle them separately
   } = useChat();
   
   const { isIOSSafari } = useIOSSafari();
@@ -40,8 +41,10 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
   
   const [hasInteracted, setHasInteracted] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
+  const messageListRef = useRef<MessageListHandle>(null);
   
   // Add chat-active class to body when chat container is mounted
   useEffect(() => {
@@ -79,6 +82,15 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     setHasInteracted(true);
   };
 
+  const handleScrollStateChange = (hasScrolledUp: boolean) => {
+    setShowScrollButton(hasScrolledUp);
+  };
+
+  const handleScrollToBottom = () => {
+    messageListRef.current?.scrollToBottom();
+    setShowScrollButton(false);
+  };
+
   return (
     <ChatLayout
       onClearChat={handleClearChat}
@@ -102,10 +114,12 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
         ) : (
           <ScrollArea className="h-full py-4 px-2 bg-transparent messages-container">
             <MessageList
+              ref={messageListRef}
               messages={convertedMessages}
               isLoading={isLoading}
               scrollRef={scrollRef}
               onAbortRequest={handleAbortRequest}
+              onScrollStateChange={handleScrollStateChange}
             />
           </ScrollArea>
         )}
@@ -115,7 +129,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
         <div 
           ref={inputContainerRef}
           className={cn(
-            `p-4 border-t bg-background/80 backdrop-blur-sm ${isIOSSafari ? 'ios-input-container' : ''}`,
+            `p-4 border-t bg-background/80 backdrop-blur-sm relative ${isIOSSafari ? 'ios-input-container' : ''}`,
           )}
           id="message-input-container"
           style={{
@@ -128,6 +142,24 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
             '--chat-input-height': inputContainerRef.current?.offsetHeight ? `${inputContainerRef.current.offsetHeight}px` : '88px'
           } as React.CSSProperties}
         >
+          {/* Scroll to bottom button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleScrollToBottom}
+            className={cn(
+              "absolute left-1/2 -translate-x-1/2 -top-14 z-30",
+              "rounded-full transition-all duration-300",
+              "hover:bg-primary/10 hover:text-primary",
+              "shadow-md h-12 w-12 bg-background/80 backdrop-blur-sm",
+              "border border-border/20",
+              showScrollButton ? "opacity-100 scale-100" : "opacity-0 scale-90 pointer-events-none"
+            )}
+            aria-label="Scroll to bottom"
+          >
+            <ChevronDown className="h-6 w-6" />
+          </Button>
+          
           <MessageInput
             message={message}
             onChange={setMessage}
