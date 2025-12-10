@@ -45,6 +45,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
   const messageListRef = useRef<MessageListHandle>(null);
+  const isScrollingToBottomRef = useRef(false);
   
   // Add chat-active class to body when chat container is mounted
   useEffect(() => {
@@ -83,12 +84,21 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
   };
 
   const handleScrollStateChange = (hasScrolledUp: boolean) => {
-    setShowScrollButton(hasScrolledUp);
+    // Ignore scroll state changes during programmatic scroll animation
+    if (!isScrollingToBottomRef.current) {
+      setShowScrollButton(hasScrolledUp);
+    }
   };
 
   const handleScrollToBottom = () => {
-    messageListRef.current?.scrollToBottom();
+    isScrollingToBottomRef.current = true;
     setShowScrollButton(false);
+    messageListRef.current?.scrollToBottom();
+    
+    // Re-enable scroll state tracking after animation completes
+    setTimeout(() => {
+      isScrollingToBottomRef.current = false;
+    }, 500);
   };
 
   return (
