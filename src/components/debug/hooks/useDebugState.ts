@@ -26,14 +26,20 @@ const getInitialState = (): DebugState => {
       devicePixelRatio: window.devicePixelRatio, isIOSSafari: isIOS
     },
     performanceInfo: {
-      memory: performance?.memory ? {
-        usedJSHeapSize: performance.memory.usedJSHeapSize,
-        totalJSHeapSize: performance.memory.totalJSHeapSize
+      memory: (performance as any)?.memory ? {
+        usedJSHeapSize: (performance as any).memory.usedJSHeapSize,
+        totalJSHeapSize: (performance as any).memory.totalJSHeapSize
       } : undefined,
-      navigationTiming: performance.timing ? {
-        loadEventEnd: performance.timing.loadEventEnd,
-        domComplete: performance.timing.domComplete
-      } : undefined,
+      navigationTiming: (() => {
+        const navEntries = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
+        if (navEntries.length > 0) {
+          return {
+            loadEventEnd: navEntries[0].loadEventEnd,
+            domComplete: navEntries[0].domComplete
+          };
+        }
+        return undefined;
+      })(),
       fps: 0
     },
     domInfo: {
@@ -78,10 +84,13 @@ export const useDebugState = ({
   const addLog = (m: string) => setLogs(l => [{timestamp: nowISO(), message: m}, ...l].slice(0, MAX_LOG));
   const addConsole = (type: string, args: any[]) => {
     const msg = Array.from(args).map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-    setConsoleLogs(l => ([{timestamp:nowISO(),type, message:msg},...l]).slice(0,MAX_CONSOLE));
-    if (window.debugState) {
-      window.debugState.consoleLogs = consoleLogs;
-    }
+    setConsoleLogs(l => {
+      const newLogs = [{timestamp:nowISO(),type, message:msg},...l].slice(0,MAX_CONSOLE);
+      if (window.debugState) {
+        window.debugState.consoleLogs = newLogs;
+      }
+      return newLogs;
+    });
   };
 
   return {
