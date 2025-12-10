@@ -31,6 +31,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(({
   const [userHasScrolled, setUserHasScrolled] = useState(false);
   const [hasRestoredScroll, setHasRestoredScroll] = useState(false);
   const prevMessagesLengthRef = useRef(messages.length);
+  const skipScrollDetectionRef = useRef(false);
   const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
                      /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
@@ -38,11 +39,19 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(({
   useImperativeHandle(ref, () => ({
     scrollToBottom: () => {
       if (messagesEndRef.current) {
+        // Skip scroll detection during programmatic scroll to prevent flicker
+        skipScrollDetectionRef.current = true;
+        setUserHasScrolled(false);
+        
         messagesEndRef.current.scrollIntoView({ 
           behavior: isIOSSafari ? 'auto' : 'smooth',
           block: 'end' 
         });
-        setUserHasScrolled(false);
+        
+        // Re-enable scroll detection after animation completes
+        setTimeout(() => {
+          skipScrollDetectionRef.current = false;
+        }, 400);
       }
     }
   }), [isIOSSafari]);
@@ -89,7 +98,10 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(({
           saveScrollPosition(scrollTop);
         }
         
-        setUserHasScrolled(!isScrolledToBottom);
+        // Skip updating scroll state during programmatic scroll
+        if (!skipScrollDetectionRef.current) {
+          setUserHasScrolled(!isScrolledToBottom);
+        }
       }
     };
     
