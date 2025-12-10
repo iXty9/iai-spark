@@ -54,10 +54,14 @@ function processBodyForEndpoint(
     // - Strip 'id' (not allowed on create/upsert)
     // - Inject locationId (required)
     delete processedBody.id;
-    if (locationId && !processedBody.locationId) {
+    if (locationId) {
+      // ALWAYS use the correct locationId - don't trust caller's value
+      if (processedBody.locationId && processedBody.locationId !== locationId) {
+        console.log(`[ghl-api-proxy] Overriding incorrect locationId in body: ${processedBody.locationId} -> ${locationId}`);
+      }
       processedBody.locationId = locationId;
     }
-    console.log(`[ghl-api-proxy] Contacts create/upsert: stripped 'id', ensured locationId`);
+    console.log(`[ghl-api-proxy] Contacts create/upsert: stripped 'id', using locationId: ${locationId}`);
   } else if (isContactsUpdate) {
     // PUT /contacts/{id}:
     // - Strip 'id' (id is in URL path, not body)
@@ -71,8 +75,11 @@ function processBodyForEndpoint(
     delete processedBody.locationId;
     console.log(`[ghl-api-proxy] Conversations endpoint: stripped 'locationId' from body (uses query string)`);
   } else {
-    // All other endpoints: inject locationId if missing (existing behavior)
-    if (locationId && !processedBody.locationId) {
+    // All other endpoints: ALWAYS use the correct locationId - don't trust caller's value
+    if (locationId) {
+      if (processedBody.locationId && processedBody.locationId !== locationId) {
+        console.log(`[ghl-api-proxy] Overriding incorrect locationId in body: ${processedBody.locationId} -> ${locationId}`);
+      }
       processedBody.locationId = locationId;
     }
   }
@@ -401,8 +408,12 @@ Deno.serve(async (req) => {
         finalQuery.altId = installation.location_id;
         finalQuery.altType = 'location';
         console.log(`[ghl-api-proxy] Using altId from installation: ${installation.location_id}`);
-      } else if (needsLocationIdInQuery && finalQuery.locationId === undefined) {
+      } else if (needsLocationIdInQuery) {
         // Other endpoints use locationId in query
+        // ALWAYS use the user's installation location_id - don't trust caller's value
+        if (finalQuery.locationId && finalQuery.locationId !== installation.location_id) {
+          console.log(`[ghl-api-proxy] Overriding incorrect locationId in query: ${finalQuery.locationId} -> ${installation.location_id}`);
+        }
         finalQuery.locationId = installation.location_id;
       }
     }
