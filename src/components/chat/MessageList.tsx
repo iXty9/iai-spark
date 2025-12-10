@@ -38,14 +38,16 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(({
   // Expose scrollToBottom method via ref
   useImperativeHandle(ref, () => ({
     scrollToBottom: () => {
-      if (messagesEndRef.current) {
+      const scrollableElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+      if (scrollableElement) {
         // Skip scroll detection during programmatic scroll to prevent flicker
         skipScrollDetectionRef.current = true;
         setUserHasScrolled(false);
         
-        messagesEndRef.current.scrollIntoView({ 
-          behavior: isIOSSafari ? 'auto' : 'smooth',
-          block: 'end' 
+        // Scroll to absolute bottom using direct scroll manipulation
+        scrollableElement.scrollTo({
+          top: scrollableElement.scrollHeight,
+          behavior: isIOSSafari ? 'auto' : 'smooth'
         });
         
         // Re-enable scroll detection after animation completes
