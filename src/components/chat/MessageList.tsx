@@ -148,7 +148,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(({
   return (
     <ScrollArea 
       ref={scrollAreaRef}
-      className="flex-1 p-4 overflow-y-auto w-full h-full bg-transparent touch-pan-y"
+      className="flex-1 py-4 px-2 overflow-y-auto w-full h-full bg-transparent touch-pan-y messages-container"
       type="always"
       style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
     >

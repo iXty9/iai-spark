@@ -112,16 +112,14 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
             onProactiveTransition={handleProactiveTransition}
           />
         ) : (
-          <ScrollArea className="h-full py-4 px-2 bg-transparent messages-container">
-            <MessageList
-              ref={messageListRef}
-              messages={convertedMessages}
-              isLoading={isLoading}
-              scrollRef={scrollRef}
-              onAbortRequest={handleAbortRequest}
-              onScrollStateChange={handleScrollStateChange}
-            />
-          </ScrollArea>
+          <MessageList
+            ref={messageListRef}
+            messages={convertedMessages}
+            isLoading={isLoading}
+            scrollRef={scrollRef}
+            onAbortRequest={handleAbortRequest}
+            onScrollStateChange={handleScrollStateChange}
+          />
         )}
       </div>
       
