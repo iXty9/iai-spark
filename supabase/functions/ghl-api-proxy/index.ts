@@ -393,14 +393,14 @@ Deno.serve(async (req) => {
     if (installation.location_id) {
       if (usesAltIdPattern) {
         // Invoice endpoints use altId/altType instead of locationId
-        // Auto-inject from user's installation to ensure correct location
-        if (finalQuery.altId === undefined) {
-          finalQuery.altId = installation.location_id;
-          console.log(`[ghl-api-proxy] Auto-injected altId for invoice endpoint: ${installation.location_id}`);
+        // ALWAYS use the user's installation location_id - don't trust caller's value
+        // This prevents AI agents from using stale/wrong altId values
+        if (finalQuery.altId && finalQuery.altId !== installation.location_id) {
+          console.log(`[ghl-api-proxy] Overriding incorrect altId: ${finalQuery.altId} -> ${installation.location_id}`);
         }
-        if (finalQuery.altType === undefined) {
-          finalQuery.altType = 'location';
-        }
+        finalQuery.altId = installation.location_id;
+        finalQuery.altType = 'location';
+        console.log(`[ghl-api-proxy] Using altId from installation: ${installation.location_id}`);
       } else if (needsLocationIdInQuery && finalQuery.locationId === undefined) {
         // Other endpoints use locationId in query
         finalQuery.locationId = installation.location_id;
