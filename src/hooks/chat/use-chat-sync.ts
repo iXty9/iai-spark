@@ -9,6 +9,7 @@ interface UseChatSyncOptions {
   userId: string | null;
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  setIsLoading: (loading: boolean) => void;
   isBulkOperation: React.MutableRefObject<boolean>;
 }
 
@@ -20,6 +21,7 @@ export const useChatSync = ({
   userId,
   messages,
   setMessages,
+  setIsLoading,
   isBulkOperation
 }: UseChatSyncOptions) => {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -102,6 +104,19 @@ export const useChatSync = ({
     setMessages([]);
   }, [userId, setMessages]);
   
+  // Handle broadcast "typing status" event from other instances
+  const handleTypingBroadcast = useCallback((payload: { type: string; event: string; payload: { userId: string; isTyping: boolean } }) => {
+    if (payload.payload?.userId !== userId) return;
+    
+    logger.debug('Received typing status broadcast from another instance', { 
+      userId, 
+      isTyping: payload.payload.isTyping 
+    }, { module: 'chat-sync' });
+    
+    // Update local loading state
+    setIsLoading(payload.payload.isTyping);
+  }, [userId, setIsLoading]);
+  
   // Set up realtime subscription
   useEffect(() => {
     if (!userId) {
@@ -140,12 +155,13 @@ export const useChatSync = ({
     
     channelRef.current = channel;
     
-    // Broadcast channel for clear chat events
+    // Broadcast channel for clear chat and typing status events
     const broadcastChannel = supabase
-      .channel(`chat-clear-${userId}`)
+      .channel(`chat-broadcast-${userId}`)
       .on('broadcast', { event: 'clear-chat' }, handleClearBroadcast)
+      .on('broadcast', { event: 'typing-status' }, handleTypingBroadcast)
       .subscribe((status) => {
-        logger.debug('Chat clear broadcast subscription status', { status }, { module: 'chat-sync' });
+        logger.debug('Chat broadcast subscription status', { status }, { module: 'chat-sync' });
       });
     
     broadcastChannelRef.current = broadcastChannel;
@@ -161,14 +177,14 @@ export const useChatSync = ({
         broadcastChannelRef.current = null;
       }
     };
-  }, [userId, handleInsert, handleDelete, handleClearBroadcast]);
+  }, [userId, handleInsert, handleDelete, handleClearBroadcast, handleTypingBroadcast]);
   
   return null;
 };
 
 // Export function to broadcast clear chat event
 export const broadcastClearChat = async (userId: string) => {
-  const channel = supabase.channel(`chat-clear-${userId}`);
+  const channel = supabase.channel(`chat-broadcast-${userId}`);
   await channel.subscribe();
   await channel.send({
     type: 'broadcast',
@@ -178,4 +194,18 @@ export const broadcastClearChat = async (userId: string) => {
   // Clean up the temporary channel
   await supabase.removeChannel(channel);
   logger.info('Broadcasted clear chat event', { userId }, { module: 'chat-sync' });
+};
+
+// Export function to broadcast typing status
+export const broadcastTypingStatus = async (userId: string, isTyping: boolean) => {
+  const channel = supabase.channel(`chat-broadcast-${userId}`);
+  await channel.subscribe();
+  await channel.send({
+    type: 'broadcast',
+    event: 'typing-status',
+    payload: { userId, isTyping }
+  });
+  // Clean up the temporary channel
+  await supabase.removeChannel(channel);
+  logger.debug('Broadcasted typing status', { userId, isTyping }, { module: 'chat-sync' });
 };
