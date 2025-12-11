@@ -54,7 +54,7 @@ serve(async (req) => {
     }
 
     // Parse request body
-    const { url, method, payload, timeout = 10000, headers: customHeaders } = await req.json();
+    const { url, method, payload, timeout = 120000, headers: customHeaders } = await req.json();
 
     if (!url) {
       return new Response(
@@ -114,7 +114,7 @@ serve(async (req) => {
       if (actualMethod === 'POST') {
         try {
           const text = await response.text();
-          responseBody = text.substring(0, 1000); // Limit response size
+          responseBody = text.substring(0, 50000); // Increased limit for AI responses
         } catch {
           responseBody = null;
         }
