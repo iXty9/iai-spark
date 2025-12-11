@@ -13,6 +13,7 @@ interface MessageListProps {
   scrollRef?: React.RefObject<HTMLDivElement>;
   onAbortRequest?: () => void;
   onScrollStateChange?: (hasScrolledUp: boolean) => void;
+  onRecall?: (datetime: string) => Promise<boolean>;
 }
 
 export interface MessageListHandle {
@@ -24,7 +25,8 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(({
   isLoading,
   scrollRef,
   onAbortRequest,
-  onScrollStateChange
+  onScrollStateChange,
+  onRecall
 }, ref) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -173,7 +175,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(({
         aria-label="Chat messages"
       >
         {messages.map((message) => (
-          <Message key={message.id} message={message} />
+          <Message key={message.id} message={message} onRecall={onRecall} />
         ))}
         
         <TypingIndicator isVisible={isLoading} onAbort={onAbortRequest} />

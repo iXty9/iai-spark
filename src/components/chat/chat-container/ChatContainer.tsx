@@ -1,9 +1,10 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { MessageList, MessageListHandle } from '../MessageList';
 import { MessageInput } from '../MessageInput';
 import { Welcome } from '../Welcome';
 import { useChat } from '@/hooks/use-chat';
+import { useChatRecall } from '@/hooks/chat/use-chat-recall';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatLayout } from './ChatLayout';
 import { ChatDebugState } from './ChatDebugState';
@@ -16,6 +17,7 @@ import { WebSocketStatusIndicator } from '@/components/websocket/WebSocketStatus
 import { ProactiveMessage } from '@/contexts/WebSocketContext';
 import { Button } from '@/components/ui/button';
 import { ChevronDown } from 'lucide-react';
+import { RecallHistoryViewer } from '../recall/RecallHistoryViewer';
 
 interface ChatContainerProps {
   className?: string;
@@ -35,6 +37,14 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     addMessage,
     handleAbortRequest,
   } = useChat();
+  
+  const {
+    recallState,
+    activateRecall,
+    selectContextMessage,
+    cancelRecall,
+    clearContext,
+  } = useChatRecall();
   
   const { isIOSSafari } = useIOSSafari();
   const { user, isLoading: authLoading } = useAuth();
@@ -102,6 +112,30 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     }, 500);
   };
 
+  // Handle chat recall activation
+  const handleRecall = useCallback(async (datetime: string): Promise<boolean> => {
+    if (!user?.id) {
+      logger.warn('Cannot activate recall: user not authenticated');
+      return false;
+    }
+    return activateRecall(user.id, datetime);
+  }, [user?.id, activateRecall]);
+
+  // Handle selecting a message as context root
+  const handleSelectContextMessage = useCallback((message: Message) => {
+    selectContextMessage(message);
+    // Add system message to indicate context is loaded
+    const contextMessage: Message = {
+      id: crypto.randomUUID(),
+      content: `Using context from ${new Date(message.timestamp).toLocaleString()}`,
+      sender: 'ai',
+      timestamp: new Date().toISOString(),
+      source: 'proactive',
+      metadata: { isSystemMessage: true, contextTimestamp: message.timestamp }
+    };
+    addMessage(contextMessage);
+  }, [selectContextMessage, addMessage]);
+
   return (
     <ChatLayout
       onClearChat={handleClearChat}
@@ -116,7 +150,15 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
           <WebSocketStatusIndicator />
         </div>
         
-        {convertedMessages.length === 0 ? (
+        {recallState.isRecallMode ? (
+          <RecallHistoryViewer
+            messages={recallState.recallMessages}
+            selectedIndex={recallState.selectedIndex}
+            selectedDatetime={recallState.selectedDatetime || new Date().toISOString()}
+            onSelectMessage={handleSelectContextMessage}
+            onCancel={cancelRecall}
+          />
+        ) : convertedMessages.length === 0 ? (
           <Welcome 
             onStartChat={startChat} 
             onImportChat={handleImportChat}
@@ -130,11 +172,12 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
             scrollRef={scrollRef}
             onAbortRequest={handleAbortRequest}
             onScrollStateChange={handleScrollStateChange}
+            onRecall={handleRecall}
           />
         )}
       </div>
       
-      {convertedMessages.length > 0 && (
+      {convertedMessages.length > 0 && !recallState.isRecallMode && (
         <div 
           ref={inputContainerRef}
           className={cn(

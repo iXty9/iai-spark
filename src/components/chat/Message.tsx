@@ -15,9 +15,10 @@ import { extractAttachmentsFromText, downloadAttachment } from '@/utils/attachme
 interface MessageProps {
   message: ChatMessage;
   onRetry?: (message: ChatMessage) => void;
+  onRecall?: (datetime: string) => Promise<boolean>;
 }
 
-export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
+export const Message: React.FC<MessageProps> = ({ message, onRetry, onRecall }) => {
   const isUser = message.sender === 'user';
   const isProactive = message.source === 'proactive';
   const { user, profile } = useAuth();
@@ -143,6 +144,7 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry }) => {
         open={chatRecallOpen}
         onOpenChange={setChatRecallOpen}
         initialTimestamp={message.timestamp}
+        onRecall={onRecall || (async () => false)}
       />
     </TooltipProvider>
   );
