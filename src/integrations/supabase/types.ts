@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      active_chat_messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          message_id: string
+          metadata: Json | null
+          sender: string
+          source: string | null
+          timestamp: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          message_id: string
+          metadata?: Json | null
+          sender: string
+          source?: string | null
+          timestamp: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          message_id?: string
+          metadata?: Json | null
+          sender?: string
+          source?: string | null
+          timestamp?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           id: string
