@@ -10,6 +10,7 @@ import { logger } from '@/utils/logging';
 interface MessageListProps {
   messages: MessageType[];
   isLoading: boolean;
+  isRecallLoading?: boolean;
   scrollRef?: React.RefObject<HTMLDivElement>;
   onAbortRequest?: () => void;
   onScrollStateChange?: (hasScrolledUp: boolean) => void;
@@ -23,6 +24,7 @@ export interface MessageListHandle {
 export const MessageList = forwardRef<MessageListHandle, MessageListProps>(({ 
   messages, 
   isLoading,
+  isRecallLoading,
   scrollRef,
   onAbortRequest,
   onScrollStateChange,
@@ -175,7 +177,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(({
         aria-label="Chat messages"
       >
         {messages.map((message) => (
-          <Message key={message.id} message={message} onRecall={onRecall} />
+          <Message key={message.id} message={message} onRecall={onRecall} isRecallLoading={isRecallLoading} />
         ))}
         
         <TypingIndicator isVisible={isLoading} onAbort={onAbortRequest} />

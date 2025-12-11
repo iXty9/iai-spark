@@ -169,6 +169,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
             ref={messageListRef}
             messages={convertedMessages}
             isLoading={isLoading}
+            isRecallLoading={recallState.isLoading}
             scrollRef={scrollRef}
             onAbortRequest={handleAbortRequest}
             onScrollStateChange={handleScrollStateChange}
