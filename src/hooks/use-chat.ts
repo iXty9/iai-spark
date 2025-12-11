@@ -45,6 +45,7 @@ export const useChat = () => {
     userId: user?.id || null,
     messages,
     setMessages,
+    setIsLoading,
     isBulkOperation
   });
 
@@ -80,6 +81,7 @@ export const useChat = () => {
     handleExportChat,
     startChat
   } = useChatActions({
+    userId: user?.id || null,
     message,
     setMessage,
     isLoading,

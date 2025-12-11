@@ -5,8 +5,10 @@ import { exportChat } from '@/services/export/exportService';
 import { toast } from '@/components/ui/sonner';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { v4 as uuidv4 } from 'uuid';
+import { broadcastTypingStatus } from '@/hooks/chat/use-chat-sync';
 
 interface UseChatActionsProps {
+  userId: string | null;
   message: string;
   setMessage: (message: string) => void;
   isLoading: boolean;
@@ -18,6 +20,7 @@ interface UseChatActionsProps {
 }
 
 export const useChatActions = ({
+  userId,
   message,
   setMessage,
   isLoading,
@@ -49,6 +52,13 @@ export const useChatActions = ({
     addMessage(userMessage);
     setMessage('');
     setIsLoading(true);
+    
+    // Broadcast typing status to other instances (authenticated users only)
+    if (userId) {
+      broadcastTypingStatus(userId, true).catch(err => 
+        console.error('Failed to broadcast typing status:', err)
+      );
+    }
 
     try {
       // Send to API
@@ -58,8 +68,15 @@ export const useChatActions = ({
     } finally {
       // Always ensure loading is cleared
       setIsLoading(false);
+      
+      // Broadcast typing stopped to other instances
+      if (userId) {
+        broadcastTypingStatus(userId, false).catch(err => 
+          console.error('Failed to broadcast typing status:', err)
+        );
+      }
     }
-  }, [message, isLoading, addMessage, setMessage, setIsLoading, sendMessageToApi]);
+  }, [userId, message, isLoading, addMessage, setMessage, setIsLoading, sendMessageToApi]);
 
   const handleClearChat = useCallback(() => {
     clearMessages();
@@ -79,6 +96,13 @@ export const useChatActions = ({
     // Add user message
     addMessage(userMessage);
     setIsLoading(true);
+    
+    // Broadcast typing status to other instances (authenticated users only)
+    if (userId) {
+      broadcastTypingStatus(userId, true).catch(err => 
+        console.error('Failed to broadcast typing status:', err)
+      );
+    }
 
     try {
       // Send to API
@@ -88,8 +112,15 @@ export const useChatActions = ({
     } finally {
       // Always ensure loading is cleared
       setIsLoading(false);
+      
+      // Broadcast typing stopped to other instances
+      if (userId) {
+        broadcastTypingStatus(userId, false).catch(err => 
+          console.error('Failed to broadcast typing status:', err)
+        );
+      }
     }
-  }, [addMessage, setIsLoading, sendMessageToApi]);
+  }, [userId, addMessage, setIsLoading, sendMessageToApi]);
 
   const handleExportChat = useCallback((messages: Message[]) => {
     if (messages.length === 0) {
