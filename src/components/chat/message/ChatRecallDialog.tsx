@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ChatRecallDialogProps {
   open: boolean;
@@ -26,7 +25,6 @@ export const ChatRecallDialog: React.FC<ChatRecallDialogProps> = ({
   const [selectedTime, setSelectedTime] = useState<string>(
     format(initialDate, 'HH:mm')
   );
-  const isMobile = useIsMobile();
 
   const handleRecall = () => {
     console.log('Chat Recall activated:', {
@@ -52,13 +50,10 @@ export const ChatRecallDialog: React.FC<ChatRecallDialogProps> = ({
         {/* Dialog content - positioned higher on screen */}
         <DialogPrimitive.Content
           className={cn(
-            "fixed left-[50%] z-50 translate-x-[-50%]",
+            "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2",
             "bg-background/90 backdrop-blur-md border border-border/50 shadow-2xl",
-            "w-[calc(100vw-2rem)] max-w-[320px]",
-            "overflow-hidden",
-            isMobile 
-              ? "top-[50%] translate-y-[-50%] rounded-2xl px-4 py-5" 
-              : "top-[40%] translate-y-[-50%] rounded-xl px-5 py-5"
+            "w-[calc(100vw-2rem)] max-w-[320px] md:max-w-[380px] lg:max-w-[420px]",
+            "overflow-hidden rounded-2xl px-4 py-5 md:rounded-xl md:px-5 md:py-6"
           )}
         >
           {/* Close button */}
@@ -72,10 +67,7 @@ export const ChatRecallDialog: React.FC<ChatRecallDialogProps> = ({
 
           {/* Header */}
           <div className="text-center pb-3">
-            <DialogPrimitive.Title className={cn(
-              "flex items-center gap-2 justify-center font-semibold",
-              isMobile ? "text-lg" : "text-lg"
-            )}>
+            <DialogPrimitive.Title className="flex items-center gap-2 justify-center font-semibold text-lg">
               <History className="h-5 w-5 text-primary" />
               Chat Recall
             </DialogPrimitive.Title>
@@ -134,26 +126,17 @@ export const ChatRecallDialog: React.FC<ChatRecallDialogProps> = ({
           </div>
 
           {/* Footer buttons */}
-          <div className={cn(
-            "pt-4 gap-2 flex",
-            isMobile ? "flex-col" : "flex-row justify-center"
-          )}>
+          <div className="pt-4 gap-2 flex flex-col md:flex-row md:justify-center">
             <Button 
               variant="outline" 
               onClick={handleCancel}
-              className={cn(
-                "border-border/50",
-                isMobile ? "w-full h-10" : "min-w-[80px]"
-              )}
+              className="border-border/50 w-full md:w-auto md:min-w-[100px]"
             >
               Cancel
             </Button>
             <Button 
               onClick={handleRecall}
-              className={cn(
-                "bg-primary hover:bg-primary/90",
-                isMobile ? "w-full h-10" : "min-w-[80px]"
-              )}
+              className="bg-primary hover:bg-primary/90 w-full md:w-auto md:min-w-[100px]"
             >
               Recall
             </Button>
