@@ -33,7 +33,8 @@ export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
     { key: 'debug_webhook_url', name: 'Debug Webhook' },
     { key: 'thumbs_up_webhook_url', name: 'Thumbs Up Webhook' },
     { key: 'thumbs_down_webhook_url', name: 'Thumbs Down Webhook' },
-    { key: 'user_signup_webhook_url', name: 'User Signup Webhook' }
+    { key: 'user_signup_webhook_url', name: 'User Signup Webhook' },
+    { key: 'chat_recall_webhook_url', name: 'Chat Recall Webhook' }
   ];
 
   // Sample payloads for each webhook type
@@ -123,6 +124,20 @@ export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
             test_signup: true,
             first_name: 'John',
             last_name: 'Doe'
+          },
+          metadata: {
+            test: true,
+            source: "admin_panel"
+          }
+        };
+      case 'chat_recall_webhook_url':
+        return {
+          user_id: 'test-user-123',
+          selected_datetime: baseTime,
+          enabled: true,
+          recall: {
+            enabled: true,
+            selected_datetime: baseTime
           },
           metadata: {
             test: true,
