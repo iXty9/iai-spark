@@ -2,6 +2,7 @@
 
 **The deploy-everywhere, fully customizable AI agent user interface (UI) – designed by IXTY9 LLC and built by the [iXty9 Creative Community](https://ixty9.com/community)**
 
+
 ## What is iai-spark?
 
 **iai-spark** is a feature-rich, enterprise-class web application for AI-powered agents and automation experiences. It provides a mobile-first design, highly customizable user interface (UI), and an admin dashboard for powering anything AI.
@@ -12,14 +13,14 @@ Designed for flexibility, speed, and brandability, iai-spark is the _"face"_ and
 
 ## Key Features
 
-### Chat Interface
+### 🗨️ Chat Interface
 - **Beautiful, Responsive UI:** Modern React 18, TypeScript, Tailwind CSS, and shadcn/ui
 - **Voice Input:** Real-time transcription with spoken punctuation conversion ("question mark" → "?")
 - **File Attachments:** Image and document uploads with AI vision support, clipboard paste, and optimization
 - **Session Management:** Persistent per-user chat memory for authenticated users, temporary sessions for anonymous users
 - **Location Context:** Optional location data included in chat payloads for context-aware AI responses
 
-### Admin Dashboard
+### ⚙️ Admin Dashboard
 - **User Management:** Full CRUD operations, role-based permissions, search, and pagination
 - **Admin Profile Editing:** View and edit any user's profile with audit trail
 - **Webhook Configuration:** Global and per-user custom webhook URLs with authentication headers
@@ -27,24 +28,24 @@ Designed for flexibility, speed, and brandability, iai-spark is the _"face"_ and
 - **HighLevel Integration:** OAuth connection management, API proxy configuration, and installation overview
 - **PWA Settings:** Service worker management, cache controls, and force refresh capabilities
 
-### Authentication & Security
+### 🔐 Authentication & Security
 - **Multi-Context RLS:** Four-tier Row Level Security (application, anonymous, authenticated, admin)
 - **Password Reset Flow:** Complete email-based password recovery
 - **Role-Based Access:** Admin and user roles with secure edge function routing
 - **Context-Aware Caching:** Services track authentication context to prevent cache poisoning
 
-### Integrations
+### 🔗 Integrations
 - **HighLevel (GHL):** OAuth integration with automatic token refresh, API proxy for n8n workflows
 - **n8n Webhooks:** Configurable webhook endpoints with authentication headers
 - **Per-User Webhooks:** Individual users can have dedicated n8n workflows
 
-### Progressive Web App (PWA)
+### 🌐 Progressive Web App (PWA)
 - **Installable:** Add to home screen on mobile and desktop
 - **Offline Support:** Network-first caching with offline fallback
 - **Auto Updates:** Build hash injection ensures users always get latest version
 - **Push Notifications:** Browser notification support with notification center
 
-### Customization
+### 🎨 Customization
 - **Theme System:** User-customizable colors for chat bubbles, name tags, and markup elements
 - **Background Images:** Custom backgrounds with opacity and auto-dim controls
 - **Sound Settings:** Configurable notification and message sounds
