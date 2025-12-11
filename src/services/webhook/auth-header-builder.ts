@@ -11,7 +11,8 @@ export type WebhookType =
   | 'debug_webhook_url' 
   | 'thumbs_up_webhook_url' 
   | 'thumbs_down_webhook_url' 
-  | 'user_signup_webhook_url';
+  | 'user_signup_webhook_url'
+  | 'chat_recall_webhook_url';
 
 /**
  * Get authentication headers for a specific webhook type
