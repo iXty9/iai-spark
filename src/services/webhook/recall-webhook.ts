@@ -129,8 +129,17 @@ export async function sendRecallRequest(
       responseData = {};
     }
     
+    // Handle both direct response format and n8n output wrapper format
+    const rawMessages = responseData.messages || responseData.output?.messages || [];
+    const selectedIndex = responseData.selected_index ?? responseData.output?.selected_index;
+
+    logger.info('[RecallWebhook] Parsing response', { 
+      format: responseData.output ? 'n8n-wrapped' : 'direct',
+      rawMessageCount: rawMessages.length 
+    });
+
     // Transform response to match our Message type
-    const messages: Message[] = (responseData.messages || []).map((msg: any) => ({
+    const messages: Message[] = rawMessages.map((msg: any) => ({
       id: msg.id || msg.message_id || crypto.randomUUID(),
       content: msg.content || msg.message || '',
       sender: msg.sender || msg.role || 'ai',
@@ -143,7 +152,7 @@ export async function sendRecallRequest(
     return {
       data: {
         messages,
-        selected_index: responseData.selected_index ?? Math.floor(messages.length / 2),
+        selected_index: selectedIndex ?? Math.floor(messages.length / 2),
       },
       error: null
     };
