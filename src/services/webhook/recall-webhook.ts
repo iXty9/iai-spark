@@ -96,7 +96,7 @@ export async function sendRecallRequest(
         method: 'POST',
         payload,
         headers: authHeaders,
-        timeout: 30000
+        timeout: 120000 // 2 minutes for AI agent processing
       }
     });
 
