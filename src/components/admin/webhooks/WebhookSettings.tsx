@@ -13,6 +13,7 @@ export function WebhookSettings() {
     thumbs_up_webhook_url: '',
     thumbs_down_webhook_url: '',
     user_signup_webhook_url: '',
+    clear_context_webhook_url: '',
     webhook_auth_header_name: 'X-Webhook-Token',
     webhook_auth_header_value: '',
     authenticated_webhook_url_use_auth: false,
@@ -20,7 +21,8 @@ export function WebhookSettings() {
     debug_webhook_url_use_auth: false,
     thumbs_up_webhook_url_use_auth: false,
     thumbs_down_webhook_url_use_auth: false,
-    user_signup_webhook_url_use_auth: false
+    user_signup_webhook_url_use_auth: false,
+    clear_context_webhook_url_use_auth: false
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -40,6 +42,7 @@ export function WebhookSettings() {
         thumbs_up_webhook_url: settings.thumbs_up_webhook_url || '',
         thumbs_down_webhook_url: settings.thumbs_down_webhook_url || '',
         user_signup_webhook_url: settings.user_signup_webhook_url || '',
+        clear_context_webhook_url: settings.clear_context_webhook_url || '',
         webhook_auth_header_name: settings.webhook_auth_header_name || 'X-Webhook-Token',
         webhook_auth_header_value: settings.webhook_auth_header_value || '',
         authenticated_webhook_url_use_auth: settings.authenticated_webhook_url_use_auth === 'true',
@@ -47,7 +50,8 @@ export function WebhookSettings() {
         debug_webhook_url_use_auth: settings.debug_webhook_url_use_auth === 'true',
         thumbs_up_webhook_url_use_auth: settings.thumbs_up_webhook_url_use_auth === 'true',
         thumbs_down_webhook_url_use_auth: settings.thumbs_down_webhook_url_use_auth === 'true',
-        user_signup_webhook_url_use_auth: settings.user_signup_webhook_url_use_auth === 'true'
+        user_signup_webhook_url_use_auth: settings.user_signup_webhook_url_use_auth === 'true',
+        clear_context_webhook_url_use_auth: settings.clear_context_webhook_url_use_auth === 'true'
       });
     } catch (error) {
       console.error('Error loading webhook settings:', error);

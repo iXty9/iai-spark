@@ -2,6 +2,7 @@
 import { Message } from '@/types/chat';
 import { toast } from 'sonner';
 import { logger } from '@/utils/logging';
+import { clearActiveMessages, bulkInsertActiveMessages } from '@/services/chat/active-chat-service';
 
 /**
  * Custom JSON reviver function to handle serialized Date objects
@@ -126,7 +127,11 @@ const detectImportFormat = (data: any): 'enhanced' | 'legacy_with_metadata' | 'l
   throw new Error('Unknown import format');
 };
 
-export const importChat = (file: File): Promise<Message[]> => {
+/**
+ * Parse and validate messages from imported file
+ * Returns only the last 100 messages
+ */
+const parseImportedMessages = (file: File): Promise<Message[]> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     
@@ -226,19 +231,20 @@ export const importChat = (file: File): Promise<Message[]> => {
           throw new Error('No valid messages found in chat file');
         }
 
-        // Show success toast with format information
-        toast.success(`Successfully imported ${validMessages.length} messages (${formatDescription})`);
+        // Take only the last 100 messages
+        const limitedMessages = validMessages.slice(-100);
         
         console.log('Import successful:', {
           format,
-          messageCount: validMessages.length,
-          hasTokenInfo: validMessages.filter(m => m.tokenInfo).length,
-          hasRawRequest: validMessages.filter(m => m.rawRequest).length,
-          hasRawResponse: validMessages.filter(m => m.rawResponse).length,
-          hasThreadId: validMessages.filter(m => m.threadId).length
+          originalCount: validMessages.length,
+          limitedCount: limitedMessages.length,
+          hasTokenInfo: limitedMessages.filter(m => m.tokenInfo).length,
+          hasRawRequest: limitedMessages.filter(m => m.rawRequest).length,
+          hasRawResponse: limitedMessages.filter(m => m.rawResponse).length,
+          hasThreadId: limitedMessages.filter(m => m.threadId).length
         });
         
-        resolve(validMessages);
+        resolve(limitedMessages);
       } catch (error) {
         console.error('Failed to import chat file:', error);
         toast.error('Failed to import chat file');
@@ -253,4 +259,61 @@ export const importChat = (file: File): Promise<Message[]> => {
     
     reader.readAsText(file);
   });
+};
+
+/**
+ * Import chat messages (anonymous users - localStorage only)
+ */
+export const importChat = (file: File): Promise<Message[]> => {
+  return parseImportedMessages(file).then(messages => {
+    toast.success(`Successfully imported ${messages.length} messages`);
+    return messages;
+  });
+};
+
+/**
+ * Import chat messages with Supabase sync (authenticated users)
+ * Clears existing messages and replaces with imported ones
+ */
+export const importChatWithSync = async (
+  file: File,
+  userId: string,
+  isBulkOperation: React.MutableRefObject<boolean>,
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>
+): Promise<Message[]> => {
+  try {
+    // Set bulk operation flag to suppress realtime events during import
+    isBulkOperation.current = true;
+    
+    // Parse the imported messages
+    const messages = await parseImportedMessages(file);
+    
+    // Clear existing messages from Supabase
+    await clearActiveMessages(userId);
+    
+    // Set local state immediately
+    setMessages(messages);
+    
+    // Bulk insert to Supabase (sanitized, only last 100)
+    const success = await bulkInsertActiveMessages(userId, messages);
+    
+    if (success) {
+      toast.success(`Successfully imported ${messages.length} messages`);
+    } else {
+      toast.warning(`Imported ${messages.length} messages locally, but sync failed`);
+    }
+    
+    logger.info('Chat import with sync completed', {
+      userId,
+      messageCount: messages.length,
+      syncSuccess: success
+    }, { module: 'import-service' });
+    
+    return messages;
+  } finally {
+    // Reset bulk operation flag after a short delay to let realtime events settle
+    setTimeout(() => {
+      isBulkOperation.current = false;
+    }, 500);
+  }
 };

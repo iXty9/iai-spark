@@ -1,45 +1,87 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import { Message } from '@/types/chat';
 import { toast } from '@/components/ui/sonner';
 import { emitDebugEvent } from '@/utils/debug-events';
 import { saveChatHistory, loadChatHistory, clearChatHistory } from '@/services/storage/chatPersistenceService';
+import { fetchActiveMessages, insertActiveMessage, clearActiveMessages } from '@/services/chat/active-chat-service';
+import { sendClearContextWebhook } from '@/services/webhook/clear-context-webhook';
 import { logger } from '@/utils/logging';
 
-export const useMessageState = () => {
+interface UseMessageStateOptions {
+  userId?: string | null;
+}
+
+export const useMessageState = (options: UseMessageStateOptions = {}) => {
+  const { userId } = options;
+  const isAuthenticated = !!userId;
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const initializing = useRef(false);
   const hasInitialized = useRef(false);
+  const isBulkOperation = useRef(false);
   
-  // Load saved messages on initial render only
+  // Load saved messages on initial render
   useEffect(() => {
-    if (!hasInitialized.current) {
-      const savedMessages = loadChatHistory();
-      if (savedMessages.length > 0) {
-        setMessages(savedMessages);
-        logger.debug('Loaded messages from localStorage', { count: savedMessages.length }, { module: 'message-state' });
-        
-        emitDebugEvent({
-          lastAction: 'Restored chat history from localStorage',
-          messagesCount: savedMessages.length,
-          screen: 'Chat Screen'
-        });
+    if (hasInitialized.current) return;
+    
+    const loadMessages = async () => {
+      if (isAuthenticated && userId) {
+        // Authenticated: load from Supabase
+        try {
+          const savedMessages = await fetchActiveMessages(userId);
+          if (savedMessages.length > 0) {
+            setMessages(savedMessages);
+            logger.debug('Loaded messages from Supabase', { count: savedMessages.length }, { module: 'message-state' });
+            
+            emitDebugEvent({
+              lastAction: 'Restored chat history from Supabase',
+              messagesCount: savedMessages.length,
+              screen: 'Chat Screen'
+            });
+          }
+        } catch (error) {
+          logger.error('Failed to load messages from Supabase, falling back to localStorage', error, { module: 'message-state' });
+          // Fallback to localStorage on error
+          const savedMessages = loadChatHistory();
+          if (savedMessages.length > 0) {
+            setMessages(savedMessages);
+          }
+        }
+      } else {
+        // Anonymous: load from localStorage
+        const savedMessages = loadChatHistory();
+        if (savedMessages.length > 0) {
+          setMessages(savedMessages);
+          logger.debug('Loaded messages from localStorage', { count: savedMessages.length }, { module: 'message-state' });
+          
+          emitDebugEvent({
+            lastAction: 'Restored chat history from localStorage',
+            messagesCount: savedMessages.length,
+            screen: 'Chat Screen'
+          });
+        }
       }
       hasInitialized.current = true;
-    }
-  }, []);
+    };
+    
+    loadMessages();
+  }, [isAuthenticated, userId]);
   
-  // Save messages whenever they change (memoized dependency)
+  // Save messages whenever they change (only for anonymous users)
   const messageCount = useMemo(() => messages.length, [messages.length]);
   
   useEffect(() => {
-    if (hasInitialized.current && messageCount > 0) {
+    // Skip during bulk operations or before initialization
+    if (!hasInitialized.current || isBulkOperation.current) return;
+    
+    // Only save to localStorage for anonymous users
+    if (!isAuthenticated && messageCount > 0) {
       saveChatHistory(messages);
     }
-  }, [messages, messageCount]);
+  }, [messages, messageCount, isAuthenticated]);
   
   // Memoized functions to prevent unnecessary re-renders
   const addMessage = useCallback((newMessage: Message) => {
@@ -73,6 +115,13 @@ export const useMessageState = () => {
       return newMessages;
     });
     
+    // Insert to Supabase for authenticated users (async, non-blocking)
+    if (isAuthenticated && userId && !isBulkOperation.current) {
+      insertActiveMessage(userId, newMessage).catch(error => {
+        logger.error('Failed to sync message to Supabase', error, { module: 'message-state' });
+      });
+    }
+    
     // Reset initializing flag after first AI message
     if (initializing.current && newMessage.sender === 'ai') {
       initializing.current = false;
@@ -84,9 +133,9 @@ export const useMessageState = () => {
         screen: 'Chat Screen'
       });
     }
-  }, [messageCount]);
+  }, [messageCount, isAuthenticated, userId]);
 
-  const clearMessages = useCallback(() => {
+  const clearMessages = useCallback(async () => {
     if (messageCount === 0) return;
     
     logger.info('Clearing chat history', { messageCount }, { module: 'message-state' });
@@ -102,11 +151,24 @@ export const useMessageState = () => {
     setMessages([]);
     initializing.current = false;
     
-    // Clear from localStorage
-    clearChatHistory();
+    if (isAuthenticated && userId) {
+      // Clear from Supabase and notify n8n
+      try {
+        await clearActiveMessages(userId);
+        // Send clear context webhook (sessionId = userId for authenticated users)
+        sendClearContextWebhook(userId, userId).catch(error => {
+          logger.error('Clear context webhook failed', error, { module: 'message-state' });
+        });
+      } catch (error) {
+        logger.error('Failed to clear messages from Supabase', error, { module: 'message-state' });
+      }
+    } else {
+      // Clear from localStorage
+      clearChatHistory();
+    }
     
     toast.success('Chat history cleared');
-  }, [messageCount]);
+  }, [messageCount, isAuthenticated, userId]);
 
   const resetState = useCallback(() => {
     logger.debug('Resetting message state', {}, { module: 'message-state' });
@@ -133,6 +195,7 @@ export const useMessageState = () => {
     addMessage,
     clearMessages,
     setMessages,
-    resetState
+    resetState,
+    isBulkOperation // Exposed for import operations
   }), [messages, message, isLoading, addMessage, clearMessages, resetState]);
 };

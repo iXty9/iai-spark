@@ -6,6 +6,7 @@ export interface WebhookSettings {
   thumbs_up_webhook_url: string;
   thumbs_down_webhook_url: string;
   user_signup_webhook_url: string;
+  clear_context_webhook_url: string;
   webhook_auth_header_name: string;
   webhook_auth_header_value: string;
   authenticated_webhook_url_use_auth: boolean;
@@ -14,6 +15,7 @@ export interface WebhookSettings {
   thumbs_up_webhook_url_use_auth: boolean;
   thumbs_down_webhook_url_use_auth: boolean;
   user_signup_webhook_url_use_auth: boolean;
+  clear_context_webhook_url_use_auth: boolean;
 }
 
 export interface WebhookFormErrors {
@@ -23,6 +25,7 @@ export interface WebhookFormErrors {
   thumbs_up_webhook_url?: string;
   thumbs_down_webhook_url?: string;
   user_signup_webhook_url?: string;
+  clear_context_webhook_url?: string;
 }
 
 export function validateWebhookSettings(settings: WebhookSettings): WebhookFormErrors {
@@ -61,6 +64,7 @@ export function validateWebhookSettings(settings: WebhookSettings): WebhookFormE
   validateUrl(settings.thumbs_up_webhook_url, 'thumbs_up_webhook_url');
   validateUrl(settings.thumbs_down_webhook_url, 'thumbs_down_webhook_url');
   validateUrl(settings.user_signup_webhook_url, 'user_signup_webhook_url');
+  validateUrl(settings.clear_context_webhook_url, 'clear_context_webhook_url');
   
   return errors;
 }

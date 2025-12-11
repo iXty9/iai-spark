@@ -66,6 +66,7 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
       await updateAppSetting('thumbs_up_webhook_url', settings.thumbs_up_webhook_url);
       await updateAppSetting('thumbs_down_webhook_url', settings.thumbs_down_webhook_url);
       await updateAppSetting('user_signup_webhook_url', settings.user_signup_webhook_url);
+      await updateAppSetting('clear_context_webhook_url', settings.clear_context_webhook_url);
       await updateAppSetting('webhook_auth_header_name', settings.webhook_auth_header_name);
       await updateAppSetting('webhook_auth_header_value', settings.webhook_auth_header_value);
       await updateAppSetting('authenticated_webhook_url_use_auth', settings.authenticated_webhook_url_use_auth.toString());
@@ -74,6 +75,7 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
       await updateAppSetting('thumbs_up_webhook_url_use_auth', settings.thumbs_up_webhook_url_use_auth.toString());
       await updateAppSetting('thumbs_down_webhook_url_use_auth', settings.thumbs_down_webhook_url_use_auth.toString());
       await updateAppSetting('user_signup_webhook_url_use_auth', settings.user_signup_webhook_url_use_auth.toString());
+      await updateAppSetting('clear_context_webhook_url_use_auth', settings.clear_context_webhook_url_use_auth.toString());
       toast({ title: "Success", description: "Webhook settings saved successfully" });
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Failed to save webhook settings" });
@@ -140,6 +142,7 @@ export function WebhookSettingsForm({ initialSettings }: WebhookSettingsFormProp
       <WebhookUrlFormField id="thumbs_up_webhook_url" name="thumbs_up_webhook_url" label="Thumbs Up Webhook URL" value={settings.thumbs_up_webhook_url} error={errors.thumbs_up_webhook_url} placeholder="https://your-n8n.com/webhook/thumbs-up" onChange={handleChange} useAuth={settings.thumbs_up_webhook_url_use_auth} onAuthToggle={(c) => handleAuthToggle('thumbs_up_webhook_url', c)} />
       <WebhookUrlFormField id="thumbs_down_webhook_url" name="thumbs_down_webhook_url" label="Thumbs Down Webhook URL" value={settings.thumbs_down_webhook_url} error={errors.thumbs_down_webhook_url} placeholder="https://your-n8n.com/webhook/thumbs-down" onChange={handleChange} useAuth={settings.thumbs_down_webhook_url_use_auth} onAuthToggle={(c) => handleAuthToggle('thumbs_down_webhook_url', c)} />
       <WebhookUrlFormField id="user_signup_webhook_url" name="user_signup_webhook_url" label="User Signup Webhook URL" value={settings.user_signup_webhook_url} error={errors.user_signup_webhook_url} placeholder="https://your-n8n.com/webhook/signup" onChange={handleChange} useAuth={settings.user_signup_webhook_url_use_auth} onAuthToggle={(c) => handleAuthToggle('user_signup_webhook_url', c)} />
+      <WebhookUrlFormField id="clear_context_webhook_url" name="clear_context_webhook_url" label="Clear Context Webhook URL" value={settings.clear_context_webhook_url} error={errors.clear_context_webhook_url} placeholder="https://your-n8n.com/webhook/clear-context" onChange={handleChange} useAuth={settings.clear_context_webhook_url_use_auth} onAuthToggle={(c) => handleAuthToggle('clear_context_webhook_url', c)} />
       <WebhookStatusChecker settings={settings} />
       <div className="flex justify-end"><Button onClick={handleSave} disabled={isSaving}>{isSaving ? 'Saving...' : 'Save Webhook Settings'}</Button></div>
     </CardContent>

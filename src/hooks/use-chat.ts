@@ -1,10 +1,11 @@
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMessageState } from '@/hooks/chat/use-message-state';
 import { useChatApi } from '@/hooks/chat/use-chat-api';
 import { useChatWebSocket } from '@/hooks/chat/use-chat-websocket';
 import { useChatActions } from '@/hooks/chat/use-chat-actions';
+import { useChatSync } from '@/hooks/chat/use-chat-sync';
 import { Message } from '@/types/chat';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/utils/logging';
@@ -24,6 +25,8 @@ export const useChat = () => {
       longitude: profile.location_longitude 
     } 
     : null;
+  
+  // Pass userId to message state for Supabase sync
   const {
     messages,
     message,
@@ -33,8 +36,17 @@ export const useChat = () => {
     addMessage,
     clearMessages,
     setMessages,
-    resetState
-  } = useMessageState();
+    resetState,
+    isBulkOperation
+  } = useMessageState({ userId: user?.id });
+
+  // Set up real-time sync for authenticated users
+  useChatSync({
+    userId: user?.id || null,
+    messages,
+    setMessages,
+    isBulkOperation
+  });
 
   const handleError = useCallback((error: string) => {
     const errorMessage: Message = {
@@ -99,6 +111,7 @@ export const useChat = () => {
     addMessage,
     isWebSocketConnected,
     isWebSocketEnabled,
-    handleAbortRequest
+    handleAbortRequest,
+    isBulkOperation // Exposed for import operations
   };
 };
