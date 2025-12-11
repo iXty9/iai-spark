@@ -15,6 +15,11 @@ export interface RecallResponse {
   selected_index: number;
 }
 
+export type RecallError = 
+  | { type: 'not_configured'; message: string }
+  | { type: 'network_error'; message: string }
+  | { type: 'backend_error'; message: string; status?: number };
+
 /**
  * Get the chat recall webhook URL from app settings
  */
@@ -51,55 +56,81 @@ async function getRecallWebhookUrl(): Promise<string | null> {
 }
 
 /**
- * Send a chat recall request to the backend
- * Returns 25 messages centered on the selected datetime
+ * Send a chat recall request via the webhook-proxy-test edge function
+ * This bypasses CORS by making the request server-side
  */
 export async function sendRecallRequest(
   userId: string,
   selectedDatetime: string,
   enabled: boolean
-): Promise<RecallResponse | null> {
+): Promise<{ data: RecallResponse | null; error: RecallError | null }> {
   const webhookUrl = await getRecallWebhookUrl();
   
   if (!webhookUrl) {
     logger.warn('[RecallWebhook] Chat recall webhook URL not configured');
-    return null;
+    return { 
+      data: null, 
+      error: { type: 'not_configured', message: 'Chat recall webhook URL not configured' }
+    };
   }
 
   const authHeaders = await getWebhookAuthHeaders('chat_recall_webhook_url');
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...authHeaders,
-  };
-
+  
   const payload: RecallRequest = {
     user_id: userId,
     selected_datetime: selectedDatetime,
     enabled,
   };
 
-  logger.info('[RecallWebhook] Sending recall request:', { 
+  logger.info('[RecallWebhook] Sending recall request via proxy:', { 
     userId, 
     selectedDatetime, 
     enabled,
   });
 
   try {
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(payload),
+    // Route through webhook-proxy-test edge function to bypass CORS
+    const { data, error } = await supabase.functions.invoke('webhook-proxy-test', {
+      body: {
+        url: webhookUrl,
+        method: 'POST',
+        payload,
+        headers: authHeaders,
+        timeout: 30000
+      }
     });
 
-    if (!response.ok) {
-      logger.error('[RecallWebhook] Request failed:', { status: response.status });
-      return null;
+    if (error) {
+      logger.error('[RecallWebhook] Proxy invocation error:', error);
+      return { 
+        data: null, 
+        error: { type: 'network_error', message: error.message || 'Failed to reach webhook proxy' }
+      };
     }
 
-    const data = await response.json();
+    if (!data.success) {
+      logger.error('[RecallWebhook] Webhook request failed:', data);
+      return { 
+        data: null, 
+        error: { 
+          type: data.isTimeout ? 'network_error' : 'backend_error', 
+          message: data.error || `HTTP ${data.status}: ${data.statusText}`,
+          status: data.status
+        }
+      };
+    }
+
+    // Parse the response body from the proxy
+    let responseData;
+    try {
+      responseData = data.body ? JSON.parse(data.body) : {};
+    } catch {
+      logger.warn('[RecallWebhook] Could not parse response body as JSON:', data.body);
+      responseData = {};
+    }
     
     // Transform response to match our Message type
-    const messages: Message[] = (data.messages || []).map((msg: any) => ({
+    const messages: Message[] = (responseData.messages || []).map((msg: any) => ({
       id: msg.id || msg.message_id || crypto.randomUUID(),
       content: msg.content || msg.message || '',
       sender: msg.sender || msg.role || 'ai',
@@ -110,11 +141,20 @@ export async function sendRecallRequest(
     logger.info('[RecallWebhook] Received response', { messageCount: messages.length });
 
     return {
-      messages,
-      selected_index: data.selected_index ?? Math.floor(messages.length / 2),
+      data: {
+        messages,
+        selected_index: responseData.selected_index ?? Math.floor(messages.length / 2),
+      },
+      error: null
     };
   } catch (error) {
     logger.error('[RecallWebhook] Request error:', error);
-    return null;
+    return { 
+      data: null, 
+      error: { 
+        type: 'network_error', 
+        message: error instanceof Error ? error.message : 'Unknown error'
+      }
+    };
   }
 }

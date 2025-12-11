@@ -29,6 +29,7 @@ interface ProxyResponse {
   body?: string;
   error?: string;
   isTimeout?: boolean;
+  isN8n?: boolean;
 }
 
 export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
@@ -194,7 +195,11 @@ export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
     } else if (result.isTimeout) {
       return 'offline';
     } else if (result.error) {
-      // Could be network error, DNS failure, etc.
+      // For n8n webhooks, if we got a response at all (even error), endpoint exists
+      // The proxy now uses POST probe for n8n, so success should be accurate
+      if (result.isN8n) {
+        return 'unknown'; // n8n endpoint exists but may not accept our probe format
+      }
       return 'offline';
     }
     
