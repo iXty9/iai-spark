@@ -45,12 +45,12 @@ export const ChatRecallDialog: React.FC<ChatRecallDialogProps> = ({
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         {/* Light overlay - no heavy dimming */}
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/10" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-black/10" />
         
         {/* Dialog content - positioned higher on screen */}
         <DialogPrimitive.Content
           className={cn(
-            "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2",
+            "fixed left-1/2 top-[40%] z-[60] -translate-x-1/2 -translate-y-1/2",
             "bg-background/90 backdrop-blur-md border border-border/50 shadow-2xl",
             "w-[calc(100vw-2rem)] max-w-[320px] md:max-w-[380px] lg:max-w-[420px]",
             "overflow-hidden rounded-2xl px-4 py-5 md:rounded-xl md:px-5 md:py-6"
@@ -79,24 +79,17 @@ export const ChatRecallDialog: React.FC<ChatRecallDialogProps> = ({
               <Label className="text-xs font-medium text-center block text-muted-foreground">
                 Select Date
               </Label>
-              <CalendarComponent
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(date)}
-                className={cn(
-                  "pointer-events-auto rounded-lg mx-auto",
-                  "[&_.rdp-day_selected]:bg-primary [&_.rdp-day_selected]:text-primary-foreground",
-                  "[&_.rdp-day_today]:bg-accent [&_.rdp-day_today]:text-accent-foreground",
-                  "[&_.rdp-day]:hover:bg-muted",
-                  "[&_.rdp-nav_button]:hover:bg-muted",
-                  "[&_.rdp-months]:justify-center",
-                  "[&_.rdp-month]:mx-auto",
-                  "[&_.rdp-table]:mx-auto"
-                )}
-                disabled={(date) => date > new Date()}
-                showOutsideDays={true}
-                fixedWeeks={true}
-              />
+              <div className="flex justify-center">
+                <CalendarComponent
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  className="pointer-events-auto rounded-lg"
+                  disabled={(date) => date > new Date()}
+                  showOutsideDays={true}
+                  fixedWeeks={true}
+                />
+              </div>
             </div>
             
             {/* Time Selection */}
