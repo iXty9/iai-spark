@@ -75,6 +75,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
       content: proactiveMessage.content,
       sender: 'ai',
       timestamp: proactiveMessage.timestamp,
+      source: 'proactive',
       metadata: { isProactive: true, ...proactiveMessage.metadata }
     };
     
