@@ -45,12 +45,12 @@ export const ChatRecallDialog: React.FC<ChatRecallDialogProps> = ({
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         {/* Light overlay - no heavy dimming */}
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[70] bg-black/10" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[110] bg-black/10" />
         
-        {/* Dialog content - true center using standard Dialog pattern */}
+        {/* Dialog content - positioned slightly higher to account for input area */}
         <DialogPrimitive.Content
           className={cn(
-            "fixed left-[50%] top-[50%] z-[70] translate-x-[-50%] translate-y-[-50%]",
+            "fixed left-[50%] top-[45%] z-[110] translate-x-[-50%] translate-y-[-50%]",
             "bg-background/90 backdrop-blur-md border border-border/50 shadow-2xl",
             "w-[calc(100vw-2rem)] max-w-[320px] md:max-w-[380px] lg:max-w-[420px]",
             "max-h-[85vh] overflow-y-auto",
