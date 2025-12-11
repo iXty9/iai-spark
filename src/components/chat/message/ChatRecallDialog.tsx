@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { History, X } from 'lucide-react';
+import { History, X, Loader2 } from 'lucide-react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
@@ -13,12 +13,16 @@ interface ChatRecallDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialTimestamp: string;
+  onRecall: (datetime: string) => Promise<boolean>;
+  isLoading?: boolean;
 }
 
 export const ChatRecallDialog: React.FC<ChatRecallDialogProps> = ({
   open,
   onOpenChange,
-  initialTimestamp
+  initialTimestamp,
+  onRecall,
+  isLoading = false,
 }) => {
   const initialDate = new Date(initialTimestamp);
   const [selectedDate, setSelectedDate] = useState<Date>(initialDate);
@@ -26,13 +30,12 @@ export const ChatRecallDialog: React.FC<ChatRecallDialogProps> = ({
     format(initialDate, 'HH:mm')
   );
 
-  const handleRecall = () => {
-    console.log('Chat Recall activated:', {
-      date: selectedDate,
-      time: selectedTime,
-      combinedDateTime: new Date(`${format(selectedDate, 'yyyy-MM-dd')}T${selectedTime}`)
-    });
-    onOpenChange(false);
+  const handleRecall = async () => {
+    const combinedDateTime = new Date(`${format(selectedDate, 'yyyy-MM-dd')}T${selectedTime}`);
+    const success = await onRecall(combinedDateTime.toISOString());
+    if (success) {
+      onOpenChange(false);
+    }
   };
 
   const handleCancel = () => {
@@ -124,15 +127,24 @@ export const ChatRecallDialog: React.FC<ChatRecallDialogProps> = ({
             <Button 
               variant="outline" 
               onClick={handleCancel}
+              disabled={isLoading}
               className="border-border/50 w-full md:w-auto md:min-w-[100px]"
             >
               Cancel
             </Button>
             <Button 
               onClick={handleRecall}
+              disabled={isLoading}
               className="bg-primary hover:bg-primary/90 w-full md:w-auto md:min-w-[100px]"
             >
-              Recall
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                'Recall'
+              )}
             </Button>
           </div>
         </DialogPrimitive.Content>
