@@ -58,3 +58,6 @@ verify_jwt = false
 
 [functions.ghl-api-proxy]
 verify_jwt = false
+
+[functions.webhook-proxy-test]
+verify_jwt = true

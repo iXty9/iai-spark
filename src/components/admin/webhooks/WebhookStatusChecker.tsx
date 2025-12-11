@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -8,6 +7,7 @@ import { RefreshCw, Globe, AlertCircle, Clock, TestTube, Loader2 } from 'lucide-
 import { WebhookSettings } from './WebhookValidation';
 import { supaToast } from '@/services/supa-toast';
 import { logger } from '@/utils/logging';
+import { supabase } from '@/integrations/supabase/client';
 
 interface WebhookStatus {
   name: string;
@@ -20,6 +20,15 @@ interface WebhookStatus {
 
 interface WebhookStatusCheckerProps {
   settings: WebhookSettings;
+}
+
+interface ProxyResponse {
+  success: boolean;
+  status?: number;
+  statusText?: string;
+  body?: string;
+  error?: string;
+  isTimeout?: boolean;
 }
 
 export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
@@ -156,40 +165,40 @@ export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
     }
   };
 
+  // Call edge function to check webhook status (server-side, no CORS)
+  const checkWebhookViaProxy = async (url: string, method: 'HEAD' | 'POST' = 'HEAD', payload?: object): Promise<ProxyResponse> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('webhook-proxy-test', {
+        body: { url, method, payload, timeout: method === 'HEAD' ? 8000 : 30000 }
+      });
+
+      if (error) {
+        logger.error('Proxy invocation error', error, { module: 'webhook-status-checker' });
+        return { success: false, error: error.message };
+      }
+
+      return data as ProxyResponse;
+    } catch (err) {
+      logger.error('Failed to call webhook proxy', err, { module: 'webhook-status-checker' });
+      return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+    }
+  };
+
   const checkWebhookStatus = async (url: string): Promise<'online' | 'offline' | 'unknown'> => {
     if (!url) return 'unknown';
     
-    try {
-      // Try a lightweight OPTIONS request first, then fall back to HEAD
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      
-      try {
-        const response = await fetch(url, {
-          method: 'OPTIONS',
-          signal: controller.signal,
-          mode: 'no-cors'
-        });
-        clearTimeout(timeoutId);
-        return 'online';
-      } catch (optionsError) {
-        // Try HEAD request as fallback
-        const headResponse = await fetch(url, {
-          method: 'HEAD',
-          signal: controller.signal,
-          mode: 'no-cors'
-        });
-        clearTimeout(timeoutId);
-        return 'online';
-      }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        return 'offline'; // Timeout
-      }
-      // For CORS or other network errors, we can't determine the real status
-      // but the webhook might still work from server-side calls
-      return 'unknown';
+    const result = await checkWebhookViaProxy(url, 'HEAD');
+    
+    if (result.success) {
+      return 'online';
+    } else if (result.isTimeout) {
+      return 'offline';
+    } else if (result.error) {
+      // Could be network error, DNS failure, etc.
+      return 'offline';
     }
+    
+    return 'unknown';
   };
 
   const checkAllWebhooks = async () => {
@@ -251,15 +260,15 @@ export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
       case 'online':
         return <Globe className="h-4 w-4 text-green-500" />;
       case 'offline':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
+        return <AlertCircle className="h-4 w-4 text-destructive" />;
       case 'checking':
-        return <RefreshCw className="h-4 w-4 text-gray-500 animate-spin" />;
+        return <RefreshCw className="h-4 w-4 text-muted-foreground animate-spin" />;
       case 'not-configured':
-        return <Clock className="h-4 w-4 text-gray-400" />;
+        return <Clock className="h-4 w-4 text-muted-foreground" />;
       case 'unknown':
         return <AlertCircle className="h-4 w-4 text-yellow-500" />;
       default:
-        return <AlertCircle className="h-4 w-4 text-gray-400" />;
+        return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
@@ -269,7 +278,7 @@ export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
   };
 
   const testWebhook = async (webhook: WebhookStatus) => {
-    if (webhook.status !== 'online' || !webhook.url) return;
+    if (!webhook.url) return;
     
     setTestingWebhooks(prev => new Set(prev).add(webhook.webhookKey));
     
@@ -281,32 +290,28 @@ export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
         payload 
       }, { module: 'webhook-status-checker' });
       
-      const response = await fetch(webhook.url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
-      });
+      const result = await checkWebhookViaProxy(webhook.url, 'POST', payload);
 
-      const result = await response.text();
-      
-      if (response.ok) {
-        supaToast.success(`${webhook.name} test successful! Response: ${result.substring(0, 100)}${result.length > 100 ? '...' : ''}`, {
+      if (result.success) {
+        const responsePreview = result.body 
+          ? result.body.substring(0, 100) + (result.body.length > 100 ? '...' : '')
+          : `Status ${result.status}`;
+        
+        supaToast.success(`${webhook.name} test successful! Response: ${responsePreview}`, {
           title: "Webhook Test Passed"
         });
         
         logger.info(`Webhook test successful: ${webhook.name}`, { 
-          status: response.status, 
-          response: result 
+          status: result.status, 
+          response: result.body 
         }, { module: 'webhook-status-checker' });
       } else {
-        throw new Error(`HTTP ${response.status}: ${result}`);
+        throw new Error(result.error || `HTTP ${result.status}: ${result.statusText}`);
       }
     } catch (error) {
       logger.error(`Webhook test failed: ${webhook.name}`, error, { module: 'webhook-status-checker' });
       
-      supaToast.error(`${webhook.name} test failed: ${error.message}`, {
+      supaToast.error(`${webhook.name} test failed: ${error instanceof Error ? error.message : 'Unknown error'}`, {
         title: "Webhook Test Failed"
       });
     } finally {
@@ -348,7 +353,7 @@ export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
                       {getStatusIcon(webhook.status)}
                     </TooltipTrigger>
                     <TooltipContent>
-                      {webhook.status === 'unknown' && 'Status cannot be determined due to CORS restrictions, but webhook may still work'}
+                      {webhook.status === 'unknown' && 'Status could not be determined'}
                       {webhook.status === 'online' && 'Webhook endpoint is responding'}
                       {webhook.status === 'offline' && 'Webhook endpoint is not responding or timed out'}
                       {webhook.status === 'not-configured' && 'No URL configured for this webhook'}
@@ -369,7 +374,7 @@ export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
               
               <div className="flex items-center gap-2">
                 {getStatusBadge(webhook.status)}
-                {webhook.status === 'online' && (
+                {webhook.url && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -395,8 +400,8 @@ export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
           ))}
           
           <div className="text-xs text-muted-foreground mt-4 p-2 bg-muted/20 rounded">
-            <strong>Note:</strong> Status checks are performed from your browser. Some webhooks may show "Unknown" due to CORS restrictions, 
-            but they will still work when called from the server. This monitor helps identify obviously broken endpoints.
+            <strong>Note:</strong> Status checks and tests are performed server-side to avoid browser CORS restrictions. 
+            This provides accurate endpoint status reporting.
           </div>
         </div>
       </AlertDescription>
