@@ -23,6 +23,7 @@ export const useChatSync = ({
   isBulkOperation
 }: UseChatSyncOptions) => {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const broadcastChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const messageIdsRef = useRef<Set<string>>(new Set());
   
   // Keep message IDs set in sync with current messages
@@ -70,7 +71,7 @@ export const useChatSync = ({
     });
   }, [userId, setMessages, isBulkOperation]);
   
-  // Handle DELETE events (clear chat from another instance)
+  // Handle DELETE events (individual message deletes)
   const handleDelete = useCallback((payload: RealtimePostgresChangesPayload<any>) => {
     // Skip if bulk operation in progress
     if (isBulkOperation.current) {
@@ -91,6 +92,16 @@ export const useChatSync = ({
     }
   }, [userId, setMessages, isBulkOperation]);
   
+  // Handle broadcast "clear chat" event from other instances
+  const handleClearBroadcast = useCallback((payload: { type: string; event: string; payload: { userId: string } }) => {
+    if (payload.payload?.userId !== userId) return;
+    
+    logger.info('Received clear chat broadcast from another instance', { userId }, { module: 'chat-sync' });
+    
+    // Clear local state without triggering another broadcast
+    setMessages([]);
+  }, [userId, setMessages]);
+  
   // Set up realtime subscription
   useEffect(() => {
     if (!userId) {
@@ -100,6 +111,7 @@ export const useChatSync = ({
     
     logger.info('Setting up chat sync subscription', { userId }, { module: 'chat-sync' });
     
+    // Postgres changes channel for INSERT/DELETE
     const channel = supabase
       .channel(`active-chat-${userId}`)
       .on(
@@ -128,14 +140,42 @@ export const useChatSync = ({
     
     channelRef.current = channel;
     
+    // Broadcast channel for clear chat events
+    const broadcastChannel = supabase
+      .channel(`chat-clear-${userId}`)
+      .on('broadcast', { event: 'clear-chat' }, handleClearBroadcast)
+      .subscribe((status) => {
+        logger.debug('Chat clear broadcast subscription status', { status }, { module: 'chat-sync' });
+      });
+    
+    broadcastChannelRef.current = broadcastChannel;
+    
     return () => {
       logger.debug('Cleaning up chat sync subscription', { userId }, { module: 'chat-sync' });
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
+      if (broadcastChannelRef.current) {
+        supabase.removeChannel(broadcastChannelRef.current);
+        broadcastChannelRef.current = null;
+      }
     };
-  }, [userId, handleInsert, handleDelete]);
+  }, [userId, handleInsert, handleDelete, handleClearBroadcast]);
   
   return null;
+};
+
+// Export function to broadcast clear chat event
+export const broadcastClearChat = async (userId: string) => {
+  const channel = supabase.channel(`chat-clear-${userId}`);
+  await channel.subscribe();
+  await channel.send({
+    type: 'broadcast',
+    event: 'clear-chat',
+    payload: { userId }
+  });
+  // Clean up the temporary channel
+  await supabase.removeChannel(channel);
+  logger.info('Broadcasted clear chat event', { userId }, { module: 'chat-sync' });
 };

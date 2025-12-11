@@ -6,6 +6,7 @@ import { emitDebugEvent } from '@/utils/debug-events';
 import { saveChatHistory, loadChatHistory, clearChatHistory } from '@/services/storage/chatPersistenceService';
 import { fetchActiveMessages, insertActiveMessage, clearActiveMessages } from '@/services/chat/active-chat-service';
 import { sendClearContextWebhook } from '@/services/webhook/clear-context-webhook';
+import { broadcastClearChat } from '@/hooks/chat/use-chat-sync';
 import { logger } from '@/utils/logging';
 
 interface UseMessageStateOptions {
@@ -155,6 +156,8 @@ export const useMessageState = (options: UseMessageStateOptions = {}) => {
       // Clear from Supabase and notify n8n
       try {
         await clearActiveMessages(userId);
+        // Broadcast clear event to other instances
+        await broadcastClearChat(userId);
         // Send clear context webhook (sessionId = userId for authenticated users)
         sendClearContextWebhook(userId, userId).catch(error => {
           logger.error('Clear context webhook failed', error, { module: 'message-state' });
