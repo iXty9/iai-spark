@@ -20,19 +20,32 @@ export interface RecallResponse {
  */
 async function getRecallWebhookUrl(): Promise<string | null> {
   try {
+    logger.info('[RecallWebhook] Fetching webhook URL from app_settings...');
+    
     const { data, error } = await supabase
       .from('app_settings')
       .select('value')
       .eq('key', 'chat_recall_webhook_url')
-      .single();
+      .maybeSingle();
 
-    if (error || !data?.value) {
+    if (error) {
+      logger.error('[RecallWebhook] Supabase query error:', { 
+        code: error.code, 
+        message: error.message,
+        details: error.details 
+      });
       return null;
     }
 
+    if (!data?.value) {
+      logger.warn('[RecallWebhook] No webhook URL configured in app_settings (key: chat_recall_webhook_url)');
+      return null;
+    }
+
+    logger.info('[RecallWebhook] Retrieved webhook URL:', { url: data.value.substring(0, 50) + '...' });
     return data.value;
   } catch (error) {
-    logger.error('[RecallWebhook] Failed to get webhook URL:', error);
+    logger.error('[RecallWebhook] Unexpected error fetching webhook URL:', error);
     return null;
   }
 }

@@ -19,7 +19,7 @@ export interface WebhookResponse {
 }
 
 export interface TestResult {
-  type: 'proactive' | 'toast';
+  type: 'proactive' | 'toast' | 'recall';
   status: 'success' | 'error';
   message: string;
   timestamp: Date;
@@ -29,6 +29,7 @@ export interface TestResult {
 export interface WebhookUrls {
   proactive: string;
   toast: string;
+  recall: string;
 }
 
 export interface ProactiveMessagePayload {

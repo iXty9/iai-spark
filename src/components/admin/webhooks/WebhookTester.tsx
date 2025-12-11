@@ -4,23 +4,27 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { TestTube, Loader2, CheckCircle, XCircle, RefreshCw, Wifi, MessageSquare, Bell } from 'lucide-react';
+import { TestTube, Loader2, CheckCircle, XCircle, RefreshCw, Wifi, MessageSquare, Bell, History } from 'lucide-react';
 import { supaToast } from '@/services/supa-toast';
 import { useWebSocket } from '@/contexts/WebSocketContext';
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logging';
 import { TestResult, WebhookUrls } from '@/types/webhook';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function WebhookTester() {
   const { isConnected, realtimeStatus, forceReconnect } = useWebSocket();
+  const { user } = useAuth();
   const [isTestingProactive, setIsTestingProactive] = useState(false);
   const [isTestingToast, setIsTestingToast] = useState(false);
+  const [isTestingRecall, setIsTestingRecall] = useState(false);
   const [isLoadingUrls, setIsLoadingUrls] = useState(true);
   const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [webhookUrls, setWebhookUrls] = useState<WebhookUrls>({
     proactive: '',
-    toast: ''
+    toast: '',
+    recall: ''
   });
 
   useEffect(() => {
@@ -38,13 +42,15 @@ export function WebhookTester() {
       
       const proactiveUrl = settings.proactive_message_webhook_url || `${baseUrl}/functions/v1/proactive-message-webhook`;
       const toastUrl = settings.toast_notification_webhook_url || `${baseUrl}/functions/v1/toast-notification-webhook`;
+      const recallUrl = settings.chat_recall_webhook_url || '';
       
       setWebhookUrls({
         proactive: proactiveUrl,
-        toast: toastUrl
+        toast: toastUrl,
+        recall: recallUrl
       });
       
-      logger.debug('Loaded webhook URLs', { proactiveUrl, toastUrl }, { module: 'webhook-tester' });
+      logger.debug('Loaded webhook URLs', { proactiveUrl, toastUrl, recallUrl }, { module: 'webhook-tester' });
     } catch (error) {
       logger.error('Error loading webhook URLs', error, { module: 'webhook-tester' });
       // Fallback to default URLs
@@ -54,7 +60,8 @@ export function WebhookTester() {
       
       setWebhookUrls({
         proactive: `${baseUrl}/functions/v1/proactive-message-webhook`,
-        toast: `${baseUrl}/functions/v1/toast-notification-webhook`
+        toast: `${baseUrl}/functions/v1/toast-notification-webhook`,
+        recall: ''
       });
     } finally {
       setIsLoadingUrls(false);
@@ -200,6 +207,69 @@ export function WebhookTester() {
     }
   };
 
+  const testRecallWebhook = async () => {
+    if (!webhookUrls.recall) {
+      supaToast.error("Chat Recall webhook URL is not configured. Please set it in Admin Panel > Webhooks.", {
+        title: "Webhook Not Configured"
+      });
+      return;
+    }
+
+    setIsTestingRecall(true);
+    try {
+      logger.info('Testing recall webhook', { 
+        url: webhookUrls.recall
+      }, { module: 'webhook-tester' });
+      
+      const response = await fetch(webhookUrls.recall, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: user?.id || 'test-user-id',
+          selected_datetime: new Date().toISOString(),
+          enabled: true
+        })
+      });
+
+      const result = await response.json();
+      logger.info('Recall webhook response received', result, { module: 'webhook-tester' });
+      
+      if (response.ok) {
+        setTestResults(prev => [...prev, {
+          type: 'recall',
+          status: 'success',
+          message: `✅ Chat Recall webhook test successful. Received ${result.messages?.length || 0} messages.`,
+          timestamp: new Date(),
+          details: result
+        }]);
+        
+        supaToast.success(`Chat Recall webhook is working correctly. Received ${result.messages?.length || 0} messages.`, {
+          title: "Test Successful"
+        });
+      } else {
+        throw new Error(result.error || `HTTP ${response.status}`);
+      }
+    } catch (error: any) {
+      logger.error('Recall webhook test failed', error, { module: 'webhook-tester' });
+      
+      setTestResults(prev => [...prev, {
+        type: 'recall',
+        status: 'error',
+        message: `❌ Recall webhook test failed: ${error.message}`,
+        timestamp: new Date(),
+        details: error
+      }]);
+      
+      supaToast.error(`Chat Recall webhook test failed: ${error.message}`, {
+        title: "Test Failed"
+      });
+    } finally {
+      setIsTestingRecall(false);
+    }
+  };
+
   const clearResults = () => {
     setTestResults([]);
   };
@@ -268,6 +338,7 @@ export function WebhookTester() {
           <div className="text-sm text-muted-foreground">
             <p><strong>Proactive URL:</strong> {webhookUrls.proactive}</p>
             <p><strong>Toast URL:</strong> {webhookUrls.toast}</p>
+            <p><strong>Recall URL:</strong> {webhookUrls.recall || <span className="text-yellow-600">Not configured</span>}</p>
           </div>
           <Button
             variant="outline"
@@ -280,7 +351,7 @@ export function WebhookTester() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Button
             onClick={testProactiveWebhook}
             disabled={isTestingProactive}
@@ -306,6 +377,20 @@ export function WebhookTester() {
               <Bell className="h-4 w-4" />
             )}
             Test Toast Notification
+          </Button>
+
+          <Button
+            onClick={testRecallWebhook}
+            disabled={isTestingRecall || !webhookUrls.recall}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            {isTestingRecall ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <History className="h-4 w-4" />
+            )}
+            Test Chat Recall
           </Button>
         </div>
 

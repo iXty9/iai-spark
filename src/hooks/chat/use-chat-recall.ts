@@ -47,7 +47,20 @@ export function useChatRecall(): UseChatRecallReturn {
     try {
       const response = await sendRecallRequest(userId, datetime, true);
       
-      if (!response || response.messages.length === 0) {
+      if (!response) {
+        toast({
+          variant: 'destructive',
+          title: 'Recall webhook not configured',
+          description: 'Please configure the Chat Recall webhook URL in Admin Panel > Webhooks.',
+        });
+        setRecallState(prev => ({
+          ...prev,
+          isLoading: false,
+        }));
+        return false;
+      }
+      
+      if (response.messages.length === 0) {
         toast({
           variant: 'destructive',
           title: 'No messages found',
