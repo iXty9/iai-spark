@@ -57,7 +57,7 @@ export const ChatRecallDialog: React.FC<ChatRecallDialogProps> = ({
             "w-[calc(100vw-2rem)] max-w-[320px]",
             "overflow-hidden",
             isMobile 
-              ? "top-[30%] translate-y-[-50%] rounded-2xl px-4 py-5" 
+              ? "top-[45%] translate-y-[-50%] rounded-2xl px-4 py-5" 
               : "top-[40%] translate-y-[-50%] rounded-xl px-5 py-5"
           )}
         >
@@ -102,7 +102,8 @@ export const ChatRecallDialog: React.FC<ChatRecallDialogProps> = ({
                   "[&_.rdp-table]:mx-auto"
                 )}
                 disabled={(date) => date > new Date()}
-                showOutsideDays={false}
+                showOutsideDays={true}
+                fixedWeeks={true}
               />
             </div>
             
