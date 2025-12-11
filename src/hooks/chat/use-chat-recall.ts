@@ -1,7 +1,7 @@
 
 import { useState, useCallback } from 'react';
 import { Message } from '@/types/chat';
-import { sendRecallRequest, RecallResponse } from '@/services/webhook/recall-webhook';
+import { sendRecallRequest, RecallError } from '@/services/webhook/recall-webhook';
 import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/utils/logging';
 
@@ -31,6 +31,28 @@ const initialState: RecallState = {
   contextMessage: null,
 };
 
+function getErrorMessage(error: RecallError): { title: string; description: string } {
+  switch (error.type) {
+    case 'not_configured':
+      return {
+        title: 'Webhook not configured',
+        description: 'Please configure the Chat Recall webhook URL in Admin Panel > Webhooks.',
+      };
+    case 'network_error':
+      return {
+        title: 'Connection failed',
+        description: `Could not reach the webhook endpoint. ${error.message}`,
+      };
+    case 'backend_error':
+      return {
+        title: 'Backend error',
+        description: error.status 
+          ? `The webhook returned an error (${error.status}): ${error.message}`
+          : `The webhook returned an error: ${error.message}`,
+      };
+  }
+}
+
 export function useChatRecall(): UseChatRecallReturn {
   const [recallState, setRecallState] = useState<RecallState>(initialState);
   const { toast } = useToast();
@@ -45,13 +67,14 @@ export function useChatRecall(): UseChatRecallReturn {
     }));
 
     try {
-      const response = await sendRecallRequest(userId, datetime, true);
+      const { data: response, error } = await sendRecallRequest(userId, datetime, true);
       
-      if (!response) {
+      if (error) {
+        const { title, description } = getErrorMessage(error);
         toast({
           variant: 'destructive',
-          title: 'Recall webhook not configured',
-          description: 'Please configure the Chat Recall webhook URL in Admin Panel > Webhooks.',
+          title,
+          description,
         });
         setRecallState(prev => ({
           ...prev,
@@ -60,7 +83,7 @@ export function useChatRecall(): UseChatRecallReturn {
         return false;
       }
       
-      if (response.messages.length === 0) {
+      if (!response || response.messages.length === 0) {
         toast({
           variant: 'destructive',
           title: 'No messages found',
@@ -88,7 +111,7 @@ export function useChatRecall(): UseChatRecallReturn {
       toast({
         variant: 'destructive',
         title: 'Recall failed',
-        description: 'Failed to retrieve chat history. Please try again.',
+        description: 'An unexpected error occurred. Please try again.',
       });
       setRecallState(prev => ({
         ...prev,

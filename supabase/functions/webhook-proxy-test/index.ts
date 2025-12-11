@@ -6,6 +6,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Detect if URL is likely an n8n webhook (doesn't support HEAD requests)
+function isN8nWebhook(url: string): boolean {
+  return url.includes('n8n.') || 
+         url.includes(':5678') || 
+         url.includes('/webhook/') ||
+         url.includes('/webhook-test/');
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -65,7 +73,18 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[webhook-proxy-test] Testing webhook: ${method || 'HEAD'} ${url}`);
+    const isN8n = isN8nWebhook(url);
+    let actualMethod = method || 'HEAD';
+    let actualPayload = payload;
+
+    // For n8n webhooks doing status checks, use POST probe instead of HEAD
+    if (actualMethod === 'HEAD' && isN8n) {
+      console.log(`[webhook-proxy-test] N8n detected, using POST probe instead of HEAD for: ${url}`);
+      actualMethod = 'POST';
+      actualPayload = { probe: true, source: 'status_check', timestamp: new Date().toISOString() };
+    }
+
+    console.log(`[webhook-proxy-test] Testing webhook: ${actualMethod} ${url} (n8n: ${isN8n})`);
 
     // Create abort controller for timeout
     const controller = new AbortController();
@@ -73,7 +92,7 @@ serve(async (req) => {
 
     try {
       const requestOptions: RequestInit = {
-        method: method || 'HEAD',
+        method: actualMethod,
         signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
@@ -83,8 +102,8 @@ serve(async (req) => {
       };
 
       // Add body for POST requests
-      if (method === 'POST' && payload) {
-        requestOptions.body = JSON.stringify(payload);
+      if (actualMethod === 'POST' && actualPayload) {
+        requestOptions.body = JSON.stringify(actualPayload);
       }
 
       const response = await fetch(url, requestOptions);
@@ -92,7 +111,7 @@ serve(async (req) => {
 
       // Try to get response body for POST requests
       let responseBody = null;
-      if (method === 'POST') {
+      if (actualMethod === 'POST') {
         try {
           const text = await response.text();
           responseBody = text.substring(0, 1000); // Limit response size
@@ -103,12 +122,17 @@ serve(async (req) => {
 
       console.log(`[webhook-proxy-test] Response: ${response.status} ${response.statusText}`);
 
+      // For n8n probe requests, any 2xx response means online
+      // n8n webhooks may return 200 even for probe requests
+      const isOnline = response.ok || (isN8n && response.status < 500);
+
       return new Response(
         JSON.stringify({
-          success: response.ok,
+          success: isOnline,
           status: response.status,
           statusText: response.statusText,
-          body: responseBody
+          body: responseBody,
+          isN8n
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -125,7 +149,8 @@ serve(async (req) => {
         JSON.stringify({
           success: false,
           error: isTimeout ? 'Request timed out' : errorMessage,
-          isTimeout
+          isTimeout,
+          isN8n
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
