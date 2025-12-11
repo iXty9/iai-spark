@@ -26,6 +26,7 @@ interface EnhancedMessageExport {
     iso: string;
   };
   pending?: boolean;
+  source?: 'user' | 'ai' | 'proactive'; // Source tracking for proactive messages
   
   // Enhanced fields for complete data preservation
   rawRequest?: any; // Verbatim webhook request payload
@@ -74,6 +75,7 @@ const convertToEnhancedFormat = (message: Message): EnhancedMessageExport => {
       iso: message.timestamp // message.timestamp is already a string (ISO format)
     },
     ...(message.pending && { pending: message.pending }),
+    ...(message.source && { source: message.source }),
     ...(message.rawRequest && { rawRequest: message.rawRequest }),
     ...(message.rawResponse && { rawResponse: message.rawResponse }),
     ...(message.tokenInfo && { tokenInfo: message.tokenInfo }),
@@ -92,11 +94,11 @@ export const exportChat = (messages: Message[]): void => {
     // Create enhanced export data with complete message preservation
     const exportData: EnhancedExportData = {
       metadata: {
-        version: '3.0',
+        version: '3.1',
         format: 'enhanced',
         exportDate: new Date().toISOString(),
         messageCount: messages.length,
-        description: 'Enhanced chat export with complete webhook request/response data and token information'
+        description: 'Enhanced chat export with proactive messages, webhook request/response data and token information'
       },
       messages: messages.map(convertToEnhancedFormat)
     };
