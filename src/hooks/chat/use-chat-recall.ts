@@ -20,6 +20,7 @@ export interface UseChatRecallReturn {
   selectContextMessage: (message: Message) => void;
   cancelRecall: () => void;
   clearContext: () => void;
+  showRecallHistory: () => void;
 }
 
 const initialState: RecallState = {
@@ -165,11 +166,23 @@ export function useChatRecall(): UseChatRecallReturn {
     });
   }, [toast]);
 
+  const showRecallHistory = useCallback(() => {
+    // Only works if we have previously loaded messages
+    if (recallState.recallMessages.length > 0) {
+      logger.info('[ChatRecall] Showing recall history from memory', { messageCount: recallState.recallMessages.length });
+      setRecallState(prev => ({
+        ...prev,
+        isRecallMode: true,
+      }));
+    }
+  }, [recallState.recallMessages.length]);
+
   return {
     recallState,
     activateRecall,
     selectContextMessage,
     cancelRecall,
     clearContext,
+    showRecallHistory,
   };
 }

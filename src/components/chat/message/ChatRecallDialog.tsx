@@ -15,6 +15,8 @@ interface ChatRecallDialogProps {
   initialTimestamp: string;
   onRecall: (datetime: string) => Promise<boolean>;
   isLoading?: boolean;
+  hasRecallHistory?: boolean;
+  onShowHistory?: () => void;
 }
 
 export const ChatRecallDialog: React.FC<ChatRecallDialogProps> = ({
@@ -23,6 +25,8 @@ export const ChatRecallDialog: React.FC<ChatRecallDialogProps> = ({
   initialTimestamp,
   onRecall,
   isLoading = false,
+  hasRecallHistory = false,
+  onShowHistory,
 }) => {
   const initialDate = new Date(initialTimestamp);
   const [selectedDate, setSelectedDate] = useState<Date>(initialDate);
@@ -38,7 +42,14 @@ export const ChatRecallDialog: React.FC<ChatRecallDialogProps> = ({
     }
   };
 
-  const handleCancel = () => {
+  const handleHistory = () => {
+    if (hasRecallHistory && onShowHistory) {
+      onOpenChange(false);
+      onShowHistory();
+    }
+  };
+
+  const handleClose = () => {
     setSelectedDate(initialDate);
     setSelectedTime(format(initialDate, 'HH:mm'));
     onOpenChange(false);
@@ -126,11 +137,18 @@ export const ChatRecallDialog: React.FC<ChatRecallDialogProps> = ({
           <div className="pt-4 gap-2 flex flex-col md:flex-row md:justify-center">
             <Button 
               variant="outline" 
-              onClick={handleCancel}
+              onClick={hasRecallHistory ? handleHistory : handleClose}
               disabled={isLoading}
               className="border-border/50 w-full md:w-auto md:min-w-[100px]"
             >
-              Cancel
+              {hasRecallHistory ? (
+                <>
+                  <History className="mr-1.5 h-4 w-4" />
+                  History
+                </>
+              ) : (
+                'Cancel'
+              )}
             </Button>
             <Button 
               onClick={handleRecall}
