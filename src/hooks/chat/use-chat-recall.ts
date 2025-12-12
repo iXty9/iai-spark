@@ -19,6 +19,7 @@ export interface UseChatRecallReturn {
   activateRecall: (userId: string, datetime: string) => Promise<boolean>;
   selectContextMessage: (message: Message) => void;
   cancelRecall: () => void;
+  exitRecallMode: () => void;
   clearContext: () => void;
   showRecallHistory: () => void;
 }
@@ -143,13 +144,22 @@ export function useChatRecall(): UseChatRecallReturn {
   }, [toast]);
 
   const cancelRecall = useCallback(() => {
-    logger.info('[ChatRecall] Recall cancelled');
+    logger.info('[ChatRecall] Recall cancelled - clearing all recall data');
     setRecallState(prev => ({
       ...prev,
       isRecallMode: false,
       isLoading: false,
       recallMessages: [],
       selectedDatetime: null,
+    }));
+  }, []);
+
+  // Exit recall mode but preserve messages for History button navigation
+  const exitRecallMode = useCallback(() => {
+    logger.info('[ChatRecall] Exiting recall mode - preserving messages for history');
+    setRecallState(prev => ({
+      ...prev,
+      isRecallMode: false,
     }));
   }, []);
 
@@ -183,6 +193,7 @@ export function useChatRecall(): UseChatRecallReturn {
     activateRecall,
     selectContextMessage,
     cancelRecall,
+    exitRecallMode,
     clearContext,
     showRecallHistory,
   };

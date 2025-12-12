@@ -30,6 +30,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     activateRecall,
     selectContextMessage,
     cancelRecall,
+    exitRecallMode,
     clearContext,
     showRecallHistory,
   } = useChatRecall();
@@ -164,7 +165,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
             selectedIndex={recallState.selectedIndex}
             selectedDatetime={recallState.selectedDatetime || new Date().toISOString()}
             onSelectMessage={handleSelectContextMessage}
-            onCancel={cancelRecall}
+            onCancel={exitRecallMode}
           />
         ) : convertedMessages.length === 0 ? (
           <Welcome 
