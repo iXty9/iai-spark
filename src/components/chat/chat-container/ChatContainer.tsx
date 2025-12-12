@@ -185,6 +185,8 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
             onRecall={handleRecall}
             hasRecallHistory={recallState.recallMessages.length > 0}
             onShowRecallHistory={showRecallHistory}
+            contextDatetime={recallState.contextMessage ? recallState.selectedDatetime : null}
+            onClearContext={clearContext}
           />
         )}
       </div>

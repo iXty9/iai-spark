@@ -17,6 +17,8 @@ interface MessageListProps {
   onRecall?: (datetime: string) => Promise<boolean>;
   hasRecallHistory?: boolean;
   onShowRecallHistory?: () => void;
+  contextDatetime?: string | null;
+  onClearContext?: () => void;
 }
 
 export interface MessageListHandle {
@@ -32,7 +34,9 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(({
   onScrollStateChange,
   onRecall,
   hasRecallHistory,
-  onShowRecallHistory
+  onShowRecallHistory,
+  contextDatetime,
+  onClearContext
 }, ref) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -188,6 +192,8 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(({
             isRecallLoading={isRecallLoading}
             hasRecallHistory={hasRecallHistory}
             onShowRecallHistory={onShowRecallHistory}
+            contextDatetime={contextDatetime}
+            onClearContext={onClearContext}
           />
         ))}
         
