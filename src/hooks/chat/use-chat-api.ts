@@ -3,7 +3,7 @@ import { useCallback, useRef } from 'react';
 import { Message } from '@/types/chat';
 import { processMessage } from '@/services/chat/message-processor';
 import { logger } from '@/utils/logging';
-import { UserLocation } from '@/services/types/messageTypes';
+import { UserLocation, RecallContext } from '@/services/types/messageTypes';
 
 interface UseChatApiProps {
   user: any;
@@ -11,9 +11,10 @@ interface UseChatApiProps {
   onError: (error: string) => void;
   setCurrentRequest: (request: { cancel: () => void } | null) => void;
   location?: UserLocation | null;
+  recall?: RecallContext | null;
 }
 
-export const useChatApi = ({ user, addMessage, onError, setCurrentRequest, location }: UseChatApiProps) => {
+export const useChatApi = ({ user, addMessage, onError, setCurrentRequest, location, recall }: UseChatApiProps) => {
   const sendMessageToApi = useCallback(async (userMessage: Message) => {
     let currentCancelFunction: (() => void) | null = null;
     
@@ -29,6 +30,7 @@ export const useChatApi = ({ user, addMessage, onError, setCurrentRequest, locat
           last_name: user.user_metadata?.last_name
         } : null,
         location,
+        recall,
         onMessageStart: (message) => {
           // Set current request immediately when message processing starts
           if (message && typeof message === 'object' && 'cancel' in message && typeof message.cancel === 'function') {
@@ -98,7 +100,7 @@ export const useChatApi = ({ user, addMessage, onError, setCurrentRequest, locat
       setCurrentRequest(null);
       throw err;
     }
-  }, [user, addMessage, onError, location]);
+  }, [user, addMessage, onError, location, recall]);
 
   return { sendMessageToApi };
 };
