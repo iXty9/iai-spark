@@ -128,10 +128,11 @@ export function useChatRecall(): UseChatRecallReturn {
       timestamp: message.timestamp,
     });
 
+    // Preserve recallMessages so user can return to history viewer via History button
     setRecallState(prev => ({
       ...prev,
       isRecallMode: false,
-      recallMessages: [],
+      // Keep recallMessages intact for History button
       contextMessage: message,
     }));
 
