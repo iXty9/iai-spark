@@ -98,7 +98,8 @@ export const sendWebhookMessage = async (
   isAuthenticated: boolean,
   userInfo?: { id?: string; username?: string; first_name?: string; last_name?: string } | null,
   externalController?: AbortController,
-  location?: { latitude: number; longitude: number } | null
+  location?: { latitude: number; longitude: number } | null,
+  recall?: { enabled: boolean; selected_datetime: string | null } | null
 ): Promise<{ request: any; response: any; cancel: () => void }> => {
   
   // Apply rate limiting based on authentication status
@@ -266,6 +267,17 @@ export const sendWebhookMessage = async (
           location_id: ghlInfo.location_id 
         }, { module: 'webhook' });
       }
+    }
+
+    // Include recall context if present
+    if (recall && recall.enabled && recall.selected_datetime) {
+      payload.recall = {
+        enabled: recall.enabled,
+        selected_datetime: recall.selected_datetime
+      };
+      logger.debug('[Webhook] Added recall context to payload', { 
+        selected_datetime: recall.selected_datetime 
+      }, { module: 'webhook' });
     }
 
     // Log right before sending

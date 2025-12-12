@@ -9,11 +9,16 @@ import { useChatSync } from '@/hooks/chat/use-chat-sync';
 import { Message } from '@/types/chat';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/utils/logging';
-import { UserLocation } from '@/services/types/messageTypes';
+import { UserLocation, RecallContext } from '@/services/types/messageTypes';
 
-export const useChat = () => {
+export interface UseChatOptions {
+  recallContext?: RecallContext | null;
+}
+
+export const useChat = (options?: UseChatOptions) => {
   const { user, profile } = useAuth();
   const [currentRequest, setCurrentRequest] = useState<{ cancel: () => void } | null>(null);
+  const recallContext = options?.recallContext;
   
   // Get location from profile (already updated by location service periodically)
   const location: UserLocation | null = (
@@ -66,7 +71,8 @@ export const useChat = () => {
     addMessage,
     onError: handleError,
     setCurrentRequest,
-    location
+    location,
+    recall: recallContext
   });
 
   // Pass messages array to WebSocket hook to prevent duplicate processing

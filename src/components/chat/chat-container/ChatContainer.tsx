@@ -24,6 +24,21 @@ interface ChatContainerProps {
 }
 
 export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
+  // Initialize recall first so we can pass context to useChat
+  const {
+    recallState,
+    activateRecall,
+    selectContextMessage,
+    cancelRecall,
+    clearContext,
+  } = useChatRecall();
+  
+  // Build recall context from recallState
+  const recallContext = recallState.contextMessage ? {
+    enabled: true,
+    selected_datetime: recallState.selectedDatetime
+  } : null;
+  
   const {
     messages,
     message,
@@ -36,15 +51,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     setMessages,
     addMessage,
     handleAbortRequest,
-  } = useChat();
-  
-  const {
-    recallState,
-    activateRecall,
-    selectContextMessage,
-    cancelRecall,
-    clearContext,
-  } = useChatRecall();
+  } = useChat({ recallContext });
   
   const { isIOSSafari } = useIOSSafari();
   const { user, isLoading: authLoading } = useAuth();
