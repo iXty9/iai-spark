@@ -17,6 +17,8 @@ interface ChatRecallDialogProps {
   isLoading?: boolean;
   hasRecallHistory?: boolean;
   onShowHistory?: () => void;
+  contextDatetime?: string | null;
+  onClearContext?: () => void;
 }
 
 export const ChatRecallDialog: React.FC<ChatRecallDialogProps> = ({
@@ -27,6 +29,8 @@ export const ChatRecallDialog: React.FC<ChatRecallDialogProps> = ({
   isLoading = false,
   hasRecallHistory = false,
   onShowHistory,
+  contextDatetime,
+  onClearContext,
 }) => {
   const initialDate = new Date(initialTimestamp);
   const [selectedDate, setSelectedDate] = useState<Date>(initialDate);
@@ -125,11 +129,28 @@ export const ChatRecallDialog: React.FC<ChatRecallDialogProps> = ({
               </div>
             </div>
             
-            {/* Original Time Display */}
-            <div className="text-center py-1.5 px-3 bg-muted/30 rounded-lg border border-border/30 mx-auto max-w-[260px]">
-              <span className="text-xs text-muted-foreground">
-                Original: {format(initialDate, 'MMM d, yyyy • h:mm a')}
-              </span>
+            {/* Recall Status Indicator */}
+            <div
+              onClick={contextDatetime && onClearContext ? () => { onClearContext(); } : undefined}
+              className={cn(
+                "text-center py-2 px-4 rounded-lg mx-auto max-w-[280px] transition-all",
+                contextDatetime 
+                  ? "bg-primary/20 border border-primary/40 cursor-pointer hover:bg-primary/30" 
+                  : "bg-muted/30 border border-border/30"
+              )}
+            >
+              {contextDatetime ? (
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-xs font-medium text-primary">
+                    Recall Active: {format(new Date(contextDatetime), 'MMM d, yyyy • h:mm a')}
+                  </span>
+                  <X className="h-3 w-3 text-primary/70" />
+                </div>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  No Recall Selected
+                </span>
+              )}
             </div>
           </div>
 

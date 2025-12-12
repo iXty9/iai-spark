@@ -96,7 +96,7 @@ export const RecallHistoryViewer: React.FC<RecallHistoryViewerProps> = ({
                         {isUser ? 'You' : 'AI'}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {format(new Date(msg.timestamp), 'h:mm a')}
+                        {format(new Date(msg.timestamp), 'MMM d • h:mm a')}
                       </span>
                       {isSelected && (
                         <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">

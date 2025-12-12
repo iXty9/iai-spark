@@ -19,9 +19,11 @@ interface MessageProps {
   isRecallLoading?: boolean;
   hasRecallHistory?: boolean;
   onShowRecallHistory?: () => void;
+  contextDatetime?: string | null;
+  onClearContext?: () => void;
 }
 
-export const Message: React.FC<MessageProps> = ({ message, onRetry, onRecall, isRecallLoading, hasRecallHistory, onShowRecallHistory }) => {
+export const Message: React.FC<MessageProps> = ({ message, onRetry, onRecall, isRecallLoading, hasRecallHistory, onShowRecallHistory, contextDatetime, onClearContext }) => {
   const isUser = message.sender === 'user';
   const isProactive = message.source === 'proactive';
   const { user, profile } = useAuth();
@@ -151,6 +153,8 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry, onRecall, is
         isLoading={isRecallLoading}
         hasRecallHistory={hasRecallHistory}
         onShowHistory={onShowRecallHistory}
+        contextDatetime={contextDatetime}
+        onClearContext={onClearContext}
       />
     </TooltipProvider>
   );
