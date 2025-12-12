@@ -31,6 +31,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     selectContextMessage,
     cancelRecall,
     clearContext,
+    showRecallHistory,
   } = useChatRecall();
   
   // Build recall context from recallState
@@ -181,6 +182,8 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
             onAbortRequest={handleAbortRequest}
             onScrollStateChange={handleScrollStateChange}
             onRecall={handleRecall}
+            hasRecallHistory={recallState.recallMessages.length > 0}
+            onShowRecallHistory={showRecallHistory}
           />
         )}
       </div>

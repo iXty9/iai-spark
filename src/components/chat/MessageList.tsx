@@ -15,6 +15,8 @@ interface MessageListProps {
   onAbortRequest?: () => void;
   onScrollStateChange?: (hasScrolledUp: boolean) => void;
   onRecall?: (datetime: string) => Promise<boolean>;
+  hasRecallHistory?: boolean;
+  onShowRecallHistory?: () => void;
 }
 
 export interface MessageListHandle {
@@ -28,7 +30,9 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(({
   scrollRef,
   onAbortRequest,
   onScrollStateChange,
-  onRecall
+  onRecall,
+  hasRecallHistory,
+  onShowRecallHistory
 }, ref) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -177,7 +181,14 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(({
         aria-label="Chat messages"
       >
         {messages.map((message) => (
-          <Message key={message.id} message={message} onRecall={onRecall} isRecallLoading={isRecallLoading} />
+          <Message 
+            key={message.id} 
+            message={message} 
+            onRecall={onRecall} 
+            isRecallLoading={isRecallLoading}
+            hasRecallHistory={hasRecallHistory}
+            onShowRecallHistory={onShowRecallHistory}
+          />
         ))}
         
         <TypingIndicator isVisible={isLoading} onAbort={onAbortRequest} />

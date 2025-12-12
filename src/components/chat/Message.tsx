@@ -17,9 +17,11 @@ interface MessageProps {
   onRetry?: (message: ChatMessage) => void;
   onRecall?: (datetime: string) => Promise<boolean>;
   isRecallLoading?: boolean;
+  hasRecallHistory?: boolean;
+  onShowRecallHistory?: () => void;
 }
 
-export const Message: React.FC<MessageProps> = ({ message, onRetry, onRecall, isRecallLoading }) => {
+export const Message: React.FC<MessageProps> = ({ message, onRetry, onRecall, isRecallLoading, hasRecallHistory, onShowRecallHistory }) => {
   const isUser = message.sender === 'user';
   const isProactive = message.source === 'proactive';
   const { user, profile } = useAuth();
@@ -147,6 +149,8 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry, onRecall, is
         initialTimestamp={message.timestamp}
         onRecall={onRecall || (async () => false)}
         isLoading={isRecallLoading}
+        hasRecallHistory={hasRecallHistory}
+        onShowHistory={onShowRecallHistory}
       />
     </TooltipProvider>
   );
