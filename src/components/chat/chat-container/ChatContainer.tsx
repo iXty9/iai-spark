@@ -61,10 +61,10 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
   const [hasInteracted, setHasInteracted] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [messageSentTrigger, setMessageSentTrigger] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
   const messageListRef = useRef<MessageListHandle>(null);
-  const isScrollingToBottomRef = useRef(false);
   
   // Add chat-active class to body when chat container is mounted
   useEffect(() => {
@@ -103,23 +103,21 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     setHasInteracted(true);
   };
 
-  const handleScrollStateChange = (hasScrolledUp: boolean) => {
-    // Ignore scroll state changes during programmatic scroll animation
-    if (!isScrollingToBottomRef.current) {
-      setShowScrollButton(hasScrolledUp);
-    }
-  };
+  const handleScrollStateChange = useCallback((hasScrolledUp: boolean) => {
+    setShowScrollButton(hasScrolledUp);
+  }, []);
 
-  const handleScrollToBottom = () => {
-    isScrollingToBottomRef.current = true;
+  const handleScrollToBottom = useCallback(() => {
     setShowScrollButton(false);
     messageListRef.current?.scrollToBottom();
-    
-    // Re-enable scroll state tracking after animation completes
-    setTimeout(() => {
-      isScrollingToBottomRef.current = false;
-    }, 500);
-  };
+  }, []);
+
+  // Notify MessageList when a message is sent to force following mode
+  const handleMessageSubmit = useCallback((e: React.FormEvent, overrideMessage?: string) => {
+    // Toggle trigger to notify MessageList
+    setMessageSentTrigger(prev => !prev);
+    handleSubmit(e, overrideMessage);
+  }, [handleSubmit]);
 
   // Handle chat recall activation
   const handleRecall = useCallback(async (datetime: string): Promise<boolean> => {
@@ -187,6 +185,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
             onShowRecallHistory={showRecallHistory}
             contextDatetime={recallState.contextMessage ? recallState.selectedDatetime : null}
             onClearContext={clearContext}
+            onMessageSent={messageSentTrigger}
           />
         )}
       </div>
@@ -229,7 +228,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
           <MessageInput
             message={message}
             onChange={setMessage}
-            onSubmit={handleSubmit}
+            onSubmit={handleMessageSubmit}
             isLoading={isLoading}
           />
         </div>

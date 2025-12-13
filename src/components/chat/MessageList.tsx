@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
+import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef, useCallback } from 'react';
 import { Message as MessageType } from '@/types/chat';
 import { Message } from './Message';
 import { TypingIndicator } from './TypingIndicator';
@@ -19,11 +19,17 @@ interface MessageListProps {
   onShowRecallHistory?: () => void;
   contextDatetime?: string | null;
   onClearContext?: () => void;
+  onMessageSent?: boolean; // Trigger to force following mode when message is sent
 }
 
 export interface MessageListHandle {
   scrollToBottom: () => void;
 }
+
+// Threshold constants for scroll detection
+const SCROLL_NEAR_BOTTOM_THRESHOLD = 30; // Distance to consider "at bottom"
+const SCROLL_AWAY_THRESHOLD = 80; // Distance to consider "scrolled away"
+const LAYOUT_CHANGE_DEBOUNCE_MS = 150; // Ignore scroll events after layout changes
 
 export const MessageList = forwardRef<MessageListHandle, MessageListProps>(({ 
   messages, 
@@ -36,46 +42,74 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(({
   hasRecallHistory,
   onShowRecallHistory,
   contextDatetime,
-  onClearContext
+  onClearContext,
+  onMessageSent
 }, ref) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const [userHasScrolled, setUserHasScrolled] = useState(false);
+  
+  // Intent-based "following mode" - tracks whether user wants to stay at bottom
+  const [isFollowing, setIsFollowing] = useState(true);
   const [hasRestoredScroll, setHasRestoredScroll] = useState(false);
+  
   const prevMessagesLengthRef = useRef(messages.length);
-  const skipScrollDetectionRef = useRef(false);
+  const ignoreScrollUntilRef = useRef<number>(0); // Timestamp until which to ignore scroll events
+  const lastMessageCountRef = useRef(messages.length);
+  
   const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
                      /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+  // Helper to temporarily ignore scroll events (for layout changes)
+  const ignoreScrollBriefly = useCallback(() => {
+    ignoreScrollUntilRef.current = Date.now() + LAYOUT_CHANGE_DEBOUNCE_MS;
+  }, []);
 
   // Expose scrollToBottom method via ref
   useImperativeHandle(ref, () => ({
     scrollToBottom: () => {
       const scrollableElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
       if (scrollableElement) {
-        // Skip scroll detection during programmatic scroll to prevent flicker
-        skipScrollDetectionRef.current = true;
-        setUserHasScrolled(false);
+        // Enter following mode and ignore scroll events during animation
+        setIsFollowing(true);
+        ignoreScrollBriefly();
         
-        // Scroll to absolute bottom using direct scroll manipulation
         scrollableElement.scrollTo({
           top: scrollableElement.scrollHeight,
           behavior: isIOSSafari ? 'auto' : 'smooth'
         });
         
-        // Re-enable scroll detection after animation completes
-        setTimeout(() => {
-          skipScrollDetectionRef.current = false;
-        }, 400);
+        // Re-ignore after animation
+        setTimeout(ignoreScrollBriefly, 300);
       }
     }
-  }), [isIOSSafari]);
+  }), [isIOSSafari, ignoreScrollBriefly]);
 
-  // Notify parent when scroll state changes
+  // Notify parent when following state changes (inverted - parent sees "hasScrolledUp")
   useEffect(() => {
-    onScrollStateChange?.(userHasScrolled);
-  }, [userHasScrolled, onScrollStateChange]);
+    onScrollStateChange?.(!isFollowing);
+  }, [isFollowing, onScrollStateChange]);
 
-  // Restore scroll position whenever component mounts or messages are available
+  // Force following mode when a message is sent
+  useEffect(() => {
+    if (onMessageSent) {
+      setIsFollowing(true);
+      ignoreScrollBriefly();
+    }
+  }, [onMessageSent, ignoreScrollBriefly]);
+
+  // Force following mode when new messages arrive and we're currently following
+  useEffect(() => {
+    const hasNewMessages = messages.length > lastMessageCountRef.current;
+    
+    if (hasNewMessages && isFollowing) {
+      // Ignore layout-triggered scroll events when new message appears
+      ignoreScrollBriefly();
+    }
+    
+    lastMessageCountRef.current = messages.length;
+  }, [messages.length, isFollowing, ignoreScrollBriefly]);
+
+  // Restore scroll position on mount
   useEffect(() => {
     const scrollableElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
     
@@ -85,66 +119,76 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(({
       if (savedScrollPosition !== null && savedScrollPosition > 0) {
         logger.debug('Restoring scroll position after navigation', { position: savedScrollPosition }, { module: 'chat' });
         
-        // Use requestAnimationFrame to ensure DOM is fully rendered
         requestAnimationFrame(() => {
           scrollableElement.scrollTop = savedScrollPosition;
-          setUserHasScrolled(true);
+          setIsFollowing(false); // User was scrolled up, don't auto-follow
           setHasRestoredScroll(true);
         });
       } else {
-        // No saved position or at top, mark as restored to prevent future attempts
         setHasRestoredScroll(true);
       }
     }
   }, [messages.length, hasRestoredScroll]);
   
-  // Save scroll position when user scrolls
+  // Main scroll event handler with intent-based detection
   useEffect(() => {
     const scrollArea = scrollAreaRef.current;
+    const scrollableElement = scrollArea?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
     
-    const handleScroll = (e: Event) => {
-      if (scrollArea) {
-        const { scrollTop, scrollHeight, clientHeight } = e.target as HTMLElement;
-        const isScrolledToBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 20;
-        
-        // Save the current scroll position using persistence service
-        if (!isIOSSafari || (isIOSSafari && !isLoading)) {
-          saveScrollPosition(scrollTop);
+    if (!scrollableElement) return;
+    
+    const handleScroll = () => {
+      // Ignore scroll events during debounce period (layout changes, programmatic scrolls)
+      if (Date.now() < ignoreScrollUntilRef.current) {
+        return;
+      }
+      
+      const { scrollTop, scrollHeight, clientHeight } = scrollableElement;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      
+      // Save scroll position for persistence
+      if (!isIOSSafari || !isLoading) {
+        saveScrollPosition(scrollTop);
+      }
+      
+      // Intent-based state transitions
+      if (isFollowing) {
+        // Exit following mode only if user scrolled significantly away
+        if (distanceFromBottom > SCROLL_AWAY_THRESHOLD) {
+          setIsFollowing(false);
         }
-        
-        // Skip updating scroll state during programmatic scroll
-        if (!skipScrollDetectionRef.current) {
-          setUserHasScrolled(!isScrolledToBottom);
+      } else {
+        // Re-enter following mode if user scrolled back to bottom
+        if (distanceFromBottom < SCROLL_NEAR_BOTTOM_THRESHOLD) {
+          setIsFollowing(true);
         }
       }
     };
     
-    if (scrollArea) {
-      const scrollableElement = scrollArea.querySelector('[data-radix-scroll-area-viewport]');
-      if (scrollableElement) {
-        scrollableElement.addEventListener('scroll', handleScroll);
-        
-        // Special handling for iOS momentum scrolling
-        if (isIOSSafari) {
-          scrollableElement.addEventListener('touchend', () => {
-            setTimeout(() => {
-              const { scrollTop } = scrollableElement as HTMLElement;
-              saveScrollPosition(scrollTop);
-            }, 300); // Delay to account for momentum
-          });
-        }
-        
-        return () => {
-          scrollableElement.removeEventListener('scroll', handleScroll);
-          if (isIOSSafari) {
-            scrollableElement.removeEventListener('touchend', () => {});
-          }
-        };
-      }
+    scrollableElement.addEventListener('scroll', handleScroll, { passive: true });
+    
+    // iOS momentum scrolling handler
+    if (isIOSSafari) {
+      const handleTouchEnd = () => {
+        setTimeout(() => {
+          const { scrollTop } = scrollableElement;
+          saveScrollPosition(scrollTop);
+        }, 300);
+      };
+      scrollableElement.addEventListener('touchend', handleTouchEnd, { passive: true });
+      
+      return () => {
+        scrollableElement.removeEventListener('scroll', handleScroll);
+        scrollableElement.removeEventListener('touchend', handleTouchEnd);
+      };
     }
-  }, [isIOSSafari, isLoading]);
+    
+    return () => {
+      scrollableElement.removeEventListener('scroll', handleScroll);
+    };
+  }, [isIOSSafari, isLoading, isFollowing]);
 
-  // Handle scrolling for new messages (but not when restoring position)
+  // Auto-scroll when following and new content arrives
   useEffect(() => {
     const scrollToBottom = () => {
       if (messagesEndRef.current) {
@@ -155,21 +199,22 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(({
       }
     };
 
-    // Only auto-scroll for new messages if we've already restored position or there's no saved position
     const hasNewMessages = messages.length > prevMessagesLengthRef.current;
     
-    if (hasRestoredScroll && hasNewMessages && !userHasScrolled) {
+    // Auto-scroll if following mode is active and new messages arrived
+    if (hasRestoredScroll && hasNewMessages && isFollowing) {
+      ignoreScrollBriefly();
       scrollToBottom();
     }
     
-    // Always scroll when loading starts (new message being generated)
-    if (isLoading && hasRestoredScroll) {
-      setUserHasScrolled(false);
+    // Auto-scroll when loading starts (AI is responding) and we're following
+    if (isLoading && hasRestoredScroll && isFollowing) {
+      ignoreScrollBriefly();
       scrollToBottom();
     }
     
     prevMessagesLengthRef.current = messages.length;
-  }, [messages.length, isLoading, userHasScrolled, hasRestoredScroll, isIOSSafari]);
+  }, [messages.length, isLoading, isFollowing, hasRestoredScroll, isIOSSafari, ignoreScrollBriefly]);
 
   return (
     <ScrollArea 
