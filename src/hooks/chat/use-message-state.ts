@@ -21,21 +21,37 @@ export const useMessageState = (options: UseMessageStateOptions = {}) => {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const initializing = useRef(false);
-  const hasInitialized = useRef(false);
   const isBulkOperation = useRef(false);
   const isSyncing = useRef(false);
   
-  // Reset hasInitialized on mount to force fresh Supabase fetch after PWA reload
-  useEffect(() => {
-    hasInitialized.current = false;
-  }, []);
+  // Track which context we initialized in (not just boolean)
+  // This fixes PWA race condition where auth loads after initial render
+  const initializedContext = useRef<'anonymous' | 'authenticated' | null>(null);
   
-  // Load saved messages on initial render
+  // Load saved messages on initial render OR when auth context changes
   useEffect(() => {
-    if (hasInitialized.current) return;
+    const targetContext = isAuthenticated ? 'authenticated' : 'anonymous';
+    
+    // Skip if we already initialized in this same context
+    if (initializedContext.current === targetContext) return;
+    
+    // For authenticated context, require userId to be available
+    if (isAuthenticated && !userId) return;
     
     const loadMessages = async () => {
+      logger.debug('Initializing message state', { 
+        targetContext, 
+        previousContext: initializedContext.current,
+        userId 
+      }, { module: 'message-state' });
+      
       if (isAuthenticated && userId) {
+        // Clear any stale anonymous messages before loading from Supabase
+        if (initializedContext.current === 'anonymous') {
+          logger.debug('Transitioning from anonymous to authenticated, clearing stale messages', {}, { module: 'message-state' });
+          setMessages([]);
+        }
+        
         // Authenticated: load from Supabase (source of truth)
         try {
           const savedMessages = await fetchActiveMessages(userId);
@@ -53,6 +69,7 @@ export const useMessageState = (options: UseMessageStateOptions = {}) => {
           setMessages([]);
           toast.error('Failed to load chat history. Please refresh.');
         }
+        initializedContext.current = 'authenticated';
       } else {
         // Anonymous: load from localStorage
         const savedMessages = loadChatHistory();
@@ -66,8 +83,8 @@ export const useMessageState = (options: UseMessageStateOptions = {}) => {
             screen: 'Chat Screen'
           });
         }
+        initializedContext.current = 'anonymous';
       }
-      hasInitialized.current = true;
     };
     
     loadMessages();
@@ -103,7 +120,7 @@ export const useMessageState = (options: UseMessageStateOptions = {}) => {
   
   useEffect(() => {
     // Skip during bulk operations or before initialization
-    if (!hasInitialized.current || isBulkOperation.current) return;
+    if (!initializedContext.current || isBulkOperation.current) return;
     
     // Only save to localStorage for anonymous users
     if (!isAuthenticated && messageCount > 0) {
