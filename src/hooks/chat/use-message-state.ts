@@ -23,6 +23,12 @@ export const useMessageState = (options: UseMessageStateOptions = {}) => {
   const initializing = useRef(false);
   const hasInitialized = useRef(false);
   const isBulkOperation = useRef(false);
+  const isSyncing = useRef(false);
+  
+  // Reset hasInitialized on mount to force fresh Supabase fetch after PWA reload
+  useEffect(() => {
+    hasInitialized.current = false;
+  }, []);
   
   // Load saved messages on initial render
   useEffect(() => {
@@ -30,26 +36,22 @@ export const useMessageState = (options: UseMessageStateOptions = {}) => {
     
     const loadMessages = async () => {
       if (isAuthenticated && userId) {
-        // Authenticated: load from Supabase
+        // Authenticated: load from Supabase (source of truth)
         try {
           const savedMessages = await fetchActiveMessages(userId);
-          if (savedMessages.length > 0) {
-            setMessages(savedMessages);
-            logger.debug('Loaded messages from Supabase', { count: savedMessages.length }, { module: 'message-state' });
-            
-            emitDebugEvent({
-              lastAction: 'Restored chat history from Supabase',
-              messagesCount: savedMessages.length,
-              screen: 'Chat Screen'
-            });
-          }
+          setMessages(savedMessages);
+          logger.debug('Loaded messages from Supabase', { count: savedMessages.length }, { module: 'message-state' });
+          
+          emitDebugEvent({
+            lastAction: 'Restored chat history from Supabase',
+            messagesCount: savedMessages.length,
+            screen: savedMessages.length > 0 ? 'Chat Screen' : 'Welcome Screen'
+          });
         } catch (error) {
-          logger.error('Failed to load messages from Supabase, falling back to localStorage', error, { module: 'message-state' });
-          // Fallback to localStorage on error
-          const savedMessages = loadChatHistory();
-          if (savedMessages.length > 0) {
-            setMessages(savedMessages);
-          }
+          logger.error('Failed to load messages from Supabase', error, { module: 'message-state' });
+          // Don't fallback to localStorage - Supabase is source of truth
+          setMessages([]);
+          toast.error('Failed to load chat history. Please refresh.');
         }
       } else {
         // Anonymous: load from localStorage
@@ -69,6 +71,31 @@ export const useMessageState = (options: UseMessageStateOptions = {}) => {
     };
     
     loadMessages();
+  }, [isAuthenticated, userId]);
+  
+  // Force sync when app becomes visible (mobile wake-up, tab switch, PWA resume)
+  useEffect(() => {
+    if (!isAuthenticated || !userId) return;
+    
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && !isSyncing.current) {
+        isSyncing.current = true;
+        logger.debug('App became visible, syncing messages', {}, { module: 'message-state' });
+        
+        try {
+          const freshMessages = await fetchActiveMessages(userId);
+          setMessages(freshMessages);
+          logger.debug('Synced messages on visibility change', { count: freshMessages.length }, { module: 'message-state' });
+        } catch (error) {
+          logger.error('Failed to sync messages on visibility change', error, { module: 'message-state' });
+        } finally {
+          isSyncing.current = false;
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [isAuthenticated, userId]);
   
   // Save messages whenever they change (only for anonymous users)
