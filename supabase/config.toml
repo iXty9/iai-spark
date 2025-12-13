@@ -50,6 +50,9 @@ verify_jwt = false
 [functions.ghl-token-refresh]
 verify_jwt = true
 
+[functions.ghl-token-refresh-cron]
+verify_jwt = false
+
 [functions.ghl-disconnect]
 verify_jwt = true
 
