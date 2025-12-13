@@ -50,7 +50,16 @@ function processBodyForEndpoint(
   const isConversationsEndpoint = normalizedEndpoint.startsWith('/conversations');
   const isInvoicesEndpoint = normalizedEndpoint.startsWith('/invoices');
   
-  if (isContactsCreate || isContactsUpsert) {
+  // Contact sub-resource endpoints: tags, notes, tasks, followers, campaigns, workflow
+  // These only need locationId in query string, NOT in body
+  const isContactSubResource = /^\/contacts\/[^\/]+\/(tags|notes|tasks|followers|campaigns|workflow)$/i.test(normalizedEndpoint);
+  
+  if (isContactSubResource) {
+    // Contact sub-resource endpoints only accept their specific payload
+    // locationId is handled in query string, not body
+    delete processedBody.locationId;
+    console.log(`[ghl-api-proxy] Contact sub-resource endpoint: stripped 'locationId' from body (uses query string only)`);
+  } else if (isContactsCreate || isContactsUpsert) {
     // POST /contacts or POST /contacts/upsert:
     // - Strip 'id' (not allowed on create/upsert)
     // - Inject locationId (required)
