@@ -7,6 +7,29 @@ const corsHeaders = {
 
 const N8N_WEBHOOK_URL = 'https://n8n.ixty.ai:5679/webhook/9e16570c-ae25-422a-9418-46cac1e285ed';
 
+/**
+ * Generate a composite deduplication key from event data.
+ * This handles HighLevel's behavior of sending multiple webhooks with different
+ * webhookIds for the same logical event.
+ */
+function generateDedupKey(payload: any): string {
+  const eventType = payload.type || 'unknown';
+  
+  // Extract entity ID based on event type
+  let entityId = '';
+  if (payload.appointment?.id) entityId = payload.appointment.id;
+  else if (payload.contact?.id) entityId = payload.contact.id;
+  else if (payload.opportunity?.id) entityId = payload.opportunity.id;
+  else if (payload.task?.id) entityId = payload.task.id;
+  else if (payload.note?.id) entityId = payload.note.id;
+  else if (payload.id) entityId = payload.id;
+  
+  // Create 10-second time window bucket (floor to nearest 10 seconds)
+  const timeWindow = Math.floor(Date.now() / 10000);
+  
+  return `composite_${eventType}_${entityId}_${timeWindow}`;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -15,42 +38,78 @@ Deno.serve(async (req) => {
 
   try {
     const payload = await req.json();
-    console.log(`[ghl-notification-proxy] Received notification type: ${payload.type || 'unknown'}`);
+    const webhookId = payload.webhookId;
+    const compositeKey = generateDedupKey(payload);
+    
+    console.log(`[ghl-notification-proxy] Received: type=${payload.type || 'unknown'}, webhookId=${webhookId || 'none'}, compositeKey=${compositeKey}`);
 
     // Create Supabase client with service role
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Deduplication check using webhookId
-    const webhookId = payload.webhookId;
+    // Helper function for duplicate responses
+    const duplicateResponse = (reason: string, key: string) => {
+      console.log(`[ghl-notification-proxy] Duplicate webhook skipped (${reason}): ${key}`);
+      return new Response(
+        JSON.stringify({ success: true, skipped: true, reason: 'duplicate', dedup_key: key }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    };
+
+    // Step 1: Check webhookId first (fastest path for true duplicates)
     if (webhookId) {
-      // Check if we've already processed this webhookId
-      const { data: existing } = await supabase
+      const { data: existingWebhookId } = await supabase
         .from('ghl_webhook_dedup')
         .select('webhook_id')
         .eq('webhook_id', webhookId)
         .maybeSingle();
 
-      if (existing) {
-        console.log(`[ghl-notification-proxy] Duplicate webhook skipped: ${webhookId}`);
-        return new Response(
-          JSON.stringify({ success: true, skipped: true, reason: 'duplicate' }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      if (existingWebhookId) {
+        return duplicateResponse('webhookId', webhookId);
       }
+    }
 
-      // Record this webhookId to prevent future duplicates
-      const { error: insertError } = await supabase
+    // Step 2: Check composite key for same-event duplicates from HighLevel
+    const { data: existingComposite } = await supabase
+      .from('ghl_webhook_dedup')
+      .select('webhook_id')
+      .eq('webhook_id', compositeKey)
+      .maybeSingle();
+
+    if (existingComposite) {
+      return duplicateResponse('composite', compositeKey);
+    }
+
+    // Step 3: Record BOTH keys to prevent future duplicates (with race condition protection)
+    const keysToInsert = [{ webhook_id: compositeKey }];
+    if (webhookId && webhookId !== compositeKey) {
+      keysToInsert.push({ webhook_id: webhookId });
+    }
+
+    // Use upsert with ignoreDuplicates to handle race conditions atomically
+    const { error: upsertError } = await supabase
+      .from('ghl_webhook_dedup')
+      .upsert(keysToInsert, { onConflict: 'webhook_id', ignoreDuplicates: true });
+
+    if (upsertError) {
+      // Log but don't fail - could be a race condition where another instance inserted first
+      console.warn(`[ghl-notification-proxy] Dedup upsert warning: ${upsertError.message}`);
+    }
+
+    // Step 4: Periodically clean up old records (~1% of requests to avoid overhead)
+    if (Math.random() < 0.01) {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { error: cleanupError } = await supabase
         .from('ghl_webhook_dedup')
-        .insert({ webhook_id: webhookId });
-
-      if (insertError) {
-        // Log but don't fail - could be a race condition where another instance inserted first
-        console.warn(`[ghl-notification-proxy] Failed to record webhookId: ${insertError.message}`);
+        .delete()
+        .lt('created_at', oneHourAgo);
+      
+      if (cleanupError) {
+        console.warn(`[ghl-notification-proxy] Cleanup warning: ${cleanupError.message}`);
+      } else {
+        console.log('[ghl-notification-proxy] Cleaned up old dedup records (>1 hour)');
       }
-    } else {
-      console.warn('[ghl-notification-proxy] No webhookId in payload - cannot deduplicate');
     }
 
     // Extract locationId - check top level first, then common nested locations
@@ -113,7 +172,7 @@ Deno.serve(async (req) => {
     console.log(`[ghl-notification-proxy] n8n response: ${n8nResponse.status}`);
 
     return new Response(
-      JSON.stringify({ success: true, forwarded: true }),
+      JSON.stringify({ success: true, forwarded: true, dedup_keys: keysToInsert.map(k => k.webhook_id) }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
