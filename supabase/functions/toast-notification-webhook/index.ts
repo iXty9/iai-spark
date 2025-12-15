@@ -15,7 +15,9 @@ const ToastNotificationSchema = z.object({
   message: z.string().min(1).max(5000),
   type: z.enum(['info', 'success', 'warning', 'error']).optional().default('info'),
   user_id: z.string().uuid().optional(),
+  username: z.string().min(1).max(100).optional(),
   target_users: z.array(z.string().uuid()).max(100).optional(),
+  broadcast_all: z.boolean().optional().default(false),
   sender: z.string().min(1).max(100).optional(),
 });
 
@@ -75,6 +77,63 @@ serve(async (req) => {
 
     console.log('Received toast notification:', payload)
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
+    // Determine targeting mode
+    const wantsBroadcast = payload.broadcast_all === true;
+    let targetUserIds: string[] = [];
+
+    if (!wantsBroadcast) {
+      if (payload.user_id) {
+        targetUserIds = [payload.user_id];
+        console.log('Targeting single user by user_id:', payload.user_id);
+      } else if (payload.username) {
+        // Username lookup
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('username', payload.username)
+          .maybeSingle();
+        
+        if (!profile) {
+          console.error('User not found for username:', payload.username);
+          return new Response(
+            JSON.stringify({ 
+              error: 'User not found',
+              details: `No user found with username: ${payload.username}`
+            }),
+            { 
+              status: 404, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            }
+          );
+        }
+        targetUserIds = [profile.id];
+        console.log('Targeting by username lookup:', payload.username, '-> user_id:', profile.id);
+      } else if (payload.target_users && payload.target_users.length > 0) {
+        targetUserIds = payload.target_users;
+        console.log('Targeting multiple users:', targetUserIds.length);
+      } else {
+        // No targeting specified and not broadcast - reject request
+        console.error('Invalid request: no target specified and broadcast_all not set');
+        return new Response(
+          JSON.stringify({ 
+            error: 'Invalid request',
+            details: 'Must specify user_id, username, target_users, or set broadcast_all: true'
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+    } else {
+      console.log('Broadcasting to all users (broadcast_all: true)');
+    }
+
     // Create the notification data with correct structure
     const notificationData = {
       id: crypto.randomUUID(),
@@ -85,11 +144,6 @@ serve(async (req) => {
     }
 
     console.log('Prepared notification data:', notificationData)
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    
-    const supabase = createClient(supabaseUrl, supabaseKey)
 
     // Store notification in database (server-side only, once per toast)
     const storeNotificationInDB = async (userId: string) => {
@@ -128,45 +182,10 @@ serve(async (req) => {
     
     console.log('Created toast-notifications channel')
 
-    // Send with consistent payload structure and store in database
-    if (payload.user_id) {
-      // Send to specific user and store in their notifications
-      await storeNotificationInDB(payload.user_id)
-      
-      const payloadStructure = {
-        data: notificationData,
-        target_user: payload.user_id
-      };
-      
-      console.log('Sending targeted toast with payload:', payloadStructure);
-      
-      const result = await channel.send({
-        type: 'broadcast',
-        event: 'toast_notification',
-        payload: payloadStructure
-      })
-      console.log('Sent targeted toast notification result:', result)
-    } else if (payload.target_users && payload.target_users.length > 0) {
-      // Send to specific users and store in each user's notifications
-      for (const userId of payload.target_users) {
-        await storeNotificationInDB(userId)
-        
-        const payloadStructure = {
-          data: notificationData,
-          target_user: userId
-        };
-        
-        console.log(`Sending toast to user ${userId} with payload:`, payloadStructure);
-        
-        const result = await channel.send({
-          type: 'broadcast',
-          event: 'toast_notification',
-          payload: payloadStructure
-        })
-        console.log(`Sent toast notification to user ${userId} result:`, result)
-      }
-    } else {
-      // Broadcast to all users - get all authenticated users and store for each
+    let broadcastResult;
+
+    if (wantsBroadcast) {
+      // Explicit broadcast to all users
       try {
         const { data: profiles, error } = await supabase
           .from('profiles')
@@ -186,29 +205,55 @@ serve(async (req) => {
       }
       
       const payloadStructure = {
-        data: notificationData
+        data: notificationData,
+        is_broadcast: true
       };
       
       console.log('Sending broadcast toast with payload:', payloadStructure);
       
-      const result = await channel.send({
+      broadcastResult = await channel.send({
         type: 'broadcast',
         event: 'toast_notification',
         payload: payloadStructure
       })
-      console.log('Sent broadcast toast notification result:', result)
+      console.log('Sent broadcast toast notification result:', broadcastResult)
+    } else {
+      // Targeted delivery to specific users
+      for (const userId of targetUserIds) {
+        await storeNotificationInDB(userId)
+        
+        const payloadStructure = {
+          data: notificationData,
+          target_user: userId
+        };
+        
+        console.log(`Sending toast to user ${userId} with payload:`, payloadStructure);
+        
+        broadcastResult = await channel.send({
+          type: 'broadcast',
+          event: 'toast_notification',
+          payload: payloadStructure
+        })
+        console.log(`Sent toast notification to user ${userId} result:`, broadcastResult)
+      }
     }
 
     // Clean up the channel
     await supabase.removeChannel(channel)
 
-    console.log('Toast notification sent successfully')
+    console.log('Toast notification sent successfully', {
+      delivery_mode: wantsBroadcast ? 'broadcast_all' : 'targeted',
+      target_count: wantsBroadcast ? 'all' : targetUserIds.length,
+      notification_id: notificationData.id
+    })
 
     return new Response(JSON.stringify({ 
       success: true, 
       message: 'Toast notification sent successfully',
       notification_id: notificationData.id,
-      debug_data: notificationData
+      delivery_mode: wantsBroadcast ? 'broadcast_all' : 'targeted',
+      target_count: wantsBroadcast ? 'all' : targetUserIds.length,
+      target_user_ids: wantsBroadcast ? undefined : targetUserIds
     }), {
       status: 200,
       headers: {
