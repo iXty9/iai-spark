@@ -134,6 +134,21 @@ export type Database = {
         }
         Relationships: []
       }
+      ghl_webhook_dedup: {
+        Row: {
+          created_at: string
+          webhook_id: string
+        }
+        Insert: {
+          created_at?: string
+          webhook_id: string
+        }
+        Update: {
+          created_at?: string
+          webhook_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
