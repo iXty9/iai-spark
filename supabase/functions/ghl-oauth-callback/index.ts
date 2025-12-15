@@ -120,16 +120,45 @@ Deno.serve(async (req) => {
       expires_in,
       token_type,
       scope,
-      locationId,
+      locationId: tokenLocationId,
       companyId,
       userId: ghlUserId,
     } = tokenData;
 
-    // locationId is REQUIRED from GHL token response for proper installation tracking
+    // Create Supabase client early - needed for pending installation lookup
+    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+
+    // Determine locationId - prefer token response, fallback to pending installation
+    let locationId = tokenLocationId;
+    
     if (!locationId) {
-      console.error('[ghl-oauth-callback] No locationId in token response - this should not happen');
+      console.warn('[ghl-oauth-callback] No locationId in token response, checking for pending installation...');
+      
+      // Look for a pending installation created in the last 5 minutes with no user_id
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      const { data: pendingInstallation, error: pendingError } = await supabase
+        .from('ghl_installations')
+        .select('location_id')
+        .is('user_id', null)
+        .eq('connection_status', 'pending')
+        .gte('created_at', fiveMinutesAgo)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (pendingError) {
+        console.error('[ghl-oauth-callback] Error querying pending installations:', pendingError);
+      } else if (pendingInstallation?.location_id) {
+        locationId = pendingInstallation.location_id;
+        console.log('[ghl-oauth-callback] Found pending installation, using locationId:', locationId);
+      }
+    }
+
+    // Final check - we must have a locationId from somewhere
+    if (!locationId) {
+      console.error('[ghl-oauth-callback] No locationId available from token or pending installation');
       return new Response(
-        JSON.stringify({ error: 'Invalid token response: missing locationId' }),
+        JSON.stringify({ error: 'Unable to determine GHL location. Please try reinstalling the app from the HighLevel Marketplace.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -166,9 +195,7 @@ Deno.serve(async (req) => {
       console.warn('[ghl-oauth-callback] Failed to fetch location name:', err);
     }
 
-    // Store in database using service role
-    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
-
+    // Store in database using service role (client already created above)
     // RACE CONDITION FIX: Always upsert by location_id as the unique key
     // This handles both scenarios:
     // 1. OAuth arrives first (before install webhook) - creates record with all data
