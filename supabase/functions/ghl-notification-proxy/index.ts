@@ -17,6 +17,42 @@ Deno.serve(async (req) => {
     const payload = await req.json();
     console.log(`[ghl-notification-proxy] Received notification type: ${payload.type || 'unknown'}`);
 
+    // Create Supabase client with service role
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Deduplication check using webhookId
+    const webhookId = payload.webhookId;
+    if (webhookId) {
+      // Check if we've already processed this webhookId
+      const { data: existing } = await supabase
+        .from('ghl_webhook_dedup')
+        .select('webhook_id')
+        .eq('webhook_id', webhookId)
+        .maybeSingle();
+
+      if (existing) {
+        console.log(`[ghl-notification-proxy] Duplicate webhook skipped: ${webhookId}`);
+        return new Response(
+          JSON.stringify({ success: true, skipped: true, reason: 'duplicate' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Record this webhookId to prevent future duplicates
+      const { error: insertError } = await supabase
+        .from('ghl_webhook_dedup')
+        .insert({ webhook_id: webhookId });
+
+      if (insertError) {
+        // Log but don't fail - could be a race condition where another instance inserted first
+        console.warn(`[ghl-notification-proxy] Failed to record webhookId: ${insertError.message}`);
+      }
+    } else {
+      console.warn('[ghl-notification-proxy] No webhookId in payload - cannot deduplicate');
+    }
+
     // Extract locationId - check top level first, then common nested locations
     const locationId = payload.locationId 
       || payload.appointment?.locationId
@@ -34,11 +70,6 @@ Deno.serve(async (req) => {
     }
 
     console.log(`[ghl-notification-proxy] Looking up user for locationId: ${locationId}`);
-
-    // Create Supabase client with service role
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Look up user_id from ghl_installations
     const { data: installation, error: lookupError } = await supabase
