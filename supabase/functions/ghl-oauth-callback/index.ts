@@ -125,6 +125,17 @@ Deno.serve(async (req) => {
       userId: ghlUserId,
     } = tokenData;
 
+    // locationId is REQUIRED from GHL token response for proper installation tracking
+    if (!locationId) {
+      console.error('[ghl-oauth-callback] No locationId in token response - this should not happen');
+      return new Response(
+        JSON.stringify({ error: 'Invalid token response: missing locationId' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('[ghl-oauth-callback] Processing OAuth for location:', locationId, 'user:', userId);
+
     // Calculate expiry time
     const expiresAt = new Date(Date.now() + (expires_in * 1000));
 
@@ -134,106 +145,57 @@ Deno.serve(async (req) => {
 
     console.log('[ghl-oauth-callback] Tokens encrypted successfully');
 
-    // Fetch location/company name if we have the access token
+    // Fetch location name if we have the access token
     let locationName = null;
-    let companyName = null;
-
-    if (locationId) {
-      try {
-        const locationResponse = await fetch(
-          `https://services.leadconnectorhq.com/locations/${locationId}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${access_token}`,
-              'Version': '2021-07-28',
-            },
-          }
-        );
-        if (locationResponse.ok) {
-          const locationData = await locationResponse.json();
-          locationName = locationData.location?.name || locationData.name;
-          console.log('[ghl-oauth-callback] Location name fetched:', locationName);
+    try {
+      const locationResponse = await fetch(
+        `https://services.leadconnectorhq.com/locations/${locationId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${access_token}`,
+            'Version': '2021-07-28',
+          },
         }
-      } catch (err) {
-        console.warn('[ghl-oauth-callback] Failed to fetch location name:', err);
+      );
+      if (locationResponse.ok) {
+        const locationData = await locationResponse.json();
+        locationName = locationData.location?.name || locationData.name;
+        console.log('[ghl-oauth-callback] Location name fetched:', locationName);
       }
+    } catch (err) {
+      console.warn('[ghl-oauth-callback] Failed to fetch location name:', err);
     }
 
     // Store in database using service role
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
-    // Check if there's a pending installation for this location (created by install webhook)
-    let installationId: string | null = null;
-    if (locationId) {
-      const { data: pendingInstall } = await supabase
-        .from('ghl_installations')
-        .select('id')
-        .eq('location_id', locationId)
-        .eq('connection_status', 'pending')
-        .is('user_id', null)
-        .maybeSingle();
-
-      if (pendingInstall) {
-        console.log('[ghl-oauth-callback] Found pending installation to link:', pendingInstall.id);
-        installationId = pendingInstall.id;
-      }
-    }
-
-    // If we found a pending installation, update it; otherwise upsert by user_id
-    let data;
-    let dbError;
-
-    if (installationId) {
-      // Update the pending installation with user and tokens
-      const result = await supabase
-        .from('ghl_installations')
-        .update({
-          user_id: userId,
-          access_token_encrypted: encryptedAccessToken,
-          refresh_token_encrypted: encryptedRefreshToken,
-          token_expires_at: expiresAt.toISOString(),
-          scopes: scope || null,
-          connection_status: 'connected',
-          connected_at: new Date().toISOString(),
-          last_refresh_at: new Date().toISOString(),
-          location_name: locationName,
-          company_name: companyName,
-          refresh_error: null,
-        })
-        .eq('id', installationId)
-        .select()
-        .single();
-      
-      data = result.data;
-      dbError = result.error;
-    } else {
-      // No pending installation found, upsert by user_id
-      const result = await supabase
-        .from('ghl_installations')
-        .upsert({
-          user_id: userId,
-          location_id: locationId || null,
-          company_id: companyId || null,
-          ghl_user_id: ghlUserId || null,
-          access_token_encrypted: encryptedAccessToken,
-          refresh_token_encrypted: encryptedRefreshToken,
-          token_expires_at: expiresAt.toISOString(),
-          scopes: scope || null,
-          connection_status: 'connected',
-          connected_at: new Date().toISOString(),
-          last_refresh_at: new Date().toISOString(),
-          location_name: locationName,
-          company_name: companyName,
-          refresh_error: null,
-        }, {
-          onConflict: 'user_id',
-        })
-        .select()
-        .single();
-      
-      data = result.data;
-      dbError = result.error;
-    }
+    // RACE CONDITION FIX: Always upsert by location_id as the unique key
+    // This handles both scenarios:
+    // 1. OAuth arrives first (before install webhook) - creates record with all data
+    // 2. OAuth arrives second (after install webhook created pending) - updates the pending record
+    // Using location_id as conflict key ensures one installation per GHL location
+    const { data, error: dbError } = await supabase
+      .from('ghl_installations')
+      .upsert({
+        location_id: locationId,
+        user_id: userId,
+        company_id: companyId || null,
+        ghl_user_id: ghlUserId || null,
+        access_token_encrypted: encryptedAccessToken,
+        refresh_token_encrypted: encryptedRefreshToken,
+        token_expires_at: expiresAt.toISOString(),
+        scopes: scope || null,
+        connection_status: 'connected',
+        connected_at: new Date().toISOString(),
+        last_refresh_at: new Date().toISOString(),
+        location_name: locationName,
+        refresh_error: null,
+      }, {
+        onConflict: 'location_id',
+        ignoreDuplicates: false,
+      })
+      .select()
+      .single();
 
     if (dbError) {
       console.error('[ghl-oauth-callback] Database error:', dbError);
@@ -243,7 +205,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('[ghl-oauth-callback] Installation saved successfully for user:', userId);
+    console.log('[ghl-oauth-callback] Installation saved successfully for user:', userId, 'location:', locationId);
 
     return new Response(
       JSON.stringify({
