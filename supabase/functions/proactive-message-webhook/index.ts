@@ -12,6 +12,7 @@ const corsHeaders = {
 const ProactiveMessageSchema = z.object({
   user_id: z.string().uuid().optional(),
   username: z.string().min(1).max(100).optional(),
+  broadcast_all: z.boolean().optional().default(false),
   message: z.string().min(1).max(10000),
   sender: z.string().min(1).max(100).optional(),
   metadata: z.record(z.unknown()).optional(),
@@ -66,19 +67,53 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    let targetUserId = body.user_id;
+    // Determine targeting mode
+    const wantsBroadcast = body.broadcast_all === true;
+    let targetUserId: string | null = null;
 
-    // If username is provided instead of user_id, look up the user
-    if (!targetUserId && body.username) {
-      const { data: profile } = await supabaseClient
-        .from('profiles')
-        .select('id')
-        .eq('username', body.username)
-        .single();
-      
-      if (profile) {
+    if (!wantsBroadcast) {
+      // Must target a specific user
+      if (body.user_id) {
+        targetUserId = body.user_id;
+        console.log('Targeting by user_id:', targetUserId);
+      } else if (body.username) {
+        const { data: profile } = await supabaseClient
+          .from('profiles')
+          .select('id')
+          .eq('username', body.username)
+          .maybeSingle();
+        
+        if (!profile) {
+          console.error('User not found for username:', body.username);
+          return new Response(
+            JSON.stringify({ 
+              error: 'User not found',
+              details: `No user found with username: ${body.username}`
+            }),
+            { 
+              status: 404, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            }
+          );
+        }
         targetUserId = profile.id;
+        console.log('Targeting by username lookup:', body.username, '-> user_id:', targetUserId);
+      } else {
+        // No targeting specified and not broadcast - reject request
+        console.error('Invalid request: no target specified and broadcast_all not set');
+        return new Response(
+          JSON.stringify({ 
+            error: 'Invalid request',
+            details: 'Must specify user_id, username, or set broadcast_all: true'
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
       }
+    } else {
+      console.log('Broadcasting to all users (broadcast_all: true)');
     }
 
     // Create the message object with correct field names for client
@@ -97,16 +132,18 @@ serve(async (req) => {
     console.log('Sending proactive message:', {
       messageData,
       targetUserId,
+      deliveryMode: wantsBroadcast ? 'broadcast_all' : 'targeted',
       channelName: 'proactive-messages'
     });
 
     // Use consistent channel name with hyphen
     const channel = supabaseClient.channel('proactive-messages');
     
-    // Send message with consistent payload structure
+    // Build payload - only include target_user if NOT broadcasting
     const payload = {
       data: messageData,
-      target_user: targetUserId || undefined
+      target_user: wantsBroadcast ? undefined : targetUserId,
+      is_broadcast: wantsBroadcast
     };
 
     console.log('Broadcasting with payload structure:', payload);
@@ -123,8 +160,8 @@ serve(async (req) => {
     await supabaseClient.removeChannel(channel);
 
     console.log('Proactive message sent successfully', {
-      user_id: targetUserId,
-      username: body.username,
+      delivery_mode: wantsBroadcast ? 'broadcast_all' : 'targeted',
+      target_user_id: targetUserId,
       message_id: messageData.id,
       broadcast_result: result
     });
@@ -133,6 +170,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message_id: messageData.id,
+        delivery_mode: wantsBroadcast ? 'broadcast_all' : 'targeted',
         target_user_id: targetUserId,
         broadcast_result: result
       }),
