@@ -32,8 +32,10 @@ const Auth = () => {
   const mode = searchParams.get('mode');
 
   // If user is already logged in, redirect to returnTo or home
+  // IMPORTANT: Skip redirect when mode === 'reset' - user has an implicit session
+  // from the recovery token but needs to stay on page to complete password change
   useEffect(() => {
-    if (user) {
+    if (user && mode !== 'reset') {
       const returnTo = searchParams.get('returnTo');
       navigate(returnTo || '/');
     }
@@ -73,7 +75,7 @@ const Auth = () => {
       fetchClientInfo();
     }
     
-  }, [user, navigate]);
+  }, [user, navigate, mode]);
   
   // Use sessionStorage to remember the last active tab
   const [activeTab, setActiveTab] = React.useState(() => {
