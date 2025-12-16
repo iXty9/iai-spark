@@ -189,18 +189,16 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
       const connId = `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       setConnectionId(connId);
 
-      // Set up channels with enhanced error handling using consistent channel names
+      // Set up channels - NO presence config (causes channel type mismatch with edge function)
       const proactiveChannel = supabase.channel('proactive-messages', {
         config: {
-          broadcast: { self: false },
-          presence: { key: user?.id || 'anonymous' }
+          broadcast: { self: false }
         }
       });
 
       const toastChannel = supabase.channel('toast-notifications', {
         config: {
-          broadcast: { self: false },
-          presence: { key: user?.id || 'anonymous' }
+          broadcast: { self: false }
         }
       });
 
@@ -210,6 +208,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
 
       // Handle proactive chat messages with improved payload processing
       proactiveChannel.on('broadcast', { event: 'proactive_message' }, (payload: any) => {
+        console.log('[WebSocket] 🔔 RAW proactive broadcast received:', JSON.stringify(payload, null, 2));
         logger.info('Raw proactive message payload received:', payload, { module: 'websocket' });
         
         // Handle the payload structure from edge function
@@ -217,11 +216,13 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
         
         // Check if this message is targeted to current user (or broadcast to all)
         if (messagePayload?.target_user && messagePayload.target_user !== user?.id) {
+          console.log('[WebSocket] Skipping message not for this user:', { target: messagePayload.target_user, current: user?.id });
           logger.debug('Skipping proactive message not for this user', { target: messagePayload.target_user, current: user?.id }, { module: 'websocket' });
           return;
         }
 
         if (messagePayload?.data) {
+          console.log('[WebSocket] ✅ Processing proactive message for user:', user?.id);
           logger.info('Processing proactive message:', messagePayload.data, { module: 'websocket' });
 
           // Create ProactiveMessage object from the corrected data structure
@@ -249,6 +250,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
             detail: proactiveMessage
           }));
         } else {
+          console.log('[WebSocket] ⚠️ Unexpected message structure:', messagePayload);
           logger.warn('Received proactive message with unexpected structure:', messagePayload, { module: 'websocket' });
         }
       });
@@ -312,10 +314,15 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
         logger.info('Channel subscription results:', results, { module: 'websocket' });
 
         const [proactiveResult, toastResult] = results;
+        console.log('[WebSocket] ✅ Proactive channel subscribed:', proactiveResult);
+        console.log('[WebSocket] ✅ Toast channel subscribed:', toastResult);
+        console.log('[WebSocket] Current user ID:', user?.id);
+        
         const proactiveSuccess = proactiveResult === 'SUBSCRIBED';
         const toastSuccess = toastResult === 'SUBSCRIBED';
 
         if (proactiveSuccess && toastSuccess) {
+          console.log('[WebSocket] ✅ Both channels SUBSCRIBED - ready to receive messages');
           setIsConnected(true);
           setRealtimeStatus('connected');
           reconnectAttemptsRef.current = 0;
