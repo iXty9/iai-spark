@@ -34,41 +34,50 @@ export const ResetPasswordForm = () => {
     defaultValues: { password: '', confirmPassword: '' }
   });
 
-  // Check for valid recovery session on mount with retry logic
+  // Event-driven session detection for password recovery
   useEffect(() => {
-    const checkSession = async () => {
-      let attempts = 0;
-      const maxAttempts = 3;
-      
-      while (attempts < maxAttempts) {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session) {
-          logger.info('Valid recovery session found', { 
-            module: 'reset-password',
-            attempt: attempts + 1 
-          });
-          setSessionValid(true);
-          return;
-        }
-        
-        attempts++;
-        if (attempts < maxAttempts) {
-          // Wait 500ms before retrying (allows hash processing)
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      }
-      
-      // Session not found after all attempts
-      logger.warn('No valid recovery session after retries', { 
-        module: 'reset-password',
-        attempts: maxAttempts 
-      });
-      setSessionValid(false);
-      setError('Your password reset link has expired or is invalid. Please request a new one.');
-    };
+    let timeoutId: NodeJS.Timeout;
+    let isSubscribed = true;
     
-    checkSession();
+    // Subscribe to auth state changes - waits for Supabase to signal session ready
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isSubscribed) return;
+      
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+        logger.info('Recovery session established via event', { 
+          module: 'reset-password',
+          event 
+        });
+        setSessionValid(true);
+        clearTimeout(timeoutId);
+      }
+    });
+    
+    // Also check if session already exists (in case event fired before mount)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isSubscribed) return;
+      
+      if (session) {
+        logger.info('Existing recovery session found', { module: 'reset-password' });
+        setSessionValid(true);
+        clearTimeout(timeoutId);
+      }
+    });
+    
+    // Fallback timeout - 15 seconds max wait for slow networks
+    timeoutId = setTimeout(() => {
+      if (isSubscribed && sessionValid === null) {
+        logger.warn('Recovery session timeout after 15s', { module: 'reset-password' });
+        setSessionValid(false);
+        setError('Your password reset link has expired or is invalid. Please request a new one.');
+      }
+    }, 15000);
+    
+    return () => {
+      isSubscribed = false;
+      subscription.unsubscribe();
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   const handleSubmit = async ({ password }: ResetPasswordFormData) => {
