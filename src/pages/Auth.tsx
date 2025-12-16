@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,7 +11,7 @@ import { ForgotPasswordForm } from '@/components/auth/ForgotPasswordForm';
 import { ResetPasswordForm } from '@/components/auth/ResetPasswordForm';
 import { getStoredConfig } from '@/config/supabase-config';
 import { LogIn, UserPlus } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { clientManager } from '@/services/supabase/client-manager';
 import { logger } from '@/utils/logging';
 
 // Brute force protection - track failed login attempts
@@ -33,6 +33,7 @@ const Auth = () => {
   
   // Recovery session state - managed at parent level to catch early events
   const [recoverySessionValid, setRecoverySessionValid] = useState<boolean | null>(null);
+  const sessionCheckRef = useRef<boolean>(false);
 
   // If user is already logged in, redirect to returnTo or home
   // IMPORTANT: Skip redirect when mode === 'reset' - user has an implicit session
@@ -80,85 +81,149 @@ const Auth = () => {
     
   }, [user, navigate, mode, searchParams]);
   
-  // PKCE Code Exchange - handles recovery links with ?code= parameter
+  // Robust session detection with retry logic - bypasses proxy timing issues
   useEffect(() => {
-    const handlePKCECodeExchange = async () => {
+    if (mode !== 'reset') return;
+    if (sessionCheckRef.current) return; // Prevent double execution
+    sessionCheckRef.current = true;
+    
+    let isSubscribed = true;
+    let retryCount = 0;
+    const maxRetries = 10;
+    const retryInterval = 500; // 500ms between retries
+    let retryTimeoutId: NodeJS.Timeout | null = null;
+    let unsubscribeAuth: (() => void) | null = null;
+    
+    const checkSession = async (): Promise<boolean> => {
+      const client = clientManager.getClient();
+      if (!client) {
+        logger.info('Client not ready yet, waiting...', { module: 'auth-page' });
+        return false;
+      }
+      
+      try {
+        const { data: { session }, error } = await client.auth.getSession();
+        
+        if (error) {
+          logger.warn('Session check error', error, { module: 'auth-page' });
+          return false;
+        }
+        
+        if (session) {
+          logger.info('Session found via direct client check', { module: 'auth-page', attempt: retryCount + 1 });
+          return true;
+        }
+        
+        return false;
+      } catch (err) {
+        logger.error('Session check exception', err, { module: 'auth-page' });
+        return false;
+      }
+    };
+    
+    const handlePKCECode = async (): Promise<boolean> => {
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
       
-      if (code && mode === 'reset') {
-        logger.info('PKCE code detected, exchanging for session', { module: 'auth-page' });
+      if (!code) return false;
+      
+      const client = clientManager.getClient();
+      if (!client) return false;
+      
+      logger.info('PKCE code detected, exchanging for session', { module: 'auth-page' });
+      
+      try {
+        const { data, error } = await client.auth.exchangeCodeForSession(code);
         
-        try {
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-          
-          if (error) {
-            logger.error('PKCE code exchange failed', error, { module: 'auth-page' });
-            // Don't set invalid here - user can still use OTP fallback
-          } else if (data.session) {
-            logger.info('PKCE code exchange successful', { module: 'auth-page' });
-            setRecoverySessionValid(true);
-          }
-        } catch (err) {
-          logger.error('PKCE exchange error', err, { module: 'auth-page' });
-        }
-        
-        // Clean up URL by removing the code parameter
+        // Clean up URL
         const cleanUrl = new URL(window.location.href);
         cleanUrl.searchParams.delete('code');
         window.history.replaceState({}, '', cleanUrl.toString());
+        
+        if (error) {
+          logger.error('PKCE code exchange failed', error, { module: 'auth-page' });
+          return false;
+        }
+        
+        if (data.session) {
+          logger.info('PKCE code exchange successful', { module: 'auth-page' });
+          return true;
+        }
+        
+        return false;
+      } catch (err) {
+        logger.error('PKCE exchange error', err, { module: 'auth-page' });
+        return false;
       }
     };
     
-    handlePKCECodeExchange();
-  }, [mode]);
-  
-  // Recovery session detection - listens for PASSWORD_RECOVERY event
-  useEffect(() => {
-    if (mode !== 'reset') return;
-    
-    let timeoutId: NodeJS.Timeout;
-    let isSubscribed = true;
-    
-    // Subscribe to auth state changes - catches PASSWORD_RECOVERY event early
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!isSubscribed) return;
-      
-      logger.info('Auth state change in Auth.tsx', { module: 'auth-page', event });
-      
-      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
-        logger.info('Recovery session established via auth event', { module: 'auth-page', event });
+    const startSessionDetection = async () => {
+      // First, try PKCE code exchange if present
+      const pkceSuccess = await handlePKCECode();
+      if (pkceSuccess && isSubscribed) {
         setRecoverySessionValid(true);
-        clearTimeout(timeoutId);
+        return;
       }
-    });
-    
-    // Also check if session already exists (hash-based flow or already processed)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!isSubscribed) return;
       
-      if (session) {
-        logger.info('Existing session found in Auth.tsx', { module: 'auth-page' });
-        setRecoverySessionValid(true);
-        clearTimeout(timeoutId);
+      // Set up auth state listener as parallel detection method
+      const client = clientManager.getClient();
+      if (client) {
+        const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
+          if (!isSubscribed) return;
+          
+          logger.info('Auth state change detected', { module: 'auth-page', event });
+          
+          if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+            logger.info('Recovery session established via auth event', { module: 'auth-page', event });
+            setRecoverySessionValid(true);
+          }
+        });
+        
+        unsubscribeAuth = () => subscription.unsubscribe();
       }
-    });
+      
+      // Start retry loop for session check
+      const retryLoop = async () => {
+        if (!isSubscribed) return;
+        
+        const hasSession = await checkSession();
+        
+        if (hasSession) {
+          setRecoverySessionValid(true);
+          return;
+        }
+        
+        retryCount++;
+        
+        if (retryCount < maxRetries) {
+          logger.info(`Session check attempt ${retryCount}/${maxRetries} - no session yet`, { module: 'auth-page' });
+          retryTimeoutId = setTimeout(retryLoop, retryInterval);
+        } else {
+          // All retries exhausted - show OTP fallback
+          logger.warn('Session detection failed after all retries - showing OTP fallback', { module: 'auth-page' });
+          if (isSubscribed) {
+            setRecoverySessionValid(false);
+          }
+        }
+      };
+      
+      // Start the retry loop
+      retryLoop();
+    };
     
-    // Extended timeout (20s) - allows time for PKCE exchange + network latency
-    // If session not established by then, user can use OTP fallback
-    timeoutId = setTimeout(() => {
-      if (isSubscribed && recoverySessionValid === null) {
-        logger.warn('Recovery session timeout after 20s - showing OTP fallback', { module: 'auth-page' });
-        setRecoverySessionValid(false);
-      }
-    }, 20000);
+    // Wait briefly for client to be ready, then start detection
+    const initTimeout = setTimeout(() => {
+      startSessionDetection();
+    }, 100);
     
     return () => {
       isSubscribed = false;
-      subscription.unsubscribe();
-      clearTimeout(timeoutId);
+      sessionCheckRef.current = false;
+      clearTimeout(initTimeout);
+      if (retryTimeoutId) clearTimeout(retryTimeoutId);
+      if (unsubscribeAuth) unsubscribeAuth();
     };
-  }, [mode, recoverySessionValid]);
+  }, [mode]);
   
   // Use sessionStorage to remember the last active tab
   const [activeTab, setActiveTab] = React.useState(() => {
@@ -178,7 +243,10 @@ const Auth = () => {
 
   // Handle PASSWORD_RECOVERY event to switch to reset tab
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const client = clientManager.getClient();
+    if (!client) return;
+    
+    const { data: { subscription } } = client.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         logger.info('Password recovery event - switching to reset tab', { module: 'auth-page' });
         setActiveTab('reset');
