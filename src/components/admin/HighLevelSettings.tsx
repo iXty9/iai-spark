@@ -50,9 +50,14 @@ export function HighLevelSettings() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [clientId, setClientId] = useState('');
   const [proxySecret, setProxySecret] = useState('');
+  const [notificationWebhookUrl, setNotificationWebhookUrl] = useState('');
   const [showProxySecret, setShowProxySecret] = useState(false);
   const [isSavingProxySecret, setIsSavingProxySecret] = useState(false);
   const [isSavingClientId, setIsSavingClientId] = useState(false);
+  const [isSavingNotificationUrl, setIsSavingNotificationUrl] = useState(false);
+
+  // GHL webhook URLs
+  const installWebhookUrl = 'https://ymtdtzkskjdqlzhjuesk.supabase.co/functions/v1/ghl-install-webhook';
 
   // OAuth callback URL for GHL app configuration
   const callbackUrl = `${window.location.origin}/oauth`;
@@ -64,8 +69,8 @@ export function HighLevelSettings() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Fetch installations, client_id, and proxy_secret in parallel
-      const [installationsResult, clientIdResult, proxySecretResult] = await Promise.all([
+      // Fetch installations, client_id, proxy_secret, and notification_webhook_url in parallel
+      const [installationsResult, clientIdResult, proxySecretResult, notificationUrlResult] = await Promise.all([
         supabase
           .from('ghl_installations')
           .select('id, user_id, location_id, location_name, company_id, company_name, scopes, connection_status, connected_at, last_refresh_at, token_expires_at, refresh_error')
@@ -79,6 +84,11 @@ export function HighLevelSettings() {
           .from('app_settings')
           .select('value')
           .eq('key', 'ghl_proxy_secret')
+          .maybeSingle(),
+        supabase
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'ghl_notification_webhook_url')
           .maybeSingle()
       ]);
 
@@ -91,6 +101,10 @@ export function HighLevelSettings() {
       
       if (proxySecretResult.data?.value) {
         setProxySecret(proxySecretResult.data.value);
+      }
+
+      if (notificationUrlResult.data?.value) {
+        setNotificationWebhookUrl(notificationUrlResult.data.value);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -144,6 +158,26 @@ export function HighLevelSettings() {
       });
     } finally {
       setIsSavingProxySecret(false);
+    }
+  };
+
+  const handleSaveNotificationUrl = async () => {
+    setIsSavingNotificationUrl(true);
+    try {
+      await updateAppSetting('ghl_notification_webhook_url', notificationWebhookUrl);
+      toast({
+        title: 'Saved',
+        description: 'Notification webhook URL has been updated',
+      });
+    } catch (error) {
+      console.error('Error saving notification URL:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to save notification webhook URL',
+      });
+    } finally {
+      setIsSavingNotificationUrl(false);
     }
   };
 
@@ -357,18 +391,77 @@ export function HighLevelSettings() {
         </CardContent>
       </Card>
 
-      {/* API Proxy Configuration */}
+      {/* API Proxy & Webhook Configuration */}
       <Card className="bg-background/60">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Key className="h-5 w-5" />
-            API Proxy Configuration
+            API Proxy & Webhook Configuration
           </CardTitle>
           <CardDescription>
-            Configure the shared secret for n8n workflow integration
+            Configure webhook URLs and authentication for n8n integration
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
+          {/* Install Webhook URL (Read-only) */}
+          <div className="space-y-2">
+            <Label htmlFor="install-webhook-url">GHL Install Webhook URL (Read-only)</Label>
+            <div className="flex gap-2">
+              <Input
+                id="install-webhook-url"
+                value={installWebhookUrl}
+                readOnly
+                className="font-mono text-sm bg-muted/50"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleCopy(installWebhookUrl, 'Install Webhook URL')}
+              >
+                {copiedField === 'Install Webhook URL' ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Register this URL in your HighLevel Marketplace app settings for install/uninstall events
+            </p>
+          </div>
+
+          {/* Notification Webhook URL (Editable) */}
+          <div className="space-y-2">
+            <Label htmlFor="notification-webhook-url">GHL Notification Webhook URL</Label>
+            <div className="flex gap-2">
+              <Input
+                id="notification-webhook-url"
+                value={notificationWebhookUrl}
+                onChange={(e) => setNotificationWebhookUrl(e.target.value)}
+                placeholder="https://your-n8n-instance/webhook/..."
+                className="font-mono text-sm"
+              />
+              <Button
+                variant="outline"
+                onClick={handleSaveNotificationUrl}
+                disabled={isSavingNotificationUrl}
+              >
+                {isSavingNotificationUrl ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save
+                  </>
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              The n8n webhook URL to forward HighLevel notification events (contacts, appointments, etc.)
+            </p>
+          </div>
+
+          {/* Proxy Secret */}
           <div className="space-y-2">
             <Label htmlFor="proxy-secret">Proxy Secret</Label>
             <div className="flex gap-2">
@@ -423,7 +516,7 @@ export function HighLevelSettings() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Use this secret in the <code className="bg-muted px-1 rounded">X-Ixty-Proxy-Secret</code> header when calling the GHL API proxy from n8n
+              Used in <code className="bg-muted px-1 rounded">X-Ixty-Proxy-Secret</code> header for both API proxy and notification forwarding to n8n
             </p>
           </div>
 
@@ -431,7 +524,7 @@ export function HighLevelSettings() {
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                Rotating this secret will require updating the header in all n8n workflows that use the GHL API proxy.
+                Rotating this secret will require updating the header validation in all n8n workflows that use the GHL API proxy or receive notifications.
               </AlertDescription>
             </Alert>
           )}
