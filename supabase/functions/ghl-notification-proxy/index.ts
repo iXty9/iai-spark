@@ -5,8 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const N8N_WEBHOOK_URL = 'https://n8n.ixty.ai:5679/webhook/9e16570c-ae25-422a-9418-46cac1e285ed';
-
 /**
  * Generate a composite deduplication key from event data.
  * This handles HighLevel's behavior of sending multiple webhooks with different
@@ -47,6 +45,33 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Fetch configuration from app_settings (notification webhook URL and proxy secret)
+    const { data: settingsData, error: settingsError } = await supabase
+      .from('app_settings')
+      .select('key, value')
+      .in('key', ['ghl_notification_webhook_url', 'ghl_proxy_secret']);
+
+    if (settingsError) {
+      console.error('[ghl-notification-proxy] Failed to fetch settings:', settingsError.message);
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch configuration' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const notificationWebhookUrl = settingsData?.find(s => s.key === 'ghl_notification_webhook_url')?.value;
+    const proxySecret = settingsData?.find(s => s.key === 'ghl_proxy_secret')?.value;
+
+    if (!notificationWebhookUrl) {
+      console.error('[ghl-notification-proxy] No notification webhook URL configured');
+      return new Response(
+        JSON.stringify({ error: 'Notification webhook URL not configured. Set it in Admin Panel > HighLevel.' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`[ghl-notification-proxy] Using webhook URL: ${notificationWebhookUrl.substring(0, 50)}...`);
 
     // Helper function for duplicate responses
     const duplicateResponse = (reason: string, key: string) => {
@@ -162,10 +187,17 @@ Deno.serve(async (req) => {
 
     console.log(`[ghl-notification-proxy] Forwarding to n8n with ixty_user_id: ${installation.user_id}`);
 
-    // Forward to n8n
-    const n8nResponse = await fetch(N8N_WEBHOOK_URL, {
+    // Forward to n8n with proxy secret for authentication
+    const forwardHeaders: Record<string, string> = { 
+      'Content-Type': 'application/json' 
+    };
+    if (proxySecret) {
+      forwardHeaders['X-Ixty-Proxy-Secret'] = proxySecret;
+    }
+
+    const n8nResponse = await fetch(notificationWebhookUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: forwardHeaders,
       body: JSON.stringify(enrichedPayload)
     });
 
