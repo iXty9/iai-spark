@@ -136,8 +136,12 @@ serve(async (req) => {
       channelName: 'proactive-messages'
     });
 
-    // Use consistent channel name with hyphen
-    const channel = supabaseClient.channel('proactive-messages');
+    // Use consistent channel name with hyphen - NO presence config to match client
+    const channel = supabaseClient.channel('proactive-messages', {
+      config: {
+        broadcast: { self: false }
+      }
+    });
     
     // Build payload - only include target_user if NOT broadcasting
     const payload = {
@@ -147,6 +151,16 @@ serve(async (req) => {
     };
 
     console.log('Broadcasting with payload structure:', payload);
+
+    // Subscribe briefly to establish channel, then send
+    await new Promise<void>((resolve) => {
+      channel.subscribe((status) => {
+        console.log('Edge function channel status:', status);
+        if (status === 'SUBSCRIBED') {
+          resolve();
+        }
+      });
+    });
 
     const result = await channel.send({
       type: 'broadcast',
