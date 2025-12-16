@@ -166,6 +166,16 @@ const Auth = () => {
     const startSessionDetection = async () => {
       logger.info('Starting password recovery session detection', { module: 'auth-page' });
 
+      // 0. FIRST: Check for session captured during app initialization
+      // This is the key fix - detectSessionInUrl fires during createClient() before any components mount
+      const capturedSession = clientManager.getCapturedSession();
+      if (capturedSession && isSubscribed) {
+        logger.info('Found session captured during app init!', { module: 'auth-page' });
+        if (overallTimeoutId) clearTimeout(overallTimeoutId);
+        setRecoverySessionValid(true);
+        return; // Session already exists, no need for further detection
+      }
+
       // 1. Try to get client IMMEDIATELY (may already exist from prior init)
       let client = clientManager.getClient();
       
