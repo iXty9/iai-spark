@@ -55,6 +55,9 @@ export const ResetPasswordForm = () => {
       let message = 'Failed to update password. Please try again.';
       if (error?.message?.includes('network') || error?.message?.includes('fetch')) {
         message = 'Network error. Please check your connection and try again.';
+      } else if (error?.message) {
+        // Show actual Supabase error for better debugging
+        message = error.message;
       }
       setError(message);
     } finally {
