@@ -1,5 +1,5 @@
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
 import { logger } from '@/utils/logging';
 import { SupabaseConfig } from '@/config/supabase/types';
 
@@ -31,6 +31,7 @@ export class ClientManager {
   private listeners: Set<ClientStateListener> = new Set();
   private readinessPromise: Promise<boolean> | null = null;
   private realtimeHealthCheck: NodeJS.Timeout | null = null;
+  private capturedRecoverySession: Session | null = null;
 
   private constructor() {
     this.state = {
@@ -97,7 +98,22 @@ export class ClientManager {
         error: null
       });
 
-      // Test realtime connectivity with proper error handling
+      // IMMEDIATELY capture any session from URL (before realtime test!)
+      // This catches PASSWORD_RECOVERY sessions that detectSessionInUrl processed
+      try {
+        const { data: { session } } = await client.auth.getSession();
+        if (session) {
+          logger.info('Session captured during client init', { 
+            module: 'client-manager',
+            hasUser: !!session.user
+          });
+          this.capturedRecoverySession = session;
+        }
+      } catch (err) {
+        logger.error('Error capturing session during init', err, { module: 'client-manager' });
+      }
+
+      // Test realtime connectivity with proper error handling (can take up to 15s)
       await this.testRealtimeConnection(client);
 
       this.updateState({
@@ -298,6 +314,16 @@ export class ClientManager {
    */
   isRealtimeConnected(): boolean {
     return this.state.realtimeConnected;
+  }
+
+  /**
+   * Get and clear captured recovery session (one-time use)
+   * This captures sessions established during client init before components mount
+   */
+  getCapturedSession(): Session | null {
+    const session = this.capturedRecoverySession;
+    this.capturedRecoverySession = null;
+    return session;
   }
 
   /**
