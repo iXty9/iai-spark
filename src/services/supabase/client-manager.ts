@@ -1,5 +1,5 @@
 
-import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { logger } from '@/utils/logging';
 import { SupabaseConfig } from '@/config/supabase/types';
 
@@ -31,7 +31,6 @@ export class ClientManager {
   private listeners: Set<ClientStateListener> = new Set();
   private readinessPromise: Promise<boolean> | null = null;
   private realtimeHealthCheck: NodeJS.Timeout | null = null;
-  private capturedRecoverySession: Session | null = null;
 
   private constructor() {
     this.state = {
@@ -98,10 +97,6 @@ export class ClientManager {
         error: null
       });
 
-      // Capture URL-based sessions (PASSWORD_RECOVERY / SIGNED_IN) BEFORE the realtime test.
-      // detectSessionInUrl processes asynchronously and may emit auth events shortly after createClient().
-      await this.captureUrlSession(client);
-
       // Test realtime connectivity with proper error handling (can take up to 15s)
       await this.testRealtimeConnection(client);
 
@@ -132,66 +127,6 @@ export class ClientManager {
       
       return false;
     }
-  }
-
-  /**
-   * Capture URL-based sessions during initialization.
-   *
-   * Why: detectSessionInUrl runs asynchronously and may emit PASSWORD_RECOVERY / SIGNED_IN
-   * events shortly after createClient() returns. We need to listen briefly BEFORE the
-   * realtime test blocks (up to ~15s).
-   */
-  private async captureUrlSession(client: SupabaseClient): Promise<void> {
-    const CAPTURE_TIMEOUT_MS = 500;
-
-    await new Promise<void>((resolve) => {
-      let resolved = false;
-
-      const finish = (reason: string) => {
-        if (resolved) return;
-        resolved = true;
-        logger.info('URL session capture finished', { module: 'client-manager', reason });
-        resolve();
-      };
-
-      const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
-        if (resolved) return;
-
-        const hasSession = !!session;
-        logger.info('Auth event during client init', { module: 'client-manager', event, hasSession });
-
-        if (
-          session &&
-          (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN' || event === 'INITIAL_SESSION')
-        ) {
-          this.capturedRecoverySession = session;
-          subscription.unsubscribe();
-          finish('captured_from_auth_event');
-        }
-      });
-
-      // In parallel, check if the session is already available.
-      client.auth
-        .getSession()
-        .then(({ data }) => {
-          if (resolved) return;
-          if (data.session) {
-            this.capturedRecoverySession = data.session;
-            subscription.unsubscribe();
-            finish('captured_from_get_session');
-          }
-        })
-        .catch((err) => {
-          logger.warn('URL session getSession() check failed', err, { module: 'client-manager' });
-        });
-
-      // Timeout: we don't want to block app init if there's no URL session.
-      setTimeout(() => {
-        if (resolved) return;
-        subscription.unsubscribe();
-        finish('timeout_no_url_session');
-      }, CAPTURE_TIMEOUT_MS);
-    });
   }
 
   /**
@@ -363,16 +298,6 @@ export class ClientManager {
    */
   isRealtimeConnected(): boolean {
     return this.state.realtimeConnected;
-  }
-
-  /**
-   * Get and clear captured recovery session (one-time use)
-   * This captures sessions established during client init before components mount
-   */
-  getCapturedSession(): Session | null {
-    const session = this.capturedRecoverySession;
-    this.capturedRecoverySession = null;
-    return session;
   }
 
   /**
