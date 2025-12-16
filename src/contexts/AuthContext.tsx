@@ -139,7 +139,7 @@ export const AuthProvider = ({ children, clientReady }: AuthProviderProps) => {
                   notificationService.setUserId(null);
                 });
               }, 0);
-            } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'PASSWORD_RECOVERY') {
               const sessionChanged = JSON.stringify(newSession) !== JSON.stringify(session);
               
               if (sessionChanged) {

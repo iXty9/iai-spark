@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { Lock, AlertCircle, KeyRound } from 'lucide-react';
+import { Lock, AlertCircle, KeyRound, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Form, FormField, FormItem, FormMessage, FormControl } from '@/components/ui/form';
@@ -27,11 +27,49 @@ export const ResetPasswordForm = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionValid, setSessionValid] = useState<boolean | null>(null);
 
   const form = useForm<ResetPasswordFormData>({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: { password: '', confirmPassword: '' }
   });
+
+  // Check for valid recovery session on mount with retry logic
+  useEffect(() => {
+    const checkSession = async () => {
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      while (attempts < maxAttempts) {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          logger.info('Valid recovery session found', { 
+            module: 'reset-password',
+            attempt: attempts + 1 
+          });
+          setSessionValid(true);
+          return;
+        }
+        
+        attempts++;
+        if (attempts < maxAttempts) {
+          // Wait 500ms before retrying (allows hash processing)
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+      
+      // Session not found after all attempts
+      logger.warn('No valid recovery session after retries', { 
+        module: 'reset-password',
+        attempts: maxAttempts 
+      });
+      setSessionValid(false);
+      setError('Your password reset link has expired or is invalid. Please request a new one.');
+    };
+    
+    checkSession();
+  }, []);
 
   const handleSubmit = async ({ password }: ResetPasswordFormData) => {
     setIsLoading(true);
@@ -64,6 +102,48 @@ export const ResetPasswordForm = () => {
       setIsLoading(false);
     }
   };
+
+  // Show loading while validating session
+  if (sessionValid === null) {
+    return (
+      <div className="space-y-6">
+        <Card className="glass-panel border-0 shadow-sm">
+          <CardContent className="p-6 flex flex-col items-center justify-center min-h-[200px]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+            <p className="text-sm text-muted-foreground">Verifying reset link...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show expired link message with option to request new one
+  if (sessionValid === false) {
+    return (
+      <div className="space-y-6">
+        <Alert variant="destructive" className="border-destructive/50 bg-destructive/5">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Link Expired</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+        
+        <Card className="glass-panel border-0 shadow-sm">
+          <CardContent className="p-6">
+            <p className="text-sm text-muted-foreground mb-4">
+              Password reset links expire after a short time for security reasons.
+            </p>
+            <Button
+              onClick={() => navigate('/auth?mode=forgot')}
+              className="w-full"
+              variant="outline"
+            >
+              Request New Reset Link
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
