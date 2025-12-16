@@ -81,149 +81,109 @@ const Auth = () => {
     
   }, [user, navigate, mode, searchParams]);
   
-  // Robust session detection with retry logic - bypasses proxy timing issues
+  // Event-driven session detection - waits for detectSessionInUrl to process URL hash
   useEffect(() => {
     if (mode !== 'reset') return;
-    if (sessionCheckRef.current) return; // Prevent double execution
+    if (sessionCheckRef.current) return;
     sessionCheckRef.current = true;
-    
+
     let isSubscribed = true;
-    let retryCount = 0;
-    const maxRetries = 10;
-    const retryInterval = 500; // 500ms between retries
-    let retryTimeoutId: NodeJS.Timeout | null = null;
     let unsubscribeAuth: (() => void) | null = null;
-    
-    const checkSession = async (): Promise<boolean> => {
+    let overallTimeoutId: NodeJS.Timeout | null = null;
+
+    const startSessionDetection = async () => {
+      // Wait for client manager to be fully ready
+      const isReady = await clientManager.waitForReadiness();
+      if (!isReady || !isSubscribed) {
+        logger.warn('Client not ready for session detection', { module: 'auth-page' });
+        setRecoverySessionValid(false);
+        return;
+      }
+
       const client = clientManager.getClient();
-      if (!client) {
-        logger.info('Client not ready yet, waiting...', { module: 'auth-page' });
-        return false;
+      if (!client || !isSubscribed) {
+        logger.warn('No client available for session detection', { module: 'auth-page' });
+        setRecoverySessionValid(false);
+        return;
       }
-      
-      try {
-        const { data: { session }, error } = await client.auth.getSession();
+
+      logger.info('Starting password recovery session detection', { module: 'auth-page' });
+
+      // 1. Set up auth state listener FIRST - this catches PASSWORD_RECOVERY event 
+      // fired when Supabase's detectSessionInUrl processes the URL hash fragment
+      const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
+        if (!isSubscribed) return;
         
-        if (error) {
-          logger.warn('Session check error', error, { module: 'auth-page' });
-          return false;
+        logger.info('Auth state change in reset mode', { module: 'auth-page', event, hasSession: !!session });
+        
+        if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+          if (session) {
+            logger.info('Recovery session detected via auth event', { module: 'auth-page', event });
+            if (overallTimeoutId) clearTimeout(overallTimeoutId);
+            setRecoverySessionValid(true);
+          }
         }
-        
-        if (session) {
-          logger.info('Session found via direct client check', { module: 'auth-page', attempt: retryCount + 1 });
-          return true;
-        }
-        
-        return false;
-      } catch (err) {
-        logger.error('Session check exception', err, { module: 'auth-page' });
-        return false;
-      }
-    };
-    
-    const handlePKCECode = async (): Promise<boolean> => {
+      });
+      unsubscribeAuth = () => subscription.unsubscribe();
+
+      // 2. Handle PKCE code if present in URL query params
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
       
-      if (!code) return false;
-      
-      const client = clientManager.getClient();
-      if (!client) return false;
-      
-      logger.info('PKCE code detected, exchanging for session', { module: 'auth-page' });
-      
-      try {
-        const { data, error } = await client.auth.exchangeCodeForSession(code);
-        
-        // Clean up URL
-        const cleanUrl = new URL(window.location.href);
-        cleanUrl.searchParams.delete('code');
-        window.history.replaceState({}, '', cleanUrl.toString());
-        
-        if (error) {
-          logger.error('PKCE code exchange failed', error, { module: 'auth-page' });
-          return false;
-        }
-        
-        if (data.session) {
-          logger.info('PKCE code exchange successful', { module: 'auth-page' });
-          return true;
-        }
-        
-        return false;
-      } catch (err) {
-        logger.error('PKCE exchange error', err, { module: 'auth-page' });
-        return false;
-      }
-    };
-    
-    const startSessionDetection = async () => {
-      // First, try PKCE code exchange if present
-      const pkceSuccess = await handlePKCECode();
-      if (pkceSuccess && isSubscribed) {
-        setRecoverySessionValid(true);
-        return;
-      }
-      
-      // Set up auth state listener as parallel detection method
-      const client = clientManager.getClient();
-      if (client) {
-        const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
-          if (!isSubscribed) return;
+      if (code) {
+        logger.info('PKCE code detected, exchanging for session', { module: 'auth-page' });
+        try {
+          const { data, error } = await client.auth.exchangeCodeForSession(code);
           
-          logger.info('Auth state change detected', { module: 'auth-page', event });
+          // Clean up URL
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete('code');
+          window.history.replaceState({}, '', cleanUrl.toString());
           
-          if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
-            logger.info('Recovery session established via auth event', { module: 'auth-page', event });
+          if (!error && data.session && isSubscribed) {
+            logger.info('PKCE code exchange successful', { module: 'auth-page' });
+            if (overallTimeoutId) clearTimeout(overallTimeoutId);
             setRecoverySessionValid(true);
+            return;
           }
-        });
-        
-        unsubscribeAuth = () => subscription.unsubscribe();
+        } catch (err) {
+          logger.error('PKCE exchange error', err, { module: 'auth-page' });
+        }
       }
-      
-      // Start retry loop for session check
-      const retryLoop = async () => {
-        if (!isSubscribed) return;
+
+      // 3. Check if session ALREADY exists (detectSessionInUrl may have already processed)
+      try {
+        const { data: { session } } = await client.auth.getSession();
         
-        const hasSession = await checkSession();
-        
-        if (hasSession) {
+        if (session && isSubscribed) {
+          logger.info('Recovery session already exists', { module: 'auth-page' });
+          if (overallTimeoutId) clearTimeout(overallTimeoutId);
           setRecoverySessionValid(true);
           return;
         }
-        
-        retryCount++;
-        
-        if (retryCount < maxRetries) {
-          logger.info(`Session check attempt ${retryCount}/${maxRetries} - no session yet`, { module: 'auth-page' });
-          retryTimeoutId = setTimeout(retryLoop, retryInterval);
-        } else {
-          // All retries exhausted - show OTP fallback
-          logger.warn('Session detection failed after all retries - showing OTP fallback', { module: 'auth-page' });
-          if (isSubscribed) {
-            setRecoverySessionValid(false);
-          }
+      } catch (err) {
+        logger.error('Session check error', err, { module: 'auth-page' });
+      }
+
+      // 4. Set overall timeout - if no session after 20 seconds, show OTP fallback
+      // This is a genuine fallback for expired/invalid links, not a timing failure
+      overallTimeoutId = setTimeout(() => {
+        if (isSubscribed && recoverySessionValid === null) {
+          logger.warn('Session detection timed out after 20 seconds - showing OTP fallback', { module: 'auth-page' });
+          setRecoverySessionValid(false);
         }
-      };
-      
-      // Start the retry loop
-      retryLoop();
+      }, 20000);
     };
-    
-    // Wait briefly for client to be ready, then start detection
-    const initTimeout = setTimeout(() => {
-      startSessionDetection();
-    }, 100);
-    
+
+    startSessionDetection();
+
     return () => {
       isSubscribed = false;
       sessionCheckRef.current = false;
-      clearTimeout(initTimeout);
-      if (retryTimeoutId) clearTimeout(retryTimeoutId);
+      if (overallTimeoutId) clearTimeout(overallTimeoutId);
       if (unsubscribeAuth) unsubscribeAuth();
     };
-  }, [mode]);
+  }, [mode, recoverySessionValid]);
   
   // Use sessionStorage to remember the last active tab
   const [activeTab, setActiveTab] = React.useState(() => {
