@@ -75,11 +75,18 @@ export const UserMenu = () => {
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate('/');
+      
+      // Clear local chat history from localStorage
+      localStorage.removeItem('chat_history');
+      localStorage.removeItem('chat_scroll_position');
+      
       toast({
         title: "Signed out",
         description: "You have been signed out successfully",
       });
+      
+      // Reload app to clear all state and return to Welcome screen
+      window.location.href = '/';
     } catch (error) {
       console.error('Sign out error:', error);
       toast({
