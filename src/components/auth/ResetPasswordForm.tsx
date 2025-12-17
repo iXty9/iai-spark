@@ -154,12 +154,11 @@ export const ResetPasswordForm = ({ onBack }: ResetPasswordFormProps) => {
       // Success!
       toast({
         title: "Password Updated",
-        description: "Please sign in with your new password.",
+        description: "Your password has been changed successfully.",
       });
-      
-      // Sign out to clear recovery session, then redirect to login
-      await supabase.auth.signOut();
-      navigate('/auth');
+
+      // User already has valid session from recovery flow - take them to the app
+      navigate('/', { replace: true });
       
     } catch (err: any) {
       console.error('Password update exception:', err);
