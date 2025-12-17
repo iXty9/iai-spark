@@ -89,10 +89,6 @@ export function RegisterForm() {
         }
       );
       
-      supaToast.success("Please check your email to confirm your account", {
-        title: "Account created"
-      });
-      
       const returnTo = searchParams.get('returnTo') || '/';
       navigate(returnTo);
     } catch (error: any) {
