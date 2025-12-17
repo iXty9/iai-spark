@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,6 +45,65 @@ export const ResetPasswordForm = ({ onBack }: ResetPasswordFormProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ============================================
+  // DEBUG: Log all browser state on mount to diagnose session issues
+  // ============================================
+  useEffect(() => {
+    console.log('[RESET DEBUG] ResetPasswordForm mounted - capturing browser state');
+    
+    // 1. Log current URL state
+    console.log('[RESET DEBUG] window.location:', {
+      href: window.location.href,
+      origin: window.location.origin,
+      pathname: window.location.pathname,
+      search: window.location.search,
+      hash: window.location.hash,
+      hashLength: window.location.hash.length,
+    });
+    
+    // 2. Log all cookies visible to JS
+    console.log('[RESET DEBUG] document.cookie:', document.cookie || '(empty)');
+    
+    // 3. Log all Supabase-related localStorage keys
+    console.log('[RESET DEBUG] Scanning localStorage for sb-* keys...');
+    let foundAuthTokens = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.includes('sb-')) {
+        foundAuthTokens++;
+        try {
+          const value = localStorage.getItem(key);
+          const parsed = JSON.parse(value || '{}');
+          console.log('[RESET DEBUG] localStorage key:', key, {
+            hasAccessToken: !!parsed?.access_token,
+            hasRefreshToken: !!parsed?.refresh_token,
+            expiresAt: parsed?.expires_at,
+            expiresIn: parsed?.expires_in,
+            tokenType: parsed?.token_type,
+            userEmail: parsed?.user?.email,
+            userId: parsed?.user?.id,
+          });
+        } catch {
+          console.log('[RESET DEBUG] localStorage key (raw):', key, localStorage.getItem(key)?.substring(0, 100));
+        }
+      }
+    }
+    if (foundAuthTokens === 0) {
+      console.log('[RESET DEBUG] NO Supabase auth tokens found in localStorage!');
+    }
+    
+    // 4. Check current Supabase session
+    supabase.auth.getSession().then(({ data, error: sessionError }) => {
+      console.log('[RESET DEBUG] supabase.auth.getSession() result:', {
+        hasSession: !!data?.session,
+        userId: data?.session?.user?.id,
+        userEmail: data?.session?.user?.email,
+        expiresAt: data?.session?.expires_at,
+        error: sessionError?.message,
+      });
+    });
+  }, []);
+
   const form = useForm<ResetPasswordFormData>({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: { password: '', confirmPassword: '' }
@@ -54,11 +113,33 @@ export const ResetPasswordForm = ({ onBack }: ResetPasswordFormProps) => {
     setIsLoading(true);
     setError(null);
     
+    console.log('[RESET DEBUG] handleSubmit called - about to call updateUser');
+    
     try {
-      const { error: updateError } = await supabase.auth.updateUser({ password });
+      const { data, error: updateError } = await supabase.auth.updateUser({ password });
+      
+      // ============================================
+      // DEBUG: Log the EXACT response from updateUser
+      // ============================================
+      console.log('[RESET DEBUG] updateUser result:', {
+        success: !updateError,
+        data: data ? {
+          hasUser: !!data.user,
+          userId: data.user?.id,
+          userEmail: data.user?.email,
+        } : null,
+        error: updateError ? {
+          message: updateError.message,
+          status: (updateError as any).status,
+          code: (updateError as any).code,
+          name: updateError.name,
+          // Log the full error object for debugging
+          fullError: JSON.stringify(updateError, null, 2),
+        } : null,
+      });
       
       if (updateError) {
-        console.error('Password update error:', updateError);
+        console.error('[RESET DEBUG] Password update FAILED:', updateError);
         
         // Handle specific error types
         const errorMsg = updateError.message?.toLowerCase() || '';

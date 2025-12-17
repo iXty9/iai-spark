@@ -69,6 +69,17 @@ export class ClientManager {
         url: config.url.split('//')[1]
       });
 
+      // ============================================
+      // DEBUG: Log URL state BEFORE creating client (detectSessionInUrl will process hash)
+      // ============================================
+      console.log('[CLIENT DEBUG] URL state BEFORE createClient:', {
+        href: window.location.href,
+        hash: window.location.hash,
+        hashLength: window.location.hash.length,
+        hasAccessToken: window.location.hash.includes('access_token'),
+        hasTypeRecovery: window.location.hash.includes('type=recovery'),
+      });
+
       const client = createClient(config.url, config.anonKey, {
         auth: {
           storage: localStorage,
@@ -89,6 +100,25 @@ export class ClientManager {
             'x-client-info': 'supabase-js-web'
           }
         }
+      });
+
+      // ============================================
+      // DEBUG: Log URL state AFTER creating client (hash may be cleared by detectSessionInUrl)
+      // ============================================
+      console.log('[CLIENT DEBUG] URL state AFTER createClient:', {
+        href: window.location.href,
+        hash: window.location.hash,
+        hashLength: window.location.hash.length,
+      });
+
+      // DEBUG: Check if session was established from URL
+      const { data: sessionData, error: sessionError } = await client.auth.getSession();
+      console.log('[CLIENT DEBUG] Session state after createClient:', {
+        hasSession: !!sessionData?.session,
+        userId: sessionData?.session?.user?.id,
+        userEmail: sessionData?.session?.user?.email,
+        expiresAt: sessionData?.session?.expires_at,
+        error: sessionError?.message,
       });
 
       this.updateState({
