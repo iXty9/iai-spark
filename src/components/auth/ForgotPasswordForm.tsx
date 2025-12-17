@@ -59,7 +59,7 @@ export const ForgotPasswordForm = ({ onBack }: ForgotPasswordFormProps) => {
               </div>
               <h3 className="text-lg font-semibold text-foreground">Check Your Email</h3>
             </div>
-            <p className="text-sm text-muted-foreground leading-relaxed">
+            <p className="text-sm text-foreground/70 leading-relaxed">
               We've sent you an email with instructions to reset your password. Please check your inbox and follow the link provided.
             </p>
           </CardContent>
@@ -88,7 +88,7 @@ export const ForgotPasswordForm = ({ onBack }: ForgotPasswordFormProps) => {
             </div>
             <h3 className="text-lg font-semibold text-foreground">Reset Password</h3>
           </div>
-          <p className="text-sm text-muted-foreground leading-relaxed">
+          <p className="text-sm text-foreground/70 leading-relaxed">
             Enter your email address and we'll send you a link to reset your password.
           </p>
         </CardContent>
