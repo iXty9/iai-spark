@@ -171,7 +171,7 @@ export const ResetPasswordForm = ({ onBack }: ResetPasswordFormProps) => {
 
   return (
     <div className="space-y-6">
-      <Card className="glass-panel border-0 shadow-sm">
+      <Card className="glass-panel border-0 shadow-sm bg-background/80">
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
@@ -204,7 +204,7 @@ export const ResetPasswordForm = ({ onBack }: ResetPasswordFormProps) => {
         </Alert>
       )}
 
-      <Card className="glass-panel border-0 shadow-sm">
+      <Card className="glass-panel border-0 shadow-sm bg-background/80">
         <CardContent className="p-4 sm:p-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
