@@ -10,6 +10,7 @@ interface UserSignupData {
   firstName?: string;
   lastName?: string;
   phoneNumber?: string;
+  phoneCountryCode?: string;
   timestamp: string;
 }
 
@@ -40,7 +41,11 @@ export const sendUserSignupWebhook = async (userData: UserSignupData): Promise<v
       url: webhookUrl 
     }, { module: 'signup-webhook' });
     
-    // Prepare the payload
+    // Prepare the payload - format phone as +11231231234
+    const formattedPhone = userData.phoneNumber 
+      ? `${userData.phoneCountryCode || '+1'}${userData.phoneNumber.replace(/\D/g, '')}`
+      : undefined;
+    
     const payload = {
       event: 'user_signup',
       user: {
@@ -48,7 +53,7 @@ export const sendUserSignupWebhook = async (userData: UserSignupData): Promise<v
         username: userData.username,
         first_name: userData.firstName,
         last_name: userData.lastName,
-        phone_number: userData.phoneNumber
+        phone_number: formattedPhone
       },
       timestamp: userData.timestamp
     };
