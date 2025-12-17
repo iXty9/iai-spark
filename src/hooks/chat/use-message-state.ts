@@ -27,33 +27,7 @@ export const useMessageState = (options: UseMessageStateOptions = {}) => {
   // Track which context we initialized in (not just boolean)
   // This fixes PWA race condition where auth loads after initial render
   const initializedContext = useRef<'anonymous' | 'authenticated' | null>(null);
-
-  // Allow other parts of the app (e.g., logout) to clear ONLY local chat state.
-  // Important: does not touch Supabase.
-  useEffect(() => {
-    const handleClearLocalChat = () => {
-      clearChatHistory();
-      setMessages([]);
-      setMessage('');
-      setIsLoading(false);
-      initializing.current = false;
-      isBulkOperation.current = false;
-      isSyncing.current = false;
-      initializedContext.current = null;
-
-      emitDebugEvent({
-        lastAction: 'Cleared local chat state',
-        messagesCount: 0,
-        screen: 'Welcome Screen',
-        hasInteracted: false,
-        isTransitioning: false,
-      });
-    };
-
-    window.addEventListener('ixty:clear-local-chat', handleClearLocalChat);
-    return () => window.removeEventListener('ixty:clear-local-chat', handleClearLocalChat);
-  }, []);
-
+  
   // Load saved messages on initial render OR when auth context changes
   useEffect(() => {
     const targetContext = isAuthenticated ? 'authenticated' : 'anonymous';

@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ChatHeader } from './ChatHeader';
@@ -25,12 +25,6 @@ export const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const hasMessages = messages && messages.length > 0;
   const isMobile = useIsMobile();
-
-  useEffect(() => {
-    const close = () => setIsExpanded(false);
-    window.addEventListener('ixty:close-header-menu', close);
-    return () => window.removeEventListener('ixty:close-header-menu', close);
-  }, []);
 
   return (
     <div className="relative">
