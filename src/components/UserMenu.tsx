@@ -76,17 +76,20 @@ export const UserMenu = () => {
     try {
       await signOut();
       
-      // Clear local chat history from localStorage
-      localStorage.removeItem('chat_history');
-      localStorage.removeItem('chat_scroll_position');
+      // Clear local chat history from localStorage (correct keys)
+      localStorage.removeItem('ixty_chat_history');
+      localStorage.removeItem('ixty_chat_scroll_position');
+      
+      // Clear anonymous session ID from sessionStorage
+      sessionStorage.removeItem('app:anonymous_session_id');
       
       toast({
         title: "Signed out",
         description: "You have been signed out successfully",
       });
       
-      // Reload app to clear all state and return to Welcome screen
-      window.location.href = '/';
+      // Full page reload to clear all React state and return to Welcome screen
+      window.location.replace('/');
     } catch (error) {
       console.error('Sign out error:', error);
       toast({
