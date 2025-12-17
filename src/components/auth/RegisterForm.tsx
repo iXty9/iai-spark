@@ -84,7 +84,8 @@ export function RegisterForm() {
         { 
           first_name: values.firstName,
           last_name: values.lastName,
-          phone_number: values.phoneNumber 
+          phone_number: values.phoneNumber,
+          phone_country_code: values.phoneCountryCode
         }
       );
       

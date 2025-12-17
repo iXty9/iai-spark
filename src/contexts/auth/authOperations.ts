@@ -51,7 +51,7 @@ export const signUp = async (
   email: string, 
   password: string, 
   username: string, 
-  options?: { phone_number?: string, full_name?: string, first_name?: string, last_name?: string }
+  options?: { phone_number?: string, phone_country_code?: string, full_name?: string, first_name?: string, last_name?: string }
 ) => {
   try {
     // Ensure client is ready before attempting signup
@@ -64,6 +64,7 @@ export const signUp = async (
         data: {
           username,
           phone_number: options?.phone_number,
+          phone_country_code: options?.phone_country_code,
           full_name: options?.full_name,
           first_name: options?.first_name,
           last_name: options?.last_name,
@@ -90,6 +91,7 @@ export const signUp = async (
         firstName: options?.first_name,
         lastName: options?.last_name,
         phoneNumber: options?.phone_number,
+        phoneCountryCode: options?.phone_country_code,
         timestamp: new Date().toISOString()
       }).catch(webhookError => {
         // Log webhook error but don't affect signup success

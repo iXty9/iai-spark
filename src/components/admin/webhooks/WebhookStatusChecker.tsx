@@ -121,20 +121,15 @@ export function WebhookStatusChecker({ settings }: WebhookStatusCheckerProps) {
         };
       case 'user_signup_webhook_url':
         return {
-          user_id: 'test-user-' + Date.now(),
-          email: 'test@example.com',
-          username: 'test_user_' + Date.now(),
-          first_name: 'John',
-          last_name: 'Doe',
-          phone_number: '5551234567',
-          phone_country_code: '+1',
-          signup_timestamp: baseTime,
-          user_metadata: {
-            source: 'admin_test',
-            test_signup: true,
+          event: 'user_signup',
+          user: {
+            email: 'test@example.com',
+            username: 'test_user_' + Date.now(),
             first_name: 'John',
-            last_name: 'Doe'
+            last_name: 'Doe',
+            phone_number: '+15551234567'
           },
+          timestamp: baseTime,
           metadata: {
             test: true,
             source: "admin_panel"
