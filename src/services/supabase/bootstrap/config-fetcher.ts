@@ -29,6 +29,7 @@ export async function fetchBootstrapConfig(
       auth: {
         persistSession: false,
         autoRefreshToken: false,
+        detectSessionInUrl: false // CRITICAL: Don't consume URL tokens - let main client handle them
       }
     });
     

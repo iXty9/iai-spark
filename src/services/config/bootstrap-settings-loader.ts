@@ -43,7 +43,8 @@ export async function loadBootstrapSettings(supabaseUrl: string, supabaseAnonKey
     const ephemeralClient = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: false, // Don't persist any session data
-        autoRefreshToken: false
+        autoRefreshToken: false,
+        detectSessionInUrl: false // CRITICAL: Don't consume URL tokens - let main client handle them
       }
     });
 
