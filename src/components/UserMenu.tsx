@@ -15,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { User, LogOut, Settings, UserRound, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
+import { clearChatHistory } from '@/services/storage/chatPersistenceService';
 import { logger } from '@/utils/logging';
 
 
@@ -75,21 +76,22 @@ export const UserMenu = () => {
   const handleSignOut = async () => {
     try {
       await signOut();
-      
-      // Clear local chat history from localStorage (correct keys)
-      localStorage.removeItem('ixty_chat_history');
-      localStorage.removeItem('ixty_chat_scroll_position');
-      
-      // Clear anonymous session ID from sessionStorage
+
+      // Clear any locally stored chat (do NOT touch Supabase)
+      clearChatHistory();
       sessionStorage.removeItem('app:anonymous_session_id');
-      
+
+      // Tell chat UI to clear immediately (even before navigation)
+      window.dispatchEvent(new Event('ixty:clear-local-chat'));
+      window.dispatchEvent(new Event('ixty:close-header-menu'));
+
       toast({
         title: "Signed out",
         description: "You have been signed out successfully",
       });
-      
-      // Full page reload to clear all React state and return to Welcome screen
-      window.location.replace('/');
+
+      // Return to Welcome screen
+      navigate('/', { replace: true });
     } catch (error) {
       console.error('Sign out error:', error);
       toast({
