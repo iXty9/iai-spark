@@ -207,15 +207,15 @@ export async function updateStaticSiteConfig(config: SiteConfig): Promise<boolea
           error: apiError instanceof Error ? apiError.message : String(apiError)
         });
         
-        // In development, we can use localStorage and console to help developers
-        console.warn('Could not update site-config.json via API. For development, here is the config to manually update:');
-        console.log(JSON.stringify(config, null, 2));
-        
-        // Show instructions in console
-        console.info('To manually update site-config.json:');
-        console.info('1. Copy the JSON above');
-        console.info('2. Replace the contents of public/site-config.json');
-        console.info('3. Restart your development server');
+        // In development only, show manual update instructions
+        if (import.meta.env.DEV) {
+          console.warn('Could not update site-config.json via API. For development, here is the config to manually update:');
+          console.log(JSON.stringify(config, null, 2));
+          console.info('To manually update site-config.json:');
+          console.info('1. Copy the JSON above');
+          console.info('2. Replace the contents of public/site-config.json');
+          console.info('3. Restart your development server');
+        }
         
         return true; // Return true for development to allow flow to continue
       }

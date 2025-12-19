@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { logger } from '@/utils/logging';
 
 interface Props {
   children: ReactNode;
@@ -26,7 +27,11 @@ export class UserManagementErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('UserManagement Error Boundary caught an error:', error, errorInfo);
+    // Use centralized logger - sanitized in production
+    logger.error('UserManagement Error Boundary caught an error', error, { 
+      module: 'user-management',
+      componentStack: import.meta.env.DEV ? errorInfo.componentStack : undefined
+    });
     this.setState({
       error,
       errorInfo
@@ -75,7 +80,7 @@ export class UserManagementErrorBoundary extends Component<Props, State> {
                 </Button>
               </div>
               
-              {process.env.NODE_ENV === 'development' && this.state.error && (
+              {import.meta.env.DEV && this.state.error && (
                 <details className="mt-4 p-4 bg-muted rounded-md">
                   <summary className="cursor-pointer font-medium">Error Details (Development)</summary>
                   <pre className="mt-2 text-sm overflow-auto">
