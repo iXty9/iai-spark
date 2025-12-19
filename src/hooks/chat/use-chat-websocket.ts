@@ -38,11 +38,11 @@ export const useChatWebSocket = ({ addMessage, messages }: UseChatWebSocketProps
         metadata: { isProactive: true, ...proactiveMessage.metadata }
       };
       
-      console.log('Adding proactive message to chat:', {
+      logger.debug('Adding proactive message to chat', {
         id: chatMessage.id,
         keys: Object.keys(chatMessage),
         source: chatMessage.source
-      });
+      }, { module: 'websocket' });
       
       // Add the message to the chat and play sound
       addMessage(chatMessage);
