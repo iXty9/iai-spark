@@ -50,26 +50,10 @@ export const HeaderActions = ({
   
   const handleDevModeToggle = (e: React.MouseEvent) => {
     e.preventDefault();
-    try {
-      // Show toast notification
-      toast({
-        title: `Dev Mode ${isDevMode ? 'Disabled' : 'Enabled'}`,
-        description: `Developer tools are now ${isDevMode ? 'disabled' : 'enabled'}`,
-        duration: 2000,
-      });
-      
-      // Toggle with slight delay to allow React to process changes
-      setTimeout(() => {
-        toggleDevMode();
-      }, 0);
-    } catch (err) {
-      console.error('Error toggling dev mode:', err);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to toggle developer mode",
-      });
-    }
+    // Toggle with slight delay to allow React to process changes
+    setTimeout(() => {
+      toggleDevMode();
+    }, 0);
   };
 
   // Theme preference state - sync with SupaThemes service
