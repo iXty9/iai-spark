@@ -326,11 +326,13 @@ export const HeaderActions = ({
           collisionPadding={6}
           avoidCollisions={true}
         >
-          {/* Load Theme option */}
-          <DropdownMenuItem onClick={handleReloadTheme} className="py-2.5">
-            <RefreshCw className="mr-2 h-4 w-4" />
-            <span>{isMobile ? "Load Theme" : "Load Default Theme"}</span>
-          </DropdownMenuItem>
+          {/* Load Theme option - only for authenticated users */}
+          {user && (
+            <DropdownMenuItem onClick={handleReloadTheme} className="py-2.5">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              <span>{isMobile ? "Load Theme" : "Load Default Theme"}</span>
+            </DropdownMenuItem>
+          )}
           
           {/* Check for Updates option - only show for PWA users */}
           {isInstalled && (
@@ -367,10 +369,13 @@ export const HeaderActions = ({
             <span>{isMobile ? "Clear" : "Clear Chat"}</span>
           </DropdownMenuItem>
           
-          <DropdownMenuItem onClick={handleDevModeToggle} className="py-2.5">
-            <Code className="mr-2 h-4 w-4" />
-            <span>{isMobile ? `Dev ${isDevMode ? '(On)' : '(Off)'}` : `Dev Mode ${isDevMode ? '(On)' : '(Off)'}`}</span>
-          </DropdownMenuItem>
+          {/* Dev Mode - only for authenticated users */}
+          {user && (
+            <DropdownMenuItem onClick={handleDevModeToggle} className="py-2.5">
+              <Code className="mr-2 h-4 w-4" />
+              <span>{isMobile ? `Dev ${isDevMode ? '(On)' : '(Off)'}` : `Dev Mode ${isDevMode ? '(On)' : '(Off)'}`}</span>
+            </DropdownMenuItem>
+          )}
           
           {isMobile && (
             <>
