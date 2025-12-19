@@ -37,14 +37,11 @@ const isValidMessage = (msg: any): boolean => {
  * Converts enhanced export format message to standard Message format
  */
 const convertFromEnhancedFormat = (enhancedMsg: any): Message => {
-  console.log('Converting enhanced message:', {
+  logger.debug('Converting enhanced message', {
     id: enhancedMsg.id,
     hasTokenInfo: !!enhancedMsg.tokenInfo,
-    hasThreadId: !!enhancedMsg.threadId,
-    hasRawRequest: !!enhancedMsg.rawRequest,
-    timestampType: typeof enhancedMsg.timestamp,
-    timestamp: enhancedMsg.timestamp
-  });
+    hasThreadId: !!enhancedMsg.threadId
+  }, { module: 'import-service' });
 
   // Handle timestamp conversion properly
   let timestamp: string;
@@ -102,13 +99,11 @@ const convertFromEnhancedFormat = (enhancedMsg: any): Message => {
     message.metadata = enhancedMsg.metadata;
   }
 
-  console.log('Final converted message:', {
+  logger.debug('Final converted message', {
     id: message.id,
     hasTokenInfo: !!message.tokenInfo,
-    hasThreadId: !!message.threadId,
-    hasRawRequest: !!message.rawRequest,
-    keys: Object.keys(message)
-  });
+    hasThreadId: !!message.threadId
+  }, { module: 'import-service' });
 
   return message;
 };
@@ -140,32 +135,28 @@ const parseImportedMessages = (file: File): Promise<Message[]> => {
         const jsonContent = event.target?.result as string;
         const jsonData = JSON.parse(jsonContent, dateReviver);
         
-        console.log('Import: Raw JSON data parsed:', {
+        logger.debug('Import: Raw JSON data parsed', {
           hasMetadata: !!jsonData.metadata,
           format: jsonData.metadata?.format,
           messageCount: jsonData.messages?.length || jsonData.length
-        });
+        }, { module: 'import-service' });
         
         // Detect and handle different formats
         const format = detectImportFormat(jsonData);
         let messages: any[];
-        let formatDescription = '';
         
         switch (format) {
           case 'enhanced':
             messages = jsonData.messages;
-            formatDescription = 'Enhanced format with complete webhook data';
-            console.log('Import: Detected enhanced format');
+            logger.debug('Import: Detected enhanced format', undefined, { module: 'import-service' });
             break;
           case 'legacy_with_metadata':
             messages = jsonData.messages;
-            formatDescription = 'Legacy format with metadata';
-            console.log('Import: Detected legacy with metadata format');
+            logger.debug('Import: Detected legacy with metadata format', undefined, { module: 'import-service' });
             break;
           case 'legacy_array':
             messages = jsonData;
-            formatDescription = 'Legacy array format';
-            console.log('Import: Detected legacy array format');
+            logger.debug('Import: Detected legacy array format', undefined, { module: 'import-service' });
             break;
           default:
             throw new Error('Unsupported import format');
@@ -176,15 +167,14 @@ const parseImportedMessages = (file: File): Promise<Message[]> => {
           throw new Error('Invalid chat file format');
         }
         
-        console.log('Import: Processing messages:', {
+        logger.debug('Import: Processing messages', {
           count: messages.length,
           sampleMessage: messages[0] ? {
             id: messages[0].id,
             hasTokenInfo: !!messages[0].tokenInfo,
-            hasThreadId: !!messages[0].threadId,
-            keys: Object.keys(messages[0])
+            hasThreadId: !!messages[0].threadId
           } : null
-        });
+        }, { module: 'import-service' });
         
         // Validate and convert each message
         const validMessages: Message[] = [];
@@ -219,10 +209,10 @@ const parseImportedMessages = (file: File): Promise<Message[]> => {
               
               validMessages.push(convertedMessage);
             } else {
-              console.warn('Skipping invalid message in imported file', msg);
+              logger.warn('Skipping invalid message in imported file', { msg }, { module: 'import-service' });
             }
           } catch (error) {
-            console.error('Error processing message from import', error);
+            logger.error('Error processing message from import', error, { module: 'import-service' });
           }
         }
         
@@ -234,19 +224,17 @@ const parseImportedMessages = (file: File): Promise<Message[]> => {
         // Take only the last 100 messages
         const limitedMessages = validMessages.slice(-100);
         
-        console.log('Import successful:', {
+        logger.info('Import successful', {
           format,
           originalCount: validMessages.length,
           limitedCount: limitedMessages.length,
           hasTokenInfo: limitedMessages.filter(m => m.tokenInfo).length,
-          hasRawRequest: limitedMessages.filter(m => m.rawRequest).length,
-          hasRawResponse: limitedMessages.filter(m => m.rawResponse).length,
-          hasThreadId: limitedMessages.filter(m => m.threadId).length
-        });
+          hasRawRequest: limitedMessages.filter(m => m.rawRequest).length
+        }, { module: 'import-service' });
         
         resolve(limitedMessages);
       } catch (error) {
-        console.error('Failed to import chat file:', error);
+        logger.error('Failed to import chat file', error, { module: 'import-service' });
         toast.error('Failed to import chat file');
         reject(error);
       }

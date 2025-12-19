@@ -1,7 +1,7 @@
 
-
 import { fetchAppSettings } from '@/services/admin/settingsService';
 import { clientManager } from '@/services/supabase/client-manager';
+import { logger } from '@/utils/logging';
 
 interface CachedSettings {
   data: Record<string, string>;
@@ -11,13 +11,6 @@ interface CachedSettings {
 }
 
 type SettingsChangeListener = (settings: Record<string, string>) => void;
-
-// Simple logging control - only log in development or when explicitly enabled
-const isDev = import.meta.env.DEV;
-const shouldLog = (level: 'error' | 'warn' | 'info' = 'info') => {
-  if (level === 'error' || level === 'warn') return true;
-  return isDev;
-};
 
 class SettingsCacheService {
   private static instance: SettingsCacheService | null = null;
@@ -39,7 +32,7 @@ class SettingsCacheService {
     try {
       this.loadFromLocalStorage();
     } catch (error) {
-      console.error('[SETTINGS-CACHE] Constructor error:', error);
+      logger.error('Constructor error', error, { module: 'settings-cache' });
     }
   }
 
@@ -53,7 +46,7 @@ class SettingsCacheService {
         try {
           listener(this.cache!.data);
         } catch (error) {
-          console.error('[SETTINGS-CACHE] Error in immediate listener notification:', error);
+          logger.error('Error in immediate listener notification', error, { module: 'settings-cache' });
         }
       }, 0);
     }
@@ -69,7 +62,7 @@ class SettingsCacheService {
       try {
         listener(settings);
       } catch (error) {
-        console.error('[SETTINGS-CACHE] Error in settings change listener:', error);
+        logger.error('Error in settings change listener', error, { module: 'settings-cache' });
       }
     });
   }
@@ -91,7 +84,7 @@ class SettingsCacheService {
         }
       }
     } catch (error) {
-      console.error('[SETTINGS-CACHE] Failed to load settings from localStorage:', error);
+      logger.error('Failed to load settings from localStorage', error, { module: 'settings-cache' });
       localStorage.removeItem(this.CACHE_KEY);
     }
   }
@@ -115,7 +108,7 @@ class SettingsCacheService {
       // Emit change event when cache is updated with fresh data
       this.emitChange(settings);
     } catch (error) {
-      console.error('[SETTINGS-CACHE] Failed to save settings to localStorage:', error);
+      logger.error('Failed to save settings to localStorage', error, { module: 'settings-cache' });
     }
   }
 
@@ -124,12 +117,12 @@ class SettingsCacheService {
     try {
       const isReady = await clientManager.waitForReadiness();
       if (!isReady) {
-        console.warn('[SETTINGS-CACHE] Client not ready after timeout');
+        logger.warn('Client not ready after timeout', undefined, { module: 'settings-cache' });
         return false;
       }
       return true;
     } catch (error) {
-      console.error('[SETTINGS-CACHE] Error waiting for client readiness:', error);
+      logger.error('Error waiting for client readiness', error, { module: 'settings-cache' });
       return false;
     }
   }
@@ -158,7 +151,7 @@ class SettingsCacheService {
 
     // If context changed, invalidate cache
     if (this.cache && this.cache.context !== currentContext) {
-      if (shouldLog('info')) console.log(`[SETTINGS-CACHE] Auth context changed from ${this.cache.context} to ${currentContext}, invalidating cache`);
+      logger.debug(`Auth context changed from ${this.cache.context} to ${currentContext}, invalidating cache`, undefined, { module: 'settings-cache' });
       this.cache = null;
     }
 
@@ -174,7 +167,7 @@ class SettingsCacheService {
       const settings = await this.fetchPromise;
       return settings;
     } catch (error) {
-      console.error('[SETTINGS-CACHE] Fresh settings fetch failed:', error);
+      logger.error('Fresh settings fetch failed', error, { module: 'settings-cache' });
       throw error;
     } finally {
       this.fetchPromise = null;
@@ -198,13 +191,13 @@ class SettingsCacheService {
     // Step 1: Check if client is ready
     const clientReady = await this.waitForClientReady();
     if (!clientReady) {
-      if (shouldLog('warn')) console.warn('[SETTINGS-CACHE] Client not ready, using fallback settings');
+      logger.warn('Client not ready, using fallback settings', undefined, { module: 'settings-cache' });
       return this.getFallbackSettings();
     }
     
     try {
       const settings = await fetchAppSettings();
-      if (shouldLog()) console.log(`[SETTINGS-CACHE] Settings loaded successfully for context: ${context}`);
+      logger.debug(`Settings loaded successfully for context: ${context}`, undefined, { module: 'settings-cache' });
       this.saveToLocalStorage(settings, context);
       return settings;
     } catch (error) {
@@ -214,12 +207,9 @@ class SettingsCacheService {
                         errorMessage.toLowerCase().includes('permission');
       
       if (isRLSError) {
-        console.warn('[SETTINGS-CACHE] RLS policy may be restricting access for anonymous users:', {
-          error: errorMessage,
-          note: 'Some settings may not be visible. Check RLS policies on app_settings table.'
-        });
+        logger.warn('RLS policy may be restricting access for anonymous users', undefined, { module: 'settings-cache' });
       } else {
-        console.error('[SETTINGS-CACHE] Failed to fetch settings from database:', error);
+        logger.error('Failed to fetch settings from database', error, { module: 'settings-cache' });
       }
       
       // Return cached data even if expired as fallback
@@ -255,9 +245,7 @@ class SettingsCacheService {
   }
 
   async invalidateCache(): Promise<void> {
-    if (shouldLog('info')) {
-      console.log('[SETTINGS-CACHE] Cache invalidated');
-    }
+    logger.debug('Cache invalidated', undefined, { module: 'settings-cache' });
     this.cache = null;
     this.fetchPromise = null;
     try {
@@ -269,7 +257,7 @@ class SettingsCacheService {
         await cacheInvalidationService.invalidateAppSettings();
       }
     } catch (error) {
-      console.error('[SETTINGS-CACHE] Failed to remove cache from localStorage:', error);
+      logger.error('Failed to remove cache from localStorage', error, { module: 'settings-cache' });
     }
   }
 
@@ -289,4 +277,3 @@ class SettingsCacheService {
 }
 
 export const settingsCacheService = SettingsCacheService.getInstance();
-

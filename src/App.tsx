@@ -49,14 +49,16 @@ function App() {
       try {
         logger.info('Starting app initialization', { module: 'app' });
         
-        // Log build information on startup
-        const version = await versionService.getCurrentVersion();
-        console.log('🚀 Ixty AI Build Info:', {
-          version: version?.version,
-          buildHash: version?.buildHash,
-          environment: version?.environment,
-          buildTime: version?.buildTime
-        });
+        // Log build information on startup (dev only)
+        if (import.meta.env.DEV) {
+          const version = await versionService.getCurrentVersion();
+          console.log('🚀 Ixty AI Build Info:', {
+            version: version?.version,
+            buildHash: version?.buildHash,
+            environment: version?.environment,
+            buildTime: version?.buildTime
+          });
+        }
         
         const initResult = await coordinatedInitService.initialize();
         

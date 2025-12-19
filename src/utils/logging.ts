@@ -1,7 +1,10 @@
 
 /**
  * High-performance logging utility optimized for production builds
- * Zero-cost in production with proper tree-shaking
+ * Uses import.meta.env.PROD for compile-time tree-shaking (Vite-compatible)
+ * 
+ * SECURITY: In production, only critical errors are logged with sanitized output
+ * No data payloads, stack traces, or implementation details are exposed
  */
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
@@ -13,7 +16,7 @@ interface LogOptions {
   [key: string]: any;
 }
 
-// Production no-op that gets completely tree-shaken
+// Production no-op logger - completely tree-shaken in production builds
 const createNoOpLogger = () => ({
   debug: (() => {}) as (message: string, data?: any, options?: LogOptions) => void,
   info: (() => {}) as (message: string, data?: any, options?: LogOptions) => void,
@@ -21,13 +24,23 @@ const createNoOpLogger = () => ({
   error: (() => {}) as (message: string, data?: any, options?: LogOptions) => void
 });
 
-// Development logger with performance optimizations
-const createDevLogger = () => {
-  // Early production check for tree-shaking
-  if (process.env.NODE_ENV === 'production') {
-    return createNoOpLogger();
-  }
+// Production error-only logger with sanitized output
+const createProductionLogger = () => ({
+  debug: (() => {}) as (message: string, data?: any, options?: LogOptions) => void,
+  info: (() => {}) as (message: string, data?: any, options?: LogOptions) => void,
+  warn: (() => {}) as (message: string, data?: any, options?: LogOptions) => void,
+  // Only log critical errors in production - sanitized, no data payloads
+  error: ((message: string, _data?: any, options?: LogOptions) => {
+    const module = options?.module || 'app';
+    // Generate error ID for traceability without exposing details
+    const errorId = `E${Date.now().toString(36)}`;
+    // Sanitized production error log - message only, no data
+    console.error(`[${module}] Error (${errorId}): ${message}`);
+  }) as (message: string, data?: any, options?: LogOptions) => void
+});
 
+// Development logger with full debugging capabilities
+const createDevLogger = () => {
   // Use WeakMap for better memory management
   const logTimestamps = new Map<string, number>();
   const seenLogs = new Set<string>();
@@ -138,8 +151,11 @@ const createDevLogger = () => {
   };
 };
 
-// Export with compile-time optimization for tree-shaking
-export const logger = process.env.NODE_ENV === 'production' 
-  ? createNoOpLogger() 
+// Export with compile-time optimization using Vite's import.meta.env.PROD
+// This ensures proper tree-shaking in production builds
+export const logger = import.meta.env.PROD 
+  ? createProductionLogger() 
   : createDevLogger();
 
+// Helper for checking if we're in development mode
+export const isDev = !import.meta.env.PROD;

@@ -17,6 +17,7 @@ import { HighLevelSettings } from '@/components/admin/HighLevelSettings';
 import Environment from '@/components/admin/Environment';
 import { ArrowLeft } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { logger } from '@/utils/logging';
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -72,7 +73,7 @@ export default function Admin() {
           }
         }
       } catch (error) {
-        console.error('Error checking admin status:', error);
+        logger.error('Error checking admin status', error, { module: 'admin' });
         
         // Only show toast and redirect if component is still mounted
         if (isMounted) {

@@ -6,6 +6,7 @@ import { HeaderLogo } from './header/HeaderLogo';
 import { HeaderActions } from './header/HeaderActions';
 import { LocationStatusIndicator } from '@/components/location/LocationStatusIndicator';
 import { useAuth } from '@/contexts/AuthContext';
+import { logger } from '@/utils/logging';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
@@ -44,7 +45,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       const messages = await importChat(file);
       onImportChat(messages);
     } catch (error) {
-      console.error('Import failed:', error);
+      logger.error('Import failed', error, { module: 'chat-header' });
     }
 
     // Reset input
