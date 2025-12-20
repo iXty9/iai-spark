@@ -342,23 +342,27 @@ export const createMarkdownComponents = (themeColors?: ThemeColors) => {
     ),
     table: ({ children }: any) => (
       <div className="overflow-x-auto mb-4">
-        <table className="min-w-full border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">{children}</table>
+        <table className="min-w-full border border-border rounded-lg overflow-hidden">{children}</table>
       </div>
     ),
     thead: ({ children }: any) => (
       <thead 
         style={{
-          backgroundColor: themeColors?.tableHeaderBackground || '#f9fafb'
+          backgroundColor: themeColors?.tableHeaderBackground || 'hsl(var(--muted))'
         }}
       >
         {children}
       </thead>
     ),
-    tbody: ({ children }: any) => <tbody className="divide-y divide-gray-200 dark:divide-gray-600">{children}</tbody>,
-    tr: ({ children }: any) => <tr className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">{children}</tr>,
+    tbody: ({ children }: any) => <tbody className="divide-y divide-border">{children}</tbody>,
+    tr: ({ children }: any) => (
+      <tr className="hover:bg-muted/50 transition-colors [&:hover_td]:text-foreground">
+        {children}
+      </tr>
+    ),
     th: ({ children }: any) => (
       <th 
-        className="px-4 py-3 text-left font-semibold border-r border-gray-300 dark:border-gray-600 last:border-r-0 text-sm"
+        className="px-4 py-3 text-left font-semibold border-r border-border last:border-r-0 text-sm text-foreground"
         style={{
           color: themeColors?.tableHeaderTextColor || 'inherit'
         }}
@@ -367,7 +371,7 @@ export const createMarkdownComponents = (themeColors?: ThemeColors) => {
       </th>
     ),
     td: ({ children }: any) => (
-      <td className="px-4 py-3 border-r border-gray-300 dark:border-gray-600 last:border-r-0 text-sm">
+      <td className="px-4 py-3 border-r border-border last:border-r-0 text-sm text-foreground">
         {children}
       </td>
     ),
