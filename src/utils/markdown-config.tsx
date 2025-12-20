@@ -232,9 +232,48 @@ export const createMarkdownComponents = (themeColors?: ThemeColors) => {
     h4: ({ children }: any) => <h4 className="text-base font-bold mb-2 mt-3 first:mt-0 leading-tight">{children}</h4>,
     h5: ({ children }: any) => <h5 className="text-sm font-bold mb-2 mt-2 first:mt-0 leading-tight">{children}</h5>,
     h6: ({ children }: any) => <h6 className="text-xs font-bold mb-2 mt-2 first:mt-0 leading-tight">{children}</h6>,
-    ul: ({ children }: any) => <ul className="list-disc list-outside mb-4 space-y-1 pl-6">{children}</ul>,
+    ul: ({ children, className }: any) => {
+      // Check if this is a task list (contains task-list-item children)
+      const isTaskList = className?.includes('contains-task-list');
+      return (
+        <ul className={`${isTaskList ? 'list-none pl-0' : 'list-disc list-outside pl-6'} mb-4 space-y-1`}>
+          {children}
+        </ul>
+      );
+    },
     ol: ({ children }: any) => <ol className="list-decimal list-outside mb-4 space-y-1 pl-6">{children}</ol>,
-    li: ({ children }: any) => <li className="leading-relaxed">{children}</li>,
+    li: ({ children, className }: any) => {
+      // Check if this is a task list item
+      const isTaskListItem = className?.includes('task-list-item');
+      return (
+        <li className={`leading-relaxed ${isTaskListItem ? 'list-none flex items-start gap-2' : ''}`}>
+          {children}
+        </li>
+      );
+    },
+    // Task list checkbox input
+    input: ({ type, checked, disabled, ...props }: any) => {
+      if (type === 'checkbox') {
+        return (
+          <input 
+            type="checkbox" 
+            checked={checked} 
+            disabled={disabled}
+            readOnly
+            className="mt-1 h-4 w-4 rounded border-border accent-primary cursor-default"
+          />
+        );
+      }
+      return <input type={type} {...props} />;
+    },
+    // Strikethrough for ~~text~~
+    del: ({ children }: any) => (
+      <del className="line-through text-muted-foreground">{children}</del>
+    ),
+    // Subscript for ~text~
+    sub: ({ children }: any) => <sub className="text-xs">{children}</sub>,
+    // Superscript for ^text^
+    sup: ({ children }: any) => <sup className="text-xs">{children}</sup>,
     blockquote: ({ children }: any) => (
       <blockquote 
         className="pl-4 italic mb-4 py-2 rounded-r-md"
@@ -248,12 +287,22 @@ export const createMarkdownComponents = (themeColors?: ThemeColors) => {
       </blockquote>
     ),
     // pre just passes through - code handles the rendering
-    pre: ({ children }: any) => <>{children}</>,
+    pre: ({ children }: any) => <div className="not-prose">{children}</div>,
     // code handles both inline and block code
-    code: ({ inline, className, children }: any) => {
+    // In react-markdown v9+, the 'inline' prop is no longer passed
+    // We detect inline by: no className (language) AND content has no newlines
+    code: ({ className, children, node }: any) => {
       const language = extractLanguage(className);
+      const codeText = extractTextFromChildren(children);
       
-      if (inline) {
+      // Block code detection:
+      // 1. Has a language class (e.g., language-javascript)
+      // 2. Content contains newlines
+      // 3. Parent is a <pre> tag (node check)
+      const hasNewlines = codeText.includes('\n');
+      const isBlockCode = !!className || hasNewlines;
+      
+      if (!isBlockCode) {
         return <InlineCode>{children}</InlineCode>;
       }
       
