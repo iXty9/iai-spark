@@ -39,32 +39,16 @@ Deno.serve(async (req) => {
     // Clone request to read body twice (once for verification, once for parsing)
     const rawBody = await req.text();
     
-    // Verify GHL signature before processing
-    const verifyResult = await verifyGHLSignature(req, rawBody);
-    if (!verifyResult.valid) {
-      console.error('[ghl-notification-proxy] Signature verification failed:', verifyResult.error);
-      return createUnauthorizedResponse(verifyResult.error || 'Invalid signature', corsHeaders);
-    }
-    
-    console.log('[ghl-notification-proxy] Signature verified successfully');
-    
-    // Parse the verified payload
-    const payload = JSON.parse(rawBody);
-    const webhookId = payload.webhookId;
-    const compositeKey = generateDedupKey(payload);
-    
-    console.log(`[ghl-notification-proxy] Received: type=${payload.type || 'unknown'}, webhookId=${webhookId || 'none'}, compositeKey=${compositeKey}`);
-
-    // Create Supabase client with service role
+    // Create Supabase client with service role for settings lookup
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch configuration from app_settings (notification webhook URL and proxy secret)
+    // Fetch configuration from app_settings including signature verification bypass
     const { data: settingsData, error: settingsError } = await supabase
       .from('app_settings')
       .select('key, value')
-      .in('key', ['ghl_notification_webhook_url', 'ghl_proxy_secret']);
+      .in('key', ['ghl_notification_webhook_url', 'ghl_proxy_secret', 'ghl_signature_verification_enabled']);
 
     if (settingsError) {
       console.error('[ghl-notification-proxy] Failed to fetch settings:', settingsError.message);
@@ -76,6 +60,33 @@ Deno.serve(async (req) => {
 
     const notificationWebhookUrl = settingsData?.find(s => s.key === 'ghl_notification_webhook_url')?.value;
     const proxySecret = settingsData?.find(s => s.key === 'ghl_proxy_secret')?.value;
+    const signatureVerificationSetting = settingsData?.find(s => s.key === 'ghl_signature_verification_enabled')?.value;
+    
+    // Default to true (verification enabled) if setting doesn't exist
+    const signatureVerificationEnabled = signatureVerificationSetting !== 'false';
+    const bypassEnabled = !signatureVerificationEnabled;
+    
+    console.log(`[ghl-notification-proxy] Signature verification enabled: ${signatureVerificationEnabled}`);
+
+    // Verify GHL signature (with optional bypass)
+    const verifyResult = await verifyGHLSignature(req, rawBody, bypassEnabled);
+    if (!verifyResult.valid) {
+      console.error('[ghl-notification-proxy] Signature verification failed:', verifyResult.error);
+      return createUnauthorizedResponse(verifyResult.error || 'Invalid signature', corsHeaders);
+    }
+    
+    if (verifyResult.bypassed) {
+      console.log('[ghl-notification-proxy] Signature verification BYPASSED via app_settings');
+    } else {
+      console.log('[ghl-notification-proxy] Signature verified successfully');
+    }
+    
+    // Parse the verified payload
+    const payload = JSON.parse(rawBody);
+    const webhookId = payload.webhookId;
+    const compositeKey = generateDedupKey(payload);
+    
+    console.log(`[ghl-notification-proxy] Received: type=${payload.type || 'unknown'}, webhookId=${webhookId || 'none'}, compositeKey=${compositeKey}`);
 
     if (!notificationWebhookUrl) {
       console.error('[ghl-notification-proxy] No notification webhook URL configured');
