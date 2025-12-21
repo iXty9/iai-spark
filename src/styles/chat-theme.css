@@ -1,3 +1,23 @@
+/* Chat text size scaling */
+:root {
+  --chat-text-scale: 1;
+  --chat-line-height: 1.5;
+}
+
+.chat-text-small {
+  --chat-text-scale: 0.85;
+  --chat-line-height: 1.4;
+}
+
+.chat-text-medium {
+  --chat-text-scale: 0.925;
+  --chat-line-height: 1.45;
+}
+
+.chat-text-large {
+  --chat-text-scale: 1;
+  --chat-line-height: 1.5;
+}
 
 /* Chat message bubble styles - Updated to use CSS variables */
 .user-message-bubble {
@@ -5,12 +25,16 @@
   color: var(--user-text-color, white) !important;
   opacity: var(--user-bubble-opacity, 1);
   text-align: left;
+  font-size: calc(1rem * var(--chat-text-scale));
+  line-height: var(--chat-line-height);
 }
 
 .ai-message-bubble {
   background-color: var(--ai-bubble-color, var(--accent-color)) !important;
   color: var(--ai-text-color, var(--text-color)) !important;
   opacity: var(--ai-bubble-opacity, 1);
+  font-size: calc(1rem * var(--chat-text-scale));
+  line-height: var(--chat-line-height);
 }
 
 /* Proactive message highlight border */

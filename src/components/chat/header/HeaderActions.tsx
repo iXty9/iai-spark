@@ -3,7 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { 
   Download, Trash2, Sun, Moon, Monitor, Code, 
-  Upload, RefreshCw, MoreVertical 
+  Upload, RefreshCw, MoreVertical, Type, Check
 } from 'lucide-react';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,10 +12,14 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useTheme } from '@/contexts/SupaThemeContext';
 import { useDevMode } from '@/store/use-dev-mode';
+import { useChatTextSize, ChatTextSize } from '@/store/use-chat-text-size';
 import { toast } from "@/hooks/use-toast";
 import { usePWA } from '@/hooks/use-pwa';
 import { versionService } from '@/services/pwa/versionService';
@@ -47,6 +51,7 @@ export const HeaderActions = ({
   const { isDevMode, toggleDevMode } = useDevMode();
   const { user } = useAuth();
   const { needsUpdate, isUpdating, updateApp, isInstalled } = usePWA();
+  const { textSize, setTextSize } = useChatTextSize();
   
   const handleDevModeToggle = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -352,6 +357,28 @@ export const HeaderActions = ({
             <Trash2 className="mr-2 h-4 w-4" />
             <span>{isMobile ? "Clear" : "Clear Chat"}</span>
           </DropdownMenuItem>
+          
+          {/* Text Size submenu */}
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="py-2.5">
+              <Type className="mr-2 h-4 w-4" />
+              <span>Text Size</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem onClick={() => setTextSize('small')} className="py-2.5">
+                <span className="flex-1">Small</span>
+                {textSize === 'small' && <Check className="h-4 w-4 ml-2" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTextSize('medium')} className="py-2.5">
+                <span className="flex-1">Medium</span>
+                {textSize === 'medium' && <Check className="h-4 w-4 ml-2" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTextSize('large')} className="py-2.5">
+                <span className="flex-1">Large</span>
+                {textSize === 'large' && <Check className="h-4 w-4 ml-2" />}
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           
           {/* Dev Mode - only for authenticated users */}
           {user && (

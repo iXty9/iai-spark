@@ -196,8 +196,8 @@ const CodeBlock = ({
         customStyle={{
           margin: 0,
           padding: '1rem',
-          fontSize: '0.875rem',
-          lineHeight: '1.5',
+          fontSize: 'calc(0.875rem * var(--chat-text-scale, 1))',
+          lineHeight: 'var(--chat-line-height, 1.5)',
           backgroundColor: '#282c34',
           overflow: 'auto',
         }}

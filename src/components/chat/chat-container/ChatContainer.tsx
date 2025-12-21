@@ -18,12 +18,15 @@ import { ProactiveMessage } from '@/contexts/WebSocketContext';
 import { Button } from '@/components/ui/button';
 import { ChevronDown } from 'lucide-react';
 import { RecallHistoryViewer } from '../recall/RecallHistoryViewer';
+import { useChatTextSize } from '@/store/use-chat-text-size';
 
 interface ChatContainerProps {
   className?: string;
 }
 
 export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
+  const { textSize } = useChatTextSize();
+  
   // Initialize recall first so we can pass context to useChat
   const {
     recallState,
@@ -151,7 +154,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
       messages={convertedMessages}
       className={className}
     >
-      <div className="flex-1 overflow-hidden relative bg-transparent">
+      <div className={cn("flex-1 overflow-hidden relative bg-transparent", `chat-text-${textSize}`)}>
         {/* Use the WebSocket status indicator component */}
         <div className="absolute top-2 right-2 z-10">
           <WebSocketStatusIndicator />
