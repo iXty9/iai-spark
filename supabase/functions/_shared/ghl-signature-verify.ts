@@ -1,6 +1,6 @@
 /**
  * GHL Webhook Signature Verification Utility
- * 
+ *
  * Verifies webhooks from GoHighLevel using RSA-SHA256 signature validation.
  * Reference: https://marketplace.gohighlevel.com/docs/oauth/ExternalAuthentication
  */
@@ -13,7 +13,9 @@ export interface SignatureVerifyResult {
 
 // GHL's RSA public key for webhook signature verification
 // This is a PUBLIC key - safe to include in code
-// Retrieved from GHL marketplace documentation (4096-bit RSA key)
+// Source: GoHighLevel Webhook Integration Guide (4096-bit RSA key)
+// https://marketplace.gohighlevel.com/docs/webhook/WebhookIntegrationGuide
+// Verified working as of 2025-12-21.
 const GHL_PUBLIC_KEY_PEM = `-----BEGIN PUBLIC KEY-----
 MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAokvo/r9tVgcfZ5DysOSC
 Frm602qYV0MaAiNnX9O8KxMbiyRKWeL9JpCpVpt4XHIcBOK4u3cLSqJGOLaPuXw6
@@ -38,10 +40,10 @@ const MAX_WEBHOOK_AGE_MS = 5 * 60 * 1000; // 5 minutes
 function pemToArrayBuffer(pem: string): ArrayBuffer {
   // Remove PEM headers and newlines
   const base64 = pem
-    .replace(/-----BEGIN PUBLIC KEY-----/, '')
-    .replace(/-----END PUBLIC KEY-----/, '')
-    .replace(/\s/g, '');
-  
+    .replace(/-----BEGIN PUBLIC KEY-----/, "")
+    .replace(/-----END PUBLIC KEY-----/, "")
+    .replace(/\s/g, "");
+
   // Decode base64 to binary
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
@@ -57,12 +59,12 @@ function pemToArrayBuffer(pem: string): ArrayBuffer {
  */
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
   // Convert URL-safe base64 to standard base64 if needed
-  let standardBase64 = base64.replace(/-/g, '+').replace(/_/g, '/');
-  
+  let standardBase64 = base64.replace(/-/g, "+").replace(/_/g, "/");
+
   // Add padding if needed
   const paddingNeeded = (4 - (standardBase64.length % 4)) % 4;
-  standardBase64 += '='.repeat(paddingNeeded);
-  
+  standardBase64 += "=".repeat(paddingNeeded);
+
   const binaryString = atob(standardBase64);
   const bytes = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) {
@@ -85,21 +87,21 @@ function hexToArrayBuffer(hex: string): ArrayBuffer {
 /**
  * Detect the encoding format of a signature string
  */
-function detectSignatureFormat(signature: string): 'base64' | 'hex' | 'unknown' {
+function detectSignatureFormat(signature: string): "base64" | "hex" | "unknown" {
   // Check if it's hex (only contains 0-9, a-f, A-F)
   if (/^[0-9a-fA-F]+$/.test(signature) && signature.length % 2 === 0) {
-    return 'hex';
+    return "hex";
   }
   // Check if it looks like base64 (contains base64 chars, possibly URL-safe variants)
   if (/^[A-Za-z0-9+/\-_=]+$/.test(signature)) {
-    return 'base64';
+    return "base64";
   }
-  return 'unknown';
+  return "unknown";
 }
 
 /**
  * Verify GHL webhook signature using RSA-SHA256
- * 
+ *
  * @param request - The incoming request (to extract headers)
  * @param rawBody - The raw request body string (signature is computed over this)
  * @param bypassEnabled - If true, skip verification and return success
@@ -108,19 +110,19 @@ function detectSignatureFormat(signature: string): 'base64' | 'hex' | 'unknown' 
 export async function verifyGHLSignature(
   request: Request,
   rawBody: string,
-  bypassEnabled: boolean = false
+  bypassEnabled: boolean = false,
 ): Promise<SignatureVerifyResult> {
   // If bypass is enabled, skip verification entirely
   if (bypassEnabled) {
-    console.log('[ghl-signature-verify] BYPASS ENABLED - Skipping signature verification');
+    console.log("[ghl-signature-verify] BYPASS ENABLED - Skipping signature verification");
     return { valid: true, bypassed: true };
   }
 
   // Extract signature from header
-  const signature = request.headers.get('x-wh-signature');
-  
+  const signature = request.headers.get("x-wh-signature");
+
   // Diagnostic logging
-  console.log('[ghl-signature-verify] === DIAGNOSTIC INFO ===');
+  console.log("[ghl-signature-verify] === DIAGNOSTIC INFO ===");
   console.log(`[ghl-signature-verify] x-wh-signature header present: ${!!signature}`);
   if (signature) {
     console.log(`[ghl-signature-verify] Signature length: ${signature.length}`);
@@ -129,11 +131,11 @@ export async function verifyGHLSignature(
   }
   console.log(`[ghl-signature-verify] Raw body length: ${rawBody.length}`);
   console.log(`[ghl-signature-verify] Raw body preview: ${rawBody.substring(0, 100)}...`);
-  console.log('[ghl-signature-verify] === END DIAGNOSTIC INFO ===');
-  
+  console.log("[ghl-signature-verify] === END DIAGNOSTIC INFO ===");
+
   if (!signature) {
-    console.warn('[ghl-signature-verify] Missing x-wh-signature header');
-    return { valid: false, error: 'Missing x-wh-signature header' };
+    console.warn("[ghl-signature-verify] Missing x-wh-signature header");
+    return { valid: false, error: "Missing x-wh-signature header" };
   }
 
   // Parse body to check timestamp for replay protection
@@ -141,8 +143,8 @@ export async function verifyGHLSignature(
   try {
     payload = JSON.parse(rawBody);
   } catch (e) {
-    console.error('[ghl-signature-verify] Failed to parse request body:', e);
-    return { valid: false, error: 'Invalid JSON body' };
+    console.error("[ghl-signature-verify] Failed to parse request body:", e);
+    return { valid: false, error: "Invalid JSON body" };
   }
 
   // Replay protection: Check timestamp
@@ -151,66 +153,62 @@ export async function verifyGHLSignature(
     const webhookTime = new Date(timestamp).getTime();
     const now = Date.now();
     const age = now - webhookTime;
-    
+
     if (age > MAX_WEBHOOK_AGE_MS) {
       console.warn(`[ghl-signature-verify] Webhook too old: ${age}ms (max: ${MAX_WEBHOOK_AGE_MS}ms)`);
-      return { valid: false, error: 'Webhook timestamp too old (replay protection)' };
+      return { valid: false, error: "Webhook timestamp too old (replay protection)" };
     }
-    
+
     // Also reject webhooks from the future (clock skew protection)
-    if (age < -60000) { // Allow 1 minute of clock skew
+    if (age < -60000) {
+      // Allow 1 minute of clock skew
       console.warn(`[ghl-signature-verify] Webhook from future: ${-age}ms ahead`);
-      return { valid: false, error: 'Webhook timestamp in future' };
+      return { valid: false, error: "Webhook timestamp in future" };
     }
   } else {
-    console.log('[ghl-signature-verify] No timestamp in payload, skipping replay protection');
+    console.log("[ghl-signature-verify] No timestamp in payload, skipping replay protection");
   }
 
   try {
     // Import GHL's RSA public key
-    console.log('[ghl-signature-verify] Importing RSA public key...');
+    console.log("[ghl-signature-verify] Importing RSA public key...");
     const publicKey = await crypto.subtle.importKey(
-      'spki',
+      "spki",
       pemToArrayBuffer(GHL_PUBLIC_KEY_PEM),
-      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
       false,
-      ['verify']
+      ["verify"],
     );
-    console.log('[ghl-signature-verify] Public key imported successfully');
+    console.log("[ghl-signature-verify] Public key imported successfully");
 
     // Detect signature format and decode accordingly
     const sigFormat = detectSignatureFormat(signature);
     let signatureBuffer: ArrayBuffer;
-    
-    if (sigFormat === 'hex') {
-      console.log('[ghl-signature-verify] Decoding signature as hex');
+
+    if (sigFormat === "hex") {
+      console.log("[ghl-signature-verify] Decoding signature as hex");
       signatureBuffer = hexToArrayBuffer(signature);
     } else {
-      console.log('[ghl-signature-verify] Decoding signature as base64');
+      console.log("[ghl-signature-verify] Decoding signature as base64");
       signatureBuffer = base64ToArrayBuffer(signature);
     }
     console.log(`[ghl-signature-verify] Decoded signature buffer length: ${signatureBuffer.byteLength} bytes`);
-    
+
     // Encode the raw body as bytes
     const bodyBuffer = new TextEncoder().encode(rawBody);
 
     // Verify the signature
-    const isValid = await crypto.subtle.verify(
-      'RSASSA-PKCS1-v1_5',
-      publicKey,
-      signatureBuffer,
-      bodyBuffer
-    );
+    const isValid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", publicKey, signatureBuffer, bodyBuffer);
 
     if (isValid) {
-      console.log('[ghl-signature-verify] Signature verified successfully');
+      console.log("[ghl-signature-verify] Signature verified successfully");
       return { valid: true };
     } else {
-      console.warn('[ghl-signature-verify] Signature verification failed');
-      return { valid: false, error: 'Invalid signature' };
+      console.warn("[ghl-signature-verify] Signature verification failed");
+      return { valid: false, error: "Invalid signature" };
     }
   } catch (error) {
-    console.error('[ghl-signature-verify] Verification error:', error);
+    console.error("[ghl-signature-verify] Verification error:", error);
     return { valid: false, error: `Verification error: ${error.message}` };
   }
 }
@@ -218,15 +216,9 @@ export async function verifyGHLSignature(
 /**
  * Helper to create a 401 Unauthorized response with CORS headers
  */
-export function createUnauthorizedResponse(
-  error: string,
-  corsHeaders: Record<string, string>
-): Response {
-  return new Response(
-    JSON.stringify({ error: 'Unauthorized', details: error }),
-    { 
-      status: 401, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    }
-  );
+export function createUnauthorizedResponse(error: string, corsHeaders: Record<string, string>): Response {
+  return new Response(JSON.stringify({ error: "Unauthorized", details: error }), {
+    status: 401,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
