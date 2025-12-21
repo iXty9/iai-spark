@@ -6,6 +6,7 @@ import { TypingIndicator } from './TypingIndicator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { saveScrollPosition, loadScrollPosition } from '@/services/storage/chatPersistenceService';
 import { logger } from '@/utils/logging';
+import { useChatTextSize } from '@/store/use-chat-text-size';
 
 interface MessageListProps {
   messages: MessageType[];
@@ -45,6 +46,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(({
   onClearContext,
   onMessageSent
 }, ref) => {
+  const { textSize } = useChatTextSize();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
@@ -224,7 +226,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(({
       style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
     >
       <div 
-        className="message-list space-y-5 pb-6 bg-transparent" 
+        className={`message-list space-y-5 pb-6 bg-transparent chat-text-${textSize}`}
         role="log" 
         aria-live="polite" 
         aria-label="Chat messages"
