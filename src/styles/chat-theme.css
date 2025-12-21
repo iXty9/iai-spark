@@ -25,16 +25,23 @@
   color: var(--user-text-color, white) !important;
   opacity: var(--user-bubble-opacity, 1);
   text-align: left;
-  font-size: calc(1rem * var(--chat-text-scale));
-  line-height: var(--chat-line-height);
+  font-size: calc(1rem * var(--chat-text-scale)) !important;
+  line-height: var(--chat-line-height) !important;
 }
 
 .ai-message-bubble {
   background-color: var(--ai-bubble-color, var(--accent-color)) !important;
   color: var(--ai-text-color, var(--text-color)) !important;
   opacity: var(--ai-bubble-opacity, 1);
-  font-size: calc(1rem * var(--chat-text-scale));
-  line-height: var(--chat-line-height);
+  font-size: calc(1rem * var(--chat-text-scale)) !important;
+  line-height: var(--chat-line-height) !important;
+}
+
+/* Ensure all text inside bubbles also scales */
+.user-message-bubble *,
+.ai-message-bubble * {
+  font-size: inherit;
+  line-height: inherit;
 }
 
 /* Proactive message highlight border */
