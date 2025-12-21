@@ -11,6 +11,7 @@ import { History, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { extractAttachmentsFromText, downloadAttachment } from '@/utils/attachment-utils';
+import { useChatTextSize } from '@/store/use-chat-text-size';
 
 interface MessageProps {
   message: ChatMessage;
@@ -29,6 +30,7 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry, onRecall, is
   const { user, profile } = useAuth();
   const { aiAgentName } = useAIAgentName();
   const [chatRecallOpen, setChatRecallOpen] = useState(false);
+  const { textSize } = useChatTextSize();
   
   // Extract attachments for user messages to enable downloads
   const userAttachments = isUser ? extractAttachmentsFromText(message.content).attachments : [];
@@ -76,7 +78,7 @@ export const Message: React.FC<MessageProps> = ({ message, onRetry, onRecall, is
             </div>
             
             <div
-              className={`inline-block p-4 rounded-2xl shadow-sm transition-all duration-200 hover:shadow-md ${
+              className={`inline-block p-4 rounded-2xl shadow-sm transition-all duration-200 hover:shadow-md chat-text-${textSize} ${
                 isUser
                   ? 'user-message-bubble'
                   : 'ai-message-bubble'

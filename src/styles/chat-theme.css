@@ -1,47 +1,71 @@
-/* Chat text size scaling */
+/* Chat text scaling based on user preference */
 :root {
   --chat-text-scale: 1;
   --chat-line-height: 1.5;
 }
 
+/* Direct text size application on bubble - explicit font sizes that override inheritance */
 .chat-text-small {
   --chat-text-scale: 0.85;
   --chat-line-height: 1.4;
+  font-size: 0.85rem !important;
 }
 
 .chat-text-medium {
   --chat-text-scale: 0.925;
   --chat-line-height: 1.45;
+  font-size: 0.925rem !important;
 }
 
 .chat-text-large {
   --chat-text-scale: 1;
   --chat-line-height: 1.5;
+  font-size: 1rem !important;
 }
 
-/* Chat message bubble styles - Updated to use CSS variables */
+/* Chat content wrapper - inherits from parent bubble */
+.chat-content {
+  font-size: inherit !important;
+  line-height: var(--chat-line-height, 1.5) !important;
+}
+
+/* Override prose plugin font sizes when inside text-size class */
+.chat-text-small .prose,
+.chat-text-small .prose p,
+.chat-text-small .prose li,
+.chat-text-small .prose blockquote {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+.chat-text-medium .prose,
+.chat-text-medium .prose p,
+.chat-text-medium .prose li,
+.chat-text-medium .prose blockquote {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+.chat-text-large .prose,
+.chat-text-large .prose p,
+.chat-text-large .prose li,
+.chat-text-large .prose blockquote {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+/* Message bubble base styles - font size controlled by chat-text-* class */
 .user-message-bubble {
-  background-color: var(--user-bubble-color, var(--primary-color)) !important;
+  background-color: var(--user-bubble-color, hsl(var(--primary))) !important;
   color: var(--user-text-color, white) !important;
   opacity: var(--user-bubble-opacity, 1);
   text-align: left;
-  font-size: calc(1rem * var(--chat-text-scale)) !important;
-  line-height: var(--chat-line-height) !important;
 }
 
 .ai-message-bubble {
   background-color: var(--ai-bubble-color, var(--accent-color)) !important;
   color: var(--ai-text-color, var(--text-color)) !important;
   opacity: var(--ai-bubble-opacity, 1);
-  font-size: calc(1rem * var(--chat-text-scale)) !important;
-  line-height: var(--chat-line-height) !important;
-}
-
-/* Ensure all text inside bubbles also scales */
-.user-message-bubble *,
-.ai-message-bubble * {
-  font-size: inherit;
-  line-height: inherit;
 }
 
 /* Proactive message highlight border */

@@ -79,7 +79,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ message, isUser 
       <div>
         <AttachmentPreview attachments={attachments} isUser={true} />
         {cleanText && (
-          <div className="text-sm whitespace-pre-wrap break-words text-left leading-relaxed max-w-[70ch]">
+          <div className="chat-content whitespace-pre-wrap break-words text-left max-w-[70ch]">
             {cleanText}
           </div>
         )}
@@ -89,7 +89,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ message, isUser 
 
   // For AI messages: attachments BELOW text (standard order)
   return (
-    <div className="prose prose-sm max-w-none dark:prose-invert">
+    <div className="prose max-w-none dark:prose-invert chat-content">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={markdownComponents}
