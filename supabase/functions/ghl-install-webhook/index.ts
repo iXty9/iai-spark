@@ -1,8 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { verifyGHLSignature, createUnauthorizedResponse } from '../_shared/ghl-signature-verify.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-wh-signature',
 };
 
 interface GHLInstallWebhook {
@@ -28,7 +29,20 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const payload: GHLInstallWebhook = await req.json();
+    // Clone request to read body twice (once for verification, once for parsing)
+    const rawBody = await req.text();
+    
+    // Verify GHL signature before processing
+    const verifyResult = await verifyGHLSignature(req, rawBody);
+    if (!verifyResult.valid) {
+      console.error('[ghl-install-webhook] Signature verification failed:', verifyResult.error);
+      return createUnauthorizedResponse(verifyResult.error || 'Invalid signature', corsHeaders);
+    }
+    
+    console.log('[ghl-install-webhook] Signature verified successfully');
+    
+    // Parse the verified payload
+    const payload: GHLInstallWebhook = JSON.parse(rawBody);
     
     console.log('[ghl-install-webhook] Received webhook:', JSON.stringify(payload, null, 2));
 
