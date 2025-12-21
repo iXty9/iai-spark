@@ -31,15 +31,45 @@ Deno.serve(async (req) => {
   try {
     // Clone request to read body twice (once for verification, once for parsing)
     const rawBody = await req.text();
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('[ghl-install-webhook] Supabase credentials not configured');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Check if signature verification is enabled
+    const { data: verificationSetting } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'ghl_signature_verification_enabled')
+      .maybeSingle();
     
-    // Verify GHL signature before processing
-    const verifyResult = await verifyGHLSignature(req, rawBody);
+    // Default to true (verification enabled) if setting doesn't exist
+    const signatureVerificationEnabled = verificationSetting?.value !== 'false';
+    const bypassEnabled = !signatureVerificationEnabled;
+    
+    console.log(`[ghl-install-webhook] Signature verification enabled: ${signatureVerificationEnabled}`);
+    
+    // Verify GHL signature (with optional bypass)
+    const verifyResult = await verifyGHLSignature(req, rawBody, bypassEnabled);
     if (!verifyResult.valid) {
       console.error('[ghl-install-webhook] Signature verification failed:', verifyResult.error);
       return createUnauthorizedResponse(verifyResult.error || 'Invalid signature', corsHeaders);
     }
     
-    console.log('[ghl-install-webhook] Signature verified successfully');
+    if (verifyResult.bypassed) {
+      console.log('[ghl-install-webhook] Signature verification BYPASSED via app_settings');
+    } else {
+      console.log('[ghl-install-webhook] Signature verified successfully');
+    }
     
     // Parse the verified payload
     const payload: GHLInstallWebhook = JSON.parse(rawBody);
@@ -55,19 +85,6 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('[ghl-install-webhook] Supabase credentials not configured');
-      return new Response(
-        JSON.stringify({ error: 'Server configuration error' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     if (type === 'INSTALL') {
       if (!locationId) {

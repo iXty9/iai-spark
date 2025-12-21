@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { RefreshCw, Copy, CheckCircle, XCircle, Clock, AlertTriangle, ExternalLink, Info, Save, Trash2, Eye, EyeOff, Key } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { RefreshCw, Copy, CheckCircle, XCircle, Clock, AlertTriangle, ExternalLink, Info, Save, Trash2, Eye, EyeOff, Key, ShieldCheck, ShieldOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -55,6 +56,8 @@ export function HighLevelSettings() {
   const [isSavingProxySecret, setIsSavingProxySecret] = useState(false);
   const [isSavingClientId, setIsSavingClientId] = useState(false);
   const [isSavingNotificationUrl, setIsSavingNotificationUrl] = useState(false);
+  const [signatureVerificationEnabled, setSignatureVerificationEnabled] = useState(true);
+  const [isSavingSignatureVerification, setIsSavingSignatureVerification] = useState(false);
 
   // GHL webhook URLs
   const installWebhookUrl = 'https://ymtdtzkskjdqlzhjuesk.supabase.co/functions/v1/ghl-install-webhook';
@@ -69,8 +72,8 @@ export function HighLevelSettings() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Fetch installations, client_id, proxy_secret, and notification_webhook_url in parallel
-      const [installationsResult, clientIdResult, proxySecretResult, notificationUrlResult] = await Promise.all([
+      // Fetch installations, client_id, proxy_secret, notification_webhook_url, and signature verification in parallel
+      const [installationsResult, clientIdResult, proxySecretResult, notificationUrlResult, signatureVerificationResult] = await Promise.all([
         supabase
           .from('ghl_installations')
           .select('id, user_id, location_id, location_name, company_id, company_name, scopes, connection_status, connected_at, last_refresh_at, token_expires_at, refresh_error')
@@ -89,6 +92,11 @@ export function HighLevelSettings() {
           .from('app_settings')
           .select('value')
           .eq('key', 'ghl_notification_webhook_url')
+          .maybeSingle(),
+        supabase
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'ghl_signature_verification_enabled')
           .maybeSingle()
       ]);
 
@@ -106,6 +114,9 @@ export function HighLevelSettings() {
       if (notificationUrlResult.data?.value) {
         setNotificationWebhookUrl(notificationUrlResult.data.value);
       }
+
+      // Default to true if setting doesn't exist
+      setSignatureVerificationEnabled(signatureVerificationResult.data?.value !== 'false');
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -178,6 +189,30 @@ export function HighLevelSettings() {
       });
     } finally {
       setIsSavingNotificationUrl(false);
+    }
+  };
+
+  const handleToggleSignatureVerification = async (enabled: boolean) => {
+    setIsSavingSignatureVerification(true);
+    try {
+      await updateAppSetting('ghl_signature_verification_enabled', enabled ? 'true' : 'false');
+      setSignatureVerificationEnabled(enabled);
+      toast({
+        title: enabled ? 'Verification Enabled' : 'Verification Disabled',
+        description: enabled 
+          ? 'GHL webhook signature verification is now active' 
+          : 'WARNING: Webhook signature verification is now BYPASSED. Use only for debugging!',
+        variant: enabled ? 'default' : 'destructive',
+      });
+    } catch (error) {
+      console.error('Error toggling signature verification:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to update signature verification setting',
+      });
+    } finally {
+      setIsSavingSignatureVerification(false);
     }
   };
 
@@ -525,6 +560,61 @@ export function HighLevelSettings() {
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
                 Rotating this secret will require updating the header validation in all n8n workflows that use the GHL API proxy or receive notifications.
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Signature Verification Settings */}
+      <Card className="bg-background/60">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            {signatureVerificationEnabled ? (
+              <ShieldCheck className="h-5 w-5 text-green-600" />
+            ) : (
+              <ShieldOff className="h-5 w-5 text-red-600" />
+            )}
+            Webhook Signature Verification
+          </CardTitle>
+          <CardDescription>
+            Control whether GHL webhook signatures are validated before processing
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="signature-verification" className="text-base">
+                Verify GHL Webhook Signatures
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                When enabled, all GHL webhooks must have valid RSA-SHA256 signatures
+              </p>
+            </div>
+            <Switch
+              id="signature-verification"
+              checked={signatureVerificationEnabled}
+              onCheckedChange={handleToggleSignatureVerification}
+              disabled={isSavingSignatureVerification}
+            />
+          </div>
+
+          {!signatureVerificationEnabled && (
+            <Alert variant="destructive">
+              <ShieldOff className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Security Warning:</strong> Signature verification is DISABLED. This allows any HTTP request to be processed as a GHL webhook. 
+                Only use this for debugging signature issues. Re-enable immediately after troubleshooting.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {signatureVerificationEnabled && (
+            <Alert>
+              <ShieldCheck className="h-4 w-4" />
+              <AlertDescription>
+                Signature verification is active. All incoming GHL webhooks must be signed with GHL's private key.
+                Check edge function logs for detailed diagnostic information if webhooks are being rejected.
               </AlertDescription>
             </Alert>
           )}

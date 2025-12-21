@@ -8,11 +8,12 @@
 export interface SignatureVerifyResult {
   valid: boolean;
   error?: string;
+  bypassed?: boolean;
 }
 
 // GHL's RSA public key for webhook signature verification
 // This is a PUBLIC key - safe to include in code
-// Retrieved from GHL marketplace documentation
+// Retrieved from GHL marketplace documentation (4096-bit RSA key)
 const GHL_PUBLIC_KEY_PEM = `-----BEGIN PUBLIC KEY-----
 MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAokvo/r9tVgcfZ5DysOSC
 Frm602qYV0MaAiNnX9O8KxMbiyRKWeL9JpCpVpt4XHIcBOK4u3cLSqJGOLaPuXw6
@@ -52,9 +53,17 @@ function pemToArrayBuffer(pem: string): ArrayBuffer {
 
 /**
  * Decode a base64-encoded signature to ArrayBuffer
+ * Handles both standard base64 and URL-safe base64
  */
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const binaryString = atob(base64);
+  // Convert URL-safe base64 to standard base64 if needed
+  let standardBase64 = base64.replace(/-/g, '+').replace(/_/g, '/');
+  
+  // Add padding if needed
+  const paddingNeeded = (4 - (standardBase64.length % 4)) % 4;
+  standardBase64 += '='.repeat(paddingNeeded);
+  
+  const binaryString = atob(standardBase64);
   const bytes = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) {
     bytes[i] = binaryString.charCodeAt(i);
@@ -63,18 +72,64 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
 }
 
 /**
+ * Decode a hex-encoded signature to ArrayBuffer
+ */
+function hexToArrayBuffer(hex: string): ArrayBuffer {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+  }
+  return bytes.buffer;
+}
+
+/**
+ * Detect the encoding format of a signature string
+ */
+function detectSignatureFormat(signature: string): 'base64' | 'hex' | 'unknown' {
+  // Check if it's hex (only contains 0-9, a-f, A-F)
+  if (/^[0-9a-fA-F]+$/.test(signature) && signature.length % 2 === 0) {
+    return 'hex';
+  }
+  // Check if it looks like base64 (contains base64 chars, possibly URL-safe variants)
+  if (/^[A-Za-z0-9+/\-_=]+$/.test(signature)) {
+    return 'base64';
+  }
+  return 'unknown';
+}
+
+/**
  * Verify GHL webhook signature using RSA-SHA256
  * 
  * @param request - The incoming request (to extract headers)
  * @param rawBody - The raw request body string (signature is computed over this)
+ * @param bypassEnabled - If true, skip verification and return success
  * @returns Verification result with valid flag and optional error message
  */
 export async function verifyGHLSignature(
   request: Request,
-  rawBody: string
+  rawBody: string,
+  bypassEnabled: boolean = false
 ): Promise<SignatureVerifyResult> {
+  // If bypass is enabled, skip verification entirely
+  if (bypassEnabled) {
+    console.log('[ghl-signature-verify] BYPASS ENABLED - Skipping signature verification');
+    return { valid: true, bypassed: true };
+  }
+
   // Extract signature from header
   const signature = request.headers.get('x-wh-signature');
+  
+  // Diagnostic logging
+  console.log('[ghl-signature-verify] === DIAGNOSTIC INFO ===');
+  console.log(`[ghl-signature-verify] x-wh-signature header present: ${!!signature}`);
+  if (signature) {
+    console.log(`[ghl-signature-verify] Signature length: ${signature.length}`);
+    console.log(`[ghl-signature-verify] Signature preview: ${signature.substring(0, 50)}...`);
+    console.log(`[ghl-signature-verify] Detected format: ${detectSignatureFormat(signature)}`);
+  }
+  console.log(`[ghl-signature-verify] Raw body length: ${rawBody.length}`);
+  console.log(`[ghl-signature-verify] Raw body preview: ${rawBody.substring(0, 100)}...`);
+  console.log('[ghl-signature-verify] === END DIAGNOSTIC INFO ===');
   
   if (!signature) {
     console.warn('[ghl-signature-verify] Missing x-wh-signature header');
@@ -113,6 +168,7 @@ export async function verifyGHLSignature(
 
   try {
     // Import GHL's RSA public key
+    console.log('[ghl-signature-verify] Importing RSA public key...');
     const publicKey = await crypto.subtle.importKey(
       'spki',
       pemToArrayBuffer(GHL_PUBLIC_KEY_PEM),
@@ -120,9 +176,20 @@ export async function verifyGHLSignature(
       false,
       ['verify']
     );
+    console.log('[ghl-signature-verify] Public key imported successfully');
 
-    // Decode the base64 signature
-    const signatureBuffer = base64ToArrayBuffer(signature);
+    // Detect signature format and decode accordingly
+    const sigFormat = detectSignatureFormat(signature);
+    let signatureBuffer: ArrayBuffer;
+    
+    if (sigFormat === 'hex') {
+      console.log('[ghl-signature-verify] Decoding signature as hex');
+      signatureBuffer = hexToArrayBuffer(signature);
+    } else {
+      console.log('[ghl-signature-verify] Decoding signature as base64');
+      signatureBuffer = base64ToArrayBuffer(signature);
+    }
+    console.log(`[ghl-signature-verify] Decoded signature buffer length: ${signatureBuffer.byteLength} bytes`);
     
     // Encode the raw body as bytes
     const bodyBuffer = new TextEncoder().encode(rawBody);
