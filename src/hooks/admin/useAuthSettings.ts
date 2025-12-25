@@ -11,6 +11,10 @@ interface AuthSettings {
   registerDescription: string;
   disclaimerText: string;
   disclaimerRequired: boolean;
+  // Auth provider settings
+  emailPasswordEnabled: boolean;
+  keycloakEnabled: boolean;
+  keycloakButtonLabel: string;
 }
 
 const DEFAULT_AUTH_SETTINGS: AuthSettings = {
@@ -23,6 +27,10 @@ const DEFAULT_AUTH_SETTINGS: AuthSettings = {
   registerDescription: 'Join Ixty AI to start your intelligent conversation journey. Fill in your details below to get started.',
   disclaimerText: 'I agree to terms & conditions provided by the company. By providing my phone number, I agree to receive text messages from IXTY9 LLC.',
   disclaimerRequired: true,
+  // Auth provider defaults
+  emailPasswordEnabled: true,
+  keycloakEnabled: false,
+  keycloakButtonLabel: 'iXty9 ID',
 };
 
 export const useAuthSettings = () => {
@@ -44,6 +52,10 @@ export const useAuthSettings = () => {
           registerDescription: settings.auth_register_description || DEFAULT_AUTH_SETTINGS.registerDescription,
           disclaimerText: settings.auth_disclaimer_text || DEFAULT_AUTH_SETTINGS.disclaimerText,
           disclaimerRequired: settings.auth_disclaimer_required !== 'false',
+          // Auth provider settings
+          emailPasswordEnabled: settings.auth_email_password_enabled !== 'false',
+          keycloakEnabled: settings.auth_keycloak_enabled === 'true',
+          keycloakButtonLabel: settings.auth_keycloak_button_label || DEFAULT_AUTH_SETTINGS.keycloakButtonLabel,
         });
       } catch (error) {
         console.error('Failed to load auth settings:', error);
@@ -66,6 +78,10 @@ export const useAuthSettings = () => {
         registerDescription: settings.auth_register_description || DEFAULT_AUTH_SETTINGS.registerDescription,
         disclaimerText: settings.auth_disclaimer_text || DEFAULT_AUTH_SETTINGS.disclaimerText,
         disclaimerRequired: settings.auth_disclaimer_required !== 'false',
+        // Auth provider settings
+        emailPasswordEnabled: settings.auth_email_password_enabled !== 'false',
+        keycloakEnabled: settings.auth_keycloak_enabled === 'true',
+        keycloakButtonLabel: settings.auth_keycloak_button_label || DEFAULT_AUTH_SETTINGS.keycloakButtonLabel,
       });
     });
 

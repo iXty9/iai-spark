@@ -13,7 +13,7 @@ import { supaToast } from '@/services/supa-toast';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuthSettings } from '@/hooks/admin/useAuthSettings';
-import { UserPlus, Mail, User, Lock, Phone, AlertCircle, Users, Shield, Sparkles, FileText } from 'lucide-react';
+import { UserPlus, Mail, User, Lock, Phone, AlertCircle, Users, Shield, Sparkles, FileText, KeyRound } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 const formSchema = z.object({
@@ -43,11 +43,12 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 export function RegisterForm() {
-  const { signUp } = useAuth();
+  const { signUp, signInWithOAuth } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { authSettings } = useAuthSettings();
   const [isLoading, setIsLoading] = useState(false);
+  const [isOAuthLoading, setIsOAuthLoading] = useState(false);
   const [error, setError] = useState('');
 
   const form = useForm<FormValues>({
@@ -98,6 +99,23 @@ export function RegisterForm() {
     }
   };
 
+  const handleKeycloakSignIn = async () => {
+    setIsOAuthLoading(true);
+    setError('');
+    try {
+      await signInWithOAuth('keycloak');
+      // OAuth redirects, so we don't navigate here
+    } catch (err: any) {
+      setError(err?.message || 'SSO authentication failed. Please try again.');
+      setIsOAuthLoading(false);
+    }
+  };
+
+  // Check if auth methods are enabled
+  const showEmailPassword = authSettings.emailPasswordEnabled;
+  const showKeycloak = authSettings.keycloakEnabled;
+  const showDivider = showEmailPassword && showKeycloak;
+
   return (
     <div className="space-y-6">
       {/* Register Header */}
@@ -122,17 +140,61 @@ export function RegisterForm() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-          {/* Account Credentials Section */}
-          <Card className="glass-panel border-0 shadow-sm bg-background/80">
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Shield className="h-4 w-4 text-blue-500" />
-                <span className="text-sm font-medium text-foreground">Account Credentials</span>
-                <div className="flex-1 h-px bg-border"></div>
-              </div>
+
+      {/* SSO Button - shown above registration form when enabled */}
+      {showKeycloak && (
+        <Card className="glass-panel border-0 shadow-sm bg-background/80">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <KeyRound className="h-4 w-4 text-purple-500" />
+              <span className="text-sm font-medium text-foreground">Quick Sign Up with SSO</span>
+              <div className="flex-1 h-px bg-border"></div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-11 border-border/50 hover:bg-primary/10 hover:border-primary/50 transition-all duration-200"
+              onClick={handleKeycloakSignIn}
+              disabled={isOAuthLoading || isLoading}
+            >
+              {isOAuthLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-4 rounded-full border-2 border-primary/30 border-t-primary animate-spin"></div>
+                  Connecting...
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <KeyRound className="h-4 w-4" />
+                  Continue with {authSettings.keycloakButtonLabel}
+                </div>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Divider between SSO and Email/Password registration */}
+      {showDivider && (
+        <div className="relative flex items-center py-2">
+          <div className="flex-grow border-t border-border/50"></div>
+          <span className="flex-shrink mx-4 text-muted-foreground text-sm">or create an account</span>
+          <div className="flex-grow border-t border-border/50"></div>
+        </div>
+      )}
+
+      {/* Email/Password Registration Form */}
+      {showEmailPassword && (
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+            {/* Account Credentials Section */}
+            <Card className="glass-panel border-0 shadow-sm bg-background/80">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Shield className="h-4 w-4 text-blue-500" />
+                  <span className="text-sm font-medium text-foreground">Account Credentials</span>
+                  <div className="flex-1 h-px bg-border"></div>
+                </div>
               
               <div className="space-y-4">
                 <FormField
@@ -359,7 +421,7 @@ export function RegisterForm() {
               <Button 
                 type="submit" 
                 className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]" 
-                disabled={isLoading}
+                disabled={isLoading || isOAuthLoading}
               >
                 {isLoading ? (
                   <div className="flex items-center gap-2">
@@ -377,6 +439,7 @@ export function RegisterForm() {
           </Card>
         </form>
       </Form>
+      )}
     </div>
   );
 }

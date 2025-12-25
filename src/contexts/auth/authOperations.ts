@@ -4,6 +4,7 @@ import { toast } from "@/hooks/use-toast";
 import { logger } from '@/utils/logging';
 import { clientManager } from '@/services/supabase/client-manager';
 import { sendUserSignupWebhook } from '@/services/webhook';
+import type { OAuthProvider } from './types';
 
 const API_TIMEOUT = 30000; // 30 seconds
 
@@ -213,6 +214,39 @@ export const resetPassword = async (email: string) => {
     logger.info('Password reset email sent', { module: 'auth-operations' });
   } catch (error: any) {
     logger.error('Error during password reset', error, { module: 'auth-operations' });
+    throw error;
+  }
+};
+
+export const signInWithOAuth = async (provider: OAuthProvider) => {
+  try {
+    logger.info('Attempting OAuth login', { module: 'auth-operations', provider });
+    
+    await ensureClientReady();
+    
+    const options: { redirectTo: string; scopes?: string } = {
+      redirectTo: `${window.location.origin}/auth`,
+    };
+    
+    // Keycloak requires 'openid' scope for proper ID token handling
+    if (provider === 'keycloak') {
+      options.scopes = 'openid';
+    }
+    
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options,
+    });
+
+    if (error) {
+      logger.error('OAuth login error', error, { module: 'auth-operations', provider });
+      throw error;
+    }
+    
+    logger.info('OAuth redirect initiated', { module: 'auth-operations', provider });
+    return data;
+  } catch (error: any) {
+    logger.error('Error during OAuth sign in', error, { module: 'auth-operations', provider });
     throw error;
   }
 };
