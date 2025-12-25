@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { Mail, Lock, ArrowLeft, AlertCircle, User, Shield } from 'lucide-react';
+import { Mail, Lock, ArrowLeft, AlertCircle, User, Shield, KeyRound } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Form, FormField, FormItem, FormMessage, FormControl } from '@/components/ui/form';
@@ -31,10 +31,11 @@ const FIELD_CONFIG = [
 export const LoginForm = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { signIn } = useAuth();
+  const { signIn, signInWithOAuth } = useAuth();
   const { isDevMode } = useDevMode();
   const { authSettings } = useAuthSettings();
   const [isLoading, setIsLoading] = useState(false);
+  const [isOAuthLoading, setIsOAuthLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [showDebug, setShowDebug] = useState(false);
 
@@ -68,6 +69,27 @@ export const LoginForm = () => {
 
   // Development mode only: Allow debug info and configuration reset
   const isDebugAllowed = process.env.NODE_ENV === 'development' && isDevMode;
+
+  const handleKeycloakSignIn = async () => {
+    setIsOAuthLoading(true);
+    setServerError(null);
+    try {
+      await signInWithOAuth('keycloak');
+      // OAuth redirects, so we don't navigate here
+    } catch (error: any) {
+      let message = 'SSO authentication failed. Please try again.';
+      if (error?.message?.includes('network') || error?.message?.includes('fetch')) {
+        message = 'Network error. Please check your connection and try again.';
+      }
+      setServerError(message);
+      setIsOAuthLoading(false);
+    }
+  };
+
+  // Check if at least one auth method is enabled
+  const showEmailPassword = authSettings.emailPasswordEnabled;
+  const showKeycloak = authSettings.keycloakEnabled;
+  const showDivider = showEmailPassword && showKeycloak;
 
   return (
     <div className="space-y-6">
@@ -117,90 +139,147 @@ export const LoginForm = () => {
         </Alert>
       )}
 
-      {/* Login Form */}
-      <Card className="glass-panel border-0 shadow-sm bg-background/80">
-        <CardContent className="p-4 sm:p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Shield className="h-4 w-4 text-blue-500" />
-            <span className="text-sm font-medium text-foreground">Account Credentials</span>
-            <div className="flex-1 h-px bg-border"></div>
-          </div>
+      {/* SSO Button - shown above email/password form when enabled */}
+      {showKeycloak && (
+        <Card className="glass-panel border-0 shadow-sm bg-background/80">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <KeyRound className="h-4 w-4 text-purple-500" />
+              <span className="text-sm font-medium text-foreground">Single Sign-On</span>
+              <div className="flex-1 h-px bg-border"></div>
+            </div>
 
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-              {FIELD_CONFIG.map(({ name, label, Icon, type, placeholder }) => (
-                <FormField
-                  key={name}
-                  control={form.control}
-                  name={name as keyof LoginFormData}
-                  render={({ field }) => (
-                    <FormItem className="space-y-2">
-                      <Label htmlFor={name} className="text-sm font-medium text-foreground">
-                        {label}
-                      </Label>
-                      <div className="relative">
-                        <Icon className={iconProps} />
-                        <FormControl>
-                          <Input
-                            id={name}
-                            type={type}
-                            placeholder={placeholder}
-                            className="pl-10 h-11 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all"
-                            {...field}
-                          />
-                        </FormControl>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-11 border-border/50 hover:bg-primary/10 hover:border-primary/50 transition-all duration-200"
+              onClick={handleKeycloakSignIn}
+              disabled={isOAuthLoading || isLoading}
+            >
+              {isOAuthLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-4 rounded-full border-2 border-primary/30 border-t-primary animate-spin"></div>
+                  Connecting...
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <KeyRound className="h-4 w-4" />
+                  {authSettings.keycloakButtonLabel}
+                </div>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Divider between SSO and Email/Password */}
+      {showDivider && (
+        <div className="relative flex items-center py-2">
+          <div className="flex-grow border-t border-border/50"></div>
+          <span className="flex-shrink mx-4 text-muted-foreground text-sm">or sign in with email</span>
+          <div className="flex-grow border-t border-border/50"></div>
+        </div>
+      )}
+
+      {/* Login Form - Email/Password */}
+      {showEmailPassword && (
+        <Card className="glass-panel border-0 shadow-sm bg-background/80">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Shield className="h-4 w-4 text-blue-500" />
+              <span className="text-sm font-medium text-foreground">Account Credentials</span>
+              <div className="flex-1 h-px bg-border"></div>
+            </div>
+
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                {FIELD_CONFIG.map(({ name, label, Icon, type, placeholder }) => (
+                  <FormField
+                    key={name}
+                    control={form.control}
+                    name={name as keyof LoginFormData}
+                    render={({ field }) => (
+                      <FormItem className="space-y-2">
+                        <Label htmlFor={name} className="text-sm font-medium text-foreground">
+                          {label}
+                        </Label>
+                        <div className="relative">
+                          <Icon className={iconProps} />
+                          <FormControl>
+                            <Input
+                              id={name}
+                              type={type}
+                              placeholder={placeholder}
+                              className="pl-10 h-11 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all"
+                              {...field}
+                            />
+                          </FormControl>
+                        </div>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                ))}
+
+                <div className="flex justify-end mb-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof window !== 'undefined') {
+                        sessionStorage.setItem('authTab', 'forgot');
+                        window.location.reload();
+                      }
+                    }}
+                    className="text-sm text-primary hover:underline transition-all"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+
+                <div className="pt-2 space-y-3">
+                  <Button
+                    type="submit"
+                    className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                    disabled={isLoading || isOAuthLoading}
+                  >
+                    {isLoading ? (
+                      <div className="flex items-center gap-2">
+                        <div className="h-4 w-4 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin"></div>
+                        Signing in...
                       </div>
-                      <FormMessage className="text-xs" />
-                    </FormItem>
-                  )}
-                />
-              ))}
+                    ) : (
+                      'Sign In'
+                    )}
+                  </Button>
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-11 border-border/50 hover:bg-muted/50 transition-all duration-200"
+                    onClick={() => navigate('/')}
+                  >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Go Back
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+      )}
 
-              <div className="flex justify-end mb-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (typeof window !== 'undefined') {
-                      sessionStorage.setItem('authTab', 'forgot');
-                      window.location.reload();
-                    }
-                  }}
-                  className="text-sm text-primary hover:underline transition-all"
-                >
-                  Forgot password?
-                </button>
-              </div>
-
-              <div className="pt-2 space-y-3">
-                <Button
-                  type="submit"
-                  className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="h-4 w-4 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin"></div>
-                      Signing in...
-                    </div>
-                  ) : (
-                    'Sign In'
-                  )}
-                </Button>
-                
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full h-11 border-border/50 hover:bg-muted/50 transition-all duration-200"
-                  onClick={() => navigate('/')}
-                >
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Go Back
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+      {/* Go Back button when only SSO is enabled */}
+      {!showEmailPassword && showKeycloak && (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full h-11 border-border/50 hover:bg-muted/50 transition-all duration-200"
+          onClick={() => navigate('/')}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Go Back
+        </Button>
+      )}
     </div>
   );
 };

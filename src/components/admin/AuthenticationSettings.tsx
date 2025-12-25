@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { supaToast } from '@/services/supa-toast';
 import { fetchAppSettings, updateAppSetting } from '@/services/admin/settingsService';
 import { settingsCacheService } from '@/services/settings-cache-service';
-import { Users, MessageSquare, Shield, Settings, Star, Rocket, Heart, Zap, Sparkles, Crown, Award, Trophy } from 'lucide-react';
+import { Users, MessageSquare, Shield, Settings, Star, Rocket, Heart, Zap, Sparkles, Crown, Award, Trophy, KeyRound, Mail } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface AuthSettings {
@@ -21,6 +21,10 @@ interface AuthSettings {
   auth_register_description: string;
   auth_disclaimer_text: string;
   auth_disclaimer_required: string;
+  // Auth provider settings
+  auth_email_password_enabled: string;
+  auth_keycloak_enabled: string;
+  auth_keycloak_button_label: string;
 }
 
 const ICON_OPTIONS = [
@@ -45,6 +49,10 @@ export const AuthenticationSettings = () => {
     auth_register_description: '',
     auth_disclaimer_text: '',
     auth_disclaimer_required: 'true',
+    // Auth provider settings
+    auth_email_password_enabled: 'true',
+    auth_keycloak_enabled: 'false',
+    auth_keycloak_button_label: 'iXty9 ID',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -67,6 +75,10 @@ export const AuthenticationSettings = () => {
         auth_register_description: allSettings.auth_register_description || 'Join Ixty AI to start your intelligent conversation journey. Fill in your details below to get started.',
         auth_disclaimer_text: allSettings.auth_disclaimer_text || 'I agree to terms & conditions provided by the company. By providing my phone number, I agree to receive text messages from IXTY9 LLC.',
         auth_disclaimer_required: allSettings.auth_disclaimer_required || 'true',
+        // Auth provider settings
+        auth_email_password_enabled: allSettings.auth_email_password_enabled || 'true',
+        auth_keycloak_enabled: allSettings.auth_keycloak_enabled || 'false',
+        auth_keycloak_button_label: allSettings.auth_keycloak_button_label || 'iXty9 ID',
       });
     } catch (error) {
       console.error('Error loading authentication settings:', error);
@@ -90,6 +102,10 @@ export const AuthenticationSettings = () => {
         updateAppSetting('auth_register_description', settings.auth_register_description),
         updateAppSetting('auth_disclaimer_text', settings.auth_disclaimer_text),
         updateAppSetting('auth_disclaimer_required', settings.auth_disclaimer_required),
+        // Auth provider settings
+        updateAppSetting('auth_email_password_enabled', settings.auth_email_password_enabled),
+        updateAppSetting('auth_keycloak_enabled', settings.auth_keycloak_enabled),
+        updateAppSetting('auth_keycloak_button_label', settings.auth_keycloak_button_label),
       ]);
 
       // Update cache for each setting
@@ -116,6 +132,84 @@ export const AuthenticationSettings = () => {
 
   return (
     <div className="space-y-6">
+      {/* Sign-In Methods Section - NEW */}
+      <Card className="glass-panel border-0 shadow-sm bg-background/80">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <KeyRound className="h-4 w-4 text-purple-500" />
+            <CardTitle className="text-base text-foreground">Sign-In Methods</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Email & Password Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <Mail className="h-4 w-4 text-blue-500" />
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-foreground">Email & Password</Label>
+                <p className="text-xs text-muted-foreground">Traditional email and password login</p>
+              </div>
+            </div>
+            <Switch
+              checked={settings.auth_email_password_enabled === 'true'}
+              onCheckedChange={(checked) => 
+                setSettings(prev => ({ ...prev, auth_email_password_enabled: checked ? 'true' : 'false' }))
+              }
+            />
+          </div>
+          
+          {/* Separator */}
+          <div className="h-px bg-border/50" />
+
+          {/* iXty9 ID / Keycloak Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-purple-500/10">
+                <KeyRound className="h-4 w-4 text-purple-500" />
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-foreground">iXty9 ID (Keycloak SSO)</Label>
+                <p className="text-xs text-muted-foreground">Single sign-on via Keycloak identity provider</p>
+              </div>
+            </div>
+            <Switch
+              checked={settings.auth_keycloak_enabled === 'true'}
+              onCheckedChange={(checked) => 
+                setSettings(prev => ({ ...prev, auth_keycloak_enabled: checked ? 'true' : 'false' }))
+              }
+            />
+          </div>
+
+          {/* SSO Button Label (shown when Keycloak enabled) */}
+          {settings.auth_keycloak_enabled === 'true' && (
+            <div className="ml-11 mt-2">
+              <Label htmlFor="auth_keycloak_button_label" className="text-sm font-medium text-foreground">SSO Button Label</Label>
+              <Input
+                id="auth_keycloak_button_label"
+                value={settings.auth_keycloak_button_label}
+                onChange={(e) => handleInputChange('auth_keycloak_button_label', e.target.value)}
+                placeholder="iXty9 ID"
+                className="h-10 bg-background/50 border-border/50 mt-1"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                This text appears on the SSO login button
+              </p>
+            </div>
+          )}
+
+          {/* Warning if both are disabled */}
+          {settings.auth_email_password_enabled !== 'true' && settings.auth_keycloak_enabled !== 'true' && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+              <p className="text-sm text-destructive font-medium">
+                ⚠️ Warning: All sign-in methods are disabled. Users won't be able to log in.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* General Settings */}
       <Card className="glass-panel border-0 shadow-sm bg-background/80">
         <CardHeader className="pb-3">
