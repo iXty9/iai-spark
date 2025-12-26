@@ -4,13 +4,14 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AuthCard } from '@/components/auth/AuthCard';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { RegisterForm } from '@/components/auth/RegisterForm';
 import { ForgotPasswordForm } from '@/components/auth/ForgotPasswordForm';
 import { ResetPasswordForm } from '@/components/auth/ResetPasswordForm';
 import { getStoredConfig } from '@/config/supabase-config';
-import { LogIn, UserPlus } from 'lucide-react';
+import { LogIn, UserPlus, AlertTriangle } from 'lucide-react';
 
 // Brute force protection - track failed login attempts
 const loginAttempts = {
@@ -28,6 +29,26 @@ const Auth = () => {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const mode = searchParams.get('mode');
+  
+  // OAuth error handling
+  const oauthError = searchParams.get('error');
+  const oauthErrorCode = searchParams.get('error_code');
+  const oauthErrorDescription = searchParams.get('error_description');
+  const hasOAuthError = !!(oauthError || oauthErrorCode);
+  
+  // Map error codes to user-friendly messages
+  const getErrorMessage = () => {
+    if (oauthErrorCode === 'bad_oauth_state') {
+      return 'Authentication session expired. Please try signing in again.';
+    }
+    if (oauthErrorDescription) {
+      return decodeURIComponent(oauthErrorDescription.replace(/\+/g, ' '));
+    }
+    if (oauthError) {
+      return `Authentication error: ${oauthError}`;
+    }
+    return 'An error occurred during sign-in. Please try again.';
+  };
 
   // If user is already logged in, redirect to returnTo or home
   // IMPORTANT: Skip redirect when mode === 'reset' - user has an implicit session
@@ -102,6 +123,15 @@ const Auth = () => {
         <div className="flex justify-center">
           <div className="w-full max-w-lg">
             <AuthCard>
+              {/* OAuth Error Alert */}
+              {hasOAuthError && (
+                <Alert variant="destructive" className="mb-6">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Authentication Error</AlertTitle>
+                  <AlertDescription>{getErrorMessage()}</AlertDescription>
+                </Alert>
+              )}
+              
               <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
                 {/* Desktop Tabs */}
                 {activeTab !== 'forgot' && activeTab !== 'reset' && (

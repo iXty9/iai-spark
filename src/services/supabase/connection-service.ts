@@ -25,7 +25,15 @@ class ConnectionService {
   async initialize(config: SupabaseConnectionConfig): Promise<void> {
     try {
       this.config = config;
-      this.client = createClient(config.url, config.anonKey);
+      // IMPORTANT: Disable session handling to avoid "Multiple GoTrueClient" warning
+      // This service is only for connection testing, not for auth
+      this.client = createClient(config.url, config.anonKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false
+        }
+      });
       logger.info('Connection service initialized', { module: 'connection-service' });
     } catch (error) {
       logger.error('Failed to initialize connection service', error, { module: 'connection-service' });
