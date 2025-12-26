@@ -280,13 +280,13 @@ export const AuthProvider = ({ children, clientReady }: AuthProviderProps) => {
 
   return (
     <ProductionErrorBoundary fallback={
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-red-600 mb-2">Authentication Error</h2>
-          <p className="text-gray-600">There was a problem with the authentication system.</p>
+          <h2 className="text-xl font-semibold text-destructive mb-2">Authentication Error</h2>
+          <p className="text-foreground">There was a problem with the authentication system.</p>
           <button 
             onClick={() => window.location.reload()} 
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
           >
             Reload Application
           </button>
