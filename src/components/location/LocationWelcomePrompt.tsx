@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MapPin, X, Globe, Shield, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -45,7 +45,7 @@ export const LocationWelcomePrompt: React.FC<LocationWelcomePromptProps> = ({ on
   if (!isVisible) return null;
 
   return (
-    <Card className="fixed bottom-4 right-4 w-80 shadow-lg border-primary/20 z-50">
+    <div className="fixed bottom-4 right-4 w-80 shadow-lg rounded-lg border border-border z-50 bg-background text-foreground">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
@@ -61,23 +61,23 @@ export const LocationWelcomePrompt: React.FC<LocationWelcomePromptProps> = ({ on
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <CardDescription className="text-sm">
+        <CardDescription>
           Get personalized, location-aware assistance from Ixty AI.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2 text-sm text-muted-foreground">
+        <div className="space-y-2 text-sm">
           <div className="flex items-center gap-2">
-            <Globe className="h-3 w-3" />
-            <span>Context-aware responses</span>
+            <Globe className="h-3 w-3 text-muted-foreground" />
+            <span className="text-foreground">Context-aware responses</span>
           </div>
           <div className="flex items-center gap-2">
-            <Clock className="h-3 w-3" />
-            <span>Smart automatic updates</span>
+            <Clock className="h-3 w-3 text-muted-foreground" />
+            <span className="text-foreground">Smart automatic updates</span>
           </div>
           <div className="flex items-center gap-2">
-            <Shield className="h-3 w-3" />
-            <span>Secure & private</span>
+            <Shield className="h-3 w-3 text-muted-foreground" />
+            <span className="text-foreground">Secure & private</span>
           </div>
         </div>
         
@@ -110,6 +110,6 @@ export const LocationWelcomePrompt: React.FC<LocationWelcomePromptProps> = ({ on
           </Button>
         </div>
       </CardContent>
-    </Card>
+    </div>
   );
 };

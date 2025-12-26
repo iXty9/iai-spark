@@ -40,9 +40,9 @@ export const LocationPermissionDialog: React.FC<LocationPermissionDialogProps> =
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-background text-foreground border-border">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-foreground">
             <MapPin className="h-5 w-5 text-primary" />
             Enable Location Services
           </DialogTitle>
@@ -52,15 +52,15 @@ export const LocationPermissionDialog: React.FC<LocationPermissionDialogProps> =
             Allow Ixty AI to access your location to provide better, more personalized assistance.
           </p>
           <div className="space-y-2">
-            <div className="flex items-start gap-2 text-sm">
+            <div className="flex items-start gap-2 text-sm text-foreground">
               <Globe className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
               <span>Get location-aware responses and recommendations</span>
             </div>
-            <div className="flex items-start gap-2 text-sm">
+            <div className="flex items-start gap-2 text-sm text-foreground">
               <Clock className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
               <span>Automatic smart updates when you move significantly</span>
             </div>
-            <div className="flex items-start gap-2 text-sm">
+            <div className="flex items-start gap-2 text-sm text-foreground">
               <Shield className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
               <span>Your location is stored securely and privately</span>
             </div>
