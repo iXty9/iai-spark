@@ -323,8 +323,8 @@ export const HeaderActions = ({
             </DropdownMenuItem>
           )}
           
-          {/* Check for Updates option - only show for PWA users */}
-          {isInstalled && (
+          {/* Check for Updates option - show for all authenticated users (browser and PWA) */}
+          {user && (
             <DropdownMenuItem 
               onClick={handleCheckForUpdates} 
               className="py-2.5" 

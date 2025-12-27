@@ -22,14 +22,14 @@ export const PWAManager: React.FC = () => {
     }
   }, [isInstallable, needsUpdate]);
 
-  // Show update notification when update is available (only for authenticated users)
+  // Show update notification when update is available (for all users, including anonymous)
   useEffect(() => {
-    if (needsUpdate && user) {
+    if (needsUpdate) {
       setShowUpdateNotification(true);
       // Hide install prompt if update is available
       setShowInstallPrompt(false);
     }
-  }, [needsUpdate, user]);
+  }, [needsUpdate]);
 
   // Keep the install prompt above the chat input bar
   useEffect(() => {
@@ -62,8 +62,8 @@ export const PWAManager: React.FC = () => {
 
   return (
     <>
-      {/* Update notification takes priority over install prompt - only for authenticated users */}
-      {showUpdateNotification && needsUpdate && user && (
+      {/* Update notification takes priority over install prompt - for all users */}
+      {showUpdateNotification && needsUpdate && (
         <div className="fixed left-4 right-4 z-[120] md:left-auto md:w-96" style={{ bottom: bottomOffset }}>
           <CacheUpdateNotification 
             onDismiss={() => setShowUpdateNotification(false)}

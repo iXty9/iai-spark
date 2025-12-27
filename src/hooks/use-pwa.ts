@@ -20,6 +20,9 @@ interface PWAHook {
   isUpdating: boolean;
 }
 
+// Interval for periodic update checks (30 minutes)
+const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000;
+
 export const usePWA = (): PWAHook => {
   const { user } = useAuth();
   const [isInstallable, setIsInstallable] = useState(false);
@@ -150,6 +153,33 @@ export const usePWA = (): PWAHook => {
       }
     };
   }, [user]);
+
+  // Periodic update check every 30 minutes
+  useEffect(() => {
+    // Only run periodic checks when online
+    if (!isOnline) return;
+
+    const performPeriodicCheck = async () => {
+      try {
+        const hasUpdate = await versionService.checkForUpdates();
+        if (hasUpdate) {
+          logger.info('Periodic update check found new version', { module: 'pwa' });
+          // Show update notification for all users (including anonymous)
+          setNeedsUpdate(true);
+        }
+      } catch (error) {
+        logger.error('Periodic update check failed:', error, { module: 'pwa' });
+      }
+    };
+
+    // Set up interval for periodic checks
+    const intervalId = setInterval(performPeriodicCheck, UPDATE_CHECK_INTERVAL_MS);
+    logger.info('Periodic update check started (30 min interval)', { module: 'pwa' });
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [isOnline]);
 
   const promptInstall = async (): Promise<boolean> => {
     if (!deferredPrompt) {
