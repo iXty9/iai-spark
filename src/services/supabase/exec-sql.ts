@@ -34,38 +34,25 @@ export async function createExecSqlFunction(
     logger.info('Checking and creating exec_sql function', { module: 'init' });
     const adminClient = createClient(url, serviceKey);
     // Try calling it
-    let exists = false;
-    try {
-      const { error } = await adminClient.rpc('exec_sql', { sql: 'SELECT 1' });
-      exists = !error;
-      if (exists) {
-        logger.info('Exec_sql function is available', { module: 'init' });
-        return { success: true };
-      }
-      logger.warn('Exec_sql function exists but may have issues, attempting to recreate', { module: 'init' });
-    } catch {
-      logger.info('The exec_sql function does not exist, creating it now', { module: 'init' });
+    const { error } = await adminClient.rpc('exec_sql', { sql: 'SELECT 1' });
+    if (!error) {
+      logger.info('Exec_sql function is available', { module: 'init' });
+      return { success: true };
     }
-    // Create the function via SQL
-    const result = await adminClient.auth.getSession();
-    if (!result.data.session) return { success: false, error: 'No session available to execute SQL' };
-    const resp = await fetch(`${url}/rest/v1/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${result.data.session.access_token}`,
-        apikey: serviceKey,
-        'X-Client-Info': 'supabase-js'
-      },
-      body: JSON.stringify({ query: createFunctionSql })
+    // The function does not exist (or is broken). We can no longer auto-create it
+    // via the REST root endpoint — that path was never valid PostgREST and is now
+    // blocked by Supabase's anon-key restriction (effective April 8th 2026).
+    // Surface the manual-creation help via the existing DatabaseSetupStep UI.
+    logger.warn('exec_sql function is not available; manual creation required', {
+      module: 'init',
+      error: error.message,
     });
-    if (!resp.ok) {
-      const errorText = await resp.text();
-      logger.error('Error creating exec_sql function:', errorText, { module: 'init' });
-      return { success: false, error: `Failed to create exec_sql function: ${errorText}` };
-    }
-    logger.info('Successfully created exec_sql function', { module: 'init' });
-    return { success: true };
+    return {
+      success: false,
+      error:
+        'exec_sql function does not exist. Please create it manually by running the following in the Supabase SQL Editor:\n\n' +
+        createFunctionSql.trim(),
+    };
   } catch (error: any) {
     logger.error('Failed to check/create exec_sql function:', error, { module: 'init' });
     return { success: false, error: error.message || 'Unknown error' };
