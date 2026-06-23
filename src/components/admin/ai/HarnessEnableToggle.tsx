@@ -23,7 +23,7 @@ export function HarnessEnableToggle({ harnessKey, harnessName, defaultEnabled = 
     setSaving(true);
     try {
       await updateAppSetting(settingKey, checked ? 'true' : 'false');
-      await settingsCacheService.refresh();
+      await settingsCacheService.invalidateCache();
       toast({
         title: `${harnessName} ${checked ? 'enabled' : 'disabled'}`,
         description: `The ${harnessName} harness is now ${checked ? 'available' : 'unavailable'}.`,
