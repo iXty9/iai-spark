@@ -1,46 +1,26 @@
-## Goal
-Add a dev/admin-only "Backend" toggle in the existing actions (More) dropdown so I can switch my own account between `webhook` and `hermes` without touching ordinary users.
+## Action: Mark findings as accepted, document the risk
 
-## Scope
-Frontend-only change. No DB migrations, no edge function changes, no secrets, no app_settings changes. Hermes server-side allowlist remains the source of truth for access.
+You've accepted the exposure as a known architectural limitation pending a future webhook proxy. No code or RLS changes will be made now.
 
-## Where it goes
-`src/components/chat/header/HeaderActions.tsx` — inside the existing `MoreVertical` dropdown, as a new `DropdownMenuSub` labeled **Backend**, placed right after the existing **Text Size** submenu and before **Dev Mode**.
+### Steps
+1. **Ignore both scanner findings** with explanatory rationale:
+   - `supabase_lov / app_settings_anon_webhook_auth_header_value`
+   - `supabase_lov / app_settings_webhook_auth_header_value`
+   
+   Rationale recorded on each: webhook calls currently go browser→n8n directly, so `webhook_auth_header_value` must be client-readable. Token is treated as a public shared identifier, not a true secret. Proper fix requires moving calls behind an edge function proxy first.
 
-Submenu items:
-- "Webhook (default)" → sets `profiles.preferred_backend = 'webhook'`
-- "Hermes Agent"      → sets `profiles.preferred_backend = 'hermes'`
+2. **Update `@security-memory`** to add a new accepted-risk entry describing:
+   - Current architecture (direct-from-browser webhook calls).
+   - That `webhook_auth_header_name` / `webhook_auth_header_value` in `app_settings` are intentionally readable by `anon` and `authenticated` and must not be treated as secrets.
+   - That `profiles.custom_webhook_auth_header_value` follows the same pattern (per-user, owner-readable only) for the same reason.
+   - Required follow-up before the RLS can be tightened: build a `webhook-proxy` edge function, migrate all 6 webhook clients, then remove the keys from the SELECT policies and rotate the token in n8n.
+   - Guidance to future scanners/agents: do not re-flag these two `app_settings` keys until the proxy ships; do not "fix" them by dropping them from the policies in isolation (that breaks chat).
 
-Active option shown with the same `Check` icon pattern already used by the Text Size submenu.
+3. **No other changes.** Code, RLS, and n8n config are untouched.
 
-## Visibility / access control
-Reuse the existing admin check already used by `UserMenu.tsx` (`checkIsAdmin` from `services/admin/...`). Inside `HeaderActions`:
+### What's not in scope this pass
+- Building the proxy edge function.
+- Token rotation.
+- Touching `profiles` realtime / `pg_graphql` / public bucket warnings.
 
-- Add `const [isAdmin, setIsAdmin] = useState(false)`.
-- In a `useEffect` keyed on `user?.id`, call `checkIsAdmin(user.id)` and set state. Reset to `false` when logged out.
-- Render the Backend submenu only when `user && isAdmin`.
-
-Result: anonymous users and non-admin authenticated users see no change.
-
-## Behavior
-- On select, run `supabase.from('profiles').update({ preferred_backend: value }).eq('id', user.id)`.
-- Local state `preferredBackend` is hydrated once on mount from the same row, so the checkmark reflects current value.
-- Toast confirms the change ("Backend set to Hermes Agent" / "Backend set to Webhook").
-- Dispatch a `window.dispatchEvent(new CustomEvent('preferred-backend-changed'))` so `useChatApi` can drop its cached value.
-- In `src/hooks/chat/use-chat-api.ts`, add a small listener inside the existing effect: on `preferred-backend-changed`, clear `loadedForUserRef.current` and call `loadPreferredBackend(user.id)` again. This is the only edit outside the header file and keeps the next message routed correctly without a page reload.
-
-## What stays unchanged
-- Default `preferred_backend` remains `'webhook'`; nothing in this change writes for new users.
-- `hermes_allowed_users` is untouched. Selecting Hermes when not allowlisted continues to surface the existing 403 toast from `hermes-chat`.
-- No changes to webhook payload, recall, location, attachments, or message processor.
-- No secrets referenced in frontend.
-
-## Files touched
-1. `src/components/chat/header/HeaderActions.tsx` — add admin check, Backend submenu, update handler.
-2. `src/hooks/chat/use-chat-api.ts` — listen for `preferred-backend-changed` to invalidate the cached ref.
-
-## Verification (post-build)
-- Manual: load app as admin → open More menu → confirm Backend submenu visible with current selection checked; switch to Hermes, send a message, observe Hermes route; switch back to Webhook, send a message, observe webhook route.
-- Manual: load app as non-admin (or anonymous) → confirm Backend submenu is absent.
-- `rg -n "HERMES_API_SERVER_KEY" src/` → expect zero matches.
-- No production publish performed.
+Approve and I'll execute steps 1 and 2.
