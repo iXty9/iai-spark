@@ -44,8 +44,15 @@ export const useChatApi = ({ user, addMessage, onError, setCurrentRequest, locat
       loadedForUserRef.current = null;
       return;
     }
-    if (loadedForUserRef.current === uid) return;
-    void loadPreferredBackend(uid);
+    if (loadedForUserRef.current !== uid) {
+      void loadPreferredBackend(uid);
+    }
+    const onChanged = () => {
+      loadedForUserRef.current = null;
+      void loadPreferredBackend(uid);
+    };
+    window.addEventListener('preferred-backend-changed', onChanged);
+    return () => window.removeEventListener('preferred-backend-changed', onChanged);
   }, [user?.id, loadPreferredBackend]);
 
   const sendMessageToApi = useCallback(async (userMessage: Message) => {
