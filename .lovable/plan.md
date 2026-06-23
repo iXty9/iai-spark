@@ -1,58 +1,71 @@
+## Implementation (smallest safe diff)
 
+### 1. Edge Function `supabase/functions/hermes-chat/index.ts` (new)
+- CORS via existing `_shared/cors.ts`.
+- Verify caller JWT: anon client + `Authorization` header → `auth.getUser()`.
+- Service-role client (`SUPABASE_SERVICE_ROLE_KEY`, server-only, `persistSession: false`) for defense-in-depth:
+  1. `profiles.preferred_backend === 'hermes'` → else `409 { code: 'hermes_not_selected' }`.
+  2. `hermes_allowed_users.enabled === true` for `user.id` → else `403 { code: 'hermes_not_allowed' }`.
+- Zod body: `messages: [{role: 'system'|'user'|'assistant', content: string}].min(1)`, optional `stream: boolean`.
+- POST `${HERMES_API_BASE_URL}/chat/completions` (resolves to `https://sandbox-hermes.ixty.ai/v1/chat/completions`) with:
+  - `Authorization: Bearer ${HERMES_API_SERVER_KEY}`
+  - `Content-Type: application/json`
+  - `X-Hermes-Session-Key: client:iai-spark:user:<user.id>`
+  - Body: `{ model: HERMES_MODEL, messages, stream }`.
+- SSE passthrough only if upstream content-type is `text/event-stream` AND client asked `stream:true`. Otherwise return JSON `{ content }` extracted from `choices[0].message.content`.
+- Upstream errors → `502 { code: 'upstream_error' }`. Never log/echo `HERMES_API_SERVER_KEY`.
 
-## Plan: Fix Supabase Anon-Key Root Endpoint Restriction
+### 2. `supabase/config.toml`
+- Add `[functions.hermes-chat] verify_jwt = false` (validated in code).
 
-### Background
-On April 8th 2026, Supabase removes anon-key access to the bare `/rest/v1/` root endpoint. Only **one file** in the codebase hits this restricted endpoint: `src/services/supabase/exec-sql.ts`. It's used during initial admin database setup (the `Initialize` flow), not during normal user traffic.
+### 3. Frontend providers (new files only)
+- `src/services/chat/providers/index.ts` — `resolveProvider(profile)`: returns `'hermes'` only when `profile?.preferred_backend === 'hermes'`, else `'webhook'`.
+- `src/services/chat/providers/hermes-provider.ts`:
+  - `sendHermesMessage({ messages, signal? })` calls `supabase.functions.invoke('hermes-chat', { body: { messages, stream: false } })`. Returns `{ ok, content?, errorCode?, errorMessage? }`; never throws.
+  - `notifyHermesFallbackOnce()` — module-level `warned` flag, fires `toast.info('Hermes is not enabled for this account yet. Using the standard webhook backend.')` at most once per page session.
 
-### Scope
-- File: `src/services/supabase/exec-sql.ts`
-- Used by: `src/services/supabase/init-service.ts` → `DatabaseSetupStep.tsx` (admin setup wizard only)
-- Impact: Zero end-user impact today. Will break the "Initialize" / re-setup flow after April 8th if not fixed.
+### 4. Single profile source of truth (no extra fetch per message)
+- `src/hooks/chat/use-chat-api.ts` is already a real React hook (`useCallback`, `useRef`). Add a `useRef<string | null>(null)` cache + a `useEffect` that runs once per `user?.id` change to fetch `profiles.preferred_backend` via supabase client and store it in the ref. Include `preferred_backend: preferredBackendRef.current` in the `userProfile` object passed to `processMessage`. No fetch per message; no invalid hook usage (file is a hook).
+- `src/services/types/messageTypes.ts` — extend `userProfile` type with optional `preferred_backend?: string | null`.
 
-### The Problem
-In `exec-sql.ts`, the `createExecSqlFunction` helper does:
-```ts
-fetch(`${url}/rest/v1/`, {
-  method: 'POST',
-  headers: { Authorization: `Bearer ${session.access_token}`, apikey: serviceKey, ... },
-  body: JSON.stringify({ query: createFunctionSql })
-})
-```
-This call is structurally broken anyway — POSTing JSON `{query: ...}` to `/rest/v1/` is not a valid PostgREST operation and never actually created the function. It only "works" because the rest of the flow falls back to calling the `exec_sql` RPC if it already exists. After April 8th, the request will additionally return `401 Invalid API key` for anon-key callers, and even with the service key the endpoint is not the right way to run DDL.
+### 5. `src/services/chat/message-processor.ts` — preserve lifecycle exactly
+- Insert Hermes branch BEFORE the webhook call, AFTER `onMessageStart?.(assistantMessage)` and the existing cancel check. The same `assistantMessage` object is reused (no duplicate). Same `pending → final` transition, same `onMessageStream` via existing `handleStreamingResponse`, same `onMessageComplete`, same cancel semantics (the existing `controller` is forwarded as `signal` to `supabase.functions.invoke`):
+  ```ts
+  const useHermes = isAuthenticated && userProfile?.preferred_backend === 'hermes';
+  if (useHermes) {
+    const hermesMessages = [{ role: 'user' as const, content: message }];
+    const result = await sendHermesMessage({ messages: hermesMessages, signal: controller.signal });
+    if (result.ok && result.content != null) {
+      const accumulated = await handleStreamingResponse(
+        result.content, onMessageStream, canceled, controller,
+      );
+      Object.assign(assistantMessage, {
+        content: accumulated.trim() || result.content,
+        pending: false,
+        rawRequest: { provider: 'hermes', messages: hermesMessages },
+        rawResponse: { provider: 'hermes', content: result.content },
+      });
+      debug({ lastAction: 'API: Hermes message completed successfully' });
+      onMessageComplete?.(assistantMessage);
+      return {
+        ...assistantMessage,
+        cancel: () => { canceled = true; controller.abort(); },
+      };
+    }
+    notifyHermesFallbackOnce();
+    // fall through to existing webhook path unchanged
+  }
+  ```
+- Webhook path is byte-identical to today.
 
-### The Fix
-Replace the broken `/rest/v1/` POST with a proper bootstrap mechanism for the `exec_sql` function. Two clean options:
+### 6. Untouched
+`src/services/webhook/*`, `use-chat.ts`, URL resolvers, streaming util, theme, auth, admin UI, all other profile columns, production publish (no `preview_ui--publish` call).
 
-**Option A (recommended) — Use Supabase Management API via edge function**
-- Create a tiny edge function `bootstrap-exec-sql` that uses the service role key (already in secrets as `SUPABASE_SERVICE_ROLE_KEY`) to run the `CREATE OR REPLACE FUNCTION exec_sql(...)` DDL via a direct `pg` connection (using `SUPABASE_DB_URL`, also already in secrets).
-- `createExecSqlFunction` invokes this edge function instead of hitting `/rest/v1/`.
-- Pros: Clean, secure, future-proof, leverages secrets we already have.
-
-**Option B (simpler) — Document manual creation**
-- Remove the auto-create attempt entirely.
-- If `exec_sql` RPC call fails with "does not exist", show the existing `showExecSqlHelp` UI in `DatabaseSetupStep.tsx` (already implemented!) instructing the admin to paste the SQL into the Supabase SQL Editor once.
-- Pros: Zero new infrastructure. The fallback UI is already built.
-- Cons: Slightly less automated for the very first setup.
-
-### Recommendation
-**Go with Option B.** The auto-create code path was already broken (POSTing to `/rest/v1/` was never valid PostgREST syntax), and the manual-fallback UI in `DatabaseSetupStep.tsx` already exists and works. This is a one-time setup step that only admins ever see. Removing the broken code is cleaner than building edge-function infrastructure to replace it.
-
-### Changes (Option B)
-
-**1. `src/services/supabase/exec-sql.ts`**
-- Remove the `fetch(\`${url}/rest/v1/\`, ...)` block in `createExecSqlFunction`.
-- If the initial `rpc('exec_sql', { sql: 'SELECT 1' })` test fails, return `{ success: false, error: 'exec_sql function does not exist — please create it manually via the Supabase SQL Editor' }`.
-- Keep the rest of `execSql` intact (it already calls the RPC correctly once the function exists).
-
-**2. `src/components/init/DatabaseSetupStep.tsx`**
-- No changes needed — the `showExecSqlHelp` alert already triggers on `error?.includes('exec_sql function')` and shows the SQL snippet to paste.
-
-### Verification
-- After the change, re-running the Initialize flow on a fresh Supabase project will surface the existing help dialog with the SQL to paste, instead of silently failing with a misleading error.
-- Existing installations (where `exec_sql` already exists) are completely unaffected — the RPC test passes and execution proceeds normally.
-- Normal user/chat traffic is unaffected by both the Supabase change and this fix.
-
-### Risk
-- Very low. Only touches the one-time admin setup path. The "auto-create" code being removed never actually worked in the first place.
-
+### 7. Post-implementation report (will deliver after build)
+- Migration tables/columns confirmed via `supabase--read_query` (`profiles.preferred_backend`, `hermes_allowed_users`).
+- Edge Function secret names configured (names only): `HERMES_API_BASE_URL`, `HERMES_API_SERVER_KEY`, `HERMES_MODEL` (+ existing `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`).
+- `rg HERMES_API_SERVER_KEY src/` → expect zero matches.
+- Test summary:
+  - (a) Default webhook user — chat unchanged (webhook path).
+  - (b) `preferred_backend='hermes'` but not allowlisted — Edge Function returns `403 hermes_not_allowed`, one toast, message delivered via webhook fallback.
+  - (c) `preferred_backend='hermes'` + allowlisted — Hermes called with `X-Hermes-Session-Key: client:iai-spark:user:<id>`, response rendered via existing simulated streaming.
