@@ -67,3 +67,6 @@ verify_jwt = false
 
 [functions.webhook-proxy-test]
 verify_jwt = true
+
+[functions.hermes-chat]
+verify_jwt = false

@@ -4,6 +4,7 @@ import { emitDebugEvent } from '@/utils/debug-events';
 import { parseWebhookResponse } from '@/utils/debug/webhook-debug';
 import { logger } from '@/utils/logging';
 import { sendWebhookMessage } from '@/services/webhook';
+import { sendHermesMessage, notifyHermesFallbackOnce } from '@/services/chat/providers/hermes-provider';
 import { SendMessageParams } from '../types/messageTypes';
 import { processResponseMetadata, createErrorResponse } from './utils/response-processing';
 import { handleStreamingResponse } from './utils/streaming';
@@ -48,6 +49,46 @@ export async function processMessage({
       debug({ lastAction: 'API: Message sending was canceled' });
       throw new Error('Message sending was canceled');
     }
+
+    // Hermes backend dispatch (additive; falls back to webhook on denial/failure)
+    const useHermes = isAuthenticated && userProfile?.preferred_backend === 'hermes';
+    if (useHermes) {
+      const hermesMessages = [{ role: 'user' as const, content: message }];
+      const hermesResult = await sendHermesMessage({
+        messages: hermesMessages,
+        signal: controller.signal,
+      });
+      if (hermesResult.ok && hermesResult.content != null) {
+        const accumulated = await handleStreamingResponse(
+          hermesResult.content,
+          onMessageStream,
+          canceled,
+          controller,
+        );
+        Object.assign(assistantMessage, {
+          content: (accumulated.trim() || hermesResult.content),
+          pending: false,
+          rawRequest: { provider: 'hermes', messages: hermesMessages },
+          rawResponse: { provider: 'hermes', content: hermesResult.content },
+        });
+        debug({ lastAction: 'API: Hermes message completed successfully' });
+        onMessageComplete?.(assistantMessage);
+        return {
+          ...assistantMessage,
+          cancel: () => {
+            canceled = true;
+            controller.abort();
+            debug({ lastAction: 'API: Hermes message streaming was canceled by user' });
+          },
+        };
+      }
+      // Denied or upstream failed: fall through to webhook with single toast
+      logger.warn('Hermes unavailable, falling back to webhook', {
+        code: hermesResult.errorCode,
+      }, { module: 'chat' });
+      notifyHermesFallbackOnce();
+    }
+
 
     let webhookData, responseText;
     try {

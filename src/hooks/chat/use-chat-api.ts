@@ -1,9 +1,10 @@
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { Message } from '@/types/chat';
 import { processMessage } from '@/services/chat/message-processor';
 import { logger } from '@/utils/logging';
 import { UserLocation, RecallContext } from '@/services/types/messageTypes';
+import { supabase } from '@/integrations/supabase/client';
 
 interface UseChatApiProps {
   user: any;
@@ -15,6 +16,33 @@ interface UseChatApiProps {
 }
 
 export const useChatApi = ({ user, addMessage, onError, setCurrentRequest, location, recall }: UseChatApiProps) => {
+  // Cache preferred_backend once per user; avoids per-message DB lookup.
+  const preferredBackendRef = useRef<string | null>(null);
+  const loadedForUserRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const uid = user?.id;
+    if (!uid) {
+      preferredBackendRef.current = null;
+      loadedForUserRef.current = null;
+      return;
+    }
+    if (loadedForUserRef.current === uid) return;
+    loadedForUserRef.current = uid;
+    supabase
+      .from('profiles')
+      .select('preferred_backend')
+      .eq('id', uid)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) {
+          logger.warn('Failed to load preferred_backend', error, { module: 'chat' });
+          return;
+        }
+        preferredBackendRef.current = (data?.preferred_backend as string | undefined) ?? null;
+      });
+  }, [user?.id]);
+
   const sendMessageToApi = useCallback(async (userMessage: Message) => {
     let currentCancelFunction: (() => void) | null = null;
     
@@ -27,7 +55,8 @@ export const useChatApi = ({ user, addMessage, onError, setCurrentRequest, locat
           id: user.id,
           username: user.user_metadata?.username,
           first_name: user.user_metadata?.first_name,
-          last_name: user.user_metadata?.last_name
+          last_name: user.user_metadata?.last_name,
+          preferred_backend: preferredBackendRef.current,
         } : null,
         location,
         recall,
