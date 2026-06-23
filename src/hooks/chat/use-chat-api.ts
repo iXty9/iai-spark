@@ -20,6 +20,23 @@ export const useChatApi = ({ user, addMessage, onError, setCurrentRequest, locat
   const preferredBackendRef = useRef<string | null>(null);
   const loadedForUserRef = useRef<string | null>(null);
 
+  const loadPreferredBackend = useCallback(async (uid: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('preferred_backend')
+      .eq('id', uid)
+      .maybeSingle();
+    if (error) {
+      logger.warn('Failed to load preferred_backend', error, { module: 'chat' });
+      return null;
+    }
+    const value = (data?.preferred_backend as string | undefined) ?? null;
+    preferredBackendRef.current = value;
+    loadedForUserRef.current = uid;
+    logger.info('Loaded preferred_backend', { uid, value }, { module: 'chat' });
+    return value;
+  }, []);
+
   useEffect(() => {
     const uid = user?.id;
     if (!uid) {
@@ -28,20 +45,8 @@ export const useChatApi = ({ user, addMessage, onError, setCurrentRequest, locat
       return;
     }
     if (loadedForUserRef.current === uid) return;
-    loadedForUserRef.current = uid;
-    supabase
-      .from('profiles')
-      .select('preferred_backend')
-      .eq('id', uid)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (error) {
-          logger.warn('Failed to load preferred_backend', error, { module: 'chat' });
-          return;
-        }
-        preferredBackendRef.current = (data?.preferred_backend as string | undefined) ?? null;
-      });
-  }, [user?.id]);
+    void loadPreferredBackend(uid);
+  }, [user?.id, loadPreferredBackend]);
 
   const sendMessageToApi = useCallback(async (userMessage: Message) => {
     let currentCancelFunction: (() => void) | null = null;
