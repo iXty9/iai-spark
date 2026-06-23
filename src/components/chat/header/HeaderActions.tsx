@@ -434,6 +434,26 @@ export const HeaderActions = ({
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           
+          {/* Backend toggle - admin/dev only */}
+          {user && isAdmin && (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="py-2.5">
+                <Server className="mr-2 h-4 w-4" />
+                <span>Backend</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem onClick={() => handleBackendChange('webhook')} className="py-2.5">
+                  <span className="flex-1">Webhook (default)</span>
+                  {preferredBackend === 'webhook' && <Check className="h-4 w-4 ml-2" />}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleBackendChange('hermes')} className="py-2.5">
+                  <span className="flex-1">Hermes Agent</span>
+                  {preferredBackend === 'hermes' && <Check className="h-4 w-4 ml-2" />}
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          )}
+
           {/* Dev Mode - only for authenticated users */}
           {user && (
             <DropdownMenuItem onClick={handleDevModeToggle} className="py-2.5">
