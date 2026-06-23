@@ -1,26 +1,63 @@
-## Action: Mark findings as accepted, document the risk
+## Goal
 
-You've accepted the exposure as a known architectural limitation pending a future webhook proxy. No code or RLS changes will be made now.
+Restructure the Admin Panel to pave the way for multi-harness support:
 
-### Steps
-1. **Ignore both scanner findings** with explanatory rationale:
-   - `supabase_lov / app_settings_anon_webhook_auth_header_value`
-   - `supabase_lov / app_settings_webhook_auth_header_value`
-   
-   Rationale recorded on each: webhook calls currently go browser→n8n directly, so `webhook_auth_header_value` must be client-readable. Token is treated as a public shared identifier, not a true secret. Proper fix requires moving calls behind an edge function proxy first.
+- Add a new top-level **AI** tab.
+- Move the existing **Webhooks** tab under AI as a sub-tab.
+- Add a new **Hermes** sub-tab (placeholder for now).
+- Each harness sub-tab gets a master enable/disable switch.
+- Leave Real-time Messaging (under App Settings) unchanged.
 
-2. **Update `@security-memory`** to add a new accepted-risk entry describing:
-   - Current architecture (direct-from-browser webhook calls).
-   - That `webhook_auth_header_name` / `webhook_auth_header_value` in `app_settings` are intentionally readable by `anon` and `authenticated` and must not be treated as secrets.
-   - That `profiles.custom_webhook_auth_header_value` follows the same pattern (per-user, owner-readable only) for the same reason.
-   - Required follow-up before the RLS can be tightened: build a `webhook-proxy` edge function, migrate all 6 webhook clients, then remove the keys from the SELECT policies and rotate the token in n8n.
-   - Guidance to future scanners/agents: do not re-flag these two `app_settings` keys until the proxy ships; do not "fix" them by dropping them from the policies in isolation (that breaks chat).
+## UI Changes
 
-3. **No other changes.** Code, RLS, and n8n config are untouched.
+### `src/components/admin/AdminTabs.tsx`
+- Remove `webhooks` entry from `tabItems`; add `{ value: "ai", label: "AI", icon: Sparkles, shortLabel: "AI" }` in its place (same slot to keep tab order familiar).
+- Replace the `webhookContent` prop with `aiContent`.
+- Remove the `TabsContent value="webhooks"` block; add `TabsContent value="ai"` that renders `aiContent`.
+- Keep URL param support; add `'ai'` to the allowed tab-param list in `Admin.tsx`.
 
-### What's not in scope this pass
-- Building the proxy edge function.
-- Token rotation.
-- Touching `profiles` realtime / `pg_graphql` / public bucket warnings.
+### New `src/components/admin/ai/AISettings.tsx`
+- Container component rendering a nested shadcn `Tabs` with two sub-tabs: **Webhooks** and **Hermes**.
+- Mobile: same dropdown pattern used by `AdminTabs` (small, local — no need to extract).
+- Sub-tab content:
+  - **Webhooks** → renders `<HarnessEnableToggle harness="webhooks" />` above the existing `<WebhookSettings />`.
+  - **Hermes** → renders `<HarnessEnableToggle harness="hermes" />` plus a "Coming soon" placeholder card.
+- Sub-tab state can be local React state, with optional `?ai_tab=` query param mirroring the outer pattern (nice-to-have, not required for v1).
 
-Approve and I'll execute steps 1 and 2.
+### New `src/components/admin/ai/HarnessEnableToggle.tsx`
+- Small card with a shadcn `Switch`, label ("Enable [Harness name]"), and a one-line description ("When disabled, this harness is unavailable to all users.").
+- Reads/writes a boolean key in `app_settings` via existing `settingsService` helpers and the `use-app-setting-boolean` hook pattern already in the codebase.
+- Keys: `ai_harness_webhooks_enabled` (default `true` for backward compatibility) and `ai_harness_hermes_enabled` (default `false`).
+- This stores the flag only — no chat-routing wiring in this pass (separate change when multi-harness selection lands).
+
+### `src/pages/Admin.tsx`
+- Replace `WebhookSettings` import + `webhookContent` prop with `AISettings` + `aiContent`.
+- Extend the allowed tab-param check to include `'ai'` (drop `'webhooks'`, or keep it and silently map to `'ai'` so old bookmarks still land in the right place — preferred).
+
+## Data / Backend
+
+- No schema or RLS changes. Two new `app_settings` rows will be lazily upserted by the toggle component the first time an admin flips them, matching how other boolean flags are handled today.
+
+## Out of Scope (explicitly not changing)
+
+- Real-time Messaging tab under App Settings — left exactly as-is.
+- Chat routing / harness selection logic — flags are stored but not yet consumed.
+- WebhookSettings internals — relocated only, not refactored.
+- Hermes implementation details (endpoints, models, auth) — placeholder only.
+
+## Files touched
+
+- edit: `src/components/admin/AdminTabs.tsx`
+- edit: `src/pages/Admin.tsx`
+- add: `src/components/admin/ai/AISettings.tsx`
+- add: `src/components/admin/ai/HarnessEnableToggle.tsx`
+
+## Verification
+
+1. Admin Panel shows new **AI** tab where Webhooks used to be; Webhooks is gone from the top strip.
+2. Clicking AI reveals two sub-tabs: **Webhooks** and **Hermes**.
+3. Webhooks sub-tab renders the existing full Webhooks UI with a new enable switch on top; toggling persists across reload.
+4. Hermes sub-tab shows enable switch + placeholder; toggling persists across reload.
+5. Old `/admin?tab=webhooks` URLs still land on the AI → Webhooks view.
+6. Real-time Messaging tab under App Settings is unchanged.
+7. Mobile dropdown lists AI (not Webhooks) and the sub-tabs still work.

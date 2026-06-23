@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { checkIsAdmin } from '@/services/admin/userRolesService';
 import { AdminTabs } from '@/components/admin/AdminTabs';
-import { WebhookSettings } from '@/components/admin/webhooks/WebhookSettings';
+import { AISettings } from '@/components/admin/ai/AISettings';
 import { AppSettings } from '@/components/admin/AppSettings';
 import { UserManagement } from '@/components/admin/UserManagement';
 import { SeoSettings } from '@/components/admin/SeoSettings';
@@ -32,7 +32,10 @@ export default function Admin() {
   useEffect(() => {
     const queryParams = new URLSearchParams(window.location.search);
     const tabParam = queryParams.get('tab');
-    if (tabParam === 'users' || tabParam === 'webhooks' || tabParam === 'app-settings' || tabParam === 'environment' || tabParam === 'seo' || tabParam === 'theme' || tabParam === 'authentication' || tabParam === 'pwa' || tabParam === 'highlevel') {
+    if (tabParam === 'webhooks') {
+      // Legacy: webhooks moved under AI tab
+      setActiveTab('ai');
+    } else if (tabParam === 'users' || tabParam === 'ai' || tabParam === 'app-settings' || tabParam === 'environment' || tabParam === 'seo' || tabParam === 'theme' || tabParam === 'authentication' || tabParam === 'pwa' || tabParam === 'highlevel') {
       setActiveTab(tabParam);
     }
   }, []);
@@ -183,7 +186,7 @@ export default function Admin() {
           </div>
 
           <AdminTabs
-            webhookContent={<WebhookSettings />}
+            aiContent={<AISettings />}
             appSettingsContent={<AppSettings />}
             userManagementContent={<UserManagement />}
             environmentContent={<Environment />}
