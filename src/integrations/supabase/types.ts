@@ -149,6 +149,30 @@ export type Database = {
         }
         Relationships: []
       }
+      hermes_allowed_users: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          enabled: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -171,6 +195,7 @@ export type Database = {
           location_use_coarse: boolean | null
           phone_country_code: string | null
           phone_number: string | null
+          preferred_backend: string
           theme_settings: string | null
           updated_at: string | null
           username: string | null
@@ -197,6 +222,7 @@ export type Database = {
           location_use_coarse?: boolean | null
           phone_country_code?: string | null
           phone_number?: string | null
+          preferred_backend?: string
           theme_settings?: string | null
           updated_at?: string | null
           username?: string | null
@@ -223,6 +249,7 @@ export type Database = {
           location_use_coarse?: boolean | null
           phone_country_code?: string | null
           phone_number?: string | null
+          preferred_backend?: string
           theme_settings?: string | null
           updated_at?: string | null
           username?: string | null
