@@ -3,10 +3,12 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { 
   Download, Trash2, Sun, Moon, Monitor, Code, 
-  Upload, RefreshCw, MoreVertical, Type, Check
+  Upload, RefreshCw, MoreVertical, Type, Check, Server
 } from 'lucide-react';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { useAuth } from '@/contexts/AuthContext';
+import { checkIsAdmin } from '@/services/admin/userRolesService';
+import { supabase } from '@/integrations/supabase/client';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,6 +62,58 @@ export const HeaderActions = ({
       toggleDevMode();
     }, 0);
   };
+
+  // Admin-only Backend toggle (dev/testing): switches profiles.preferred_backend.
+  const [isAdmin, setIsAdmin] = React.useState(false);
+  const [preferredBackend, setPreferredBackend] = React.useState<'webhook' | 'hermes'>('webhook');
+
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!user?.id) {
+      setIsAdmin(false);
+      setPreferredBackend('webhook');
+      return;
+    }
+    (async () => {
+      const adminStatus = await checkIsAdmin(user.id);
+      if (cancelled) return;
+      setIsAdmin(adminStatus);
+      if (!adminStatus) return;
+      const { data } = await supabase
+        .from('profiles')
+        .select('preferred_backend')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const value = (data?.preferred_backend as string | undefined) === 'hermes' ? 'hermes' : 'webhook';
+      setPreferredBackend(value);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  const handleBackendChange = async (value: 'webhook' | 'hermes') => {
+    if (!user?.id || value === preferredBackend) return;
+    const { error } = await supabase
+      .from('profiles')
+      .update({ preferred_backend: value })
+      .eq('id', user.id);
+    if (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Backend Change Failed',
+        description: error.message || 'Could not update backend preference.',
+      });
+      return;
+    }
+    setPreferredBackend(value);
+    window.dispatchEvent(new CustomEvent('preferred-backend-changed'));
+    toast({
+      title: 'Backend Updated',
+      description: value === 'hermes' ? 'Backend set to Hermes Agent' : 'Backend set to Webhook',
+      duration: 2000,
+    });
+  };
+
 
   // Theme preference state - sync with SupaThemes service
   const [themePref, setThemePref] = React.useState<'light' | 'dark' | 'system'>('light');
@@ -380,6 +434,26 @@ export const HeaderActions = ({
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           
+          {/* Backend toggle - admin/dev only */}
+          {user && isAdmin && (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="py-2.5">
+                <Server className="mr-2 h-4 w-4" />
+                <span>Backend</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem onClick={() => handleBackendChange('webhook')} className="py-2.5">
+                  <span className="flex-1">Webhook (default)</span>
+                  {preferredBackend === 'webhook' && <Check className="h-4 w-4 ml-2" />}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleBackendChange('hermes')} className="py-2.5">
+                  <span className="flex-1">Hermes Agent</span>
+                  {preferredBackend === 'hermes' && <Check className="h-4 w-4 ml-2" />}
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          )}
+
           {/* Dev Mode - only for authenticated users */}
           {user && (
             <DropdownMenuItem onClick={handleDevModeToggle} className="py-2.5">

@@ -1,37 +1,46 @@
-## Next test: Hermes selected AND allowlisted (happy path)
+## Goal
+Add a dev/admin-only "Backend" toggle in the existing actions (More) dropdown so I can switch my own account between `webhook` and `hermes` without touching ordinary users.
 
-Now that the safety fallback is verified, validate the end-to-end Hermes path.
+## Scope
+Frontend-only change. No DB migrations, no edge function changes, no secrets, no app_settings changes. Hermes server-side allowlist remains the source of truth for access.
 
-### Setup (SQL editor)
+## Where it goes
+`src/components/chat/header/HeaderActions.tsx` — inside the existing `MoreVertical` dropdown, as a new `DropdownMenuSub` labeled **Backend**, placed right after the existing **Text Size** submenu and before **Dev Mode**.
 
-```sql
--- Already set, but confirm:
-UPDATE public.profiles
-SET preferred_backend = 'hermes'
-WHERE id = '5519f7f8-2619-43a1-99d7-bb1d1cc1d0d2';
+Submenu items:
+- "Webhook (default)" → sets `profiles.preferred_backend = 'webhook'`
+- "Hermes Agent"      → sets `profiles.preferred_backend = 'hermes'`
 
--- Add to allowlist:
-INSERT INTO public.hermes_allowed_users (user_id, enabled)
-VALUES ('5519f7f8-2619-43a1-99d7-bb1d1cc1d0d2', true)
-ON CONFLICT (user_id) DO UPDATE SET enabled = true;
-```
+Active option shown with the same `Check` icon pattern already used by the Text Size submenu.
 
-### Test in preview
+## Visibility / access control
+Reuse the existing admin check already used by `UserMenu.tsx` (`checkIsAdmin` from `services/admin/...`). Inside `HeaderActions`:
 
-Send a chat message as the test user.
+- Add `const [isAdmin, setIsAdmin] = useState(false)`.
+- In a `useEffect` keyed on `user?.id`, call `checkIsAdmin(user.id)` and set state. Reset to `false` when logged out.
+- Render the Backend submenu only when `user && isAdmin`.
 
-### Expected
+Result: anonymous users and non-admin authenticated users see no change.
 
-- No "Hermes not enabled" toast.
-- Network: `POST /functions/v1/hermes-chat` returns **200** (not 403).
-- Reply renders in chat, sourced from Hermes (not n8n).
-- Edge function logs show a successful upstream call to `HERMES_API_BASE_URL/chat/completions`.
+## Behavior
+- On select, run `supabase.from('profiles').update({ preferred_backend: value }).eq('id', user.id)`.
+- Local state `preferredBackend` is hydrated once on mount from the same row, so the checkmark reflects current value.
+- Toast confirms the change ("Backend set to Hermes Agent" / "Backend set to Webhook").
+- Dispatch a `window.dispatchEvent(new CustomEvent('preferred-backend-changed'))` so `useChatApi` can drop its cached value.
+- In `src/hooks/chat/use-chat-api.ts`, add a small listener inside the existing effect: on `preferred-backend-changed`, clear `loadedForUserRef.current` and call `loadPreferredBackend(user.id)` again. This is the only edit outside the header file and keeps the next message routed correctly without a page reload.
 
-### If it fails
+## What stays unchanged
+- Default `preferred_backend` remains `'webhook'`; nothing in this change writes for new users.
+- `hermes_allowed_users` is untouched. Selecting Hermes when not allowlisted continues to surface the existing 403 toast from `hermes-chat`.
+- No changes to webhook payload, recall, location, attachments, or message processor.
+- No secrets referenced in frontend.
 
-Likely culprits and what I'll check:
-- `upstream_error` → Hermes secret/base URL/model misconfigured.
-- `empty_response` → upstream returned a shape we're not parsing (`choices[0].message.content`).
-- Still falls back → recall context or message shape causing the provider to bail.
+## Files touched
+1. `src/components/chat/header/HeaderActions.tsx` — add admin check, Backend submenu, update handler.
+2. `src/hooks/chat/use-chat-api.ts` — listen for `preferred-backend-changed` to invalidate the cached ref.
 
-No code changes proposed yet — this plan is just the test procedure. Approve to switch to build mode if any fix is needed after you run it.
+## Verification (post-build)
+- Manual: load app as admin → open More menu → confirm Backend submenu visible with current selection checked; switch to Hermes, send a message, observe Hermes route; switch back to Webhook, send a message, observe webhook route.
+- Manual: load app as non-admin (or anonymous) → confirm Backend submenu is absent.
+- `rg -n "HERMES_API_SERVER_KEY" src/` → expect zero matches.
+- No production publish performed.
