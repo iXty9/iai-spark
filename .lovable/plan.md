@@ -1,29 +1,23 @@
-## Findings so far
-- The test user is correctly configured: `preferred_backend = 'hermes'` and not allowlisted.
-- Recent preview network data shows no request containing `hermes`.
-- Hermes edge-function logs show only boot/shutdown events and no `hermes_not_allowed` call.
-- That means the app is still routing directly to the standard webhook path before Hermes is invoked, so the toast cannot appear.
-
 ## Plan
-1. **Trace the frontend routing decision**
-   - Inspect the chat send path that reads `profiles.preferred_backend` and decides whether to call `hermes-chat`.
-   - Verify whether the value is cached too early, not refreshed after login/profile updates, or unavailable due to timing.
 
-2. **Make Hermes selection reliable for authenticated sends**
-   - Before sending an authenticated message, ensure the app has a current `preferred_backend` value for the active user.
-   - If the cached value is missing or stale, reload it from `profiles` before choosing the backend.
-   - Keep anonymous users on the existing webhook path unchanged.
+1. **Fix the toast system mismatch**
+   - The Hermes fallback code currently calls Sonner directly, but the app only mounts the legacy shadcn `<Toaster />` in `App.tsx`.
+   - Change the Hermes fallback notifier to use the mounted app toast system so the message is actually visible.
 
-3. **Preserve the safety fallback behavior**
-   - When `hermes-chat` returns `hermes_not_allowed`, show exactly one toast:
-     `Hermes is not enabled for this account yet. Using the standard webhook backend.`
-   - Then continue through the existing webhook backend so the message still succeeds.
+2. **Limit the toast to the intended Hermes denial case**
+   - Show exactly one toast only when `hermes-chat` returns `hermes_not_allowed`.
+   - Keep fallback-to-webhook behavior for other Hermes failures, but do not show the “not enabled for this account yet” toast for unrelated errors.
 
-4. **Add minimal debug visibility without user-facing clutter**
-   - Log the backend routing decision through the existing logger/debug event pattern, not raw production console logs.
-   - This will make it clear whether a message selected `webhook` or attempted `hermes` during future tests.
+3. **Preserve existing chat fallback**
+   - Leave the existing webhook fallback path intact so the message still completes normally after Hermes returns 403.
 
-5. **Validate**
-   - Confirm a new authenticated message triggers a `hermes-chat` call.
-   - Confirm the edge function returns `hermes_not_allowed` for the non-allowlisted test user.
-   - Confirm exactly one toast appears and the fallback webhook response still arrives.
+4. **Keep diagnostics useful**
+   - Keep the existing backend routing/fallback logs so future tests can confirm `preferred_backend: hermes`, `route: hermes`, and fallback execution.
+
+## Expected result after implementation
+
+When the test user has `preferred_backend = 'hermes'` and is not in `hermes_allowed_users`, the browser will still show the 403 request to `hermes-chat`, then display one visible toast:
+
+`Hermes is not enabled for this account yet. Using the standard webhook backend.`
+
+The chat reply should still arrive through the standard webhook fallback.

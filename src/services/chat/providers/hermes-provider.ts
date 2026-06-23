@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 import { logger } from '@/utils/logging';
 
 export interface HermesMessage {
@@ -50,10 +50,13 @@ export async function sendHermesMessage(
   }
 }
 
-// One toast per page session
-let hermesFallbackWarned = false;
-export function notifyHermesFallbackOnce() {
-  if (hermesFallbackWarned) return;
-  hermesFallbackWarned = true;
-  toast.info('Hermes is not enabled for this account yet. Using the standard webhook backend.');
+// One toast per page session, only for the "not allowed" denial case.
+let hermesNotAllowedWarned = false;
+export function notifyHermesNotAllowedOnce() {
+  if (hermesNotAllowedWarned) return;
+  hermesNotAllowedWarned = true;
+  toast({
+    title: 'Hermes not enabled',
+    description: 'Hermes is not enabled for this account yet. Using the standard webhook backend.',
+  });
 }
