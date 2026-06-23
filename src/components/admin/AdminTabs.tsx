@@ -3,10 +3,10 @@ import React, { ReactNode, useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Settings, Users, Webhook, Globe, Palette, Server, Shield, Smartphone, ChevronLeft, ChevronRight, Building2 } from 'lucide-react';
+import { Settings, Users, Webhook, Globe, Palette, Server, Shield, Smartphone, ChevronLeft, ChevronRight, Building2, Sparkles } from 'lucide-react';
 
 interface AdminTabsProps {
-  webhookContent: ReactNode;
+  aiContent: ReactNode;
   appSettingsContent: ReactNode;
   userManagementContent: ReactNode;
   environmentContent: ReactNode;
@@ -20,7 +20,7 @@ interface AdminTabsProps {
 }
 
 export function AdminTabs({ 
-  webhookContent, 
+  aiContent, 
   appSettingsContent, 
   userManagementContent, 
   environmentContent,
@@ -38,7 +38,7 @@ export function AdminTabs({
     { value: "theme", label: "Theme", icon: Palette, shortLabel: "Theme" },
     { value: "pwa", label: "PWA", icon: Smartphone, shortLabel: "PWA" },
     { value: "authentication", label: "Authentication", icon: Shield, shortLabel: "Auth" },
-    { value: "webhooks", label: "Webhooks", icon: Webhook, shortLabel: "Hooks" },
+    { value: "ai", label: "AI", icon: Sparkles, shortLabel: "AI" },
     { value: "highlevel", label: "HighLevel", icon: Building2, shortLabel: "GHL" },
     { value: "users", label: "Users", icon: Users, shortLabel: "Users" },
     { value: "environment", label: "Environment", icon: Server, shortLabel: "Env" }
@@ -174,8 +174,8 @@ export function AdminTabs({
         {authenticationContent}
       </TabsContent>
       
-      <TabsContent value="webhooks" className="mt-6">
-        {webhookContent}
+      <TabsContent value="ai" className="mt-6">
+        {aiContent}
       </TabsContent>
       
       <TabsContent value="highlevel" className="mt-6">
