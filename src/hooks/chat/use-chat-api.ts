@@ -20,6 +20,23 @@ export const useChatApi = ({ user, addMessage, onError, setCurrentRequest, locat
   const preferredBackendRef = useRef<string | null>(null);
   const loadedForUserRef = useRef<string | null>(null);
 
+  const loadPreferredBackend = useCallback(async (uid: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('preferred_backend')
+      .eq('id', uid)
+      .maybeSingle();
+    if (error) {
+      logger.warn('Failed to load preferred_backend', error, { module: 'chat' });
+      return null;
+    }
+    const value = (data?.preferred_backend as string | undefined) ?? null;
+    preferredBackendRef.current = value;
+    loadedForUserRef.current = uid;
+    logger.info('Loaded preferred_backend', { uid, value }, { module: 'chat' });
+    return value;
+  }, []);
+
   useEffect(() => {
     const uid = user?.id;
     if (!uid) {
@@ -28,25 +45,23 @@ export const useChatApi = ({ user, addMessage, onError, setCurrentRequest, locat
       return;
     }
     if (loadedForUserRef.current === uid) return;
-    loadedForUserRef.current = uid;
-    supabase
-      .from('profiles')
-      .select('preferred_backend')
-      .eq('id', uid)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (error) {
-          logger.warn('Failed to load preferred_backend', error, { module: 'chat' });
-          return;
-        }
-        preferredBackendRef.current = (data?.preferred_backend as string | undefined) ?? null;
-      });
-  }, [user?.id]);
+    void loadPreferredBackend(uid);
+  }, [user?.id, loadPreferredBackend]);
 
   const sendMessageToApi = useCallback(async (userMessage: Message) => {
     let currentCancelFunction: (() => void) | null = null;
     
     try {
+      // Ensure preferred_backend is loaded before dispatching (avoid stale-null race).
+      let preferredBackend = preferredBackendRef.current;
+      if (user?.id && (loadedForUserRef.current !== user.id || preferredBackend == null)) {
+        preferredBackend = await loadPreferredBackend(user.id);
+      }
+      logger.info('Dispatching chat message', {
+        isAuthenticated: !!user,
+        preferred_backend: preferredBackend,
+      }, { module: 'chat' });
+
       // Use the real message processor with callbacks to get cancel function immediately
       const aiResponse = await processMessage({
         message: userMessage.content,
@@ -56,7 +71,7 @@ export const useChatApi = ({ user, addMessage, onError, setCurrentRequest, locat
           username: user.user_metadata?.username,
           first_name: user.user_metadata?.first_name,
           last_name: user.user_metadata?.last_name,
-          preferred_backend: preferredBackendRef.current,
+          preferred_backend: preferredBackend,
         } : null,
         location,
         recall,
@@ -129,7 +144,7 @@ export const useChatApi = ({ user, addMessage, onError, setCurrentRequest, locat
       setCurrentRequest(null);
       throw err;
     }
-  }, [user, addMessage, onError, location, recall]);
+  }, [user, addMessage, onError, location, recall, loadPreferredBackend]);
 
   return { sendMessageToApi };
 };

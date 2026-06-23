@@ -52,6 +52,12 @@ export async function processMessage({
 
     // Hermes backend dispatch (additive; falls back to webhook on denial/failure)
     const useHermes = isAuthenticated && userProfile?.preferred_backend === 'hermes';
+    logger.info('Backend routing decision', {
+      isAuthenticated,
+      preferred_backend: userProfile?.preferred_backend ?? null,
+      route: useHermes ? 'hermes' : 'webhook',
+    }, { module: 'chat' });
+    debug({ lastAction: `API: Routing message via ${useHermes ? 'hermes' : 'webhook'}` });
     if (useHermes) {
       const hermesMessages = [{ role: 'user' as const, content: message }];
       const hermesResult = await sendHermesMessage({
