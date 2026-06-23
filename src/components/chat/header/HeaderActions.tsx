@@ -63,6 +63,58 @@ export const HeaderActions = ({
     }, 0);
   };
 
+  // Admin-only Backend toggle (dev/testing): switches profiles.preferred_backend.
+  const [isAdmin, setIsAdmin] = React.useState(false);
+  const [preferredBackend, setPreferredBackend] = React.useState<'webhook' | 'hermes'>('webhook');
+
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!user?.id) {
+      setIsAdmin(false);
+      setPreferredBackend('webhook');
+      return;
+    }
+    (async () => {
+      const adminStatus = await checkIsAdmin(user.id);
+      if (cancelled) return;
+      setIsAdmin(adminStatus);
+      if (!adminStatus) return;
+      const { data } = await supabase
+        .from('profiles')
+        .select('preferred_backend')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const value = (data?.preferred_backend as string | undefined) === 'hermes' ? 'hermes' : 'webhook';
+      setPreferredBackend(value);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  const handleBackendChange = async (value: 'webhook' | 'hermes') => {
+    if (!user?.id || value === preferredBackend) return;
+    const { error } = await supabase
+      .from('profiles')
+      .update({ preferred_backend: value })
+      .eq('id', user.id);
+    if (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Backend Change Failed',
+        description: error.message || 'Could not update backend preference.',
+      });
+      return;
+    }
+    setPreferredBackend(value);
+    window.dispatchEvent(new CustomEvent('preferred-backend-changed'));
+    toast({
+      title: 'Backend Updated',
+      description: value === 'hermes' ? 'Backend set to Hermes Agent' : 'Backend set to Webhook',
+      duration: 2000,
+    });
+  };
+
+
   // Theme preference state - sync with SupaThemes service
   const [themePref, setThemePref] = React.useState<'light' | 'dark' | 'system'>('light');
   const mediaQueryRef = React.useRef<MediaQueryList | null>(null);
