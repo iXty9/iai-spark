@@ -144,7 +144,7 @@ export const useChatApi = ({ user, addMessage, onError, setCurrentRequest, locat
       setCurrentRequest(null);
       throw err;
     }
-  }, [user, addMessage, onError, location, recall]);
+  }, [user, addMessage, onError, location, recall, loadPreferredBackend]);
 
   return { sendMessageToApi };
 };
