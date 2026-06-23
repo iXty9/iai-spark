@@ -52,6 +52,16 @@ export const useChatApi = ({ user, addMessage, onError, setCurrentRequest, locat
     let currentCancelFunction: (() => void) | null = null;
     
     try {
+      // Ensure preferred_backend is loaded before dispatching (avoid stale-null race).
+      let preferredBackend = preferredBackendRef.current;
+      if (user?.id && (loadedForUserRef.current !== user.id || preferredBackend == null)) {
+        preferredBackend = await loadPreferredBackend(user.id);
+      }
+      logger.info('Dispatching chat message', {
+        isAuthenticated: !!user,
+        preferred_backend: preferredBackend,
+      }, { module: 'chat' });
+
       // Use the real message processor with callbacks to get cancel function immediately
       const aiResponse = await processMessage({
         message: userMessage.content,
@@ -61,7 +71,7 @@ export const useChatApi = ({ user, addMessage, onError, setCurrentRequest, locat
           username: user.user_metadata?.username,
           first_name: user.user_metadata?.first_name,
           last_name: user.user_metadata?.last_name,
-          preferred_backend: preferredBackendRef.current,
+          preferred_backend: preferredBackend,
         } : null,
         location,
         recall,
