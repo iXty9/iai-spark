@@ -3,10 +3,12 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { 
   Download, Trash2, Sun, Moon, Monitor, Code, 
-  Upload, RefreshCw, MoreVertical, Type, Check
+  Upload, RefreshCw, MoreVertical, Type, Check, Server
 } from 'lucide-react';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { useAuth } from '@/contexts/AuthContext';
+import { checkIsAdmin } from '@/services/admin/userRolesService';
+import { supabase } from '@/integrations/supabase/client';
 import {
   DropdownMenu,
   DropdownMenuContent,
