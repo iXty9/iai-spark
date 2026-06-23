@@ -4,7 +4,7 @@ import { emitDebugEvent } from '@/utils/debug-events';
 import { parseWebhookResponse } from '@/utils/debug/webhook-debug';
 import { logger } from '@/utils/logging';
 import { sendWebhookMessage } from '@/services/webhook';
-import { sendHermesMessage, notifyHermesFallbackOnce } from '@/services/chat/providers/hermes-provider';
+import { sendHermesMessage, notifyHermesNotAllowedOnce } from '@/services/chat/providers/hermes-provider';
 import { SendMessageParams } from '../types/messageTypes';
 import { processResponseMetadata, createErrorResponse } from './utils/response-processing';
 import { handleStreamingResponse } from './utils/streaming';
@@ -88,11 +88,13 @@ export async function processMessage({
           },
         };
       }
-      // Denied or upstream failed: fall through to webhook with single toast
+      // Denied or upstream failed: fall through to webhook
       logger.warn('Hermes unavailable, falling back to webhook', {
         code: hermesResult.errorCode,
       }, { module: 'chat' });
-      notifyHermesFallbackOnce();
+      if (hermesResult.errorCode === 'hermes_not_allowed') {
+        notifyHermesNotAllowedOnce();
+      }
     }
 
 
