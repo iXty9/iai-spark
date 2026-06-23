@@ -1,23 +1,37 @@
-## Plan
+## Next test: Hermes selected AND allowlisted (happy path)
 
-1. **Fix the toast system mismatch**
-   - The Hermes fallback code currently calls Sonner directly, but the app only mounts the legacy shadcn `<Toaster />` in `App.tsx`.
-   - Change the Hermes fallback notifier to use the mounted app toast system so the message is actually visible.
+Now that the safety fallback is verified, validate the end-to-end Hermes path.
 
-2. **Limit the toast to the intended Hermes denial case**
-   - Show exactly one toast only when `hermes-chat` returns `hermes_not_allowed`.
-   - Keep fallback-to-webhook behavior for other Hermes failures, but do not show the “not enabled for this account yet” toast for unrelated errors.
+### Setup (SQL editor)
 
-3. **Preserve existing chat fallback**
-   - Leave the existing webhook fallback path intact so the message still completes normally after Hermes returns 403.
+```sql
+-- Already set, but confirm:
+UPDATE public.profiles
+SET preferred_backend = 'hermes'
+WHERE id = '5519f7f8-2619-43a1-99d7-bb1d1cc1d0d2';
 
-4. **Keep diagnostics useful**
-   - Keep the existing backend routing/fallback logs so future tests can confirm `preferred_backend: hermes`, `route: hermes`, and fallback execution.
+-- Add to allowlist:
+INSERT INTO public.hermes_allowed_users (user_id, enabled)
+VALUES ('5519f7f8-2619-43a1-99d7-bb1d1cc1d0d2', true)
+ON CONFLICT (user_id) DO UPDATE SET enabled = true;
+```
 
-## Expected result after implementation
+### Test in preview
 
-When the test user has `preferred_backend = 'hermes'` and is not in `hermes_allowed_users`, the browser will still show the 403 request to `hermes-chat`, then display one visible toast:
+Send a chat message as the test user.
 
-`Hermes is not enabled for this account yet. Using the standard webhook backend.`
+### Expected
 
-The chat reply should still arrive through the standard webhook fallback.
+- No "Hermes not enabled" toast.
+- Network: `POST /functions/v1/hermes-chat` returns **200** (not 403).
+- Reply renders in chat, sourced from Hermes (not n8n).
+- Edge function logs show a successful upstream call to `HERMES_API_BASE_URL/chat/completions`.
+
+### If it fails
+
+Likely culprits and what I'll check:
+- `upstream_error` → Hermes secret/base URL/model misconfigured.
+- `empty_response` → upstream returned a shape we're not parsing (`choices[0].message.content`).
+- Still falls back → recall context or message shape causing the provider to bail.
+
+No code changes proposed yet — this plan is just the test procedure. Approve to switch to build mode if any fix is needed after you run it.
