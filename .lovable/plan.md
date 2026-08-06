@@ -1,21 +1,21 @@
-# Update SSO (Keycloak) address to https://id.ixty9.com/
+# Accept public avatar reads and close the finding
 
-## What I verified
+## Assessment: yes, this is safe to keep public
 
-- The Keycloak/SSO endpoint URL is **not stored anywhere in this codebase**. A search across the project found no `id.ixty9.com` or port `5238` reference — only branding strings and the button label (`iXty9 ID`).
-- The app only stores SSO **on/off** and **button label** in `app_settings` (`auth_keycloak_enabled`, `auth_keycloak_button_label`), read by `useAuthSettings`.
-- Sign-in goes through `supabase.auth.signInWithOAuth({ provider: 'keycloak' })` in `src/contexts/auth/authOperations.ts`, so the issuer URL, client ID and client secret live in the **Supabase dashboard** (Authentication → Providers → Keycloak) of the external project `ymtdtzkskjdqlzhjuesk`.
-- New address is live and serving valid OIDC discovery: `https://id.ixty9.com/realms/master/.well-known/openid-configuration` returns issuer `https://id.ixty9.com/realms/master`.
-- Old address `https://id.ixty9.com:5238/...` no longer responds at all (connection failed), which is why SSO is broken.
+Verified against the live storage policies:
 
-## Steps
+- Writes are locked down: upload, update, and delete on `avatars` all require the first path segment to equal the caller's own user id, so nobody can overwrite or delete another user's avatar.
+- Listing is restricted: the only SELECT policy on `avatars` is scoped to `authenticated` users reading their own folder, so the bucket cannot be enumerated by anonymous visitors.
+- Public reads are limited to direct object URLs, which contain the owner's user id plus the file name. The user id is already visible to the app's clients, and avatar images are self-chosen public-facing profile pictures — no private data is inferable from the file itself.
+- The `sounds` bucket stays private and unaffected.
 
-1. **You (Supabase dashboard):** Authentication → Providers → Keycloak → set **Realm URL** to `https://id.ixty9.com/realms/<your-realm>` (use `master` unless you use a dedicated realm), keep the existing Client ID/Secret, save.
-2. **You (Keycloak admin console at the new address):** confirm the client's Valid Redirect URIs still include the Supabase callback `https://ymtdtzkskjdqlzhjuesk.supabase.co/auth/v1/callback`, plus Web Origins as currently configured.
-3. **Me:** once you confirm the dashboard is updated, I run a browser check against the preview: click the `iXty9 ID` button on `/auth` and confirm the redirect lands on `https://id.ixty9.com/realms/.../protocol/openid-connect/auth` (no `:5238`, no error), and report the result.
-4. **Me (optional hardening, only if you want it):** currently the SSO endpoint is invisible from the app side. I can add a read-only display of the configured realm URL in Admin → Authentication so future address changes are easier to spot — say the word and I'll include it.
+Residual risk is the standard trade-off of any CDN-served avatar: an avatar URL, once known, stays fetchable without auth (including briefly after deletion, via cache). That is expected behaviour for profile images and is what makes avatars load fast in chat and admin lists without signed URLs.
 
-## Notes
+Guardrail worth keeping in mind: the `avatars` bucket must never be used for anything other than profile images — no documents, exports, or attachments.
 
-- No code changes are required for the address change itself; the redirect back into the app (`/auth`) and scope (`openid`) already work as-is.
-- If your realm is not `master`, tell me the realm name and I'll reflect it in the verification step.
+## What I will do
+
+1. Mark the `avatars_bucket_missing_public_select` finding as ignored, with the rationale that public read is intentional while writes and listing remain owner-scoped.
+2. Update the security memory so future scans treat public avatar reads as accepted, and record the rule that only profile images may live in that bucket.
+
+No database or code changes are needed.
