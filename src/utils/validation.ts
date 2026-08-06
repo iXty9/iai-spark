@@ -15,8 +15,8 @@ export const userUsernameSchema = z
   .regex(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and hyphens')
   .optional();
 
-export const userRoleSchema = z.enum(['admin', 'moderator', 'user'] as const, {
-  errorMap: () => ({ message: 'Please select a valid role' })
+export const userRoleSchema = z.enum(['admin', 'moderator', 'user'], {
+  message: 'Please select a valid role'
 });
 
 export const userFormSchema = z.object({
@@ -54,7 +54,7 @@ export const validateUserInput = (data: unknown) => {
       return {
         success: false,
         data: null,
-        errors: error.errors.map(err => ({
+        errors: error.issues.map(err => ({
           field: err.path.join('.'),
           message: err.message
         }))
@@ -89,7 +89,7 @@ export const validateSearchParams = (params: {
       return {
         success: false,
         data: null,
-        errors: error.errors.map(err => ({
+        errors: error.issues.map(err => ({
           field: err.path.join('.'),
           message: err.message
         }))
