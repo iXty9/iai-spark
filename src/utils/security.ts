@@ -52,6 +52,40 @@ export const sanitizeUrl = (url: string): string => {
 };
 
 /**
+ * Sanitize a post-auth `returnTo` path so it can only navigate within this app.
+ *
+ * React Router v6 does not defend against open redirects for protocol-relative
+ * ("//evil.com"), backslash ("\\evil.com") or absolute-URL paths passed to
+ * navigate()/<Link>. Any untrusted path must be normalized here first.
+ *
+ * Returns the fallback unless the value is a same-origin relative path.
+ */
+export const sanitizeReturnPath = (
+  path: string | null | undefined,
+  fallback: string = '/'
+): string => {
+  if (typeof path !== 'string' || path.length === 0) {
+    return fallback;
+  }
+
+  // Normalize backslashes: browsers treat "\\evil.com" like "//evil.com".
+  const normalized = path.replace(/\\/g, '/').trim();
+
+  // Must be a rooted relative path, and must not start a protocol-relative URL.
+  if (!normalized.startsWith('/') || normalized.startsWith('//')) {
+    return fallback;
+  }
+
+  // Reject anything carrying a scheme or control characters.
+  if (/^\/+[a-z][a-z0-9+.-]*:/i.test(normalized) || /[\u0000-\u001F\u007F]/.test(normalized)) {
+    return fallback;
+  }
+
+  return normalized;
+};
+
+
+/**
  * Sanitize input string to prevent XSS and injection attacks
  */
 export const sanitizeInput = (input: string): string => {
