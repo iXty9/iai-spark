@@ -15,6 +15,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useAuthSettings } from '@/hooks/admin/useAuthSettings';
 import { UserPlus, Mail, User, Lock, Phone, AlertCircle, Users, Shield, Sparkles, FileText, KeyRound } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { sanitizeReturnPath } from '@/utils/security';
+
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -90,8 +92,9 @@ export function RegisterForm() {
         }
       );
       
-      const returnTo = searchParams.get('returnTo') || '/';
-      navigate(returnTo);
+      // Sanitize: never follow an off-origin returnTo (open-redirect protection)
+      navigate(sanitizeReturnPath(searchParams.get('returnTo'), '/'));
+
     } catch (error: any) {
       setError(error.message);
     } finally {

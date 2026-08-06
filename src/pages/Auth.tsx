@@ -11,6 +11,8 @@ import { RegisterForm } from '@/components/auth/RegisterForm';
 import { ForgotPasswordForm } from '@/components/auth/ForgotPasswordForm';
 import { ResetPasswordForm } from '@/components/auth/ResetPasswordForm';
 import { getStoredConfig } from '@/config/supabase-config';
+import { sanitizeReturnPath } from '@/utils/security';
+
 import { LogIn, UserPlus, AlertTriangle } from 'lucide-react';
 
 // Brute force protection - track failed login attempts
@@ -55,9 +57,10 @@ const Auth = () => {
   // from the recovery token but needs to stay on page to complete password change
   useEffect(() => {
     if (user && mode !== 'reset') {
-      const returnTo = searchParams.get('returnTo');
-      navigate(returnTo || '/');
+      // Sanitize: never follow an off-origin returnTo (open-redirect protection)
+      navigate(sanitizeReturnPath(searchParams.get('returnTo'), '/'));
     }
+
     
     // Reset login attempts counter when component mounts
     loginAttempts.reset();

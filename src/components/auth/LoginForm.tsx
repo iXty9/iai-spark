@@ -12,6 +12,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import DOMPurify from 'dompurify';
+import { sanitizeReturnPath } from '@/utils/security';
+
 import { useDevMode } from '@/store/use-dev-mode';
 import { useAuthSettings } from '@/hooks/admin/useAuthSettings';
 
@@ -49,8 +51,9 @@ export const LoginForm = () => {
     setServerError(null);
     try {
       await signIn(DOMPurify.sanitize(email), password);
-      const returnTo = searchParams.get('returnTo') || '/';
-      navigate(returnTo);
+      // Sanitize: never follow an off-origin returnTo (open-redirect protection)
+      navigate(sanitizeReturnPath(searchParams.get('returnTo'), '/'));
+
     } catch (error: any) {
       // Clean, user-friendly error messages for production
       let message = 'Authentication failed. Please check your credentials and try again.';
