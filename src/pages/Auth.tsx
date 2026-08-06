@@ -11,6 +11,8 @@ import { RegisterForm } from '@/components/auth/RegisterForm';
 import { ForgotPasswordForm } from '@/components/auth/ForgotPasswordForm';
 import { ResetPasswordForm } from '@/components/auth/ResetPasswordForm';
 import { getStoredConfig } from '@/config/supabase-config';
+import { sanitizeReturnPath } from '@/utils/security';
+
 import { LogIn, UserPlus, AlertTriangle } from 'lucide-react';
 
 // Brute force protection - track failed login attempts
