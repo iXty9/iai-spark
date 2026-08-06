@@ -92,8 +92,9 @@ export function RegisterForm() {
         }
       );
       
-      const returnTo = searchParams.get('returnTo') || '/';
-      navigate(returnTo);
+      // Sanitize: never follow an off-origin returnTo (open-redirect protection)
+      navigate(sanitizeReturnPath(searchParams.get('returnTo'), '/'));
+
     } catch (error: any) {
       setError(error.message);
     } finally {
