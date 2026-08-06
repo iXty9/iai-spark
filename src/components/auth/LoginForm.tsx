@@ -12,6 +12,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import DOMPurify from 'dompurify';
+import { sanitizeReturnPath } from '@/utils/security';
+
 import { useDevMode } from '@/store/use-dev-mode';
 import { useAuthSettings } from '@/hooks/admin/useAuthSettings';
 
