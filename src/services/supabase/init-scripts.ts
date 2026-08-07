@@ -62,7 +62,7 @@ export const initScripts = {
       phone_country_code TEXT DEFAULT '+1',
       username TEXT,
       avatar_url TEXT,
-      webhook_url TEXT DEFAULT 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574'
+      webhook_url TEXT DEFAULT 'https://n8n.ixty.ai/webhook/a7048654-0b16-4666-a3dd-9553f3d36574'
     );
   `,
   createUserRolesTable: `
@@ -85,9 +85,9 @@ export const initScripts = {
   insertDefaultSettings: `
     -- Insert default webhook and avatar settings if they don't exist
     INSERT INTO public.app_settings (key, value) VALUES 
-      ('authenticated_webhook_url', 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7'),
-      ('anonymous_webhook_url', 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d36574'),
-      ('debug_webhook_url', 'https://n8n.ixty.ai:5679/webhook/a7048654-0b16-4666-a3dd-9553f3d8534'),
+      ('authenticated_webhook_url', 'https://n8n.ixty.ai/webhook/a7048654-0b16-4666-a3dd-9553f3d014f7'),
+      ('anonymous_webhook_url', 'https://n8n.ixty.ai/webhook/a7048654-0b16-4666-a3dd-9553f3d36574'),
+      ('debug_webhook_url', 'https://n8n.ixty.ai/webhook/a7048654-0b16-4666-a3dd-9553f3d8534'),
       ('thumbs_up_webhook_url', ''),
       ('thumbs_down_webhook_url', ''),
       ('webhook_timeout', '300000'),
