@@ -1,37 +1,42 @@
-# Fix: chat fails after n8n endpoint change
+# HighLevel webhook signature migration (X-GHL-Signature / Ed25519)
 
-## What's actually wrong
+## Short answer: yes, this would break us — but the fix is small and contained
 
-Nothing in the app is hardcoded to the old `:5679` endpoint for chat. The live settings already point at `https://n8n.ixty.ai`, and the app reads the chat webhook URL straight from Admin Panel → AI → Webhooks (via the app settings table).
+Our GHL webhook verification lives in one shared file, `supabase/functions/_shared/ghl-signature-verify.ts`, and it reads **only** the `x-wh-signature` header with the legacy 4096-bit RSA key. If that header stops being sent on September 1, 2026, the function returns `Missing x-wh-signature header` and both webhook endpoints reject with 401:
 
-The failure is a **CORS allowlist gap on the n8n side** for the *authenticated* chat workflow. Verified preflight results against `https://n8n.ixty.ai`:
+- `ghl-install-webhook` — app install / uninstall events (installs would stop being recorded, uninstalls would stop cleaning up)
+- `ghl-notification-proxy` — inbound GHL notification events forwarded to n8n
 
-```text
-Origin                                   Anonymous workflow      Authenticated workflow
-https://ixty.ai                          allowed                 allowed
-https://iai-spark.lovable.app            allowed                 REJECTED (returns ixty.ai)
-https://id-preview--...lovable.app       allowed                 REJECTED (returns ixty.ai)
-```
+GHL retries non-2xx up to 12 times and then drops, so this would be a real outage of the integration, not a silent degradation.
 
-The anonymous workflow (`...9553f3d36574`) echoes back whichever Lovable origin asks, so anonymous chat works. The authenticated workflow (`...9553f3d014f7`) always answers `access-control-allow-origin: https://ixty.ai`, so the browser blocks the request from the preview and published Lovable domains — surfacing as "I'm sorry, but I encountered an error processing your message."
-
-The Webhook Status Monitor still shows all 7 hooks online because it probes them through the `webhook-proxy-test` edge function (server-side, no CORS involved).
+Nothing else in the app touches GHL signatures: the OAuth callback, token refresh, and `ghl-api-proxy` are all outbound calls and are unaffected.
 
 ## Fix
 
-1. **n8n (you, no code change):** in the authenticated chat workflow's webhook node, add the same allowed-origins list the anonymous workflow uses — `https://ixty.ai`, `https://iai-spark.lovable.app`, and the preview domain `https://id-preview--80fcca4c-5286-4dbb-a5b8-32ea128e55a8.lovable.app`. Keep `content-type` and `x-webhook-token` in the allowed headers (authenticated chat sends the auth token header).
+Update the one shared verifier to be dual-header, preferring the new scheme (exactly what HighLevel recommends for the transition window):
 
-2. **App-side cleanup (I do this):** two saved webhook settings were missed in the endpoint migration and still point to the old port:
-   - `clear_context_webhook_url` → `https://n8n.ixty.ai:5679/webhook/48bc23a4-...`
-   - `ghl_notification_webhook_url` → `https://n8n.ixty.ai:5679/webhook/9e16570c-...`
+1. Add HighLevel's Ed25519 public key alongside the existing RSA key. From the official guide:
+   `MCowBQYDK2VwAyEAi2HR1srL4o18O8BRa7gVJY7G7bupbN3H9AwJrHCDiOg=`
+2. Verification order:
+   - if `x-ghl-signature` is present → verify with Ed25519 over the raw body, base64 signature
+   - else if `x-wh-signature` is present → verify with the existing RSA-SHA256 path (unchanged)
+   - else → reject as today
+3. Keep everything else exactly as it is: replay/timestamp protection, clock-skew allowance, the admin bypass flag, the `SignatureVerifyResult` shape, and the diagnostic logging (extended to say which scheme was used).
+4. No changes needed in `ghl-install-webhook` or `ghl-notification-proxy` — they call `verifyGHLSignature(req, rawBody, bypassEnabled)` and keep working as-is.
 
-   I'll update both to the portless `https://n8n.ixty.ai` host so Clear Context and GHL notifications don't break.
+## Verify
 
-3. **Stale defaults (I do this):** the first-run/init SQL in `src/services/supabase/init-scripts.ts` still seeds `:5679` URLs for new installs. I'll update those default strings to the new host. Historical migration files stay untouched.
-
-4. **Verify:** after your n8n change, send a message as an authenticated user on the preview URL, plus one as anonymous, and confirm both get a reply. If authenticated still fails, the preflight response for that workflow will tell us immediately whether the allowlist took effect.
+- Unit test the verifier in `supabase/functions/_shared/` with a locally generated Ed25519 keypair to prove the code path signs/verifies correctly, plus a negative test (tampered body must fail).
+- Deploy both functions and confirm from the Edge Function logs that live GHL webhooks now log `scheme: ghl` and verify successfully (both headers are still being sent until Sept 1, so this can be confirmed before the cutover).
+- Test an install/uninstall round trip against a sandbox location.
 
 ## Technical notes
 
-- Chat dispatch path: `use-chat-api.ts` → `message-processor.ts` → `services/webhook/webhook-service.ts`, with the URL resolved by `services/webhook/url-provider.ts` from the cached app settings (5-minute TTL, context-aware). No hardcoded host anywhere in that path.
-- Per-user custom webhook overrides (`profiles.webhook_url`) can also shadow the global URL; if the error persists for one specific account I'll check that user's override for a leftover `:5679` value.
+- Deno's Web Crypto supports Ed25519 natively: `crypto.subtle.importKey("spki", ..., { name: "Ed25519" }, false, ["verify"])` then `crypto.subtle.verify("Ed25519", key, sig, body)`. No new dependency.
+- Signature is over the **raw request body bytes**, which is already what we pass in (`rawBody`), so no body-handling change.
+- Existing base64/hex auto-detection stays for the legacy path; the Ed25519 signature is base64 per the docs.
+- After September 1 the legacy branch becomes dead code but is harmless to leave for one release; it can be removed in a later cleanup.
+
+## Note on the MCP request
+
+The "add agent integrations (MCP)" work is unrelated and still open. This signature deprecation has a hard September 1 deadline, so it should ship first; I'll pick MCP back up right after.
