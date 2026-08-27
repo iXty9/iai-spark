@@ -31,6 +31,14 @@ PQe7z0cvj7aE4B+Ax1ZoZGPzpJlZtGXCsu9aTEGEnKzmsFqwcSsnw3JB31IGKAyk
 T1hhTiaCeIY/OwwwNUY2yvcCAwEAAQ==
 -----END PUBLIC KEY-----`;
 
+// GHL's Ed25519 public key for the X-GHL-Signature header (current scheme).
+// This is a PUBLIC key - safe to include in code.
+// Source: GoHighLevel Webhook Integration Guide.
+// X-WH-Signature (RSA) is deprecated as of 2026-09-01.
+const GHL_ED25519_PUBLIC_KEY_PEM = `-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEAi2HR1srL4o18O8BRa7gVJY7G7bupbN3H9AwJrHCDiOg=
+-----END PUBLIC KEY-----`;
+
 // Replay protection: reject webhooks older than this (in milliseconds)
 const MAX_WEBHOOK_AGE_MS = 5 * 60 * 1000; // 5 minutes
 
