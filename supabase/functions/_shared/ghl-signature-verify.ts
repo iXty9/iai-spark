@@ -1,8 +1,10 @@
 /**
  * GHL Webhook Signature Verification Utility
  *
- * Verifies webhooks from GoHighLevel using RSA-SHA256 signature validation.
- * Reference: https://marketplace.gohighlevel.com/docs/oauth/ExternalAuthentication
+ * Verifies webhooks from GoHighLevel. Prefers X-GHL-Signature (Ed25519) and
+ * falls back to the deprecated X-WH-Signature (RSA-SHA256) when only that is present.
+ * Reference: https://marketplace.gohighlevel.com/docs/webhook/WebhookIntegrationGuide
+
  */
 
 export interface SignatureVerifyResult {
