@@ -233,7 +233,7 @@ export async function verifyGHLSignature(
     }
   } catch (error) {
     console.error("[ghl-signature-verify] Verification error:", error);
-    return { valid: false, error: `Verification error: ${error.message}` };
+    return { valid: false, error: `Verification error: ${error instanceof Error ? error.message : String(error)}` };
   }
 }
 
