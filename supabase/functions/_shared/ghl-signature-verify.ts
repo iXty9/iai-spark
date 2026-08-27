@@ -1,8 +1,10 @@
 /**
  * GHL Webhook Signature Verification Utility
  *
- * Verifies webhooks from GoHighLevel using RSA-SHA256 signature validation.
- * Reference: https://marketplace.gohighlevel.com/docs/oauth/ExternalAuthentication
+ * Verifies webhooks from GoHighLevel. Prefers X-GHL-Signature (Ed25519) and
+ * falls back to the deprecated X-WH-Signature (RSA-SHA256) when only that is present.
+ * Reference: https://marketplace.gohighlevel.com/docs/webhook/WebhookIntegrationGuide
+
  */
 
 export interface SignatureVerifyResult {
@@ -29,6 +31,14 @@ h/AMfHKIjE4xQA1SZuYJmNnmVZLIZBlQAF9Ntd03rfadZ+yDiOXCCs9FkHibELhC
 HULgCsnuDJHcrGNd5/Ddm5hxGQ0ASitgHeMZ0kcIOwKDOzOU53lDza6/Y09T7sYJ
 PQe7z0cvj7aE4B+Ax1ZoZGPzpJlZtGXCsu9aTEGEnKzmsFqwcSsnw3JB31IGKAyk
 T1hhTiaCeIY/OwwwNUY2yvcCAwEAAQ==
+-----END PUBLIC KEY-----`;
+
+// GHL's Ed25519 public key for the X-GHL-Signature header (current scheme).
+// This is a PUBLIC key - safe to include in code.
+// Source: GoHighLevel Webhook Integration Guide.
+// X-WH-Signature (RSA) is deprecated as of 2026-09-01.
+const GHL_ED25519_PUBLIC_KEY_PEM = `-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEAi2HR1srL4o18O8BRa7gVJY7G7bupbN3H9AwJrHCDiOg=
 -----END PUBLIC KEY-----`;
 
 // Replay protection: reject webhooks older than this (in milliseconds)
@@ -118,12 +128,19 @@ export async function verifyGHLSignature(
     return { valid: true, bypassed: true };
   }
 
-  // Extract signature from header
-  const signature = request.headers.get("x-wh-signature");
+  // Extract signatures. Prefer the new Ed25519 scheme when present.
+  // GHL sends both headers during the transition; X-WH-Signature is
+  // deprecated as of September 1, 2026.
+  const ghlSignature = request.headers.get("x-ghl-signature");
+  const legacySignature = request.headers.get("x-wh-signature");
+  const usingGhlScheme = !!ghlSignature && ghlSignature !== "N/A";
+  const signature = usingGhlScheme ? ghlSignature! : legacySignature;
 
   // Diagnostic logging
   console.log("[ghl-signature-verify] === DIAGNOSTIC INFO ===");
-  console.log(`[ghl-signature-verify] x-wh-signature header present: ${!!signature}`);
+  console.log(`[ghl-signature-verify] x-ghl-signature header present: ${!!ghlSignature}`);
+  console.log(`[ghl-signature-verify] x-wh-signature header present: ${!!legacySignature}`);
+  console.log(`[ghl-signature-verify] scheme: ${usingGhlScheme ? "ghl (Ed25519)" : "legacy (RSA-SHA256)"}`);
   if (signature) {
     console.log(`[ghl-signature-verify] Signature length: ${signature.length}`);
     console.log(`[ghl-signature-verify] Signature preview: ${signature.substring(0, 50)}...`);
@@ -133,10 +150,11 @@ export async function verifyGHLSignature(
   console.log(`[ghl-signature-verify] Raw body preview: ${rawBody.substring(0, 100)}...`);
   console.log("[ghl-signature-verify] === END DIAGNOSTIC INFO ===");
 
-  if (!signature) {
-    console.warn("[ghl-signature-verify] Missing x-wh-signature header");
-    return { valid: false, error: "Missing x-wh-signature header" };
+  if (!signature || signature === "N/A") {
+    console.warn("[ghl-signature-verify] Missing x-ghl-signature / x-wh-signature header");
+    return { valid: false, error: "Missing x-ghl-signature (or legacy x-wh-signature) header" };
   }
+
 
   // Parse body to check timestamp for replay protection
   let payload: any;
@@ -170,22 +188,27 @@ export async function verifyGHLSignature(
   }
 
   try {
-    // Import GHL's RSA public key
-    console.log("[ghl-signature-verify] Importing RSA public key...");
+    const algo = usingGhlScheme
+      ? ({ name: "Ed25519" } as const)
+      : ({ name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" } as const);
+    const keyPem = usingGhlScheme ? GHL_ED25519_PUBLIC_KEY_PEM : GHL_PUBLIC_KEY_PEM;
+
+    console.log(`[ghl-signature-verify] Importing ${algo.name} public key...`);
     const publicKey = await crypto.subtle.importKey(
       "spki",
-      pemToArrayBuffer(GHL_PUBLIC_KEY_PEM),
-      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+      pemToArrayBuffer(keyPem),
+      algo as AlgorithmIdentifier,
       false,
       ["verify"],
     );
     console.log("[ghl-signature-verify] Public key imported successfully");
 
     // Detect signature format and decode accordingly
+    // (Ed25519 signatures are base64 per GHL docs; legacy may be base64 or hex)
     const sigFormat = detectSignatureFormat(signature);
     let signatureBuffer: ArrayBuffer;
 
-    if (sigFormat === "hex") {
+    if (!usingGhlScheme && sigFormat === "hex") {
       console.log("[ghl-signature-verify] Decoding signature as hex");
       signatureBuffer = hexToArrayBuffer(signature);
     } else {
@@ -198,7 +221,8 @@ export async function verifyGHLSignature(
     const bodyBuffer = new TextEncoder().encode(rawBody);
 
     // Verify the signature
-    const isValid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", publicKey, signatureBuffer, bodyBuffer);
+    const isValid = await crypto.subtle.verify(algo.name, publicKey, signatureBuffer, bodyBuffer);
+
 
     if (isValid) {
       console.log("[ghl-signature-verify] Signature verified successfully");
@@ -209,7 +233,7 @@ export async function verifyGHLSignature(
     }
   } catch (error) {
     console.error("[ghl-signature-verify] Verification error:", error);
-    return { valid: false, error: `Verification error: ${error.message}` };
+    return { valid: false, error: `Verification error: ${error instanceof Error ? error.message : String(error)}` };
   }
 }
 
