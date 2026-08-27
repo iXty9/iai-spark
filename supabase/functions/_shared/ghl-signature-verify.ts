@@ -178,22 +178,27 @@ export async function verifyGHLSignature(
   }
 
   try {
-    // Import GHL's RSA public key
-    console.log("[ghl-signature-verify] Importing RSA public key...");
+    const algo = usingGhlScheme
+      ? ({ name: "Ed25519" } as const)
+      : ({ name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" } as const);
+    const keyPem = usingGhlScheme ? GHL_ED25519_PUBLIC_KEY_PEM : GHL_PUBLIC_KEY_PEM;
+
+    console.log(`[ghl-signature-verify] Importing ${algo.name} public key...`);
     const publicKey = await crypto.subtle.importKey(
       "spki",
-      pemToArrayBuffer(GHL_PUBLIC_KEY_PEM),
-      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+      pemToArrayBuffer(keyPem),
+      algo as AlgorithmIdentifier,
       false,
       ["verify"],
     );
     console.log("[ghl-signature-verify] Public key imported successfully");
 
     // Detect signature format and decode accordingly
+    // (Ed25519 signatures are base64 per GHL docs; legacy may be base64 or hex)
     const sigFormat = detectSignatureFormat(signature);
     let signatureBuffer: ArrayBuffer;
 
-    if (sigFormat === "hex") {
+    if (!usingGhlScheme && sigFormat === "hex") {
       console.log("[ghl-signature-verify] Decoding signature as hex");
       signatureBuffer = hexToArrayBuffer(signature);
     } else {
@@ -206,7 +211,8 @@ export async function verifyGHLSignature(
     const bodyBuffer = new TextEncoder().encode(rawBody);
 
     // Verify the signature
-    const isValid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", publicKey, signatureBuffer, bodyBuffer);
+    const isValid = await crypto.subtle.verify(algo.name, publicKey, signatureBuffer, bodyBuffer);
+
 
     if (isValid) {
       console.log("[ghl-signature-verify] Signature verified successfully");
