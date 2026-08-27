@@ -118,12 +118,19 @@ export async function verifyGHLSignature(
     return { valid: true, bypassed: true };
   }
 
-  // Extract signature from header
-  const signature = request.headers.get("x-wh-signature");
+  // Extract signatures. Prefer the new Ed25519 scheme when present.
+  // GHL sends both headers during the transition; X-WH-Signature is
+  // deprecated as of September 1, 2026.
+  const ghlSignature = request.headers.get("x-ghl-signature");
+  const legacySignature = request.headers.get("x-wh-signature");
+  const usingGhlScheme = !!ghlSignature && ghlSignature !== "N/A";
+  const signature = usingGhlScheme ? ghlSignature! : legacySignature;
 
   // Diagnostic logging
   console.log("[ghl-signature-verify] === DIAGNOSTIC INFO ===");
-  console.log(`[ghl-signature-verify] x-wh-signature header present: ${!!signature}`);
+  console.log(`[ghl-signature-verify] x-ghl-signature header present: ${!!ghlSignature}`);
+  console.log(`[ghl-signature-verify] x-wh-signature header present: ${!!legacySignature}`);
+  console.log(`[ghl-signature-verify] scheme: ${usingGhlScheme ? "ghl (Ed25519)" : "legacy (RSA-SHA256)"}`);
   if (signature) {
     console.log(`[ghl-signature-verify] Signature length: ${signature.length}`);
     console.log(`[ghl-signature-verify] Signature preview: ${signature.substring(0, 50)}...`);
@@ -133,10 +140,11 @@ export async function verifyGHLSignature(
   console.log(`[ghl-signature-verify] Raw body preview: ${rawBody.substring(0, 100)}...`);
   console.log("[ghl-signature-verify] === END DIAGNOSTIC INFO ===");
 
-  if (!signature) {
-    console.warn("[ghl-signature-verify] Missing x-wh-signature header");
-    return { valid: false, error: "Missing x-wh-signature header" };
+  if (!signature || signature === "N/A") {
+    console.warn("[ghl-signature-verify] Missing x-ghl-signature / x-wh-signature header");
+    return { valid: false, error: "Missing x-ghl-signature (or legacy x-wh-signature) header" };
   }
+
 
   // Parse body to check timestamp for replay protection
   let payload: any;
