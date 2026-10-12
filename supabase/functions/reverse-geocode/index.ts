@@ -59,22 +59,56 @@ serve(async (req) => {
       });
     }
 
-    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`;
-    const resp = await fetch(url, {
-      headers: { "User-Agent": "IxtyAI-ReverseGeocode/1.0 (contact: support@ixty.ai)" },
-    });
-    if (!resp.ok) {
-      return new Response(JSON.stringify({ error: "Geocoding service unavailable" }), {
-        status: 502,
+    let result: { address?: string; city?: string; country?: string; unavailable?: boolean } | null = null;
+
+    // Primary: Nominatim
+    try {
+      const resp = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`,
+        { headers: { "User-Agent": "IxtyAI-ReverseGeocode/1.0 (contact: support@ixty.ai)", "Accept-Language": "en" } },
+      );
+      if (resp.ok) {
+        const data = await resp.json();
+        result = {
+          address: data.display_name,
+          city: data.address?.city || data.address?.town || data.address?.village,
+          country: data.address?.country,
+        };
+      } else {
+        console.warn("nominatim non-ok", resp.status);
+      }
+    } catch (e) {
+      console.warn("nominatim failed", (e as Error).message);
+    }
+
+    // Fallback: BigDataCloud (free, no key)
+    if (!result) {
+      try {
+        const resp = await fetch(
+          `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`,
+        );
+        if (resp.ok) {
+          const d = await resp.json();
+          const city = d.city || d.locality || undefined;
+          result = {
+            address: [city, d.principalSubdivision, d.countryName].filter(Boolean).join(", ") || undefined,
+            city,
+            country: d.countryName || undefined,
+          };
+        } else {
+          console.warn("bigdatacloud non-ok", resp.status);
+        }
+      } catch (e) {
+        console.warn("bigdatacloud failed", (e as Error).message);
+      }
+    }
+
+    // Graceful degradation: never fail the client over an optional address lookup
+    if (!result) {
+      return new Response(JSON.stringify({ address: null, city: null, country: null, unavailable: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const data = await resp.json();
-    const result = {
-      address: data.display_name,
-      city: data.address?.city || data.address?.town || data.address?.village,
-      country: data.address?.country,
-    };
 
     cache.set(key, { data: result, ts: now });
 
