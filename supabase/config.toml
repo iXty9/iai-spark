@@ -70,3 +70,6 @@ verify_jwt = true
 
 [functions.hermes-chat]
 verify_jwt = false
+
+[functions.ghl-token-inspect]
+verify_jwt = false
