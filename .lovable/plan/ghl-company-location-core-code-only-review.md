@@ -1,63 +1,85 @@
-# GHL Company→Location core — code-only review artifact
+# GHL Company→Location core — code-only review artifact (rev 2, focused correction)
 
-Status: REVIEW ONLY. Nothing deployed, no Supabase/function/config/migration/frontend/n8n files touched, no provider calls, no real token read, diagnostic not rerun. Proposed source lives only in this document (and scratch `/tmp/ghlcore/`). Fake IDs/credentials only.
+Status: REVIEW ONLY. Nothing deployed; no Supabase function/config/migration/frontend/n8n files touched; no provider calls; no token/secret/database access; diagnostic not rerun. Source lives only in this document and scratch `/tmp/ghlcore/`. Fake IDs/credentials and injected transport only. Rev 2 corrects the rev-1 module in place (not replaced) for nine fail-closed regressions and corrects §3/§4 claims.
 
 ## 1. Contract evidence (official HighLevel docs, fetched 2026-10-15)
 
 | Item | 2021-07-28 (chosen) | v3 (not used) |
 |---|---|---|
-| Source | https://marketplace.gohighlevel.com/docs/2021-07-28/ghl/oauth/get-location-access-token ("no longer actively maintained") | https://marketplace.gohighlevel.com/docs/ghl/oauth/get-location-access-token |
+| Source | https://marketplace.gohighlevel.com/docs/2021-07-28/ghl/oauth/get-location-access-token | https://marketplace.gohighlevel.com/docs/ghl/oauth/get-location-access-token |
 | URL / method | `POST https://services.leadconnectorhq.com/oauth/locationToken` | `POST https://services.leadconnectorhq.com/oauth/location-token` |
-| Version header | `2021-07-28` (required) | `v3` (required) |
-| Body | `application/x-www-form-urlencoded`: `companyId`, `locationId` (both required) | same |
+| Version header | `2021-07-28` | `v3` |
+| Body | form-urlencoded `companyId`, `locationId` | same |
 | Auth | `Bearer` Agency (Company) token | same |
-| Required grant | scope `oauth.write` on the Company token | same |
-| Response | `access_token`, `token_type`, `expires_in`, `scope`, `locationId`, `userId`, `planId`, `appId`, `versionId`, `refresh_token` ("used to obtain a new access token for this specific location") | same fields |
+| Response | `access_token`, `token_type`, `expires_in`, `scope`, `locationId`, `userId`, `planId`, `appId`, `versionId`, `refresh_token` (described as for "this specific location"); no `userType`/`companyId` listed | same |
 
-Refresh: https://marketplace.gohighlevel.com/docs/2021-07-28/ghl/oauth/get-access-token — `POST /oauth/token`, `grant_type=refresh_token`, `user_type` ∈ {`Company`,`Location`}, response includes `userType`. OAuth guide (https://marketplace.gohighlevel.com/docs/Authorization/OAuth2.0 §6) — refresh tokens are single-use and every refresh returns a new refresh token.
+**Grant citation (corrects rev 1).** The endpoint reference pages do not visibly name the scope. The authoritative mapping is the Scopes page, https://marketplace.gohighlevel.com/docs/Authorization/Scopes, table row (verbatim, retrieved 2026-10-15 17:1x UTC via `curl`): `oauth.write | POST /oauth/locationToken | | Agency` (adjacent row: `oauth.readonly | GET /oauth/installedLocations | | Agency`). The core enforces, before dispatch, that the parent credential's **provider-reported** scope list (the `scope` string returned when that credential was issued/refreshed, captured by `validateTokenResponse`) contains `oauth.write`; otherwise `grant_missing`. This is a precondition, not proof: it does not show the provider will honor the grant for the already-issued live token. Live grant confirmation stays a separate gate and must not re-read/decrypt the token.
 
-**Discrepancy resolution.** Both routes are documented; they are paired per API version (camelCase+`2021-07-28` vs hyphenated+`v3`). The core pins the 2021-07-28 pair because every existing iai-spark GHL function uses `Version: 2021-07-28`; mixing would be unreviewed. Moving to v3 is a separate, whole-contract change. Note: the OAuth guide §8 sample sends a **JSON** body to `/oauth/locationToken`; the endpoint reference specifies form-urlencoded. The core follows the reference (form-urlencoded); the guide sample is treated as non-normative.
+Refresh: https://marketplace.gohighlevel.com/docs/2021-07-28/ghl/oauth/get-access-token — `POST /oauth/token`, `grant_type=refresh_token`, `user_type` ∈ {Company, Location}, response includes `userType`. OAuth guide §6: refresh tokens are single-use; each refresh returns a new one. Route pairing (camelCase+2021-07-28 vs hyphenated+v3) and form encoding follow the versioned reference; the guide's JSON sample is non-normative. This is a code-only choice, not live compatibility proof.
 
-**Evidence gaps (not inferred):**
-- Whether our Company token actually holds `oauth.write` — a scope *count* of 32 proves nothing. Must be confirmed from the Marketplace app's scope config (human check) before any live exchange.
-- The location-token reference schema does not list `userType`/`companyId`; the core accepts their absence but fails closed if present and wrong. `locationId` is required and must equal the server-bound value.
-- Refreshing a *derived* Location refresh token via `/oauth/token` with `user_type=Location` is documented by implication (field description + refresh endpoint), not by an explicit worked example. Unverified live.
+**Evidence gaps:** live honoring of `oauth.write` on the current token; refreshing a derived Location refresh token via `/oauth/token` is implied, not shown by a worked example.
 
-## 2. Credential modes
-- `native_location` — Location install; own refresh token.
-- `company_parent` — Company token + its own refresh token; `locationId` must be null.
-- `derived_location` — produced only by exchange. Has the Location refresh token the provider returned, or `refreshToken: null` (access-only) if none was returned. It is **never** paired with the parent's refresh token; access-only credentials cannot refresh and must be re-derived from the parent.
+## 2. Credential modes and invariants (enforced at runtime)
+| Mode | Expected class | `locationId` | `refreshToken` | `userType` in response |
+|---|---|---|---|---|
+| `native_location` | Location | required ID | **required** | **required** |
+| `company_parent` | Company | must be `null` | **required** | **required** |
+| `derived_location` | Location | required ID | may be `null` (access-only) | required from `/oauth/token`; absent allowed **only** on the pinned exchange response (internal source flag, not a caller option) |
 
-## 3. Integration boundaries (NOT implemented; for later approval)
-Interfaces the future shared token manager must provide; the core never touches them:
-- `CredentialStore` — read/write encrypted credentials per installation (existing AES-GCM helpers). Must persist `mode`, parent/derived linkage, and `token_user_type`.
-- `RefreshLock` — single-writer coordination per installation (DB row lock / compare-and-swap on `last_refresh_at`). Core is stateless so it **cannot** become a fourth independent writer; callers must go through the manager.
-- `CallerAuth` — replace `x-ixty-proxy-secret` + body `user_id` trust in `ghl-api-proxy` (prior hardening finding 1).
-- Real `Transport` — `fetch(url, {redirect:'manual'})` mapped to `HttpResponse`.
+Any other mode/class/location combination → `mode_mismatch` / `invalid_context`. Deserialized credentials and bindings are type-checked at runtime (string IDs, mode allowlist, token fields, finite `expiresAt`, string-array scopes) before any dispatch; IDs are rejected, never trimmed or invented.
 
-Later integration points (each to call the manager, not the core directly):
-1. `ghl-oauth-callback` — after code exchange: if `userType=Company`, store `company_parent`, then exchange for the server-bound `locationId` (from install webhook/pending row, never from the browser).
-2. `ghl-api-proxy` lazy refresh — replace inline refresh with manager `getValidLocationCredential(installation)`; also endpoint/method allowlist (findings 2–3).
-3. `ghl-token-refresh` (manual) — delegate to manager.
-4. `ghl-token-refresh-cron` — delegate; map `invalid_grant` to `expired`.
+## 3. Integration boundaries (NOT implemented by this artifact)
+- `CredentialStore`, coordinator and caller auth are **not** implemented here.
+- Refresh serialization: a compare-and-swap on `last_refresh_at` alone is **not** adequate. The existing plan's requirements stand: one single-writer manager per installation with a monotonic credential generation, and durable recovery for ambiguous rotation. The core is stateless and must only be called by that manager.
+- Durable capture: any provider response that may have rotated the refresh token must be durably captured (encrypted) **before** validation/persistence outcome is decided. If validation or persistence then fails, the old pair must be treated as possibly spent — never described as "safely restored". Recovery is a manager obligation: no blind retry, no discard.
+- `rotation_ambiguous` (same refresh token returned) is an unverified rotation outcome, not success; it falls under the same recovery obligation.
+- `CallerAuth` replacement for `x-ixty-proxy-secret` + body `user_id` (hardening finding 1); endpoint/method allowlist (findings 2–3).
+
+Later integration points (each via the manager): `ghl-oauth-callback`, `ghl-api-proxy` lazy refresh, `ghl-token-refresh`, `ghl-token-refresh-cron`.
+
+`invalid_grant` handling (corrects rev 1): do **not** map every `invalid_grant` to `expired`. Revocation/uninstall, spent refresh token, concurrent-rotation race/ambiguous rotation, and other causes need distinct, safe states and human review; no auto-reconnect and no refresh loop.
 
 ## 4. Remaining approval gates
-Schema migration (`token_user_type`, mode/linkage columns); manager + adapters implementation; redeploys of the four functions; confirmation of `oauth.write`; one supervised live exchange; reconnect of the inactive location; Phases 2–7. Diagnostic remains deployed and untouched.
+Schema migration (mode/linkage/class/generation columns); manager + store + coordinator; redeploys of the four functions; live `oauth.write` confirmation; one supervised live exchange; Phases 2–7. (Rev 1's "reconnect of the inactive location" is withdrawn: inactivity of the current row was never established, and the Company-token diagnostic does not justify reinstall/reconnect.) Diagnostic remains deployed, untouched, not rerun.
 
-## 5. Test sequence
-Runtime: 
-`deno 2.6.10 (stable, release, x86_64-unknown-linux-gnu) v8 14.5.201.2-rusty typescript 5.9.2 `
+## 5. Findings → regressions
+| Finding | Test(s) | New code |
+|---|---|---|
+| 1 native Location missing refresh_token | R1 | `missing_refresh_token` |
+| 2 Company parent missing refresh_token | R2 (R2b guard: derived access-only still allowed) | `missing_refresh_token` |
+| 3–4 missing userType | R3, R4, R4b (R4c guard: exchange contract omission allowed) | `wrong_class` |
+| 5 impossible mode/class/location | R5 | `mode_mismatch` / `invalid_context` |
+| 6 undefined IDs coerced by RegExp | R6, R6b (0 transport calls) | `incoherent_credential` / `invalid_binding` |
+| 7 exchange without oauth.write | R7 (0 transport calls) | `grant_missing` |
+| 8 unchanged refresh token | R8 | `rotation_ambiguous` |
+| 9 NaN / invalid status / response shape | R9 | `invalid_response` |
 
-Commands (cwd `/tmp/ghlcore`): `deno test --no-check token-core.test.ts` (RED, against stub that throws), then `deno test token-core.test.ts` (GREEN, type-checked).
+## 6. Test sequence (actual output)
+Runtime: `deno 2.6.10 (stable) v8 14.5.201.2-rusty typescript 5.9.2`. cwd `/tmp/ghlcore`.
 
-RED (stub) tail:
+RED — new test file against the unchanged rev-1 core (SHA-256 `c25400c9e1a896656f1ac978afae17390f440fef9b789811b49ea0dd9949c069`), `deno test token-core.test.ts`:
 ```text
-FAILED | 0 passed | 42 failed (38ms)
+R1 native_location requires its own refresh_token ... FAILED (0ms)
+R2 company_parent requires its own refresh_token ... FAILED (0ms)
+R2b only derived_location may be access-only ... ok (0ms)
+R3 native_location requires userType ... FAILED (0ms)
+R4 company_parent requires userType ... FAILED (0ms)
+R4b token-endpoint validation of derived_location also requires userType (no caller escape hatch) ... FAILED (0ms)
+R4c exchange (pinned contract omits userType) accepts absent userType ... ok (0ms)
+R5 impossible mode/class/location combinations rejected ... FAILED (0ms)
+R6 runtime preflight: undefined companyId on parent+binding rejected before dispatch ... FAILED (0ms)
+R6b runtime preflight: malformed credential fields rejected before dispatch (no normalization) ... FAILED (0ms)
+R7 exchange requires provider-reported oauth.write on parent before dispatch ... FAILED (0ms)
+R8 refresh returning the unchanged old refresh token => rotation_ambiguous, not success ... FAILED (0ms)
+R9 non-finite / non-integer / out-of-range HTTP status rejected ... FAILED (0ms)
+FAILED | 44 passed | 11 failed (25ms)
 ```
-GREEN output:
+(R2b and R4c are positive guard tests and pass on both.)
+
+GREEN — corrected core, type-checked, `deno test token-core.test.ts`:
 ```text
 Check token-core.test.ts
-running 42 tests from ./token-core.test.ts
+running 55 tests from ./token-core.test.ts
 validate: native Location response ok ... ok (1ms)
 validate: Company response ok ... ok (0ms)
 validate rejects: unknown class ... ok (0ms)
@@ -66,7 +88,7 @@ validate rejects: location mismatch ... ok (0ms)
 validate rejects: location missing ... ok (0ms)
 validate rejects: company mismatch ... ok (0ms)
 validate rejects: company response carrying locationId ... ok (0ms)
-validate rejects: missing access token ... ok (0ms)
+validate rejects: missing access token ... ok (1ms)
 validate rejects: non-string access token ... ok (0ms)
 validate rejects: bad token_type ... ok (0ms)
 validate rejects: missing expiry ... ok (0ms)
@@ -77,16 +99,16 @@ validate rejects: empty scope ... ok (0ms)
 validate rejects: non-string refresh token ... ok (0ms)
 validate rejects: malformed id in response ... ok (0ms)
 validate rejects: array body ... ok (0ms)
-exchange: deterministic request to fixed origin, form body, Version header, manual redirect ... ok (2ms)
+exchange: deterministic request to fixed origin, form body, Version header, manual redirect ... ok (0ms)
 exchange: no refresh_token returned => access-only derived, never parent refresh token ... ok (0ms)
-exchange: refresh_token identical to parent refresh token is rejected (pair integrity) ... ok (1ms)
+exchange: refresh_token identical to parent refresh token is rejected (pair integrity) ... ok (0ms)
 exchange: requires company_parent mode ... ok (0ms)
 exchange: binding company must equal parent company (no request sent) ... ok (0ms)
 exchange: malformed binding ids rejected before request ... ok (0ms)
 exchange: expired parent rejected before request ... ok (0ms)
-exchange: response for a different location rejected ... ok (1ms)
+exchange: response for a different location rejected ... ok (0ms)
 exchange: 3xx redirect rejected ... ok (0ms)
-exchange: transport that followed a redirect / changed origin is rejected ... ok (0ms)
+exchange: transport that followed a redirect / changed origin is rejected ... ok (1ms)
 exchange: provider error status => provider_error without echoing body secrets ... ok (0ms)
 exchange: non-JSON body ... ok (0ms)
 exchange: transport throw is wrapped and sanitized ... ok (0ms)
@@ -100,16 +122,31 @@ refresh: redirect blocked ... ok (0ms)
 refresh: incoherent credential (derived without location) rejected ... ok (0ms)
 API surface exposes no origin/url override ... ok (0ms)
 constants pinned ... ok (0ms)
-ok | 42 passed | 0 failed (23ms)
-```
+R1 native_location requires its own refresh_token ... ok (0ms)
+R2 company_parent requires its own refresh_token ... ok (0ms)
+R2b only derived_location may be access-only ... ok (0ms)
+R3 native_location requires userType ... ok (0ms)
+R4 company_parent requires userType ... ok (0ms)
+R4b token-endpoint validation of derived_location also requires userType (no caller escape hatch) ... ok (0ms)
+R4c exchange (pinned contract omits userType) accepts absent userType ... ok (0ms)
+R5 impossible mode/class/location combinations rejected ... ok (0ms)
+R6 runtime preflight: undefined companyId on parent+binding rejected before dispatch ... ok (0ms)
+R6b runtime preflight: malformed credential fields rejected before dispatch (no normalization) ... ok (0ms)
+R7 exchange requires provider-reported oauth.write on parent before dispatch ... ok (0ms)
+R8 refresh returning the unchanged old refresh token => rotation_ambiguous, not success ... ok (0ms)
+R9 non-finite / non-integer / out-of-range HTTP status rejected ... ok (0ms)
 
-## 6. Full SHA-256 of tested bytes
+ok | 55 passed | 0 failed (31ms)
+```
+Original 42 tests are unchanged in content and all pass.
+
+## 7. Full SHA-256 of tested bytes
 ```text
-c25400c9e1a896656f1ac978afae17390f440fef9b789811b49ea0dd9949c069  token-core.ts
-f334e243dfa4373b55becb383407e7b1f13fd6640076e034b8a46a7e30cbd928  token-core.test.ts
+7d4b2ac0aff6a2aba4df5777719aef75b4b909c9c9c07596dd16c9170d47c52f  token-core.ts
+35692dd65609daa4192fb4c21d01613303c731f03a001760878363d7e6f0138a  token-core.test.ts
 ```
 
-## 7. Proposed source — target path `supabase/functions/_shared/ghl-token-core.ts` (future)
+## 8. Proposed source — future path `supabase/functions/_shared/ghl-token-core.ts`
 ```ts
 // HighLevel token-mode / response-validation / Company->Location exchange core.
 // Scratch review artifact. Pure + dependency-injected: no storage, no env, no global fetch.
@@ -125,6 +162,11 @@ export const API_VERSION = '2021-07-28';
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const MAX_EXPIRES_IN = 400 * 86400; // > 24h access tokens, fail closed on absurd values
 const MAX_BODY = 64 * 1024;
+/** Scopes page (marketplace.gohighlevel.com/docs/Authorization/Scopes): oauth.write -> POST /oauth/locationToken, Agency. */
+export const REQUIRED_EXCHANGE_SCOPE = 'oauth.write';
+const MODES = ['native_location', 'company_parent', 'derived_location'] as const;
+/** Mode fixes expected class and location shape. */
+const MODE_CLASS: Record<Mode, UserType> = { native_location: 'Location', company_parent: 'Company', derived_location: 'Location' };
 
 export type Mode = 'native_location' | 'company_parent' | 'derived_location';
 export type UserType = 'Company' | 'Location';
@@ -149,7 +191,9 @@ export type Transport = (req: HttpRequest) => Promise<HttpResponse>;
 export interface CoreDeps { transport: Transport; now: () => number }
 export interface ClientCreds { clientId: string; clientSecret: string }
 export interface Binding { companyId: string; locationId: string }
-export interface ValidateCtx { expect: UserType; companyId: string; locationId: string | null; requireUserType?: boolean }
+export interface ValidateCtx { expect: UserType; companyId: string; locationId: string | null }
+/** Which pinned provider contract produced the body. Internal only: not a caller option. */
+type Source = 'token_endpoint' | 'location_exchange';
 
 /** Error carrying only a fixed code. Never includes tokens, bodies or provider messages. */
 export class CoreError extends Error {
@@ -159,8 +203,20 @@ export class CoreError extends Error {
 const fail = (code: string, status?: number): never => { throw new CoreError(code, status); };
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const nonEmpty = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0 && v.length <= 16384;
+const isId = (v: unknown): v is string => typeof v === 'string' && ID_RE.test(v);
+const isMode = (v: unknown): v is Mode => typeof v === 'string' && (MODES as readonly string[]).includes(v);
 
+/** Validate a /oauth/token response (native or refresh). userType and, except derived_location, refresh_token are mandatory. */
 export function validateTokenResponse(raw: unknown, ctx: ValidateCtx, nowMs: number, mode: Mode): Credential {
+  return validate(raw, ctx, nowMs, mode, 'token_endpoint');
+}
+
+function validate(raw: unknown, ctx: ValidateCtx, nowMs: number, mode: Mode, source: Source): Credential {
+  if (!isMode(mode) || !isObj(ctx)) fail('mode_mismatch');
+  if (!isId(ctx.companyId)) fail('invalid_context');
+  if (ctx.expect === 'Location' ? !isId(ctx.locationId) : ctx.locationId !== null) fail('invalid_context');
+  if (source === 'location_exchange' && mode !== 'derived_location') fail('mode_mismatch');
+  if (typeof nowMs !== 'number' || !Number.isFinite(nowMs)) fail('invalid_context');
   if (!isObj(raw)) fail('invalid_response');
   const b = raw as Record<string, unknown>;
   if (!nonEmpty(b.access_token)) fail('invalid_access_token');
@@ -169,15 +225,19 @@ export function validateTokenResponse(raw: unknown, ctx: ValidateCtx, nowMs: num
   if (!nonEmpty(b.scope)) fail('invalid_scope');
   if (b.refresh_token !== undefined && b.refresh_token !== null && !nonEmpty(b.refresh_token)) fail('invalid_refresh_token');
 
-  if (b.userType !== undefined || ctx.requireUserType) {
-    if (b.userType !== ctx.expect) fail('wrong_class');
-  }
+  // Pair: only derived_location (produced by exchange or its refresh) may be access-only.
+  if (mode !== 'derived_location' && !nonEmpty(b.refresh_token)) fail('missing_refresh_token');
+  // Class: mandatory everywhere except the pinned exchange contract, which omits userType.
+  const classOptional = source === 'location_exchange';
+  if (!(classOptional && b.userType === undefined) && b.userType !== ctx.expect) fail('wrong_class');
   if (b.companyId !== undefined && b.companyId !== ctx.companyId) fail('company_mismatch');
   if (ctx.expect === 'Location') {
     if (typeof b.locationId !== 'string' || !ID_RE.test(b.locationId) || b.locationId !== ctx.locationId) fail('location_mismatch');
   } else if (b.locationId !== undefined && b.locationId !== null) {
     fail('location_mismatch'); // Company credential must not silently carry a location binding
   }
+  // Bind mode <-> expected class only after body/class/location checks so each defect keeps its own code.
+  if (ctx.expect !== MODE_CLASS[mode]) fail('mode_mismatch');
   return {
     mode,
     accessToken: b.access_token as string,
@@ -196,27 +256,38 @@ async function send(d: CoreDeps, path: string, headers: Record<string, string>, 
     res = await d.transport({ url, method: 'POST', redirect: 'manual', body,
       headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded', 'Version': API_VERSION, ...headers } });
   } catch { return fail('transport_failed'); }
+  if (!isObj(res) || typeof res.status !== 'number' || !Number.isInteger(res.status) || res.status < 100 || res.status > 599 ||
+      typeof res.redirected !== 'boolean' || typeof res.url !== 'string') fail('invalid_response');
   if (res.redirected || (res.status >= 300 && res.status < 400) || res.url !== url) fail('redirect_blocked', res.status);
   if (res.status < 200 || res.status >= 300) fail('provider_error', res.status);
   if (typeof res.bodyText !== 'string' || res.bodyText.length > MAX_BODY) fail('invalid_response');
   try { return JSON.parse(res.bodyText); } catch { return fail('invalid_response'); }
 }
 
+/** Runtime preflight: never trust TS types on deserialized input; reject, never normalize. */
 function assertCoherent(c: Credential) {
-  if (!ID_RE.test(c.companyId)) fail('incoherent_credential');
-  if (c.mode === 'company_parent' ? c.locationId !== null : (c.locationId === null || !ID_RE.test(c.locationId))) fail('incoherent_credential');
+  if (!isObj(c) || !isMode(c.mode)) fail('incoherent_credential');
+  if (!isId(c.companyId)) fail('incoherent_credential');
+  if (c.mode === 'company_parent' ? c.locationId !== null : !isId(c.locationId)) fail('incoherent_credential');
+  if (!nonEmpty(c.accessToken)) fail('incoherent_credential');
+  if (c.refreshToken !== null && !nonEmpty(c.refreshToken)) fail('incoherent_credential');
+  if (c.mode !== 'derived_location' && c.refreshToken === null) fail('incoherent_credential');
+  if (typeof c.expiresAt !== 'number' || !Number.isFinite(c.expiresAt)) fail('incoherent_credential');
+  if (!Array.isArray(c.scopes) || !c.scopes.every((x) => typeof x === 'string')) fail('incoherent_credential');
 }
 
 /** Company access token -> Location credential for one server-bound (companyId, locationId). */
 export async function exchangeCompanyForLocation(d: CoreDeps, parent: Credential, binding: Binding): Promise<Credential> {
-  if (parent.mode !== 'company_parent') fail('wrong_mode');
   assertCoherent(parent);
-  if (!ID_RE.test(binding.companyId) || !ID_RE.test(binding.locationId)) fail('invalid_binding');
+  if (parent.mode !== 'company_parent') fail('wrong_mode');
+  if (!isObj(binding) || !isId(binding.companyId) || !isId(binding.locationId)) fail('invalid_binding');
+  // Precondition on the provider-reported scope of THIS issued credential. Not proof of the live grant.
+  if (!parent.scopes.includes(REQUIRED_EXCHANGE_SCOPE)) fail('grant_missing');
   if (binding.companyId !== parent.companyId) fail('company_mismatch');
   if (!(parent.expiresAt > d.now())) fail('parent_expired');
   const body = new URLSearchParams({ companyId: binding.companyId, locationId: binding.locationId }).toString();
   const json = await send(d, LOCATION_TOKEN_PATH, { Authorization: `Bearer ${parent.accessToken}` }, body);
-  const c = validateTokenResponse(json, { expect: 'Location', companyId: binding.companyId, locationId: binding.locationId }, d.now(), 'derived_location');
+  const c = validate(json, { expect: 'Location', companyId: binding.companyId, locationId: binding.locationId }, d.now(), 'derived_location', 'location_exchange');
   if (c.refreshToken !== null && (c.refreshToken === parent.refreshToken || c.refreshToken === parent.accessToken)) fail('refresh_pair_integrity');
   if (c.accessToken === parent.accessToken) fail('refresh_pair_integrity');
   return c;
@@ -230,13 +301,16 @@ export async function refreshCredential(d: CoreDeps, client: ClientCreds, cred: 
   const body = new URLSearchParams({ client_id: client.clientId, client_secret: client.clientSecret,
     grant_type: 'refresh_token', refresh_token: cred.refreshToken as string, user_type: userType }).toString();
   const json = await send(d, OAUTH_TOKEN_PATH, {}, body);
-  const c = validateTokenResponse(json, { expect: userType, companyId: cred.companyId, locationId: cred.locationId, requireUserType: true }, d.now(), cred.mode);
+  const c = validate(json, { expect: userType, companyId: cred.companyId, locationId: cred.locationId }, d.now(), cred.mode, 'token_endpoint');
   if (c.refreshToken === null) fail('refresh_pair_integrity'); // documented rotation: new refresh token always returned
+  // Same token back: rotation outcome unverified. Old token may already be consumed; caller must
+  // durably record this and recover under the single-writer manager. No blind retry, no discard.
+  if (c.refreshToken === cred.refreshToken) fail('rotation_ambiguous');
   return c;
 }
 ```
 
-## 8. Tests — target path `supabase/functions/_shared/ghl-token-core.test.ts` (future; import path `./ghl-token-core.ts`)
+## 9. Tests — future path `supabase/functions/_shared/ghl-token-core.test.ts` (import `./ghl-token-core.ts`)
 ```ts
 // Synthetic offline tests. Fake credentials/IDs only; injected transport; no network.
 import { assert, assertEquals, assertRejects } from 'jsr:@std/assert@1';
@@ -445,5 +519,85 @@ Deno.test('constants pinned', () => {
   assertEquals(LOCATION_TOKEN_PATH, '/oauth/locationToken');
   assertEquals(OAUTH_TOKEN_PATH, '/oauth/token');
   assertEquals(API_VERSION, '2021-07-28');
+});
+
+// ---------- Regressions R1–R9 (focused correction request, 2026-10-15) ----------
+const LCTX = { expect: 'Location', companyId: CO, locationId: LOC } as const;
+const CCTX = { expect: 'Company', companyId: CO, locationId: null } as const;
+const coResp = (o: Record<string, unknown> = {}) => locResp({ userType: 'Company', locationId: undefined, ...o });
+const v = (f: () => unknown) => code(Promise.resolve().then(f));
+
+Deno.test('R1 native_location requires its own refresh_token', async () => {
+  assertEquals(await v(() => validateTokenResponse(locResp({ refresh_token: undefined }), LCTX, NOW, 'native_location')), 'missing_refresh_token');
+});
+Deno.test('R2 company_parent requires its own refresh_token', async () => {
+  assertEquals(await v(() => validateTokenResponse(coResp({ refresh_token: undefined }), CCTX, NOW, 'company_parent')), 'missing_refresh_token');
+});
+Deno.test('R2b only derived_location may be access-only', () => {
+  const c = validateTokenResponse(locResp({ refresh_token: undefined }), LCTX, NOW, 'derived_location');
+  assertEquals(c.refreshToken, null);
+});
+Deno.test('R3 native_location requires userType', async () => {
+  assertEquals(await v(() => validateTokenResponse(locResp({ userType: undefined }), LCTX, NOW, 'native_location')), 'wrong_class');
+});
+Deno.test('R4 company_parent requires userType', async () => {
+  assertEquals(await v(() => validateTokenResponse(coResp({ userType: undefined }), CCTX, NOW, 'company_parent')), 'wrong_class');
+});
+Deno.test('R4b token-endpoint validation of derived_location also requires userType (no caller escape hatch)', async () => {
+  assertEquals(await v(() => validateTokenResponse(locResp({ userType: undefined }), LCTX, NOW, 'derived_location')), 'wrong_class');
+});
+Deno.test('R4c exchange (pinned contract omits userType) accepts absent userType', async () => {
+  const { t } = rec(200, locResp({ userType: undefined }));
+  const d = await exchangeCompanyForLocation(deps(t), parent(), { companyId: CO, locationId: LOC });
+  assertEquals(d.mode, 'derived_location');
+});
+Deno.test('R5 impossible mode/class/location combinations rejected', async () => {
+  assertEquals(await v(() => validateTokenResponse(locResp(), LCTX, NOW, 'company_parent')), 'mode_mismatch');
+  assertEquals(await v(() => validateTokenResponse(coResp(), CCTX, NOW, 'native_location')), 'mode_mismatch');
+  assertEquals(await v(() => validateTokenResponse(locResp(), { expect: 'Location', companyId: CO, locationId: null } as never, NOW, 'native_location')), 'invalid_context');
+  assertEquals(await v(() => validateTokenResponse(coResp(), { expect: 'Company', companyId: CO, locationId: LOC } as never, NOW, 'company_parent')), 'invalid_context');
+  assertEquals(await v(() => validateTokenResponse(locResp(), LCTX, NOW, 'bogus' as never)), 'mode_mismatch');
+});
+Deno.test('R6 runtime preflight: undefined companyId on parent+binding rejected before dispatch', async () => {
+  const { t, calls } = rec(200, locResp({ companyId: undefined }));
+  const p = parent({ companyId: undefined as unknown as string });
+  assertEquals(await code(exchangeCompanyForLocation(deps(t), p, { companyId: undefined as unknown as string, locationId: LOC })), 'incoherent_credential');
+  assertEquals(calls.length, 0);
+  const { t: t2, calls: c2 } = rec(200, locResp());
+  assertEquals(await code(exchangeCompanyForLocation(deps(t2), parent(), { companyId: undefined as unknown as string, locationId: LOC })), 'invalid_binding');
+  assertEquals(c2.length, 0);
+});
+Deno.test('R6b runtime preflight: malformed credential fields rejected before dispatch (no normalization)', async () => {
+  for (const bad of [
+    { accessToken: undefined as unknown as string }, { refreshToken: 5 as unknown as string },
+    { expiresAt: Number.NaN }, { scopes: 'oauth.write' as unknown as string[] },
+    { mode: 'bogus' as never }, { companyId: ` ${CO}` },
+  ]) {
+    const { t, calls } = rec(200, locResp());
+    const c = await code(exchangeCompanyForLocation(deps(t), parent(bad), { companyId: CO, locationId: LOC }));
+    assert(['incoherent_credential', 'wrong_mode'].includes(c), c);
+    assertEquals(calls.length, 0);
+  }
+  const { t, calls } = rec(200, locResp());
+  assertEquals(await code(refreshCredential(deps(t), CLIENT, parent({ companyId: undefined as unknown as string }))), 'incoherent_credential');
+  assertEquals(calls.length, 0);
+});
+Deno.test('R7 exchange requires provider-reported oauth.write on parent before dispatch', async () => {
+  const { t, calls } = rec(200, locResp());
+  assertEquals(await code(exchangeCompanyForLocation(deps(t), parent({ scopes: ['contacts.readonly'] }), { companyId: CO, locationId: LOC })), 'grant_missing');
+  assertEquals(calls.length, 0);
+});
+Deno.test('R8 refresh returning the unchanged old refresh token => rotation_ambiguous, not success', async () => {
+  const { t } = rec(200, locResp({ refresh_token: `parent-rt-${SECRET}` }));
+  const cred = parent({ mode: 'native_location', locationId: LOC });
+  assertEquals(await code(refreshCredential(deps(t), CLIENT, cred)), 'rotation_ambiguous');
+});
+Deno.test('R9 non-finite / non-integer / out-of-range HTTP status rejected', async () => {
+  for (const s of [Number.NaN, Infinity, 200.5, 99, 600, '200' as unknown as number]) {
+    const { t } = rec(s, locResp());
+    assertEquals(await code(exchangeCompanyForLocation(deps(t), parent(), { companyId: CO, locationId: LOC })), 'invalid_response');
+  }
+  const { t } = rec(200, locResp(), { redirected: undefined as unknown as boolean });
+  assertEquals(await code(exchangeCompanyForLocation(deps(t), parent(), { companyId: CO, locationId: LOC })), 'invalid_response');
 });
 ```
