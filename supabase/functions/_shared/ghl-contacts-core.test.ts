@@ -3,8 +3,9 @@ import { buildGhlRequest, normalizeResponse, parseCommand } from './ghl-contacts
 
 const LOC = 'YZQCL96jxM5knY233VD4';
 
-Deno.test('only contacts.search and contacts.get are allowed', () => {
-  assertEquals(parseCommand({ operation: 'contacts.delete', params: { contact_id: 'abc' } }), null);
+Deno.test('unknown operations and extra fields are refused', () => {
+  assertEquals(parseCommand({ operation: 'contacts.merge', params: { contact_id: 'abc' } }), null);
+  assertEquals(parseCommand({ operation: 'users.list', params: {} }), null);
   assertEquals(parseCommand({ operation: 'contacts.search', params: { query: 'Joshua' }, user_id: 'x' }), null);
   assert(parseCommand({ operation: 'contacts.search', params: { query: 'Joshua' } }));
   assert(parseCommand({ operation: 'contacts.get', params: { contact_id: 'abc123' } }));
