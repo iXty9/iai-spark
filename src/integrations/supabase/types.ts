@@ -88,10 +88,12 @@ export type Database = {
           location_id: string | null
           location_name: string | null
           refresh_error: string | null
+          refresh_lease_until: string | null
           refresh_token_encrypted: string | null
           scopes: string | null
           token_class: string | null
           token_expires_at: string | null
+          token_generation: number
           updated_at: string
           user_id: string | null
         }
@@ -108,10 +110,12 @@ export type Database = {
           location_id?: string | null
           location_name?: string | null
           refresh_error?: string | null
+          refresh_lease_until?: string | null
           refresh_token_encrypted?: string | null
           scopes?: string | null
           token_class?: string | null
           token_expires_at?: string | null
+          token_generation?: number
           updated_at?: string
           user_id?: string | null
         }
@@ -128,10 +132,12 @@ export type Database = {
           location_id?: string | null
           location_name?: string | null
           refresh_error?: string | null
+          refresh_lease_until?: string | null
           refresh_token_encrypted?: string | null
           scopes?: string | null
           token_class?: string | null
           token_expires_at?: string | null
+          token_generation?: number
           updated_at?: string
           user_id?: string | null
         }
