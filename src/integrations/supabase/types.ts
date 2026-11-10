@@ -221,6 +221,82 @@ export type Database = {
         }
         Relationships: []
       }
+      hermes_conversations: {
+        Row: {
+          conversation_token: string
+          created_at: string
+          generation: number
+          hermes_session_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_token?: string
+          created_at?: string
+          generation?: number
+          hermes_session_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_token?: string
+          created_at?: string
+          generation?: number
+          hermes_session_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hermes_conversations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hermes_turns: {
+        Row: {
+          client_message_id: string
+          created_at: string
+          error_code: string | null
+          generation: number
+          reply: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_message_id: string
+          created_at?: string
+          error_code?: string | null
+          generation: number
+          reply?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_message_id?: string
+          created_at?: string
+          error_code?: string | null
+          generation?: number
+          reply?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hermes_turns_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
