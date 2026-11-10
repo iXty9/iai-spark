@@ -82,3 +82,9 @@ verify_jwt = false
 
 [functions.ghl-conversations]
 verify_jwt = false
+
+[functions.ghl-calendars]
+verify_jwt = false
+
+[functions.ghl-invoices]
+verify_jwt = false

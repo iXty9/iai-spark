@@ -15,9 +15,10 @@
 - [x] Plan step 2: capability map written
 - [x] Slice A: contact writes, tags, tasks, confirmations, skip switch (user tested tag add)
 - [x] Slice B built: ghl-conversations + CMS v2 routing + chat tool (awaiting user live test)
-- [ ] Slice C: calendars
-- [ ] Slice E: invoices (replaces opportunities)
-- [ ] Tidy CMS v2 canvas/self-tests
+- [x] Slice C: ghl-calendars + CMS v2 tool (awaiting user live test)
+- [x] Slice E: ghl-invoices + CMS v2 tool (awaiting user live test)
+- [x] Tidy CMS v2 canvas/self-tests
+- [ ] Unplug old HighLevel sub-agents from chat workflow (ask user first)
 - [ ] Move GHL Notifications webhook off old workflow
 - [ ] Fence /contacts* in ghl-api-proxy for pilot user — after app is published
 - [ ] Cutover (legacy off, v2 on) — Lovable plan reactivated; publish when a slice is ready
