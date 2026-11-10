@@ -1,9 +1,15 @@
-// Contacts read tool for n8n: contacts.search and contacts.get only.
+// Contacts tool for n8n (CMS v2): contact, tag and task reads and writes.
 // Caller identity comes solely from the signed actor note minted by chat-relay.
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// Writes need the user's confirmation in a later chat message unless the user
+// turned confirmations off (profiles.ghl_skip_write_confirmations).
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders as baseCors } from '../_shared/cors.ts';
 import { ACTOR_HEADER, verifyActor } from '../_shared/ixty-actor.ts';
-import { buildGhlRequest, failure, httpStatusFor, normalizeResponse, parseCommand, type TypedResult } from '../_shared/ghl-contacts-core.ts';
+import {
+  buildGhlRequest, describeWrite, failure, HIGH_RISK_OPERATIONS, httpStatusFor, isWrite, normalizeResponse, parseRequest,
+  type Command, type TypedResult,
+} from '../_shared/ghl-contacts-core.ts';
+import { changeHash, checkConfirmation, CONFIRMATION_TTL_S } from '../_shared/ghl-write-confirm-core.ts';
 import { getValidAccessToken } from '../_shared/ghl-token-manager.ts';
 
 const GHL_BASE_URL = 'https://services.leadconnectorhq.com';
@@ -15,6 +21,58 @@ function reply(result: TypedResult, status?: number): Response {
     status: status ?? (result.ok ? 200 : httpStatusFor(code || '')),
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
+}
+
+type Gate = { run: true; confirmationId: string | null } | { run: false; result: TypedResult };
+
+/** Decide whether a write may run now, or store/return a pending confirmation. */
+async function gateWrite(
+  supabase: SupabaseClient, cmd: Command, confirmationId: string | null,
+  actor: { sub: string; inst: string; iat: number }, requestId: string,
+): Promise<Gate> {
+  const op = cmd.operation;
+  const { data: profile, error: pErr } = await supabase
+    .from('profiles').select('ghl_skip_write_confirmations').eq('id', actor.sub).maybeSingle();
+  if (pErr) return { run: false, result: failure(op, requestId, 'UPSTREAM_UNAVAILABLE', null, true) };
+  if (profile?.ghl_skip_write_confirmations === true) return { run: true, confirmationId: null };
+
+  const paramsHash = await changeHash(op, cmd.params);
+  const nowIso = new Date().toISOString();
+  const { data: pending, error: cErr } = await supabase
+    .from('ghl_write_confirmations')
+    .select('id, user_id, installation_id, operation, params_hash, actor_iat, expires_at, consumed_at')
+    .eq('user_id', actor.sub).eq('installation_id', actor.inst).eq('operation', op).eq('params_hash', paramsHash)
+    .is('consumed_at', null).gt('expires_at', nowIso)
+    .order('created_at', { ascending: false }).limit(1).maybeSingle();
+  if (cErr) return { run: false, result: failure(op, requestId, 'UPSTREAM_UNAVAILABLE', null, true) };
+
+  if (confirmationId && pending?.id !== confirmationId) {
+    return { run: false, result: failure(op, requestId, 'CONFIRMATION_INVALID', null, false) };
+  }
+
+  const summary = describeWrite(cmd);
+  const risk = HIGH_RISK_OPERATIONS.includes(op) ? 'high' : 'normal';
+
+  if (pending) {
+    const check = checkConfirmation(pending, { sub: actor.sub, inst: actor.inst, actorIat: actor.iat, operation: op, paramsHash, nowMs: Date.now() });
+    if (check.ok) {
+      // Consume atomically so a confirmation runs at most once.
+      const { data: used } = await supabase.from('ghl_write_confirmations')
+        .update({ consumed_at: nowIso }).eq('id', pending.id).is('consumed_at', null).select('id').maybeSingle();
+      if (!used) return { run: false, result: failure(op, requestId, 'CONFIRMATION_INVALID', null, false) };
+      return { run: true, confirmationId: pending.id };
+    }
+    // Same message as the proposal: still waiting for the user.
+    return { run: false, result: failure(op, requestId, 'CONFIRMATION_REQUIRED', null, false, { confirmation_id: pending.id, summary, risk, expires_at: pending.expires_at }) };
+  }
+
+  const expiresAt = new Date(Date.now() + CONFIRMATION_TTL_S * 1000).toISOString();
+  const { data: created, error: iErr } = await supabase.from('ghl_write_confirmations').insert({
+    user_id: actor.sub, installation_id: actor.inst, operation: op, params_hash: paramsHash,
+    summary, actor_iat: actor.iat, expires_at: expiresAt,
+  }).select('id').single();
+  if (iErr || !created) return { run: false, result: failure(op, requestId, 'UPSTREAM_UNAVAILABLE', null, true) };
+  return { run: false, result: failure(op, requestId, 'CONFIRMATION_REQUIRED', null, false, { confirmation_id: created.id, summary, risk, expires_at: expiresAt }) };
 }
 
 Deno.serve(async (req) => {
@@ -29,12 +87,13 @@ Deno.serve(async (req) => {
       if (verified.reason === 'config') return reply(failure(null, requestId, 'UPSTREAM_UNAVAILABLE', null, false), 500);
       return reply(failure(null, requestId, 'AUTHENTICATION_FAILED', null, false));
     }
-    const { sub, inst, loc } = verified.claims;
+    const { sub, inst, loc, iat } = verified.claims;
 
     let raw: unknown;
     try { raw = await req.json(); } catch { raw = null; }
-    const cmd = parseCommand(raw);
-    if (!cmd) return reply(failure(null, requestId, 'INVALID_REQUEST', null, false));
+    const parsed = parseRequest(raw);
+    if (!parsed) return reply(failure(null, requestId, 'INVALID_REQUEST', null, false));
+    const cmd = parsed.command;
 
     if (!inst || !loc) return reply(failure(cmd.operation, requestId, 'NO_CONNECTED_ACCOUNT', null, false));
 
@@ -55,6 +114,16 @@ Deno.serve(async (req) => {
     if (!installation || installation.user_id !== sub || installation.location_id !== loc || installation.connection_status !== 'connected') {
       console.warn(`[ghl-contacts] connection mismatch for user ${sub.slice(0, 8)}`);
       return reply(failure(cmd.operation, requestId, 'ACCESS_DENIED', null, false));
+    }
+
+    let confirmationId: string | null = null;
+    if (isWrite(cmd.operation)) {
+      const gate = await gateWrite(supabase, cmd, parsed.confirmation_id, { sub, inst, iat }, requestId);
+      if (!gate.run) {
+        console.info(`[ghl-contacts] ${cmd.operation} user ${sub.slice(0, 8)} -> ${gate.result.error?.code}`);
+        return reply(gate.result);
+      }
+      confirmationId = gate.confirmationId;
     }
 
     const token = await getValidAccessToken(supabase, installation.id, { source: 'contacts' });
@@ -92,7 +161,7 @@ Deno.serve(async (req) => {
     if (!res.ok) console.warn(`[ghl-contacts] HighLevel ${res.status}: ${text.slice(0, 300)}`);
 
     const result = normalizeResponse(res.status, body, cmd, loc, requestId);
-    console.info(`[ghl-contacts] ${cmd.operation} user ${sub.slice(0, 8)} -> ${result.ok ? 'ok' : result.error?.code}`);
+    console.info(`[ghl-contacts] ${cmd.operation} user ${sub.slice(0, 8)}${confirmationId ? ` confirmed ${confirmationId.slice(0, 8)}` : ''} -> ${result.ok ? 'ok' : result.error?.code}`);
     return reply(result);
   } catch (e) {
     console.error('[ghl-contacts] unexpected error:', (e as Error)?.message);
