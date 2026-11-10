@@ -1,0 +1,1 @@
+ALTER TABLE public.ghl_installations ADD COLUMN IF NOT EXISTS token_class text;

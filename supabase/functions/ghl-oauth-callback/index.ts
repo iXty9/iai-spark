@@ -114,16 +114,21 @@ Deno.serve(async (req) => {
     const tokenData = await tokenResponse.json();
     console.log('[ghl-oauth-callback] Token exchange successful');
 
-    const {
+    let {
       access_token,
       refresh_token,
       expires_in,
-      token_type,
       scope,
+    } = tokenData;
+    const {
       locationId: tokenLocationId,
       companyId,
       userId: ghlUserId,
+      userType,
     } = tokenData;
+    const isCompanyToken = userType === 'Company' || (!tokenLocationId && !!companyId);
+    let tokenClass = isCompanyToken ? 'company_parent' : 'native_location';
+    console.log('[ghl-oauth-callback] Token class:', tokenClass, 'userType:', userType ?? 'absent');
 
     // Create Supabase client early - needed for pending installation lookup
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
@@ -132,25 +137,29 @@ Deno.serve(async (req) => {
     let locationId = tokenLocationId;
     
     if (!locationId) {
-      console.warn('[ghl-oauth-callback] No locationId in token response, checking for pending installation...');
-      
-      // Look for a pending installation created in the last 5 minutes with no user_id
+      console.warn('[ghl-oauth-callback] No locationId in token response, waiting for pending installation...');
+      // The install webhook can arrive slightly after this callback; poll briefly.
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-      const { data: pendingInstallation, error: pendingError } = await supabase
-        .from('ghl_installations')
-        .select('location_id')
-        .is('user_id', null)
-        .eq('connection_status', 'pending')
-        .gte('created_at', fiveMinutesAgo)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (pendingError) {
-        console.error('[ghl-oauth-callback] Error querying pending installations:', pendingError);
-      } else if (pendingInstallation?.location_id) {
-        locationId = pendingInstallation.location_id;
-        console.log('[ghl-oauth-callback] Found pending installation, using locationId:', locationId);
+      for (let attempt = 0; attempt < 10 && !locationId; attempt++) {
+        let q = supabase
+          .from('ghl_installations')
+          .select('location_id')
+          .is('user_id', null)
+          .eq('connection_status', 'pending')
+          .gte('created_at', fiveMinutesAgo);
+        if (companyId) q = q.eq('company_id', companyId);
+        const { data: pendingInstallation, error: pendingError } = await q
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (pendingError) {
+          console.error('[ghl-oauth-callback] Error querying pending installations:', pendingError);
+        } else if (pendingInstallation?.location_id) {
+          locationId = pendingInstallation.location_id;
+          console.log('[ghl-oauth-callback] Found pending installation on attempt', attempt + 1, 'locationId:', locationId);
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 1000));
       }
     }
 
@@ -158,9 +167,62 @@ Deno.serve(async (req) => {
     if (!locationId) {
       console.error('[ghl-oauth-callback] No locationId available from token or pending installation');
       return new Response(
-        JSON.stringify({ error: 'Unable to determine GHL location. Please try reinstalling the app from the HighLevel Marketplace.' }),
+        JSON.stringify({ error: 'HighLevel has not yet told us which sub-account was installed. Please wait a moment and try the install link again.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Agency (Company) pass: exchange once for a sub-account (Location) pass
+    if (isCompanyToken) {
+      const grantedScopes = String(scope || '').split(/\s+/);
+      if (!grantedScopes.includes('oauth.write')) {
+        console.error('[ghl-oauth-callback] Company token lacks oauth.write; cannot exchange');
+        return new Response(
+          JSON.stringify({ error: 'HighLevel granted an agency-level connection without the oauth.write permission, so it cannot be turned into a sub-account connection. Please check the app version permissions.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (!companyId) {
+        return new Response(
+          JSON.stringify({ error: 'HighLevel agency connection is missing its company ID.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const exRes = await fetch('https://services.leadconnectorhq.com/oauth/locationToken', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${access_token}`,
+          'Version': '2021-07-28',
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
+        },
+        body: new URLSearchParams({ companyId, locationId }),
+        redirect: 'error',
+      });
+      if (!exRes.ok) {
+        const t = await exRes.text();
+        console.error('[ghl-oauth-callback] Location exchange failed:', exRes.status, t.slice(0, 300));
+        return new Response(
+          JSON.stringify({ error: `HighLevel refused to create the sub-account connection (status ${exRes.status}).` }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const ex = await exRes.json();
+      if (!ex?.access_token || !ex?.refresh_token || typeof ex?.expires_in !== 'number'
+          || (ex.locationId && ex.locationId !== locationId)
+          || (ex.userType && ex.userType !== 'Location')) {
+        console.error('[ghl-oauth-callback] Location exchange response invalid shape');
+        return new Response(
+          JSON.stringify({ error: 'HighLevel returned an unexpected sub-account connection response.' }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      access_token = ex.access_token;
+      refresh_token = ex.refresh_token;
+      expires_in = ex.expires_in;
+      scope = ex.scope || scope;
+      tokenClass = 'derived_location';
+      console.log('[ghl-oauth-callback] Location exchange successful');
     }
 
     console.log('[ghl-oauth-callback] Processing OAuth for location:', locationId, 'user:', userId);
@@ -212,6 +274,7 @@ Deno.serve(async (req) => {
         refresh_token_encrypted: encryptedRefreshToken,
         token_expires_at: expiresAt.toISOString(),
         scopes: scope || null,
+        token_class: tokenClass,
         connection_status: 'connected',
         connected_at: new Date().toISOString(),
         last_refresh_at: new Date().toISOString(),

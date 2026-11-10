@@ -90,6 +90,7 @@ export type Database = {
           refresh_error: string | null
           refresh_token_encrypted: string | null
           scopes: string | null
+          token_class: string | null
           token_expires_at: string | null
           updated_at: string
           user_id: string | null
@@ -109,6 +110,7 @@ export type Database = {
           refresh_error?: string | null
           refresh_token_encrypted?: string | null
           scopes?: string | null
+          token_class?: string | null
           token_expires_at?: string | null
           updated_at?: string
           user_id?: string | null
@@ -128,6 +130,7 @@ export type Database = {
           refresh_error?: string | null
           refresh_token_encrypted?: string | null
           scopes?: string | null
+          token_class?: string | null
           token_expires_at?: string | null
           updated_at?: string
           user_id?: string | null
