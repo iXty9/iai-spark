@@ -3,7 +3,7 @@
 // verified contact record, never from the AI.
 import { serveTool, upstreamFailure, type Outcome } from '../_shared/ghl-tool-runtime.ts';
 import {
-  buildGhlRequest, describeWrite, isHighRisk, isWrite, parseRequest, projectInvoice, unwrapInvoice,
+  buildGhlRequest, describeWrite, isHighRisk, isWrite, parseRequest, projectInvoice, toBusinessDetails, unwrapInvoice,
   type Command, type InvoiceFacts,
 } from '../_shared/ghl-invoices-core.ts';
 
@@ -35,6 +35,21 @@ serveTool<Command, InvoiceFacts>({
       if (c.locationId !== ctx.loc) return { ok: false, code: 'TENANT_MISMATCH', status: r.status };
       const name = String(c.name || [c.firstName, c.lastName].filter(Boolean).join(' ') || c.email || c.id);
       facts.contact = { id: c.id, name, email: c.email || undefined, phone: c.phone || undefined };
+    }
+    if (cmd.operation === 'invoices.create') {
+      // Business details come from HighLevel, never from the AI.
+      const s = await ctx.ghl(V, 'GET', `/invoices/settings?altId=${ctx.loc}&altType=location`);
+      let biz = s.status >= 200 && s.status < 300 ? toBusinessDetails(s.json) : null;
+      if (!biz) {
+        const l = await ctx.ghl(V, 'GET', `/locations/${ctx.loc}`);
+        if (l.status >= 200 && l.status < 300) {
+          const lid = l.json?.location?.id;
+          if (lid && lid !== ctx.loc) return { ok: false, code: 'TENANT_MISMATCH', status: l.status };
+          biz = toBusinessDetails(l.json);
+        }
+      }
+      if (!biz) return { ok: false, code: 'UPSTREAM_REQUEST_REJECTED', status: null, data: { reason: 'HighLevel has no business name for this sub-account. Fill in Settings > Business Profile in HighLevel, then try again.' } };
+      facts.business = biz;
     }
     if (cmd.operation === 'invoices.send' && !facts.ghlUserId) return { ok: false, code: 'MISSING_HIGHLEVEL_USER' } as Fail;
     return { ok: true, prep: facts };

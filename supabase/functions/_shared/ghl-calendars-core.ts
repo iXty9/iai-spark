@@ -73,7 +73,8 @@ export function parseCommand(operation: unknown, p: unknown): Command | null {
   if (!isObj(p)) return null;
   switch (operation) {
     case 'calendars.list':
-      return Object.keys(p).length === 0 ? { operation, params: {} } : null;
+      // Takes no options; harmless extras the AI adds (e.g. include: "all") are dropped.
+      return { operation, params: {} };
     case 'calendars.get':
     case 'calendars.delete':
       return onlyKeys(p, ['calendar_id']) && id(p.calendar_id) ? { operation, params: { calendar_id: p.calendar_id } } : null;
