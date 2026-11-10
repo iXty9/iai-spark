@@ -88,7 +88,7 @@ export async function verifyActor(
   if (!sig || !body || sig.length !== 32) return { ok: false, reason: 'malformed' };
 
   // crypto.subtle.verify compares in constant time.
-  const valid = await crypto.subtle.verify('HMAC', await hmacKey(secret, 'verify'), sig as Uint8Array<ArrayBuffer>, enc.encode(SIGNING_PREFIX + payload));
+  const valid = await crypto.subtle.verify('HMAC', await hmacKey(secret, 'verify'), sig as unknown as BufferSource, enc.encode(SIGNING_PREFIX + payload));
   if (!valid) return { ok: false, reason: 'bad_signature' };
 
   let c: any;
