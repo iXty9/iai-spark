@@ -1,0 +1,1 @@
+REVOKE ALL ON public.ghl_write_confirmations FROM anon, authenticated;
