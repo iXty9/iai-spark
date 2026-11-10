@@ -8,6 +8,7 @@ import { fetchActiveMessages, insertActiveMessage, clearActiveMessages } from '@
 import { sendClearContextWebhook } from '@/services/webhook/clear-context-webhook';
 import { broadcastClearChat } from '@/hooks/chat/use-chat-sync';
 import { logger } from '@/utils/logging';
+import { resetHermesConversation } from '@/services/chat/providers/hermes-provider';
 
 interface UseMessageStateOptions {
   userId?: string | null;
@@ -184,6 +185,15 @@ export const useMessageState = (options: UseMessageStateOptions = {}) => {
     if (messageCount === 0) return;
     
     logger.info('Clearing chat history', { messageCount }, { module: 'message-state' });
+
+    // Hermes New Chat must be acknowledged before the screen clears.
+    if (isAuthenticated && userId) {
+      const ok = await resetHermesConversation();
+      if (!ok) {
+        toast.error("Couldn't start a new chat — try again");
+        return;
+      }
+    }
     
     emitDebugEvent({
       lastAction: 'Clearing chat history',

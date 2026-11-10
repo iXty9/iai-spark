@@ -21,4 +21,6 @@ export interface SendMessageParams {
   userProfile?: { id?: string; username?: string; first_name?: string; last_name?: string; preferred_backend?: string | null } | null;
   location?: UserLocation | null;
   recall?: RecallContext | null;
+  /** Client UUID of the user message (logical turn identity for retries). */
+  clientMessageId?: string;
 }
