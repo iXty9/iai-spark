@@ -13,6 +13,7 @@ import { getWebhookAuthHeaders } from './auth-header-builder';
 import { getSessionId } from '@/services/chat/session-id-service';
 import { resolveUserWebhookUrl, getUserWebhookAuthHeaders } from './user-webhook-resolver';
 import { getGhlInstallationInfo } from './ghl-installation-resolver';
+import { sendViaChatRelay, type ChatRelayBody } from './chat-relay-client';
 // Track webhook calls per tab session
 const webhookSessionTracker = {
   callsThisSession: 0,
@@ -90,6 +91,74 @@ const categorizeAttachments = (attachments: ParsedAttachment[]) => {
 };
 
 /**
+ * Signed-in path: the relay resolves the n8n address, auth header, identity and
+ * HighLevel info on the server. The browser only sends the message content.
+ */
+const sendViaRelay = async (
+  message: string,
+  userInfo: { id?: string; username?: string; first_name?: string },
+  externalController?: AbortController,
+  location?: { latitude: number; longitude: number } | null,
+  recall?: { enabled: boolean; selected_datetime: string | null } | null
+): Promise<{ request: any; response: any; cancel: () => void }> => {
+  const timeoutMs = await getWebhookTimeout(true);
+  const controller = externalController || new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const cancel = () => {
+    controller.abort();
+    clearTimeout(timeoutId);
+  };
+
+  const { text: cleanMessage, attachments } = extractAttachmentsFromMessage(message);
+  const { images, documents } = categorizeAttachments(attachments);
+  const body: ChatRelayBody = {
+    message: cleanMessage,
+    sessionCall: webhookSessionTracker.callsThisSession,
+  };
+  if (images.length > 0) body.images = images;
+  if (documents.length > 0) body.data = documents;
+  if (location) body.location = { latitude: location.latitude, longitude: location.longitude };
+  if (recall && recall.enabled && recall.selected_datetime) {
+    body.recall = { enabled: recall.enabled, selected_datetime: recall.selected_datetime };
+  }
+
+  // Local copy for history/debug views; the relay builds the real payload server-side.
+  const request = {
+    ...body,
+    sender: userInfo.username || userInfo.first_name || 'Authenticated User',
+    timestamp: new Date().toISOString(),
+    isAuthenticated: true,
+    user_id: userInfo.id,
+    sessionId: getSessionId(userInfo.id || null),
+    via: 'chat-relay',
+  };
+
+  const requestStartTime = Date.now();
+  const requestId = `request-${requestStartTime}`;
+  dispatchWebhookRequestStart(requestId, timeoutMs);
+  emitDebugEvent({ lastAction: 'API: Sending to chat relay', isLoading: true });
+  logWebhookActivity('chat-relay', 'REQUEST_SENT');
+
+  try {
+    const data = await sendViaChatRelay(body, controller.signal);
+    clearTimeout(timeoutId);
+    dispatchWebhookRequestEnd(requestId, requestStartTime, 200);
+    logWebhookActivity('chat-relay', 'RESPONSE_RECEIVED', data);
+    emitDebugEvent({ lastAction: 'API: Chat relay response received', isLoading: false });
+    return { request, response: data, cancel };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    const isTimeout = controller.signal.aborted;
+    dispatchWebhookRequestError(error, isTimeout);
+    logWebhookActivity('chat-relay', 'ERROR', error);
+    if (isTimeout) {
+      throw new Error(`Webhook request timed out after ${timeoutMs / 1000} seconds`);
+    }
+    throw error;
+  }
+};
+
+/**
  * Sends a message to the appropriate webhook based on authentication status
  * Returns both the request payload and response for complete data preservation
  */
@@ -113,6 +182,11 @@ export const sendWebhookMessage = async (
   // Track calls per session
   webhookSessionTracker.callsThisSession++;
   
+  // Signed-in users go through the chat-relay backend function
+  if (isAuthenticated && userInfo?.id) {
+    return sendViaRelay(message, userInfo, externalController, location, recall);
+  }
+
   // Get the base global webhook URL
   const globalWebhookUrl = await getWebhookUrl(isAuthenticated);
   
