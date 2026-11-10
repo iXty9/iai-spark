@@ -130,7 +130,8 @@ export function normalizeResponse(status: number, body: any, cmd: Command, locat
       return failure(op, requestId, 'INVALID_RESPONSE', status, false);
     }
     if (list.some((c: any) => c.locationId !== locationId)) return failure(op, requestId, 'TENANT_MISMATCH', status, false);
-    const total = Number.isInteger(body.total) && body.total >= 0 ? body.total as number : null;
+    const rawTotal = body.total as number;
+    const total = Number.isInteger(rawTotal) && rawTotal >= 0 ? rawTotal : null;
     if (list.length > cmd.params.pageLimit || new Set(list.map((c: any) => c.id)).size !== list.length || (total !== null && total < list.length)) {
       return failure(op, requestId, 'INVALID_RESPONSE', status, false);
     }
