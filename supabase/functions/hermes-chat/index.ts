@@ -46,9 +46,11 @@ function makeStore(db: any): HermesStore {
       if (error.code === "23505") return false;
       throw new Error(error.message);
     },
-    async finishTurn(userId, generation, msgId, status, reply, errorCode) {
-      await one(db.from("hermes_turns").update({ status, reply, error_code: errorCode })
-        .eq("user_id", userId).eq("generation", generation).eq("client_message_id", msgId));
+    async finishTurn(userId, generation, token, msgId, status, reply, errorCode) {
+      return !!(await one(db.rpc("hermes_finish_turn", {
+        p_user: userId, p_generation: generation, p_token: token, p_msg: msgId,
+        p_status: status, p_reply: reply, p_error: errorCode,
+      })));
     },
   };
 }

@@ -76,7 +76,12 @@ function fakeStore() {
     },
     async getTurn(u, g, m) { return turns.get(key(u, g, m)) ?? null; },
     async insertPendingTurn(u, g, m) { if (turns.has(key(u, g, m))) return false; turns.set(key(u, g, m), { status: "pending", reply: null, error_code: null }); return true; },
-    async finishTurn(u, g, m, status, reply, error_code) { turns.set(key(u, g, m), { status, reply, error_code }); },
+    async finishTurn(u, g, tok, m, status, reply, error_code) {
+      await (store as any).beforeFinish?.();
+      const c = convs.get(u);
+      if (!c || c.generation !== g || c.conversation_token !== tok) { turns.set(key(u, g, m), { status: "failed", reply: null, error_code: "stale_generation" }); return false; }
+      turns.set(key(u, g, m), { status, reply, error_code }); return true;
+    },
   };
   return store;
 }
@@ -171,4 +176,15 @@ Deno.test("bridge: Hermes error envelope and non-UUID message id", async () => {
   const r = await handleSend(d, U1, { token: st.body.conversation_token, clientMessageId: M1, content: "x" });
   assertEquals(r.body.code, "session_unavailable"); assertEquals((await s.getTurn(U1, 1, M1))?.status, "failed");
   assertEquals((await handleSend(d, U1, { token: st.body.conversation_token, clientMessageId: "msg_1", content: "x" })).status, 400);
+});
+
+Deno.test("bridge: reset after the reply arrives but before saving -> not stored, stale_generation", async () => {
+  const s = fakeStore(); const d = deps(s);
+  const token = (await handleState(d, U1)).body.conversation_token as string;
+  (s as any).beforeFinish = async () => { (s as any).beforeFinish = null; await handleReset(deps(s), U1, token); };
+  const r = await handleSend(d, U1, { token, clientMessageId: M1, content: "x" });
+  assertEquals(r.status, 409); assertEquals(r.body.code, "stale_generation");
+  const t = await s.getTurn(U1, 1, M1);
+  assertEquals([t?.status, t?.reply], ["failed", null]);
+  assertEquals(r.body.generation, 2);
 });

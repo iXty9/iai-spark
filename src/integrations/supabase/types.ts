@@ -499,6 +499,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      hermes_finish_turn: {
+        Args: {
+          p_error: string
+          p_generation: number
+          p_msg: string
+          p_reply: string
+          p_status: string
+          p_token: string
+          p_user: string
+        }
+        Returns: boolean
+      }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_safe_app_setting: { Args: { setting_key: string }; Returns: boolean }
     }

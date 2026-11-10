@@ -4,7 +4,7 @@ import { emitDebugEvent } from '@/utils/debug-events';
 import { parseWebhookResponse } from '@/utils/debug/webhook-debug';
 import { logger } from '@/utils/logging';
 import { sendWebhookMessage } from '@/services/webhook';
-import { sendHermesMessage, notifyHermesNotAllowedOnce, getHermesConversationToken } from '@/services/chat/providers/hermes-provider';
+import { sendHermesMessage, notifyHermesNotAllowedOnce, getHermesConversationToken, getHermesConversationEpoch } from '@/services/chat/providers/hermes-provider';
 import { SendMessageParams } from '../types/messageTypes';
 import { processResponseMetadata, createErrorResponse } from './utils/response-processing';
 import { handleStreamingResponse } from './utils/streaming';
@@ -61,13 +61,17 @@ export async function processMessage({
     debug({ lastAction: `API: Routing message via ${useHermes ? 'hermes' : 'webhook'}` });
     if (useHermes) {
       const hermesMessages = [{ role: 'user' as const, content: message }];
+      const epochAtSend = getHermesConversationEpoch();
+      const fenced = (r: { conversationToken?: string }) =>
+        getHermesConversationEpoch() !== epochAtSend ||
+        (!!r.conversationToken && r.conversationToken !== getHermesConversationToken());
       const hermesResult = await sendHermesMessage({
         messages: hermesMessages,
         clientMessageId,
         signal: controller.signal,
       });
       // UI fence: drop a reply whose conversation was reset while it was in flight.
-      if (hermesResult.ok && hermesResult.conversationToken && hermesResult.conversationToken !== getHermesConversationToken()) {
+      if (hermesResult.ok && fenced(hermesResult)) {
         throw new Error('This chat was reset. The earlier reply was discarded.');
       }
       if (hermesResult.ok && hermesResult.content != null) {
@@ -77,6 +81,10 @@ export async function processMessage({
           canceled,
           controller,
         );
+        // Final-moment fence: a New Chat here or in another tab during streaming drops the reply.
+        if (fenced(hermesResult)) {
+          throw new Error('This chat was reset. The earlier reply was discarded.');
+        }
         Object.assign(assistantMessage, {
           content: (accumulated.trim() || hermesResult.content),
           pending: false,
@@ -96,7 +104,7 @@ export async function processMessage({
       }
       // Continuity mode: only "not on Hermes" refusals fall back; everything else is shown.
       const notOnHermes = hermesResult.errorCode === 'hermes_not_selected' || hermesResult.errorCode === 'hermes_not_allowed';
-      if (hermesResult.continuity && !notOnHermes) {
+      if (!notOnHermes && hermesResult.continuity !== false) {
         throw new Error(hermesResult.errorMessage || 'Hermes could not answer this message.');
       }
       // Denied or upstream failed (switch off): fall through to webhook
