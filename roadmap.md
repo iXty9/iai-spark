@@ -11,9 +11,10 @@
 - [x] Pilot chat workflow (jleemc44): "CMS v2 Contacts" tool added and published
 - [x] Pilot test as jleemc44 in the preview (user: 3 contacts for "Joshua")
 - [ ] Watch first real refresh Nov 11 ~12:00 UTC
-- [ ] Plan step 1: confirm the Joshua run in logs
-- [ ] Plan step 2: capability map of old HighLevel API workflow
+- [x] Plan step 1: CMS v2 run 16570 succeeded 13:34 UTC
+- [x] Plan step 2: capability map written
 - [ ] Slice A: contacts writes + "skip confirmations" switch in Settings > Integrations (off by default, server-checked)
-- [ ] Slices B–D: conversations, calendars, opportunities
+- [ ] Slices B–D: conversations, calendars, opportunities (waiting on user: invoices placement, opportunities are new)
+- [ ] Move GHL Notifications webhook off old workflow
 - [ ] Fence /contacts* in ghl-api-proxy for pilot user — after app is published
 - [ ] Cutover (legacy off, v2 on) — Lovable plan reactivated; publish when a slice is ready
