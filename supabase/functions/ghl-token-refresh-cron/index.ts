@@ -1,3 +1,4 @@
+import { getValidAccessToken } from '../_shared/ghl-token-manager.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -82,70 +83,13 @@ async function refreshInstallationToken(
   };
 
   try {
-    // Decrypt refresh token
-    const refreshToken = await decryptToken(installation.refresh_token_encrypted, encryptionKey);
-
-    // Call GHL token refresh endpoint
-    const tokenResponse = await fetch('https://services.leadconnectorhq.com/oauth/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-      },
-      body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken,
-      }),
-    });
-
-    if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      console.error(`[ghl-cron] Token refresh failed for ${installation.location_id}:`, errorText);
-      
-      // Update installation with error status
-      await supabase
-        .from('ghl_installations')
-        .update({
-          connection_status: 'error',
-          refresh_error: `Cron refresh failed: ${errorText}`,
-        })
-        .eq('id', installation.id);
-
-      result.error = errorText;
+    const out = await getValidAccessToken(supabase, installation.id, { skewMs: 6 * 60 * 60 * 1000, source: 'cron' });
+    if (!out.ok) {
+      result.error = `${out.reason}: ${out.detail}`;
       return result;
     }
-
-    const tokenData = await tokenResponse.json();
-    const newExpiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
-
-    // Encrypt new tokens
-    const encryptedAccessToken = await encryptToken(tokenData.access_token, encryptionKey);
-    const encryptedRefreshToken = await encryptToken(tokenData.refresh_token, encryptionKey);
-
-    // Update database
-    const { error: updateError } = await supabase
-      .from('ghl_installations')
-      .update({
-        access_token_encrypted: encryptedAccessToken,
-        refresh_token_encrypted: encryptedRefreshToken,
-        token_expires_at: newExpiresAt.toISOString(),
-        last_refresh_at: new Date().toISOString(),
-        connection_status: 'connected',
-        refresh_error: null,
-      })
-      .eq('id', installation.id);
-
-    if (updateError) {
-      console.error(`[ghl-cron] Database update error for ${installation.location_id}:`, updateError);
-      result.error = updateError.message;
-      return result;
-    }
-
     result.success = true;
-    result.newExpiresAt = newExpiresAt.toISOString();
-    console.log(`[ghl-cron] Successfully refreshed token for location ${installation.location_id}`);
+    result.newExpiresAt = out.expiresAt;
     return result;
 
   } catch (error) {

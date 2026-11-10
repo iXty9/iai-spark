@@ -1,3 +1,4 @@
+import { getValidAccessToken } from '../_shared/ghl-token-manager.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -111,97 +112,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if refresh is needed (expires within 5 minutes)
-    const expiresAt = new Date(installation.token_expires_at);
-    const now = new Date();
-    const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
-    
-    if (expiresAt > fiveMinutesFromNow) {
-      console.log('[ghl-token-refresh] Token still valid, no refresh needed');
+    const out = await getValidAccessToken(supabase, installation.id, { source: 'manual' });
+    if (!out.ok) {
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'Token still valid',
-          expires_at: installation.token_expires_at 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Token refresh failed', reason: out.reason, details: out.detail }),
+        { status: out.reason === 'busy' ? 409 : 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    console.log('[ghl-token-refresh] Refreshing token for user:', userId);
-
-    // Decrypt refresh token
-    const refreshToken = await decryptToken(installation.refresh_token_encrypted, encryptionKey);
-
-    // Call GHL token refresh endpoint
-    const tokenResponse = await fetch('https://services.leadconnectorhq.com/oauth/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-      },
-      body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken,
-      }),
-    });
-
-    if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      console.error('[ghl-token-refresh] Token refresh failed:', errorText);
-      
-      // Update installation with error
-      await supabase
-        .from('ghl_installations')
-        .update({
-          connection_status: 'error',
-          refresh_error: `Token refresh failed: ${errorText}`,
-        })
-        .eq('user_id', userId);
-
-      return new Response(
-        JSON.stringify({ error: 'Token refresh failed', details: errorText }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const tokenData = await tokenResponse.json();
-    const newExpiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
-
-    // Encrypt new tokens
-    const encryptedAccessToken = await encryptToken(tokenData.access_token, encryptionKey);
-    const encryptedRefreshToken = await encryptToken(tokenData.refresh_token, encryptionKey);
-
-    // Update database
-    const { error: updateError } = await supabase
-      .from('ghl_installations')
-      .update({
-        access_token_encrypted: encryptedAccessToken,
-        refresh_token_encrypted: encryptedRefreshToken,
-        token_expires_at: newExpiresAt.toISOString(),
-        last_refresh_at: new Date().toISOString(),
-        connection_status: 'connected',
-        refresh_error: null,
-      })
-      .eq('user_id', userId);
-
-    if (updateError) {
-      console.error('[ghl-token-refresh] Database update error:', updateError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to update tokens', details: updateError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('[ghl-token-refresh] Token refreshed successfully for user:', userId);
-
     return new Response(
-      JSON.stringify({
-        success: true,
-        expires_at: newExpiresAt.toISOString(),
-      }),
+      JSON.stringify({ success: true, refreshed: out.refreshed, expires_at: out.expiresAt }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
