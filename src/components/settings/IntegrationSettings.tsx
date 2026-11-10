@@ -1,4 +1,5 @@
 import { HighLevelConnectionCard } from './integrations/HighLevelConnectionCard';
+import { WriteConfirmationsCard } from './integrations/WriteConfirmationsCard';
 
 export function IntegrationSettings() {
   return (
@@ -11,6 +12,7 @@ export function IntegrationSettings() {
       </div>
       
       <HighLevelConnectionCard />
+      <WriteConfirmationsCard />
       
       {/* Future integrations can be added here */}
     </div>
