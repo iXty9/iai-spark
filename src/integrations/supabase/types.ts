@@ -158,6 +158,45 @@ export type Database = {
         }
         Relationships: []
       }
+      ghl_write_confirmations: {
+        Row: {
+          actor_iat: number
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          installation_id: string
+          operation: string
+          params_hash: string
+          summary: string
+          user_id: string
+        }
+        Insert: {
+          actor_iat: number
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          installation_id: string
+          operation: string
+          params_hash: string
+          summary: string
+          user_id: string
+        }
+        Update: {
+          actor_iat?: number
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          installation_id?: string
+          operation?: string
+          params_hash?: string
+          summary?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       hermes_allowed_users: {
         Row: {
           created_at: string
@@ -190,6 +229,7 @@ export type Database = {
           custom_webhook_enabled: boolean | null
           custom_webhook_use_auth: boolean | null
           first_name: string | null
+          ghl_skip_write_confirmations: boolean
           id: string
           last_name: string | null
           location_address: string | null
@@ -217,6 +257,7 @@ export type Database = {
           custom_webhook_enabled?: boolean | null
           custom_webhook_use_auth?: boolean | null
           first_name?: string | null
+          ghl_skip_write_confirmations?: boolean
           id: string
           last_name?: string | null
           location_address?: string | null
@@ -244,6 +285,7 @@ export type Database = {
           custom_webhook_enabled?: boolean | null
           custom_webhook_use_auth?: boolean | null
           first_name?: string | null
+          ghl_skip_write_confirmations?: boolean
           id?: string
           last_name?: string | null
           location_address?: string | null
