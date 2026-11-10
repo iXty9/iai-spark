@@ -9,10 +9,10 @@ Status: the old workflow hasn't run since notifications switched over (no runs a
 ## 2. Give Hermes the new door
 - Add a CMS v2 door Hermes can use, covering the same contacts, conversations, calendars and invoices tools, with the same signed identity and write confirmations.
 - Point Hermes at it and run a quick test: "find Joshua".
-- Retire the IT Helper door. Nothing replaces it.
+- IT Helper keeps access: it gets its own door in the new workflow, so it's still there when the old one is unpublished.
 
-## 3. Quiet period (7 days)
-- Watch the old workflow's runs every day. Anything that still shows up gets traced and moved before we continue.
+## 3. Quiet period (24 hours, after steps 1 and 2)
+- Watch the old workflow's runs for 24 hours. Anything that still shows up gets traced and moved before we continue.
 - Watch the old shared-password back door (`ghl-api-proxy`) too. Only the paths the old workflow uses should still be calling it.
 
 ## 4. Unpublish
@@ -25,8 +25,8 @@ Status: the old workflow hasn't run since notifications switched over (no runs a
 - After 30 days with no issues, archive the old workflow.
 
 ## Decisions for you
-- OK to retire IT Helper access completely?
-- Do you want a 7-day quiet period, or should it be shorter? It can be shorter since the old workflow already shows zero traffic.
+- Settled: IT Helper is a separate agent outside iai-spark. It keeps its access for talking about the stack, through its new door.
+- Settled: the quiet period is as short as possible. That's 24 hours after Hermes and IT Helper move over.
 
 ## Technical details
 - Old triggers: webhook `9e16570c-…` (GHL Notifactions), MCP triggers CMS MCP, Hermes Access and IT Helper Access.
