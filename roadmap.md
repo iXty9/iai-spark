@@ -7,3 +7,4 @@
 - [ ] Unpublish old "📢 HighLevel API" (keep 30-day copy); remove old notification address
 - [ ] Fence then retire ghl-api-proxy; rotate shared password
 - [ ] Marketplace submission — user submits
+- [ ] Hermes conversation continuity — review written; waiting on IT Helper backend contract + owner approval
