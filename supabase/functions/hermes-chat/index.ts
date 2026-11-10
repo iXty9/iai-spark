@@ -3,6 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { corsHeaders } from "../_shared/cors.ts";
 import { ACTOR_HEADER, signActor, secretUsable } from "../_shared/ixty-actor.ts";
+import { parseFlag } from "../_shared/hermes-session-core.ts";
+import { handleReset, handleSend, handleState, HermesStore } from "../_shared/hermes-bridge.ts";
 
 const MessageSchema = z.object({
   role: z.enum(["system", "user", "assistant"]),
@@ -10,9 +12,46 @@ const MessageSchema = z.object({
 });
 
 const BodySchema = z.object({
-  messages: z.array(MessageSchema).min(1),
+  action: z.enum(["send", "reset", "state"]).optional().default("send"),
+  messages: z.array(MessageSchema).optional().default([]),
   stream: z.boolean().optional().default(false),
+  conversation_token: z.string().uuid().optional(),
+  client_message_id: z.string().max(64).optional(),
 });
+
+function makeStore(db: any): HermesStore {
+  const one = async (q: any) => { const { data, error } = await q; if (error) throw new Error(error.message); return data; };
+  return {
+    async getOrCreateConversation(userId, sid) {
+      await one(db.from("hermes_conversations").upsert({ user_id: userId, hermes_session_id: sid }, { onConflict: "user_id", ignoreDuplicates: true }));
+      return await one(db.from("hermes_conversations").select("user_id, generation, conversation_token, hermes_session_id").eq("user_id", userId).single());
+    },
+    async getConversation(userId) {
+      return await one(db.from("hermes_conversations").select("user_id, generation, conversation_token, hermes_session_id").eq("user_id", userId).maybeSingle());
+    },
+    async resetConversation(userId, token, newToken, sid) {
+      const cur = await one(db.from("hermes_conversations").select("generation").eq("user_id", userId).eq("conversation_token", token).maybeSingle());
+      if (!cur) return null;
+      return await one(db.from("hermes_conversations")
+        .update({ generation: cur.generation + 1, conversation_token: newToken, hermes_session_id: sid })
+        .eq("user_id", userId).eq("conversation_token", token)
+        .select("user_id, generation, conversation_token, hermes_session_id").maybeSingle());
+    },
+    async getTurn(userId, generation, msgId) {
+      return await one(db.from("hermes_turns").select("status, reply, error_code").eq("user_id", userId).eq("generation", generation).eq("client_message_id", msgId).maybeSingle());
+    },
+    async insertPendingTurn(userId, generation, msgId) {
+      const { error } = await db.from("hermes_turns").insert({ user_id: userId, generation, client_message_id: msgId, status: "pending" });
+      if (!error) return true;
+      if (error.code === "23505") return false;
+      throw new Error(error.message);
+    },
+    async finishTurn(userId, generation, msgId, status, reply, errorCode) {
+      await one(db.from("hermes_turns").update({ status, reply, error_code: errorCode })
+        .eq("user_id", userId).eq("generation", generation).eq("client_message_id", msgId));
+    },
+  };
+}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -92,7 +131,7 @@ serve(async (req) => {
         400,
       );
     }
-    const { messages, stream } = parsed.data;
+    const { messages, stream, action } = parsed.data;
 
     const hermesBase = Deno.env.get("HERMES_API_BASE_URL");
     const hermesKey = Deno.env.get("HERMES_API_SERVER_KEY");
@@ -118,6 +157,40 @@ serve(async (req) => {
       role: "system" as const,
       content: `IXTY_ACTOR:${actor}\nPass this exact value as \`actor\` on every CMS v2 tool call. It identifies the signed-in user and expires in 10 minutes.`,
     };
+
+    // Continuity switch: a failed lookup is an error, never a silent mode choice.
+    const { data: flagRow, error: flagError } = await adminClient
+      .from("app_settings").select("value").eq("key", "hermes_session_continuity_enabled").maybeSingle();
+    const flag = parseFlag(flagRow, flagError);
+    if (!flag.ok) {
+      return jsonResponse({ code: "config_error", error: "Hermes settings couldn't be read. Try again shortly.", continuity: true }, 503);
+    }
+
+    if (flag.enabled) {
+      const deps = {
+        store: makeStore(adminClient), fetch, hermesBase, apiKey: hermesKey, model: hermesModel,
+        actorHeader: ACTOR_HEADER,
+        mintActor: () => signActor({ sub: user.id, inst: ghl?.id ?? null, loc: ghl?.location_id ?? null }, signingSecret),
+      };
+      let result;
+      if (action === "state") result = await handleState(deps, user.id);
+      else if (action === "reset") result = await handleReset(deps, user.id, parsed.data.conversation_token);
+      else {
+        const last = [...messages].reverse().find((m) => m.role === "user");
+        if (!last) return jsonResponse({ code: "invalid_body", error: "A user message is required" }, 400);
+        result = await handleSend(deps, user.id, {
+          token: parsed.data.conversation_token, clientMessageId: parsed.data.client_message_id, content: last.content,
+        });
+      }
+      if (result.status >= 400) console.warn("hermes-chat continuity", action, result.status, result.body.code);
+      return jsonResponse(result.body, result.status);
+    }
+
+    // Switch off: today's stateless behaviour (emergency containment).
+    if (action !== "send") return jsonResponse({ enabled: false }, 200);
+    if (messages.length === 0) return jsonResponse({ code: "invalid_body", error: "messages required" }, 400);
+    const { data: boundRow } = await adminClient.from("hermes_conversations").select("user_id").eq("user_id", user.id).maybeSingle();
+    const continuityNotice = !!boundRow;
 
     const upstreamUrl = `${hermesBase.replace(/\/$/, "")}/chat/completions`;
     const upstreamRes = await fetch(upstreamUrl, {
@@ -173,7 +246,7 @@ serve(async (req) => {
       data?.choices?.[0]?.delta?.content ??
       "";
 
-    return jsonResponse({ content, raw: data }, 200);
+    return jsonResponse({ content, raw: data, continuity_notice: continuityNotice }, 200);
   } catch (err: any) {
     console.error("hermes-chat unexpected error:", err?.message || err);
     return jsonResponse({ code: "internal_error", error: "Unexpected error" }, 500);

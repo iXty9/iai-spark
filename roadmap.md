@@ -7,4 +7,5 @@
 - [ ] Unpublish old "📢 HighLevel API" (keep 30-day copy); remove old notification address
 - [ ] Fence then retire ghl-api-proxy; rotate shared password
 - [ ] Marketplace submission — user submits
-- [ ] Hermes conversation continuity — review written; waiting on IT Helper backend contract + owner approval
+- [x] Hermes continuity built and deployed with switch OFF
+- [ ] Hermes continuity: turn switch on for pilot + run live canaries with IT Helper — waiting on approval

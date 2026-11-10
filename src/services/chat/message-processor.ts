@@ -4,7 +4,7 @@ import { emitDebugEvent } from '@/utils/debug-events';
 import { parseWebhookResponse } from '@/utils/debug/webhook-debug';
 import { logger } from '@/utils/logging';
 import { sendWebhookMessage } from '@/services/webhook';
-import { sendHermesMessage, notifyHermesNotAllowedOnce } from '@/services/chat/providers/hermes-provider';
+import { sendHermesMessage, notifyHermesNotAllowedOnce, getHermesConversationToken } from '@/services/chat/providers/hermes-provider';
 import { SendMessageParams } from '../types/messageTypes';
 import { processResponseMetadata, createErrorResponse } from './utils/response-processing';
 import { handleStreamingResponse } from './utils/streaming';
@@ -19,6 +19,7 @@ export async function processMessage({
   userProfile = null,
   location = null,
   recall = null,
+  clientMessageId,
 }: SendMessageParams): Promise<Message & { cancel?: () => void }> {
   let canceled = false;
   let controller = new AbortController();
@@ -62,8 +63,13 @@ export async function processMessage({
       const hermesMessages = [{ role: 'user' as const, content: message }];
       const hermesResult = await sendHermesMessage({
         messages: hermesMessages,
+        clientMessageId,
         signal: controller.signal,
       });
+      // UI fence: drop a reply whose conversation was reset while it was in flight.
+      if (hermesResult.ok && hermesResult.conversationToken && hermesResult.conversationToken !== getHermesConversationToken()) {
+        throw new Error('This chat was reset. The earlier reply was discarded.');
+      }
       if (hermesResult.ok && hermesResult.content != null) {
         const accumulated = await handleStreamingResponse(
           hermesResult.content,
@@ -88,7 +94,12 @@ export async function processMessage({
           },
         };
       }
-      // Denied or upstream failed: fall through to webhook
+      // Continuity mode: only "not on Hermes" refusals fall back; everything else is shown.
+      const notOnHermes = hermesResult.errorCode === 'hermes_not_selected' || hermesResult.errorCode === 'hermes_not_allowed';
+      if (hermesResult.continuity && !notOnHermes) {
+        throw new Error(hermesResult.errorMessage || 'Hermes could not answer this message.');
+      }
+      // Denied or upstream failed (switch off): fall through to webhook
       logger.warn('Hermes unavailable, falling back to webhook', {
         code: hermesResult.errorCode,
       }, { module: 'chat' });

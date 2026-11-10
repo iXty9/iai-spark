@@ -72,6 +72,7 @@ export const useChatApi = ({ user, addMessage, onError, setCurrentRequest, locat
       // Use the real message processor with callbacks to get cancel function immediately
       const aiResponse = await processMessage({
         message: userMessage.content,
+        clientMessageId: userMessage.id,
         isAuthenticated: !!user,
         userProfile: user ? {
           id: user.id,
