@@ -9,7 +9,7 @@ vi.mock('@/hooks/use-toast', () => ({ toast: vi.fn() }));
 vi.mock('@/utils/logging', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 vi.mock('@/utils/debug-events', () => ({ emitDebugEvent: vi.fn() }));
 vi.mock('@/utils/debug/webhook-debug', () => ({ parseWebhookResponse: (r: any) => String(r?.text ?? 'WEBHOOK') }));
-vi.mock('@/services/chat/utils/response-processing', () => ({ processResponseMetadata: vi.fn(), createErrorResponse: vi.fn() }));
+vi.mock('@/services/chat/utils/response-processing', () => ({ processResponseMetadata: vi.fn(), createErrorResponse: (e: any) => ({ id: 'err', sender: 'ai', content: `ERROR: ${e?.message}`, isError: true }) }));
 vi.mock('@/services/chat/utils/streaming', () => ({ handleStreamingResponse: async (c: string) => c }));
 
 import { processMessage } from '@/services/chat/message-processor';
@@ -32,22 +32,22 @@ const stateOff = () => invoke.mockResolvedValueOnce({ data: { enabled: false }, 
 describe('Hermes routing (switch on)', () => {
   it('send throws -> error shown, zero webhook calls', async () => {
     stateOn(); invoke.mockRejectedValueOnce(new Error('network down'));
-    await expect(run()).rejects.toThrow();
+    expect((await run()).content).toMatch(/^ERROR/);
     expect(webhook).not.toHaveBeenCalled();
   });
   it('unlabelled error -> error shown, zero webhook calls', async () => {
     stateOn(); invoke.mockResolvedValueOnce(httpError({ code: 'unauthorized', error: 'Invalid token' }));
-    await expect(run()).rejects.toThrow();
+    expect((await run()).content).toMatch(/^ERROR/);
     expect(webhook).not.toHaveBeenCalled();
   });
   it('malformed response -> error shown, zero webhook calls', async () => {
     stateOn(); invoke.mockResolvedValueOnce({ data: { nope: 1 }, error: null });
-    await expect(run()).rejects.toThrow();
+    expect((await run()).content).toMatch(/^ERROR/);
     expect(webhook).not.toHaveBeenCalled();
   });
   it('status check fails opaquely -> error shown, zero webhook calls', async () => {
     invoke.mockRejectedValueOnce(new Error('offline'));
-    await expect(run()).rejects.toThrow();
+    expect((await run()).content).toMatch(/^ERROR/);
     expect(webhook).not.toHaveBeenCalled();
   });
   it.each(['hermes_not_selected', 'hermes_not_allowed'])('%s -> one webhook call', async (code) => {
@@ -60,7 +60,7 @@ describe('Hermes routing (switch on)', () => {
     stateOn();
     invoke.mockImplementationOnce(async () => { invalidateHermesConversation(); return { data: { content: 'old reply', continuity: true }, error: null }; });
     const onComplete = vi.fn();
-    await expect(processMessage({ message: 'hi', clientMessageId: MID, isAuthenticated: true, userProfile: hermesUser, onMessageComplete: onComplete })).rejects.toThrow(/reset/);
+    expect((await processMessage({ message: 'hi', clientMessageId: MID, isAuthenticated: true, userProfile: hermesUser, onMessageComplete: onComplete })).content).toMatch(/reset/);
     expect(onComplete).not.toHaveBeenCalled();
     expect(webhook).not.toHaveBeenCalled();
   });
