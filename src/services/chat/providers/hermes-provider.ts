@@ -33,17 +33,40 @@ async function readError(error: any): Promise<any> {
 
 let continuityNoticeShown = false;
 
+/** 'off' only after the server said continuity is off; unknown counts as Hermes-in-charge. */
+type HermesMode = 'on' | 'off' | 'unknown';
+let hermesMode: HermesMode = 'unknown';
+let conversationEpoch = 0;
+export const getHermesConversationEpoch = () => conversationEpoch;
+export const getHermesMode = () => hermesMode;
+
+/** Called when another tab clears the chat: in-flight replies here must be dropped. */
+export function invalidateHermesConversation() {
+  conversationToken = null;
+  conversationEpoch += 1;
+}
+
+/** Test hook. */
+export function __resetHermesProviderForTests() {
+  conversationToken = null; hermesMode = 'unknown'; conversationEpoch = 0; continuityNoticeShown = false;
+}
+
+const DENIALS = new Set(['hermes_not_selected', 'hermes_not_allowed']);
+
 export async function sendHermesMessage(
   params: { messages: HermesMessage[]; clientMessageId?: string; signal?: AbortSignal },
 ): Promise<HermesResult> {
   try {
     if (!conversationToken) {
       const st = await supabase.functions.invoke('hermes-chat', { body: { action: 'state' } });
-      if (!st.error && st.data?.enabled && st.data?.conversation_token) conversationToken = st.data.conversation_token;
-      else if (st.error) {
+      if (st.error) {
         const p = await readError(st.error);
-        if (p?.continuity) return { ok: false, continuity: true, errorCode: p.code, errorMessage: p.error };
+        if (DENIALS.has(p?.code)) return { ok: false, continuity: false, errorCode: p.code, errorMessage: p.error };
+        return { ok: false, continuity: true, errorCode: p?.code || 'state_error', errorMessage: p?.error || "Couldn't reach Hermes." };
       }
+      if (st.data?.enabled && st.data?.conversation_token) { hermesMode = 'on'; conversationToken = st.data.conversation_token; }
+      else if (st.data?.enabled === false) hermesMode = 'off';
+      else return { ok: false, continuity: true, errorCode: 'state_invalid', errorMessage: 'Hermes gave an unexpected answer.' };
     }
     const sentToken = conversationToken;
     const { data, error } = await supabase.functions.invoke('hermes-chat', {
@@ -67,7 +90,7 @@ export async function sendHermesMessage(
       if (payload?.conversation_token) conversationToken = payload.conversation_token;
       return {
         ok: false,
-        continuity: !!payload?.continuity || !!sentToken,
+        continuity: !DENIALS.has(payload?.code) && (!!payload?.continuity || hermesMode !== 'off'),
         errorCode: payload?.code || 'invoke_error',
         errorMessage: payload?.error || error.message,
       };
@@ -80,10 +103,10 @@ export async function sendHermesMessage(
     if (data?.content != null) {
       return { ok: true, content: String(data.content), continuity: !!data.continuity, conversationToken: sentToken ?? undefined };
     }
-    return { ok: false, errorCode: 'empty_response', errorMessage: 'Empty Hermes response' };
+    return { ok: false, continuity: hermesMode !== 'off', errorCode: 'empty_response', errorMessage: 'Empty Hermes response' };
   } catch (err: any) {
     logger.error('Hermes provider error', err, { module: 'chat' });
-    return { ok: false, errorCode: 'exception', errorMessage: err?.message || 'Unknown error' };
+    return { ok: false, continuity: hermesMode !== 'off', errorCode: 'exception', errorMessage: err?.message || 'Unknown error' };
   }
 }
 
@@ -100,7 +123,8 @@ export async function resetHermesConversation(): Promise<boolean> {
         const p = await readError(st.error);
         return p?.code === 'hermes_not_selected' || p?.code === 'hermes_not_allowed';
       }
-      if (!st.data?.enabled) return true;
+      if (!st.data?.enabled) { hermesMode = 'off'; return true; }
+      hermesMode = 'on';
       token = st.data.conversation_token;
     }
     const { data, error } = await supabase.functions.invoke('hermes-chat', { body: { action: 'reset', conversation_token: token } });
@@ -111,12 +135,12 @@ export async function resetHermesConversation(): Promise<boolean> {
         // Another tab moved on; retry once against the latest generation.
         conversationToken = p.conversation_token;
         const again = await supabase.functions.invoke('hermes-chat', { body: { action: 'reset', conversation_token: conversationToken } });
-        if (!again.error && again.data?.conversation_token) { conversationToken = again.data.conversation_token; return true; }
+        if (!again.error && again.data?.conversation_token) { conversationToken = again.data.conversation_token; conversationEpoch += 1; return true; }
       }
       return false;
     }
     if (data?.enabled === false) return true;
-    if (data?.conversation_token) { conversationToken = data.conversation_token; return true; }
+    if (data?.conversation_token) { conversationToken = data.conversation_token; conversationEpoch += 1; return true; }
     return false;
   } catch (err: any) {
     logger.error('Hermes reset failed', err, { module: 'chat' });

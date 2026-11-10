@@ -1,3 +1,4 @@
+import { invalidateHermesConversation } from '@/services/chat/providers/hermes-provider';
 import { useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Message } from '@/types/chat';
@@ -101,6 +102,7 @@ export const useChatSync = ({
     logger.info('Received clear chat broadcast from another instance', { userId }, { module: 'chat-sync' });
     
     // Clear local state without triggering another broadcast
+    invalidateHermesConversation();
     setMessages([]);
   }, [userId, setMessages]);
   
