@@ -79,3 +79,6 @@ verify_jwt = false
 
 [functions.ghl-contacts]
 verify_jwt = false
+
+[functions.ghl-conversations]
+verify_jwt = false

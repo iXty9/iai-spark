@@ -13,8 +13,11 @@
 - [ ] Watch first real refresh Nov 11 ~12:00 UTC
 - [x] Plan step 1: CMS v2 run 16570 succeeded 13:34 UTC
 - [x] Plan step 2: capability map written
-- [ ] Slice A: contacts writes + "skip confirmations" switch in Settings > Integrations (off by default, server-checked)
-- [ ] Slices B–D: conversations, calendars, opportunities (waiting on user: invoices placement, opportunities are new)
+- [x] Slice A: contact writes, tags, tasks, confirmations, skip switch (user tested tag add)
+- [x] Slice B built: ghl-conversations + CMS v2 routing + chat tool (awaiting user live test)
+- [ ] Slice C: calendars
+- [ ] Slice E: invoices (replaces opportunities)
+- [ ] Tidy CMS v2 canvas/self-tests
 - [ ] Move GHL Notifications webhook off old workflow
 - [ ] Fence /contacts* in ghl-api-proxy for pilot user — after app is published
 - [ ] Cutover (legacy off, v2 on) — Lovable plan reactivated; publish when a slice is ready
