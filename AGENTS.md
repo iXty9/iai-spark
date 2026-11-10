@@ -8,3 +8,4 @@
 - All HighLevel token refreshes go through `_shared/ghl-token-manager.ts`. Why: one refresh at a time per installation.
 - New ghl-* tools use `_shared/ghl-tool-runtime.ts` (actor → installation → token → ownership prepare → gate → run). HighLevel writes from n8n pass `_shared/ghl-write-gate.ts`: they run only if the user's profile skips confirmations or the same change was confirmed in a later chat message (newer actor note). Why: the AI fills tool bodies and must not self-confirm.
 - CMS v2 routes each operation prefix to its own ghl-* function (contacts, conversations, …); no general HighLevel pass-through. Why: per-area allowlists.
+- Every AI backend (webhook, Hermes, future) reaches integrations only through CMS v2 with the signed actor note; HighLevel notifications are forwarded with the same note (optional `ghl_notification_shadow_url` for side-by-side trials). Why: one integration hub, identity never from body fields.
