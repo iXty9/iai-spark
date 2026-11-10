@@ -1,110 +1,44 @@
-# Hermes conversation continuity — app-side review (planning only)
+# Hermes conversation continuity — review rev 2 (implemented, switch OFF)
 
-Status: review only. No code, migration, secret or deployment changes. Implementation waits for IT Helper's backend contract (section 7) and owner approval.
-Scope: iai-spark browser + Supabase `hermes-chat`. CT117/Hermes is owned by IT Helper. CMS v2 is out of scope (the actor note is touched only where it shares the request).
-Base commit reviewed: `a85e29e237c3bf4ba923ea25f123d0919817f554`.
+Rev 1 is superseded. Rev 2 applies IT Helper's backend contract (Hermes 0.23.1, commit 3b42157) and was approved by Josh 2026-11-10.
 
-## 1. Root cause (current path)
+Deployed: hermes-chat submitted source sha256 af696161951493688ce0e799d042bd6914993d1d18789cc7536ce6955005ff98 (no Supabase revision ID returned). Setting hermes_session_continuity_enabled = false. Rule + bridge tests: 12 passed (_shared/hermes-session-core.test.ts). Live canaries not run (separate approval).
 
-```text
-Chat input -> message-processor.ts -> hermes-provider.ts -> hermes-chat -> Hermes POST /chat/completions
-```
+Implementation notes: failed turns (e.g. 429) are not auto-resent under the same message ID; the user sends again as a new message. Tabs learn of another tab's reset on their next send (stale_generation, message shown, nothing sent).
 
-1. **The continuity header is never sent.** `hermes-chat/index.ts:128` sends `X-Hermes-Session-Key: client:iai-spark:user:<uid>`. Upstream Hermes continues a chat only when the request carries `X-Hermes-Session-Id`; without it every request gets a new session (the `api-*` sessions seen). Unless CT117 has custom handling for `X-Hermes-Session-Key`, Hermes ignores it.
-2. **The returned session ID is never captured.** Hermes echoes `X-Hermes-Session-Id` in the response. `hermes-chat` reads only the body (`:155`, `:171`) and returns `{content, raw}`; nothing is stored.
-3. **No history is sent either.** `message-processor.ts:62` builds `[{role:'user', content: message}]`, so each turn is stateless twice over: no session and no prior messages.
-4. **Each turn's prompt differs.** `hermes-chat` adds a fresh system message (`IXTY_ACTOR:<note>`, `:133`) with a new signature and expiry every call, so any scheme that derives an ID from the first messages also splits.
-5. **The app has no conversation ID.** Signed-in users have one active chat (`active_chat_messages`); n8n uses `sessionId = user_id`. "Clear chat" (`use-message-state.ts:183-217`) clears the table, broadcasts to other tabs and tells n8n, but never tells Hermes.
-6. **Side paths.** The Retry button exists in `Message.tsx` but no caller connects it (`onRetry` is never passed). Any Hermes failure silently falls back to the webhook backend (`message-processor.ts:91-97`), so one visible chat can be split across two backends. Requests are non-streaming (`hermes-provider.ts:22`).
-7. **Why it looked fine:** Honcho's long-term memory recalled facts across separate sessions, which hid the missing continuity. Tests must count sessions, not judge answers.
+## Product decisions (taken as recommended — reject the plan to change them)
+- One active chat per user, shared across tabs and devices. No archived or multi-chat UI in this milestone.
+- Switching Webhook <-> Hermes keeps the Hermes conversation. The two backends' histories stay separate and are never merged.
+- When Hermes is selected and fails, the user sees an error. The app does not quietly answer from the Webhook instead.
+- Clear chat / New Chat is the deliberate reset. It must be confirmed by the server before the screen clears.
 
-## 2. Proposed smallest correction
+## What changes from rev 1
+1. **The session ID is created before the first message.** On first use the server atomically creates the user's conversation row with an unguessable `iai-<uuid>` session ID, then sends that same ID on every turn. No first-turn race, no orphan sessions. The returned ID is checked: a different ID is an error, never adopted.
+2. **No compression swap logic.** Hermes keeps the same ID through compression, so the child-ID check is removed.
+3. **Generation fence.** Each conversation has a generation number and an opaque token. The browser holds the token, never the Hermes ID. Every send carries it, and the server refuses a stale token. The chat screen also drops any reply whose generation no longer matches.
+4. **Reset is acknowledged.** New Chat calls the server, which bumps the generation and creates a new session ID in one step. Only after success does the screen clear and the new token go to other tabs (existing clear broadcast). On failure the screen stays as it was and shows "Couldn't start a new chat — try again".
+5. **No silent lost-session replacement.** Hermes 409 `not_found` (retired session) shows "This conversation is no longer available — start a new chat". 429 shows "Hermes is busy, try again in a moment". 503 `admission_queued` shows "Received, still working" and is not resent. A timeout is treated as "may have been received", not as failure.
+6. **Retries that respect the signed note.** Each user message's existing ID becomes a turn record (user, generation, message ID) with status and stored reply. A repeat of the same message ID replays the stored reply after the usual sign-in and ownership checks, with no new Hermes call. If the turn is still pending or uncertain, the user is told and nothing is resent. Hermes' Idempotency-Key is derived server-side from user + generation + message ID, used once per turn, and never paired with a newly signed note. Different message IDs are different turns.
+7. **Keep `X-Hermes-Session-Key`.** It stays as `client:iai-spark:user:<verified uid>` for memory and the harness. The actor note stays a fresh system message each turn; Hermes keeps it out of chat history.
+8. **Honest security boundary.** Supabase alone enforces that a user can reach only their own conversation (JWT + Hermes selected + allowlist + own row, on every request). Hermes cannot tell app users apart under the shared key. This counts as safe for the allowlisted pilot, not as multi-tenant isolation; that would need a separate design.
+9. **Switch behaviour.** New `app_settings` key `hermes_session_continuity_enabled`, default off. If reading it fails, the request errors; it never quietly picks a mode. Turning it off is emergency containment: it brings back today's broken stateless mode, with a one-time notice in chat. The conversation table is kept; nothing is deleted on a timer.
+10. **Webhook fallback is narrowed.** Only `hermes_not_selected` and `hermes_not_allowed` (the user isn't really on Hermes) still use the Webhook, with today's notice. All other Hermes errors are shown.
 
-### 2.1 Conversation identity (server-owned)
-- One active Hermes conversation per signed-in user, matching the app's single active chat.
-- New service-only table `hermes_conversations` (RLS on, no policies, no grants to anon/authenticated):
-  - `user_id uuid primary key references auth.users on delete cascade`
-  - `conversation_id uuid not null` (new on every reset)
-  - `hermes_session_id text null`
-  - `created_at`, `updated_at`, `last_turn_at timestamptz`
-- The browser never sends or receives a Hermes session ID. Per AGENTS.md, identity and targets are resolved server-side.
+## Technical details
+- Migration (additive, service-only, RLS on, no policies or grants):
+  - `hermes_conversations(user_id pk -> auth.users cascade, generation int, conversation_token uuid, hermes_session_id text, created_at, updated_at)`. Created with `insert ... on conflict do nothing` + select. Reset = a single `update ... set generation = generation+1, new token, new session id where user_id and conversation_token = $sent returning *`.
+  - `hermes_turns(user_id, generation, client_message_id uuid, status pending|completed|failed|uncertain, reply text, created_at, updated_at; pk(user_id, generation, client_message_id))`.
+  - Insert the setting row with value `false`.
+- `_shared/hermes-session-core.ts` (pure rules): build upstream headers/body, classify Hermes responses (200 / 400 / 409 not_found / 409 admission_conflict / 429 / 503 admission_queued / timeout), generation checks, turn-state transitions, idempotency-key derivation. Tests sit beside it.
+- `hermes-chat/index.ts`: dependencies injected (store, fetch, clock), so bridge-level tests run against a fake store and fake Hermes. Body adds `conversation_token`, `client_message_id`, `action: "send" | "reset" | "state"`. It never logs or returns the actor note.
+- Browser: `hermes-provider.ts` (token cache, reset, state), `message-processor.ts` (passes the message ID, narrowed fallback, generation check before showing a reply), `use-message-state.ts` (clear waits for the reset acknowledgement).
+- Unchanged: chat-relay, the Webhook path, anonymous chat, CMS v2, the actor-note format, and the Hermes endpoint `${HERMES_API_BASE_URL}/chat/completions`.
 
-### 2.2 Session-ID persistence (`hermes-chat`)
-Per turn, after the existing JWT, `preferred_backend` and allowlist checks:
-1. Load or create the user's row.
-2. If `hermes_session_id` is set, send `X-Hermes-Session-Id: <id>`. Otherwise use contract option A or B (section 7, Q1).
-3. Read `X-Hermes-Session-Id` from the response and save it with a compare-and-set:
-   `update ... set hermes_session_id = $new where user_id = $u and conversation_id = $c and (hermes_session_id is null or hermes_session_id = $sent)`.
-   A New Chat or another tab that wins the race is not overwritten.
-4. If the returned ID differs from the one sent (Hermes rotates sessions after context compression, upstream issue #16938), accept it only when Hermes reports it as a child of the sent ID (contract Q4). Otherwise keep the old ID and log it.
-5. Remove `X-Hermes-Session-Key`, or keep it only if IT Helper confirms CT117 uses it (Q6).
+## Tests
+- Rule tests: header/body shape; a returned ID that differs from the one sent counts as an error; generation mismatch; each Hermes response class maps to the right user state; turn transitions; idempotency key is stable per turn and differs across turns or generations; switch off and lookup failure.
+- Bridge tests (fake store + fake Hermes): two concurrent first turns share one session ID; reset during an in-flight send (stale reply refused and not stored); failed reset leaves the conversation unchanged; same-message retry replays the stored reply without calling Hermes; pending or uncertain retry is not resent; a forged body session ID or another user's token is refused; a partial or error envelope from Hermes; Webhook-mode regression (Hermes code never runs).
+- Live canaries (need separate approval; run with IT Helper, judged by Hermes' session list, not by answers): new ID creates a session; 3 messages make 1 session; refresh and a second tab keep it; New Chat makes a new one; the actor note doesn't build up in history; the same turn replays while a changed note isn't resent; a second user is separate.
 
-### 2.3 History handling
-- With a session ID: send only the new user message (+ actor note; see Q3). Hermes loads history from its own session store.
-- First turn or after a reset: send only the new message. A new conversation starts empty.
-- Lost session (Hermes says the ID is unknown or expired, Q2): clear `hermes_session_id`, start a new session in the same `conversation_id` and log `session_lost`. Smallest version: no replay from `active_chat_messages`. An optional later step could seed the last N turns.
-- The browser's message list stays display-only for Hermes.
-
-### 2.4 Ownership checks
-- The session ID is read only from the user's own row, by `user_id` from the verified JWT. Body fields cannot choose it (Zod strips unknown keys, and a test proves it).
-- Hermes uses one API key for all users, so Hermes must also refuse a session that belongs to another iai-spark user. Ask IT Helper to bind sessions to the server-set user key (Q5). The app's guarantee alone is defence in one layer.
-- Admin backend toggle: switching to the webhook and back keeps the row, so the conversation continues. No reset happens unless the user clears the chat (open decision D1).
-
-### 2.5 Refresh / tabs / New Chat / retry
-- **Refresh, new tab, other device:** the row lives on the server, so the session continues.
-- **New Chat / Clear chat:** `clearMessages()` also calls `hermes-chat` with `{action:"reset"}`, which sets a new `conversation_id` and `hermes_session_id = null`. This is best-effort and non-blocking, like the n8n clear-context call. Other tabs already get the clear broadcast, and the server row is shared.
-- **Retry / duplicate submits:** pass the user message's existing client UUID as `client_message_id` (validated as a UUID) and forward it as Hermes `Idempotency-Key`. A resend or double-click then returns the same turn instead of adding a second one (Q7).
-- **Concurrent first turns (two tabs):** the compare-and-set keeps the first ID, and the losing turn's session is orphaned and logged. Contract option A (app-minted ID) removes this case.
-- **Fallback to webhook:** keep falling back only for setup refusals (`hermes_not_selected`, `hermes_not_allowed`, `misconfigured`). On `upstream_error` or timeout, show an error instead of quietly answering from another backend (open decision D2).
-
-### 2.6 Feature switch
-- New `app_settings` key `hermes_session_continuity_enabled`, service-read only, default `false`. Off means exactly today's behaviour (no header, nothing stored). This follows the rule to read config from `app_settings`, not env.
-
-## 3. Files that would change (after approval)
-- `supabase/functions/_shared/hermes-session-core.ts` (new, pure rules) + `hermes-session-core.test.ts`
-- `supabase/functions/hermes-chat/index.ts` (thin: load row, header, capture, reset action, idempotency)
-- `src/services/chat/providers/hermes-provider.ts` (pass `client_message_id`; add `resetHermesConversation()`)
-- `src/services/chat/message-processor.ts` (pass the message ID; narrow the fallback if D2 is approved)
-- `src/hooks/chat/use-message-state.ts` (call reset inside `clearMessages`)
-- One additive migration: table + setting row. No changes to existing tables.
-- Unchanged: chat-relay, webhook path, anonymous chat, CMS v2, actor-note format.
-
-## 4. Targeted tests
-
-Deno rule tests (`hermes-session-core.test.ts`):
-1. No row -> no session header; row with ID -> header equals stored ID.
-2. Body `session_id` / `hermes_session_id` is ignored.
-3. Response ID saved only when conversation matches and the stored value is null or equal to the sent one.
-4. A reset during an in-flight turn: the stale response does not overwrite the new conversation.
-5. Rotation: a child ID is accepted only per the contract rule; an unrelated ID is refused.
-6. Unknown-session response -> clear and start new, flagged `session_lost`.
-7. `client_message_id` must be a UUID and maps to `Idempotency-Key`.
-8. Switch off -> request identical to today's (no header, no write).
-
-Live checks with IT Helper (Honcho recall ignored; judged by Hermes session list):
-- 3 messages -> exactly 1 Hermes session holding 3 turns.
-- Hard refresh, then a 4th message -> same session.
-- Second tab -> same session; Clear chat -> next message opens a new session.
-- Second test user -> separate session; a forged body ID changes nothing.
-- Double submit with the same message ID -> one turn.
-- Hermes restart -> session continues (or `session_lost` path, per contract).
-- Admin, anonymous and webhook chats behave as today.
-
-## 5. Rollback
-1. Set `hermes_session_continuity_enabled = false`: takes effect immediately, no deploy.
-2. If needed, redeploy the previous `hermes-chat` (base commit above) and revert the three browser files.
-3. The table is additive. Leave it in place, or drop it after 30 days. No user data is lost; chat history stays in `active_chat_messages`.
-
-## 6. Open decisions for the owner
-- D1: Should switching backend (webhook <-> Hermes) start a new Hermes conversation, or continue it? Proposed: continue.
-- D2: Stop silent fallback to the webhook on Hermes errors and show an error instead? Proposed: yes.
-
-## 7. Backend contract needed from IT Helper (CT117 / Hermes 0.23.1)
-- Q1: Can the client supply a brand-new `X-Hermes-Session-Id` on the first turn and have Hermes create it (option A, app mints `iai-<uuid>`)? Or must the app take the ID Hermes returns (option B)? Option A removes the first-turn and timeout race.
-- Q2: Exact response (status/body) for an unknown, expired or deleted session ID.
-- Q3: With a session ID, are body `system` messages honoured each turn and are they stored in history? The actor note rotates every turn, so it must reach the agent without piling up stale notes. Is a header-only or per-turn-ephemeral channel available?
-- Q4: After context compression, does 0.23.1 return the new child ID in `X-Hermes-Session-Id`? How can the app confirm it is a child of the ID sent?
-- Q5: Can Hermes bind a session to a server-set owner key and refuse cross-owner loads? Which header?
-- Q6: Is `X-Hermes-Session-Key` used anywhere on CT117 (Honcho peer mapping?). If yes, what format?
-- Q7: `Idempotency-Key` support on non-streaming `/chat/completions`: retention window and duplicate response.
-- Q8: Endpoint path stays `${HERMES_API_BASE_URL}/chat/completions`; any rate or concurrency limit per session (two tabs).
+## Rollback
+- Containment: switch off (immediate, today's stateless behaviour, notice shown).
+- Full: redeploy the previous `hermes-chat` and revert the three browser files. Tables stay unless you separately approve deleting them. The actual deployed version is recorded after deploy.
