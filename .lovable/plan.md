@@ -34,10 +34,10 @@ Proposed first slices:
 - Remove the old tools from your chat workflow one area at a time, as each area is covered.
 - Finally, lock the old proxy so it can only be used by your account and only for areas we haven't moved yet. Then retire it.
 
-## Decisions I need from you
-1. Should writes be allowed in v2? If yes, should the AI ask you to confirm before sending messages or deleting things?
-2. Does my suggested order work (contacts, conversations, calendars, opportunities), or do you rely on something else most?
-3. Do you want to reactivate the Lovable plan soon, so ixty.ai users get the new path before the old one is retired?
+## Decisions made
+1. **Writes are allowed in v2.** By default, the AI asks you to confirm before any write. A new switch under Settings > Integrations lets you skip confirmations (a "YOLO" mode). It is off by default, and it is saved per user and checked on the server, so the AI can't turn it on by itself.
+2. **Order approved:** contacts, conversations, calendars, then opportunities.
+3. **The Lovable plan is active again**, so we can publish ixty.ai to the new path whenever a slice is ready.
 
 ## Technical notes
 - New functions reuse `_shared/ixty-actor.ts` (the signed note) and `_shared/ghl-token-manager.ts`, with `*-core.ts` rules and Deno tests next to them.
