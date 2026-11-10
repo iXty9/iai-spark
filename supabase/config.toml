@@ -73,3 +73,9 @@ verify_jwt = false
 
 [functions.ghl-token-inspect]
 verify_jwt = false
+
+[functions.chat-relay]
+verify_jwt = false
+
+[functions.ghl-contacts]
+verify_jwt = false
