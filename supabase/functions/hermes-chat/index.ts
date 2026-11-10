@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { corsHeaders } from "../_shared/cors.ts";
+import { ACTOR_HEADER, signActor, secretUsable } from "../_shared/ixty-actor.ts";
 
 const MessageSchema = z.object({
   role: z.enum(["system", "user", "assistant"]),
@@ -100,6 +101,24 @@ serve(async (req) => {
       return jsonResponse({ code: "misconfigured", error: "Hermes not configured" }, 500);
     }
 
+    // Signed "who is asking" note for CMS v2 tools (same as chat-relay).
+    // Identity comes only from this server-minted note, never from the browser.
+    const signingSecret = Deno.env.get("IXTY_ACTOR_SIGNING_SECRET");
+    if (!secretUsable(signingSecret)) {
+      return jsonResponse({ code: "misconfigured", error: "Actor signing not configured" }, 500);
+    }
+    const { data: ghlRows } = await adminClient
+      .from("ghl_installations")
+      .select("id, location_id")
+      .eq("user_id", user.id).eq("connection_status", "connected")
+      .order("updated_at", { ascending: false }).limit(1);
+    const ghl = ghlRows?.[0]?.location_id ? ghlRows[0] : null;
+    const actor = await signActor({ sub: user.id, inst: ghl?.id ?? null, loc: ghl?.location_id ?? null }, signingSecret);
+    const actorMessage = {
+      role: "system" as const,
+      content: `IXTY_ACTOR:${actor}\nPass this exact value as \`actor\` on every CMS v2 tool call. It identifies the signed-in user and expires in 10 minutes.`,
+    };
+
     const upstreamUrl = `${hermesBase.replace(/\/$/, "")}/chat/completions`;
     const upstreamRes = await fetch(upstreamUrl, {
       method: "POST",
@@ -107,10 +126,11 @@ serve(async (req) => {
         "Authorization": `Bearer ${hermesKey}`,
         "Content-Type": "application/json",
         "X-Hermes-Session-Key": `client:iai-spark:user:${user.id}`,
+        [ACTOR_HEADER]: actor,
       },
       body: JSON.stringify({
         model: hermesModel,
-        messages,
+        messages: [actorMessage, ...messages],
         stream,
       }),
     });
