@@ -73,3 +73,9 @@ Deno.test('invoices: business details are read from HighLevel settings or locati
   assertEquals(inv.toBusinessDetails({ location: { name: 'Shop', email: 'a@b.co', city: 'Austin' } }), { name: 'Shop', email: 'a@b.co', address: { city: 'Austin' } });
   assertEquals(inv.toBusinessDetails({ businessDetails: { name: '' } }), null);
 });
+
+Deno.test('invoices: settings ignores stray options and uses the server location', () => {
+  const c = inv.parseCommand('invoices.settings', { altId: 'OTHER' })!;
+  assertEquals(c.params, {});
+  assertEquals(inv.buildGhlRequest(c, LOC, {})!.path, `/invoices/settings?altId=${LOC}&altType=location`);
+});

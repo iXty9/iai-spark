@@ -82,7 +82,8 @@ export function parseCommand(operation: unknown, p: unknown): Command | null {
       return { operation, params: out };
     }
     case 'invoices.settings':
-      return Object.keys(p).length === 0 ? { operation, params: {} } : null;
+      // Takes no options; stray extras are dropped (location comes from the server).
+      return { operation, params: {} };
     case 'invoices.get':
     case 'invoices.void':
     case 'invoices.delete':
