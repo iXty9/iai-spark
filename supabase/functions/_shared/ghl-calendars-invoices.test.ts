@@ -5,7 +5,9 @@ import * as inv from './ghl-invoices-core.ts';
 const LOC = 'YZQCL96jxM5knY233VD4';
 
 Deno.test('calendars: caller cannot pass locationId; server sets it', () => {
-  assertEquals(cal.parseCommand('calendars.list', { locationId: 'OTHER' }), null);
+  const l = cal.parseCommand('calendars.list', { locationId: 'OTHER', include: 'all' })!;
+  assertEquals(l.params, {});
+  assertEquals(cal.buildGhlRequest(l, LOC).path, `/calendars/?locationId=${LOC}`);
   const c = cal.parseCommand('calendars.appointments.create', { calendar_id: 'k1', contact_id: 'c1', startTime: '2026-11-12T15:00:00-06:00' })!;
   assertEquals(cal.buildGhlRequest(c, LOC).body?.locationId, LOC);
 });
@@ -46,7 +48,10 @@ Deno.test('invoices: amounts must be positive with at most 2 decimals; max 50 it
 Deno.test('invoices: contact details on a new invoice come from the verified contact', () => {
   const c = inv.parseCommand('invoices.create', { contact_id: 'c1', name: 'Svc', currency: 'USD', issueDate: '2026-11-10', items: [{ name: 'a', amount: 125, qty: 2 }] })!;
   assertEquals(inv.buildGhlRequest(c, LOC, {}), null);
-  const req = inv.buildGhlRequest(c, LOC, { contact: { id: 'c1', name: 'Joshua', email: 'j@example.com' } })!;
+  const contact = { id: 'c1', name: 'Joshua', email: 'j@example.com' };
+  assertEquals(inv.buildGhlRequest(c, LOC, { contact }), null); // no business details -> not sent
+  const req = inv.buildGhlRequest(c, LOC, { contact, business: { name: 'IXTY9 LLC' } })!;
+  assertEquals((req.body as any).businessDetails, { name: 'IXTY9 LLC' });
   assertEquals((req.body as any).contactDetails, { id: 'c1', name: 'Joshua', email: 'j@example.com' });
   assert(inv.describeWrite(c, { contact: { id: 'c1', name: 'Joshua' } }).includes('250.00 USD'));
 });
@@ -61,4 +66,10 @@ Deno.test('invoices: send needs a HighLevel user and is high risk', () => {
 Deno.test('invoices: payment mode must be one HighLevel accepts', () => {
   assertEquals(inv.parseCommand('invoices.record_payment', { invoice_id: 'i1', mode: 'crypto' }), null);
   assert(inv.parseCommand('invoices.record_payment', { invoice_id: 'i1', mode: 'cash', amount: 50 }));
+});
+
+Deno.test('invoices: business details are read from HighLevel settings or location', () => {
+  assertEquals(inv.toBusinessDetails({ businessDetails: { name: ' IXTY9 LLC ', phoneNo: '+1555' } }), { name: 'IXTY9 LLC', phoneNo: '+1555' });
+  assertEquals(inv.toBusinessDetails({ location: { name: 'Shop', email: 'a@b.co', city: 'Austin' } }), { name: 'Shop', email: 'a@b.co', address: { city: 'Austin' } });
+  assertEquals(inv.toBusinessDetails({ businessDetails: { name: '' } }), null);
 });

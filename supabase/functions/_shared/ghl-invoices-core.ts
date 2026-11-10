@@ -130,6 +130,28 @@ export interface InvoiceFacts {
   invoice?: Record<string, any>;
   contact?: { id: string; name: string; email?: string; phone?: string };
   ghlUserId?: string | null;
+  business?: Record<string, unknown>;
+}
+
+/** Map HighLevel invoice settings or a location record to invoice businessDetails. Null if no name. */
+export function toBusinessDetails(src: unknown): Record<string, unknown> | null {
+  if (!isObj(src)) return null;
+  const s: any = isObj((src as any).businessDetails) ? (src as any).businessDetails : isObj((src as any).location) ? (src as any).location : src;
+  const name = typeof s.name === 'string' && s.name.trim() ? s.name.trim() : null;
+  if (!name) return null;
+  const out: Record<string, unknown> = { name };
+  const str = (v: unknown) => typeof v === 'string' && v.trim() ? v.trim() : undefined;
+  const phone = str(s.phoneNo) ?? str(s.phone); if (phone) out.phoneNo = phone;
+  const email = str(s.email); if (email) out.email = email;
+  const logo = str(s.logoUrl); if (logo) out.logoUrl = logo;
+  const web = str(s.website); if (web) out.website = web;
+  if (isObj(s.address)) out.address = s.address;
+  else {
+    const a: Record<string, string> = {};
+    for (const [k, v] of [['addressLine1', s.address], ['city', s.city], ['state', s.state], ['postalCode', s.postalCode], ['countryCode', s.country]] as const) { const t = str(v); if (t) a[k] = t; }
+    if (Object.keys(a).length) out.address = a;
+  }
+  return out;
 }
 
 const fmt = (amount: unknown, currency: unknown) =>
@@ -167,7 +189,7 @@ export function buildGhlRequest(cmd: Command, loc: string, f: InvoiceFacts): { m
     case 'invoices.delete': return { method: 'DELETE', path: `/invoices/${p.invoice_id}?${alt(loc)}` };
     case 'invoices.void': return { method: 'POST', path: `/invoices/${p.invoice_id}/void`, body: { altId: loc, altType: 'location' } };
     case 'invoices.create': {
-      if (!f.contact) return null;
+      if (!f.contact || !f.business) return null;
       const c = f.contact;
       return {
         method: 'POST', path: '/invoices/',
@@ -175,6 +197,7 @@ export function buildGhlRequest(cmd: Command, loc: string, f: InvoiceFacts): { m
           altId: loc, altType: 'location', name: p.name, currency: p.currency, issueDate: p.issueDate,
           ...(p.dueDate ? { dueDate: p.dueDate } : {}), ...(p.title ? { title: p.title } : {}),
           contactDetails: { id: c.id, name: c.name, ...(c.email ? { email: c.email } : {}), ...(c.phone ? { phoneNo: c.phone } : {}) },
+          businessDetails: f.business,
           items: toGhlItems(p.items, p.currency), liveMode: true,
         },
       };
