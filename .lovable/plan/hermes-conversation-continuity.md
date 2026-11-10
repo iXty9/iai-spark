@@ -42,3 +42,11 @@ Implementation notes: failed turns (e.g. 429) are not auto-resent under the same
 ## Rollback
 - Containment: switch off (immediate, today's stateless behaviour, notice shown).
 - Full: redeploy the previous `hermes-chat` and revert the three browser files. Tables stay unless you separately approve deleting them. The actual deployed version is recorded after deploy.
+
+## Rev 2.1 — pre-pilot fixes (IT Helper findings 1 and 2), 2026-11-10
+- Finding 1: once Hermes is selected, only `hermes_not_selected` / `hermes_not_allowed` fall back to Webhook; transport, auth, config, malformed and status-check failures are shown. Switch OFF keeps the old fallback.
+- Finding 2A: `public.hermes_finish_turn` (service_role only) locks the conversation row and saves the turn only if generation+token are current; otherwise the turn is marked failed/stale_generation with no reply.
+- Finding 2B: the cross-tab clear broadcast invalidates that tab's Hermes marker; the reply fence runs again after streaming, right before the reply is shown or saved.
+- Tests: Deno 13/13 (new: reset between reply and save); vitest `src/services/chat/__tests__/hermes-routing.test.ts` 9/9 (zero Webhook calls on throw, unlabelled, malformed and status-check errors; one call per denial code; cross-tab clear drops an in-flight reply; OFF keeps fallback).
+- Deployed hermes-chat: submitted bundle sha256 b5aad0facc8c96e4ce5bbbf9002e824435de0f8f68059dbe5c3e13eafe9da041 (bundle hash, not a single-file hash; no Supabase revision ID returned).
+- Switch read back 18:2x UTC: `hermes_session_continuity_enabled = false` (last updated 18:10:51 UTC). Eligible accounts if switched on: 1 (allowlisted + Hermes selected).
