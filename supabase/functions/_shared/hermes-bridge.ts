@@ -12,7 +12,8 @@ export interface HermesStore {
   getTurn(userId: string, generation: number, msgId: string): Promise<TurnRow | null>;
   /** Returns false if the turn already exists. */
   insertPendingTurn(userId: string, generation: number, msgId: string): Promise<boolean>;
-  finishTurn(userId: string, generation: number, msgId: string, status: "completed" | "failed" | "uncertain", reply: string | null, errorCode: string | null): Promise<void>;
+  /** Atomic: locks the conversation row, saves only if generation+token still current. Returns false when a reset won. */
+  finishTurn(userId: string, generation: number, token: string, msgId: string, status: "completed" | "failed" | "uncertain", reply: string | null, errorCode: string | null): Promise<boolean>;
 }
 
 export interface BridgeDeps {
@@ -85,17 +86,16 @@ export async function handleSend(
     outcome = classifyHermes({ transportError: true, sentSessionId: row.hermes_session_id });
   }
 
-  // Fence: a reset that happened during the call wins; the stale reply is not stored or shown.
-  const after = await deps.store.getConversation(userId);
-  if (!after || after.generation !== row.generation) {
-    await deps.store.finishTurn(userId, row.generation, msgId, "failed", null, "stale_generation");
-    return fail(409, "stale_generation", after ? state(after) : {});
-  }
-
+  // Fence: check-and-save is one atomic step; if a reset won, nothing is stored or shown.
+  const stale = async () => {
+    const latest = await deps.store.getConversation(userId);
+    return fail(409, "stale_generation", latest ? state(latest) : {});
+  };
+  const tok = row.conversation_token;
   if (outcome.kind === "ok") {
-    await deps.store.finishTurn(userId, row.generation, msgId, "completed", outcome.content, null);
+    if (!(await deps.store.finishTurn(userId, row.generation, tok, msgId, "completed", outcome.content, null))) return await stale();
     return { status: 200, body: { content: outcome.content, continuity: true, ...state(row) } };
   }
-  await deps.store.finishTurn(userId, row.generation, msgId, outcome.turnStatus, null, outcome.code);
+  if (!(await deps.store.finishTurn(userId, row.generation, tok, msgId, outcome.turnStatus, null, outcome.code))) return await stale();
   return fail(outcome.code === "hermes_busy" ? 429 : 502, outcome.code, state(row));
 }
