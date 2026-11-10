@@ -1,3 +1,4 @@
+import { getValidAccessToken as sharedGetToken } from '../_shared/ghl-token-manager.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -171,88 +172,17 @@ async function encryptToken(token: string, key: string): Promise<string> {
   return btoa(String.fromCharCode(...combined));
 }
 
-// Refresh token if needed, returns decrypted access token
+// Delegates to the shared token manager (single-writer refresh).
 async function getValidAccessToken(
   supabase: any,
   installation: any,
-  encryptionKey: string,
-  clientId: string,
-  clientSecret: string
+  _encryptionKey: string,
+  _clientId: string,
+  _clientSecret: string
 ): Promise<{ accessToken: string; error?: string }> {
-  const expiresAt = new Date(installation.token_expires_at);
-  const now = new Date();
-  const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
-  
-  // If token is still valid, just decrypt and return
-  if (expiresAt > fiveMinutesFromNow) {
-    console.log('[ghl-api-proxy] Token still valid, using existing token');
-    const accessToken = await decryptToken(installation.access_token_encrypted, encryptionKey);
-    return { accessToken };
-  }
-
-  console.log('[ghl-api-proxy] Token expired or expiring soon, refreshing...');
-  
-  // Decrypt refresh token
-  const refreshToken = await decryptToken(installation.refresh_token_encrypted, encryptionKey);
-
-  // Call GHL token refresh endpoint
-  const tokenResponse = await fetch('https://services.leadconnectorhq.com/oauth/token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Accept': 'application/json',
-    },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      grant_type: 'refresh_token',
-      refresh_token: refreshToken,
-    }),
-  });
-
-  if (!tokenResponse.ok) {
-    const errorText = await tokenResponse.text();
-    console.error('[ghl-api-proxy] Token refresh failed:', errorText);
-    
-    // Update installation with error
-    await supabase
-      .from('ghl_installations')
-      .update({
-        connection_status: 'error',
-        refresh_error: `Token refresh failed: ${errorText}`,
-      })
-      .eq('user_id', installation.user_id);
-
-    return { accessToken: '', error: `Token refresh failed: ${errorText}` };
-  }
-
-  const tokenData = await tokenResponse.json();
-  const newExpiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
-
-  // Encrypt new tokens
-  const encryptedAccessToken = await encryptToken(tokenData.access_token, encryptionKey);
-  const encryptedRefreshToken = await encryptToken(tokenData.refresh_token, encryptionKey);
-
-  // Update database
-  const { error: updateError } = await supabase
-    .from('ghl_installations')
-    .update({
-      access_token_encrypted: encryptedAccessToken,
-      refresh_token_encrypted: encryptedRefreshToken,
-      token_expires_at: newExpiresAt.toISOString(),
-      last_refresh_at: new Date().toISOString(),
-      connection_status: 'connected',
-      refresh_error: null,
-    })
-    .eq('user_id', installation.user_id);
-
-  if (updateError) {
-    console.error('[ghl-api-proxy] Failed to update tokens:', updateError);
-    return { accessToken: '', error: 'Failed to update tokens in database' };
-  }
-
-  console.log('[ghl-api-proxy] Token refreshed successfully');
-  return { accessToken: tokenData.access_token };
+  const out = await sharedGetToken(supabase, installation.id, { source: 'proxy' });
+  if (!out.ok) return { accessToken: '', error: `Token unavailable (${out.reason}): ${out.detail}` };
+  return { accessToken: out.accessToken };
 }
 
 Deno.serve(async (req) => {
