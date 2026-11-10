@@ -88,3 +88,6 @@ verify_jwt = false
 
 [functions.ghl-invoices]
 verify_jwt = false
+
+[functions.ghl-notification-deliver]
+verify_jwt = false
