@@ -142,7 +142,15 @@ export default function OAuth() {
 
         if (invokeError) {
           console.error('[OAuth] Edge function invoke error:', invokeError);
-          throw new Error(invokeError.message || 'Failed to complete OAuth flow');
+          let reason = invokeError.message || 'Failed to complete OAuth flow';
+          try {
+            const ctx = (invokeError as { context?: Response }).context;
+            if (ctx && typeof ctx.json === 'function') {
+              const body = await ctx.json();
+              if (body?.error) reason = body.error;
+            }
+          } catch { /* keep default reason */ }
+          throw new Error(reason);
         }
 
         if (data?.error) {
