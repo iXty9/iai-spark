@@ -116,7 +116,7 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
   },
   // Configure base path for production assets
-  base: "./",
+  base: "/",
   plugins: [
     react(),
     generateVersionPlugin(),
