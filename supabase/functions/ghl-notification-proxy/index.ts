@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { verifyGHLSignature, createUnauthorizedResponse } from '../_shared/ghl-signature-verify.ts';
+import { signActor, secretUsable, ACTOR_HEADER } from '../_shared/ixty-actor.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -48,7 +49,7 @@ Deno.serve(async (req) => {
     const { data: settingsData, error: settingsError } = await supabase
       .from('app_settings')
       .select('key, value')
-      .in('key', ['ghl_notification_webhook_url', 'ghl_proxy_secret', 'ghl_signature_verification_enabled']);
+      .in('key', ['ghl_notification_webhook_url', 'ghl_notification_shadow_url', 'ghl_proxy_secret', 'ghl_signature_verification_enabled']);
 
     if (settingsError) {
       console.error('[ghl-notification-proxy] Failed to fetch settings:', settingsError.message);
@@ -183,7 +184,7 @@ Deno.serve(async (req) => {
     // Look up user_id from ghl_installations
     const { data: installation, error: lookupError } = await supabase
       .from('ghl_installations')
-      .select('user_id')
+      .select('id, user_id')
       .eq('location_id', locationId)
       .eq('connection_status', 'connected')
       .maybeSingle();
@@ -220,13 +221,29 @@ Deno.serve(async (req) => {
       forwardHeaders['X-Ixty-Proxy-Secret'] = proxySecret;
     }
 
-    const n8nResponse = await fetch(notificationWebhookUrl, {
-      method: 'POST',
-      headers: forwardHeaders,
-      body: JSON.stringify(enrichedPayload)
-    });
+    // Signed "who this is for" note so CMS v2 never trusts body fields for identity.
+    const signingSecret = Deno.env.get('IXTY_ACTOR_SIGNING_SECRET');
+    if (secretUsable(signingSecret)) {
+      forwardHeaders[ACTOR_HEADER] = await signActor(
+        { sub: installation.user_id, inst: installation.id, loc: locationId },
+        signingSecret,
+      );
+    }
+    const body = JSON.stringify(enrichedPayload);
 
+    const n8nResponse = await fetch(notificationWebhookUrl, { method: 'POST', headers: forwardHeaders, body });
     console.log(`[ghl-notification-proxy] n8n response: ${n8nResponse.status}`);
+
+    // Side-by-side trial: optional second (CMS v2) address, never affects the main result.
+    const shadowUrl = settingsData?.find(s => s.key === 'ghl_notification_shadow_url')?.value;
+    if (shadowUrl && shadowUrl !== notificationWebhookUrl && shadowUrl.startsWith('https://')) {
+      try {
+        const r = await fetch(shadowUrl, { method: 'POST', headers: { ...forwardHeaders, 'x-ixty-shadow': '1' }, body });
+        console.log(`[ghl-notification-proxy] shadow response: ${r.status}`);
+      } catch (e) {
+        console.warn('[ghl-notification-proxy] shadow forward failed:', (e as Error).message);
+      }
+    }
 
     return new Response(
       JSON.stringify({ success: true, forwarded: true, dedup_keys: keysToInsert.map(k => k.webhook_id) }),
