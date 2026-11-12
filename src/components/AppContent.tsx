@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuthThemeSync } from '@/hooks/use-auth-theme-sync';
 import Index from '@/pages/Index';
@@ -7,7 +7,6 @@ import Settings from '@/pages/Settings';
 import Profile from '@/pages/Profile';
 import Admin from '@/pages/Admin';
 import AdminUserProfile from '@/pages/AdminUserProfile';
-import Initialize from '@/pages/Initialize';
 import { ErrorPage } from '@/pages/ErrorPage';
 import NotFound from '@/pages/NotFound';
 import Reconnect from '@/pages/Reconnect';
@@ -44,7 +43,7 @@ export const AppContent = () => {
       <Route path="/" element={<Index />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/supabase-auth" element={<SupabaseAuth />} />
-      <Route path="/initialize" element={<Initialize />} />
+      <Route path="/initialize" element={<Navigate to="/" replace />} />
       <Route path="/reconnect" element={<Reconnect />} />
       <Route path="/chat" element={<Index />} />
       <Route path="/error" element={<ErrorPage />} />
