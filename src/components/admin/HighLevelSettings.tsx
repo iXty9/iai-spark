@@ -498,7 +498,7 @@ export function HighLevelSettings() {
 
           {/* Proxy Secret */}
           <div className="space-y-2">
-            <Label htmlFor="proxy-secret">Proxy Secret</Label>
+            <Label htmlFor="proxy-secret">Notification Forwarding Secret</Label>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Input
@@ -551,7 +551,7 @@ export function HighLevelSettings() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Used in <code className="bg-muted px-1 rounded">X-Ixty-Proxy-Secret</code> header for both API proxy and notification forwarding to n8n
+              Sent in the <code className="bg-muted px-1 rounded">X-Ixty-Proxy-Secret</code> header when HighLevel notifications are forwarded to n8n. The old API proxy now uses its own server-only password.
             </p>
           </div>
 
@@ -559,7 +559,7 @@ export function HighLevelSettings() {
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                Rotating this secret will require updating the header validation in all n8n workflows that use the GHL API proxy or receive notifications.
+                Rotating this secret will require updating the n8n credential on the HighLevel notification webhook.
               </AlertDescription>
             </Alert>
           )}
