@@ -2,10 +2,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { verifyActor, ACTOR_HEADER } from "../_shared/ixty-actor.ts";
+import { decideProactiveAccess, safeEqual } from "../_shared/proactive-auth-core.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-ixty-actor, x-ixty-post-secret',
 };
 
 // Input validation schema
@@ -184,6 +186,43 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // ---- Who is asking? (see _shared/proactive-auth-core.ts) ----
+    const bearer = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
+    const serverAuth =
+      safeEqual(req.headers.get('x-ixty-post-secret'), Deno.env.get('PROACTIVE_POST_SECRET')) ||
+      safeEqual(bearer, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
+    let actorSub: string | null = null;
+    const actorHeader = req.headers.get(ACTOR_HEADER);
+    if (actorHeader) {
+      const v = await verifyActor(actorHeader, Deno.env.get('IXTY_ACTOR_SIGNING_SECRET'));
+      if (v.ok) actorSub = v.claims.sub;
+    }
+    let isAdmin = false;
+    if (!serverAuth && !actorSub && bearer) {
+      const { data: u } = await supabaseClient.auth.getUser(bearer);
+      if (u?.user) {
+        const { data: r } = await supabaseClient.rpc('has_role', { _user_id: u.user.id, _role: 'admin' });
+        isAdmin = r === true;
+      }
+    }
+    const { data: lockRow } = await supabaseClient
+      .from('app_settings').select('value').eq('key', 'proactive_post_lock_enabled').maybeSingle();
+    const decision = decideProactiveAccess({
+      lockEnabled: lockRow?.value === 'true',
+      serverAuth, isAdmin, actorSub, body,
+    });
+    if (!decision.ok) {
+      console.warn('[proactive-message-webhook] refused', decision.code);
+      return new Response(JSON.stringify({ error: 'Unauthorized', code: decision.code }), {
+        status: decision.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (decision.mode === 'actor') {
+      body.user_id = decision.forcedUserId;
+      body.username = undefined;
+      body.broadcast_all = false;
+    }
 
     // Determine targeting mode
     const wantsBroadcast = body.broadcast_all === true;

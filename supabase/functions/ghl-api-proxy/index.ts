@@ -1,4 +1,6 @@
 import { getValidAccessToken as sharedGetToken } from '../_shared/ghl-token-manager.ts';
+import { fenceProxyRequest } from '../_shared/ghl-api-proxy-fence-core.ts';
+import { safeEqual } from '../_shared/proactive-auth-core.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -205,35 +207,16 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch proxy secret from app_settings table
-    const { data: secretSetting, error: secretError } = await supabase
-      .from('app_settings')
-      .select('value')
-      .eq('key', 'ghl_proxy_secret')
-      .maybeSingle();
-
-    if (secretError) {
-      console.error('[ghl-api-proxy] Failed to fetch proxy secret:', secretError);
-      return new Response(
-        JSON.stringify({ error: 'Server configuration error' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const expectedSecret = secretSetting?.value;
-    
-    if (!expectedSecret) {
-      console.error('[ghl-api-proxy] ghl_proxy_secret not configured in app_settings');
+    // Shared password is server-only (function secret), never in app_settings.
+    const expectedSecret = Deno.env.get('GHL_LEGACY_PROXY_SECRET');
+    if (!expectedSecret || expectedSecret.length < 32) {
+      console.error('[ghl-api-proxy] GHL_LEGACY_PROXY_SECRET not configured');
       return new Response(
         JSON.stringify({ error: 'Proxy not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Validate proxy secret from request header
-    const proxySecret = req.headers.get('x-ixty-proxy-secret');
-
-    if (!proxySecret || proxySecret !== expectedSecret) {
+    if (!safeEqual(req.headers.get('x-ixty-proxy-secret'), expectedSecret)) {
       console.error('[ghl-api-proxy] Invalid or missing proxy secret');
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
@@ -243,6 +226,15 @@ Deno.serve(async (req) => {
 
     // Parse request body
     const { user_id, endpoint, method = 'GET', body, query } = await req.json();
+
+    const fence = fenceProxyRequest(method, endpoint);
+    if (!fence.ok) {
+      console.warn(`[ghl-api-proxy] fenced: ${fence.code}`);
+      return new Response(
+        JSON.stringify({ error: 'Not allowed through the legacy proxy; use CMS v2 tools', code: fence.code }),
+        { status: fence.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (!user_id) {
       return new Response(
