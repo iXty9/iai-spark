@@ -2,10 +2,12 @@
 - [x] Switch HighLevel notifications to CMS v2 (verified with live test)
 - [x] Hermes + IT Helper doors in CMS v2 ("📢 App iXty9 CMS v2 — Agent doors", published); hermes-chat sends signed note
 - [ ] Point Hermes and IT Helper at the new door addresses — waiting on user (configured outside iai-spark)
-- [ ] Lock down proactive-message-webhook — waiting on MCP access to "🌟 iai-spark: Message" — MUST finish before marketplace publish
+- [~] Lock down proactive-message-webhook: rules + password deployed, lock switch OFF — waiting on user to create n8n Header Auth credential "iai-spark post secret"; then wire Message workflow and set proactive_post_lock_enabled=true — MUST finish before marketplace publish
 - [ ] 24-hour quiet period on the old workflow, after the two items above
-- [ ] Unpublish old "📢 HighLevel API" (keep 30-day copy); remove old notification address
-- [ ] Fence then retire ghl-api-proxy; rotate shared password
+- [x] Old "📢 HighLevel API" inactive (user); no old notification address left; trial setting removed
+- [ ] Archive old workflow after 30 days (~Dec 12 2026)
+- [x] ghl-api-proxy fenced (GET allowlist only) with new server-only password
+- [x] Legacy BYO-Supabase setup wizard removed
 - [ ] Marketplace submission — user submits
 - [x] Hermes continuity built and deployed with switch OFF
 - [ ] Hermes continuity: turn switch on for pilot + run live canaries with IT Helper — waiting on approval
