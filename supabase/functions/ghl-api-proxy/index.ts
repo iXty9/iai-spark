@@ -208,9 +208,9 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Shared password is server-only (function secret), never in app_settings.
-    const expectedSecret = Deno.env.get('GHL_PROXY_SECRET');
+    const expectedSecret = Deno.env.get('GHL_LEGACY_PROXY_SECRET');
     if (!expectedSecret || expectedSecret.length < 32) {
-      console.error('[ghl-api-proxy] GHL_PROXY_SECRET not configured');
+      console.error('[ghl-api-proxy] GHL_LEGACY_PROXY_SECRET not configured');
       return new Response(
         JSON.stringify({ error: 'Proxy not configured' }),
         { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
