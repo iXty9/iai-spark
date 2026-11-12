@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
 
   const r = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/proactive-message-webhook`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`, 'x-ixty-actor': actorNote },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`, 'x-ixty-actor': req.headers.get(ACTOR_HEADER) ?? '' },
     body: JSON.stringify({ user_id: plan.userId, message: plan.message, sender: 'HighLevel', metadata: { source: 'ghl_notification', location_id: v.claims.loc } }),
   });
   if (!r.ok) {
